@@ -54,13 +54,22 @@ For each phase:
 - [ ] Select and document the initial implementation stack.
 - [ ] Create a minimal, runnable application with health checks.
 - [ ] Establish development and production configuration separation.
-- [ ] Establish secrets management and redacted logging.
+- [ ] Establish secrets management: `.env.development` is allowed for
+  development/test secrets only; real production/runtime secrets use
+  macOS Keychain; no plaintext `.env.production` file is used for real
+  production secrets. Enforce PERSONAL_/BRAINSTORM_/SHARED_
+  trust-boundary access in code, and apply centralized redacted
+  logging. (D017)
+- [ ] Add a lightweight local secret-scanning safeguard before any real
+  credential is introduced. (D017)
 - [ ] Implement personal and Brainstorm trust boundaries.
 - [ ] Implement data classification and policy enforcement.
 - [ ] Implement the initial action gateway with writes denied by default.
 - [ ] Add automated checks for boundary and permission enforcement.
 - [ ] Establish private access and document service startup and shutdown.
-- [ ] Create an initial backup and verify restoration.
+- [ ] Create an initial backup and verify restoration, including a
+  secrets recovery procedure tested separately from code and database
+  backup/restore. (D017)
 - [ ] Install Ollama and benchmark one fast local model and one stronger local model on real Zac AI tasks (evaluation only; not yet wired into canonical state, memory, or model routing).
 - [ ] Record local-model benchmark results and hardware fit as a decision in DECISIONS.md.
 

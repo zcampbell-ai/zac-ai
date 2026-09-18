@@ -368,6 +368,123 @@ None. Extends D002 (Mac Studio Is the Initial Compute Node) and D008
 (Model Routing Is Replaceable and Policy-Aware) by sequencing their
 implementation; does not change the substance of either decision.
 
+## D017 - Secrets and Configuration Management Approach (v1)
+Status: Accepted
+Date: 2026-09-18
+
+Context:
+Phase 1 requires establishing secrets management and redacted logging
+before any live integration is connected (ROADMAP.md Phase 1; Phase 3
+gate). DECISIONS.md listed secrets storage implementation as an open
+decision. An architecture review evaluated environment variables,
+.env files, macOS Keychain, encrypted storage, and dedicated secrets
+managers against SECURITY.md and CLAUDE.md: never commit secrets to
+Git, never hardcode them in source, keep Personal and Brainstorm
+credentials logically separable, distinguish development from
+production/runtime configuration, and avoid granting Claude Code or
+other agents automatic access to every secret.
+
+Decision:
+Adopt a three-tier, env-var-based secrets and configuration model
+for v1:
+- Tier 0: versioned, non-secret configuration (ports, feature flags,
+  model names, log levels) in committed config files that reference
+  secret names only, never values.
+- Tier 1: local development and test secrets in a gitignored
+  `.env.development` file. Development credentials only; never used
+  for production/runtime secrets.
+- Tier 2: real production/runtime secrets stored in macOS Keychain,
+  read into process environment variables only at service startup by
+  a small loader. No plaintext `.env.production` file will hold real
+  credentials.
+
+Every secret name carries a trust-boundary prefix: PERSONAL_,
+BRAINSTORM_, or SHARED_. Boundary access is enforced in code through
+a config-loader accessor that checks a secret's prefix against the
+caller's declared boundary, not by naming convention alone.
+Centralized logging redaction removes values matching secret-like
+key names and common token shapes before anything is written to a
+log or surfaced to Zac. Secrets recovery is documented and tested
+separately from the Git code backup and any database backup.
+Keychain is treated as the current implementation of a replaceable
+secrets-provider interface, so it can be swapped for a dedicated
+secrets manager later without changing application code.
+
+No real credentials or Keychain entries are created by this
+decision. They will be added only when a specific approved
+integration requires them. A lightweight local secret-scanning
+safeguard will be added to Phase 1 before any real credential is
+introduced; CI-enforced scanning is deferred.
+
+Alternatives considered:
+A plaintext .env.production file for real credentials was rejected:
+it would leave production secrets unencrypted at rest and readable
+by any process or tool, including Claude Code, with file access,
+undermining the requirement that agents not automatically gain
+access to every secret. A dedicated secrets manager (Vault, Doppler,
+1Password Connect, AWS/GCP Secrets Manager) was rejected for v1 as
+unjustified infrastructure for a single always-on node with a single
+operator; it remains available later without an architecture change
+because the application only ever depends on environment variables,
+not on Keychain specifically. Relying on naming convention alone,
+without code-enforced boundary checks, was rejected because a
+convention can be silently bypassed. Deferring secret-scanning
+entirely was rejected; a lightweight local safeguard is cheap enough
+to add before real credentials exist, though CI enforcement can
+wait.
+
+Reasons and tradeoffs:
+Keychain gives OS-level encryption at rest and requires an explicit,
+visible retrieval action rather than an incidental file read, which
+better satisfies the requirement that agents not automatically see
+every secret. This adds a small amount of implementation work, a
+loader script, and is macOS-specific, but only at the retrieval
+layer; the application itself remains portable because it only
+consumes environment variables. Building the security rails, that
+is boundary enforcement, redaction, a recovery plan, and a scanning
+safeguard, before any real credential exists trades a small delay in
+connecting integrations for confidence that the rails work before
+anything sensitive depends on them.
+
+Security and data implications:
+No live personal or Brainstorm data or credentials are introduced by
+this decision. Data classification, trust boundaries (D003), and
+approval requirements in SECURITY.md are unchanged. This decision
+specifies the mechanism by which SECURITY.md's existing rule to use
+environment variables or an approved secrets mechanism is satisfied
+for v1, and clarifies that macOS Keychain is the approved mechanism
+for production/runtime secrets.
+
+Consequences:
+ROADMAP.md Phase 1 gains an explicit item to add a lightweight local
+secret-scanning safeguard before any real credential is introduced,
+and clarifies that production secrets use Keychain rather than a
+.env.production file. SECURITY.md is updated to name Keychain as the
+approved v1 mechanism for production secrets, to require code-
+enforced boundary access, and to require secrets recovery to be
+tested separately from code and database backup. No files, Keychain
+entries, or software are created or installed by this decision
+itself; those remain separate, later steps gated on an approved
+integration actually needing credentials.
+
+Verification:
+Confirm no .env.production file or real credential exists until a
+specific approved integration requires one. Confirm any secret
+ultimately introduced is named with a PERSONAL_, BRAINSTORM_, or
+SHARED_ prefix and is only reachable through the boundary-checked
+accessor. Confirm centralized log redaction is in place and tested
+before any real credential is introduced. Confirm a lightweight
+local secret-scanning safeguard is installed and run before any real
+credential is introduced. Confirm secrets recovery is documented and
+tested separately from code and database backup/restore.
+
+Approval or source:
+Zac Campbell, architecture review conversation, 2026-09-18.
+
+Supersedes:
+None. Resolves the "Secrets storage implementation" item from the
+Open Decisions list.
+
 ## Open Decisions
 These choices have not yet been made:
 - Application language and framework
@@ -376,7 +493,6 @@ These choices have not yet been made:
 - Cloud models and account configuration
 - First read-only integration and its authorization method
 - Event transport and workflow execution mechanism
-- Secrets storage implementation
 - Backup destination, schedule, retention, and recovery targets
 - Text interface implementation
 - Voice provider and API

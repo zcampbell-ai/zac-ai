@@ -10,7 +10,12 @@ Security takes priority over convenience.
 - Never commit passwords, API keys, tokens, private keys, or secrets to Git.
 - Never print secrets into logs.
 - Never place production credentials directly into source code.
-- Use environment variables or an approved secrets mechanism.
+- Use environment variables for configuration. Store development/test
+  secrets in gitignored `.env` files. Store production/runtime secrets
+  in macOS Keychain (the approved v1 mechanism) or another approved
+  secrets provider, never in a plaintext file.
+- Enforce secret access by PERSONAL_ / BRAINSTORM_ / SHARED_
+  trust-boundary prefix in code, not by naming convention alone.
 - Do not expose local AI services or Zac AI directly to the public internet.
 - Prefer private networking such as Tailscale for remote access.
 - New integrations begin read-only unless explicitly approved otherwise.
@@ -128,6 +133,8 @@ Maintain:
 - Configuration backups
 - Documented restoration procedures
 - Secrets stored separately from code
+- Secrets recovery documented and tested separately from code and
+  database backup and restoration
 - Recovery access for critical infrastructure
 
 ## Vendor Independence
