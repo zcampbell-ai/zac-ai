@@ -61,6 +61,8 @@ For each phase:
 - [ ] Add automated checks for boundary and permission enforcement.
 - [ ] Establish private access and document service startup and shutdown.
 - [ ] Create an initial backup and verify restoration.
+- [ ] Install Ollama and benchmark one fast local model and one stronger local model on real Zac AI tasks (evaluation only; not yet wired into canonical state, memory, or model routing).
+- [ ] Record local-model benchmark results and hardware fit as a decision in DECISIONS.md.
 
 ## Phase 2 - Canonical State, Memory, and Evidence
 - [ ] Define schemas for all first-class entities in ARCHITECTURE.md.
@@ -73,6 +75,7 @@ For each phase:
 - [ ] Validate using synthetic data before connecting private sources.
 
 ## Phase 3 - Read-Only Integrations and Events
+- [ ] Confirm Phase 1 secrets management, redacted logging, and a verified backup/restore are complete before connecting any live Gmail, Slack, Salesforce, or ClickUp account.
 - [ ] Choose and document the first useful read-only integration.
 - [ ] Implement a reusable connector and normalized event interface.
 - [ ] Support deduplication, incremental sync, retries, and sync status.
@@ -100,8 +103,8 @@ For each phase:
 
 ## Phase 5 - Model Routing and Shared Text Interface
 - [ ] Implement a replaceable model-provider interface.
-- [ ] Evaluate a fast local model on actual Zac AI tasks.
-- [ ] Evaluate a stronger local model within Mac Studio capacity.
+- [ ] Integrate the fast local model benchmarked in Phase 1 into the replaceable model-provider interface.
+- [ ] Integrate the stronger local model benchmarked in Phase 1 into the replaceable model-provider interface.
 - [ ] Add approved OpenAI and Anthropic provider adapters.
 - [ ] Route by privacy, quality, latency, cost, tools, and availability.
 - [ ] Add caching, usage accounting, budget alerts, and limits.

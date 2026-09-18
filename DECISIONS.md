@@ -244,6 +244,130 @@ Evaluate provider capabilities and permissions before adoption.
 Publishing requires approval unless explicitly authorized otherwise.
 Broader Brainstorm use requires role-based access.
 
+## D016 - Initial Technology Stack and Early Local Model Evaluation
+Status: Accepted
+Date: 2026-09-18
+
+Context:
+A read-only inventory of the Mac Studio (Apple M4 Max, 16 CPU cores -
+12 Performance and 4 Efficiency, 40 GPU cores, 64GB memory, and
+approximately 911GB free storage) confirmed ample hardware headroom
+for local inference. Homebrew, Python, uv, Node.js/npm, PostgreSQL,
+pgvector, Docker, Ollama, MLX, OpenClaw, Tailscale, and Claude Code
+were evaluated against Apple Silicon performance, security,
+simplicity, vendor replaceability, local AI capability, future
+event-driven integrations, temporal/source-backed memory, model
+routing, and backup/disaster recovery, as required before selecting
+the Phase 1 implementation stack.
+
+Decision:
+Sequence the v1 stack as follows:
+
+Install now:
+- Homebrew
+- uv
+
+Already installed/configured:
+- Tailscale
+- Claude Code
+- Apple Command Line Tools
+- Git
+
+Install early, immediately after the basic Phase 1 development
+foundation is in place:
+- Ollama
+- One fast local model
+- One stronger local model
+This early work is a benchmark only. Ollama and the chosen local
+models do not become canonical architecture and do not own system
+state. Integrating them into the model router remains a Phase 5
+activity, informed by this early benchmark.
+
+Install later, when justified by the relevant implementation phase:
+- Python, managed through uv
+- PostgreSQL
+- pgvector
+- MLX
+
+Do not install yet:
+- Node.js/npm
+- Docker
+- OpenClaw
+
+Alternatives considered:
+Leaving all local-model evaluation at its original Phase 5 placement
+was rejected because local inference is a core design goal of Zac AI
+and real local performance and quality should be benchmarked early
+rather than assumed. Installing Docker now to run Ollama or
+PostgreSQL in containers was rejected for v1; on a single always-on
+node, native Homebrew services are simpler and avoid the overhead of
+Docker Desktop's Linux virtual machine on Apple Silicon. Adopting
+OpenClaw now was rejected; it remains an optional, later, replaceable
+orchestration component per D010. Installing Python directly through
+Homebrew was rejected in favor of managing it through uv, which can
+provision an exact interpreter version on demand without pre-empting
+the still-open application language and framework decision.
+
+Reasons and tradeoffs:
+Homebrew and uv are foundational, low-risk, and reversible, and they
+unblock later steps without pre-committing to unresolved Open
+Decisions. Tailscale and Claude Code are already in place and satisfy
+SECURITY.md's private-networking guidance and the Phase 1 private-
+access task. Early Ollama and local-model benchmarking trades a small
+amount of near-term simplicity for earlier evidence on a core design
+goal, while deliberately withholding state ownership and model-router
+integration so that vendor and model replaceability are preserved.
+PostgreSQL, pgvector, and MLX wait for the phases that actually need
+them, keeping the running surface minimal. Node.js/npm, Docker, and
+OpenClaw are withheld because nothing in the current or next phase
+requires them, and installing them now would guess at still-open
+decisions or add unnecessary services.
+
+Security and data implications:
+This decision only sequences tooling installation; no live personal
+or Brainstorm data is processed by it. Ollama and local models run
+entirely on-device with no external network exposure, consistent
+with SECURITY.md's preference for local processing. Tailscale ensures
+no service is exposed to the public internet. Data classification,
+trust boundaries, and approval requirements are unchanged. Secrets
+management, redacted logging, and a verified backup and restore must
+be completed before any live Gmail, Slack, Salesforce, or ClickUp
+account is connected.
+
+Consequences:
+Ollama and its models are evaluated early but remain outside
+canonical state, memory, and the model router until Phase 5 formally
+integrates them. ROADMAP.md Phase 1 gains explicit local-model
+benchmarking steps; Phase 5 is reworded to integrate the Phase 1
+benchmark results rather than evaluate from zero; Phase 3 gains an
+explicit gate requiring secrets management and a verified backup and
+restore before any live Gmail, Slack, Salesforce, or ClickUp
+connection. PostgreSQL, pgvector, MLX, Node.js/npm, Docker, and
+OpenClaw remain undecided or deferred; none are authorized for
+installation by this decision. Zac AI continues to own canonical
+state and history; personal and Brainstorm trust boundaries, source
+provenance, temporal memory, security and approval gates, and
+model/vendor replaceability (D001, D003, D004, D007, D008, D010) are
+unchanged by this decision.
+
+Verification:
+Confirm that only Homebrew and uv are installed as an immediate
+result of this decision. When Ollama and the two local models are
+later installed, confirm they are reachable only through localhost or
+Tailscale, never a public interface. Confirm Phase 5 work references
+and builds on the Phase 1 benchmark rather than repeating evaluation
+from scratch. Confirm no live Gmail, Slack, Salesforce, or ClickUp
+connection is made until the Phase 3 gate is checked off and
+verified.
+
+Approval or source:
+Zac Campbell, architecture review conversation, 2026-09-18.
+
+Supersedes:
+None. Extends D002 (Mac Studio Is the Initial Compute Node) and D008
+(Model Routing Is Replaceable and Policy-Aware) by sequencing their
+implementation; does not change the substance of either decision.
+
 ## Open Decisions
 These choices have not yet been made:
 - Application language and framework
