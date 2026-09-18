@@ -278,4 +278,4 @@ Approval or source:
 Supersedes:
 
 ## Next Concrete Step
-Populate and verify README.md.
+Inventory Mac Studio hardware and existing development tools using read-only checks before selecting the implementation stack.

@@ -43,10 +43,10 @@ For each phase:
 - [x] Populate and verify README.md.
 - [x] Inspect existing files and repository status.
 - [x] Configure Git exclusions for secrets, private data, logs, and backups.
-- [ ] Review and commit the foundation documents.
-- [ ] Verify the foundation is backed up to the private repository.
-- [ ] Install and authenticate Claude Code on the Mac Studio.
-- [ ] Verify Claude Code reads and follows the project instructions.
+- [x] Review and commit the foundation documents.
+- [x] Verify the foundation is backed up to the private repository.
+- [x] Install and authenticate Claude Code on the Mac Studio.
+- [x] Verify Claude Code reads and follows the project instructions. (Initial read-only review passed; this does not establish enforcement of every security policy.)
 - [ ] Give Claude Code one bounded initial implementation task.
 
 ## Phase 1 - Local Runtime and Safety Foundation
@@ -180,4 +180,4 @@ Backups and operational checks begin in Phase 1 and continue throughout.
 - [ ] Verify Zac's personal data never becomes company-wide by default.
 
 ## Next Concrete Step
-Review and commit the foundation documents, then verify the GitHub backup.
+Inventory Mac Studio hardware and existing development tools using read-only checks before selecting the implementation stack.
