@@ -67,9 +67,15 @@ For each phase:
 - [ ] Implement the initial action gateway with writes denied by default.
 - [ ] Add automated checks for boundary and permission enforcement.
 - [ ] Establish private access and document service startup and shutdown.
-- [ ] Create an initial backup and verify restoration, including a
-  secrets recovery procedure tested separately from code and database
-  backup/restore. (D017)
+- [ ] Create an initial backup and verify restoration across all
+  three recovery lanes (D017, D018): code/docs (Lane A, tested now),
+  Zac State/database (Lane B, tested once canonical Zac State exists,
+  with separate encryption keys per trust boundary), and secrets
+  escrow (Lane C, tested once the first real approved credential
+  exists in Keychain and the password manager - never create a
+  credential solely to run this test). A successful Lane A restore
+  drill alone does not satisfy this item; it remains incomplete until
+  Lane B and Lane C have each been tested under those conditions.
 - [ ] Install Ollama and benchmark one fast local model and one stronger local model on real Zac AI tasks (evaluation only; not yet wired into canonical state, memory, or model routing).
 - [ ] Record local-model benchmark results and hardware fit as a decision in DECISIONS.md.
 

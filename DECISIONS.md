@@ -485,6 +485,138 @@ Supersedes:
 None. Resolves the "Secrets storage implementation" item from the
 Open Decisions list.
 
+## D018 - Backup and Recovery Architecture (v1)
+Status: Accepted
+Date: 2026-09-18
+
+Context:
+ARCHITECTURE.md ("Disaster Recovery") and SECURITY.md ("Backups and
+Recovery") require recoverable code, state, and configuration, with
+secrets stored and recovered separately from code and database
+backups. D014 established recovery and value measurement as a core
+v1 requirement. D017 already established macOS Keychain as the v1
+production/runtime secret store. An architecture review designed the
+concrete backup/recovery model for the Mac Studio, at a point where
+no canonical Zac State/database yet exists and no real Keychain
+credential yet exists.
+
+Decision:
+Adopt a three-lane recovery model, each lane independently
+restorable so that recovering one never depends on recovering
+another:
+
+- Lane A - Code and documentation: Git plus the private GitHub
+  repository. Already continuously off-device; no new mechanism
+  needed. `RECOVERY.md` documents the model and manual rebuild
+  procedure and is itself versioned under Lane A.
+- Lane B - Zac State / database (Phase 2+, does not exist yet):
+  scheduled local dump plus a client-side encrypted off-device copy.
+  Personal and Brainstorm state must be encrypted with separate keys
+  once those stores hold sensitive data; a single shared key across
+  both trust boundaries is not permitted. Daily dump with a small
+  rolling retention window (for example 7 daily plus 4 weekly) is the
+  intended frequency once Lane B exists. The specific off-device
+  storage destination is deferred (see Open Decisions) until closer
+  to when canonical Zac State is created.
+- Lane C - Secrets escrow: the existing password manager, decided
+  this session as the v1 off-device escrow for whatever is in macOS
+  Keychain. No separate encrypted secrets archive is built. No
+  Keychain export/import automation is built yet. Neither the
+  password manager nor Keychain is populated with any Zac AI
+  credential until a specific approved integration requires it,
+  unchanged from D017.
+
+A successful Lane A restore drill (cloning the GitHub repository)
+validates Lane A only. It does not, by itself, satisfy the Phase 1
+"create an initial backup and verify restoration" requirement. That
+requirement remains incomplete until canonical Zac State exists and
+Lane B restoration has actually been tested, and until the first real
+approved credential exists and Lane C recovery has actually been
+tested. A credential must never be created solely to run a recovery
+test.
+
+Client-side encryption is required before any off-device copy leaves
+the Mac Studio, with the decryption key held separately from the
+encrypted data itself. `age` is the currently preferred candidate
+tool for this encryption, but it is not installed and not adopted as
+a final tool choice by this decision, so the architecture is not
+locked to a specific tool before Lane B or Lane C actually require
+one.
+
+No credentials, Keychain entries, password-manager entries, backup
+files, or software installs are created by this decision itself.
+
+Alternatives considered:
+A separate encrypted secrets archive for Lane C was considered and
+rejected in favor of the existing password manager, which avoids
+duplicate infrastructure and manual key management for something the
+password manager already does. Automating Keychain export/import now
+was rejected as premature, since no real secret exists yet to
+protect. A single shared encryption key across the Personal and
+Brainstorm boundaries for Lane B was rejected because it would let
+access to one boundary's backup expose the other's data, which would
+violate D003. Choosing the Lane B off-device destination now was
+rejected as premature, since no canonical Zac State exists yet to
+determine realistic size or access-pattern requirements; deferring
+avoids guessing. Committing to `age`, or any specific encryption
+tool, now was rejected to keep the architecture tool-agnostic until
+Lane B or Lane C actually require encryption.
+
+Reasons and tradeoffs:
+Reusing the existing password manager for Lane C avoids new
+infrastructure and manual encrypted-file upkeep, at the cost of
+depending on that vendor for secrets recovery. This is acceptable
+because Keychain remains the primary v1 runtime store and the
+password manager is only an off-device escrow of values, not logic
+or canonical state, consistent with vendor-independence principles.
+Separate encryption keys per trust boundary for Lane B add minor
+key-management overhead later but are necessary to prevent a
+boundary violation at the backup layer. Deferring the Lane B
+destination and the encryption tool choice trades some near-term
+architectural completeness for avoiding premature commitments before
+real requirements are known.
+
+Security and data implications:
+No live personal or Brainstorm data, credentials, or backups are
+created by this decision. Data classification and trust boundaries
+(SECURITY.md, D003) directly shape Lane B's per-boundary
+encryption-key requirement. Highly Restricted secrets continue to
+default to local storage in Keychain, with the password manager
+serving only as an off-device escrow, consistent with SECURITY.md's
+Highly Restricted handling.
+
+Consequences:
+`RECOVERY.md` is created describing the three-lane model and the
+manual rebuild procedure. ROADMAP.md's Phase 1 backup/restore item is
+reworded so that Lane A success alone is not mistaken for the full
+requirement, and so that Lane C testing waits for the first real
+approved credential rather than requiring one to be created for the
+test. DECISIONS.md's Open Decisions list narrows its backup entry to
+the Lane B off-device storage destination, since the lane model,
+schedule, retention pattern, and Lane C location are now decided. No
+Keychain entries, password-manager entries, backup files, or software
+installs happen as a result of this decision.
+
+Verification:
+Confirm `RECOVERY.md` exists and accurately describes the three
+lanes and rebuild steps. Confirm no backup files, Keychain entries,
+password-manager entries, or installed encryption tooling exist as
+an immediate result of this decision. Confirm the Phase 1
+backup/restore roadmap item remains unchecked until Lane B has been
+tested against real Zac State and Lane C has been tested against a
+real approved credential. Confirm any future Lane B implementation
+uses separate encryption keys per trust boundary. Confirm no
+credential is ever created solely to run a recovery test.
+
+Approval or source:
+Zac Campbell, architecture review conversation, 2026-09-18.
+
+Supersedes:
+None. Extends D014 (Recovery and Value Measurement Are Core
+Requirements) and D017 (Secrets and Configuration Management
+Approach) by defining the concrete backup/recovery model and Lane
+C's chosen location; does not change the substance of either.
+
 ## Open Decisions
 These choices have not yet been made:
 - Application language and framework
@@ -493,7 +625,7 @@ These choices have not yet been made:
 - Cloud models and account configuration
 - First read-only integration and its authorization method
 - Event transport and workflow execution mechanism
-- Backup destination, schedule, retention, and recovery targets
+- Lane B (Zac State/database) off-device storage destination (D018)
 - Text interface implementation
 - Voice provider and API
 - Whether to adopt OpenClaw

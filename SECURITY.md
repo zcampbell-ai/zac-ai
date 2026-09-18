@@ -135,6 +135,8 @@ Maintain:
 - Secrets stored separately from code
 - Secrets recovery documented and tested separately from code and
   database backup and restoration
+- Personal and Brainstorm backups must be encrypted with separate
+  keys; never a single shared key across both trust boundaries
 - Recovery access for critical infrastructure
 
 ## Vendor Independence
