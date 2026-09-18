@@ -617,6 +617,113 @@ Requirements) and D017 (Secrets and Configuration Management
 Approach) by defining the concrete backup/recovery model and Lane
 C's chosen location; does not change the substance of either.
 
+## D019 - Initial Local-Model Benchmark and Provisional Role Assignments
+Status: Accepted
+Date: 2026-09-18
+
+Context:
+ROADMAP.md Phase 1 required installing Ollama and benchmarking one fast local
+model and one stronger local model on real Zac AI tasks, building on the tooling
+sequence D016 established (Ollama installed early, models evaluated before any
+canonical-state or model-router integration). On the Mac Studio (Apple M4 Max,
+64GB unified memory), four models were installed and benchmarked in one pass
+rather than two, since MLX-servable options made a reasoning-tier and a
+coding-tier model equally cheap to test alongside the originally planned fast and
+stronger models: qwen3.5:0.8b, qwen3.5:9b-mlx, qwen3.8:27b-mlx, and
+qwen3-coder:30b.
+
+Decision:
+Record the following benchmark results and provisional role assignments:
+
+1. qwen3.5:0.8b - ~229 tokens/sec generation. Appropriate for very lightweight
+   routing, tagging, classification, and simple extraction. Not appropriate for
+   nuanced reasoning or high-stakes work.
+2. qwen3.5:9b-mlx - ~70 tokens/sec generation; with thinking disabled, completed
+   an inbox-triage task in ~1.5 seconds. Strong candidate for the default
+   everyday local worker: routine summaries, classification, extraction, and
+   normal agent work. Thinking should generally be disabled for simple workflows
+   to reduce latency and unnecessary output.
+3. qwen3.8:27b-mlx - roughly 36-58 tokens/sec depending on workload. Suitable as
+   the stronger local reasoning tier for business analysis. Observed limitation:
+   invented an unsupported "2-week paid discovery" detail in one benchmark run.
+   Must remain subject to source grounding, structured-output checks, and
+   evaluator safeguards (ARCHITECTURE.md Section 18, Evaluator Layer) before its
+   output is trusted or acted upon.
+4. qwen3-coder:30b - roughly 100-110 tokens/sec on coding benchmarks. Appropriate
+   for local software engineering: prototype scaffolding, code generation,
+   refactoring, tests, and implementation drafts. Observed limitation: some
+   architecture, security, and prototype-design choices still require human
+   review. Must not bypass Zac AI security rules (SECURITY.md) or ship
+   production code without review and evaluation.
+
+Keep all four models installed for now. Stop downloading additional models for
+now. Do not make Ollama or any individual model canonical. These are provisional
+role assignments based on current benchmarks, not permanent choices; Zac AI will
+route between models through a replaceable provider/model-router interface (D008)
+once Phase 5 formally integrates them. Data classification (SECURITY.md) - not
+cost or model quality - continues to determine which cloud providers may receive
+sensitive data; DeepSeek's hosted API is specifically not approved as a default
+provider for confidential Brainstorm or personal data. Approved cloud escalation
+beyond the existing OpenAI/Anthropic pattern remains a separate, later decision.
+New local models should be benchmarked against repeatable Zac AI workloads before
+replacing an incumbent in any of the four roles above.
+
+Alternatives considered:
+Limiting this benchmark to exactly the two models the Phase 1 item named (one
+fast, one stronger) was rejected: MLX made a reasoning-tier and a coding-tier
+model similarly cheap to evaluate in the same hardware pass, and earlier evidence
+on likely-needed roles reduces rework later. Giving qwen3.8:27b-mlx or
+qwen3-coder:30b unrestricted autonomous responsibility on the strength of this
+benchmark was rejected: both showed concrete limitations (an invented detail; and
+architecture/security choices needing review) that must be caught by the existing
+evaluator and review safeguards (ARCHITECTURE.md Sections 18-19) rather than
+trusted outright. Treating this benchmark as sufficient to wire any of these
+models into canonical state, memory, or the model router now was rejected; that
+integration remains Phase 5's job per D008 and the Phase 1/Phase 5 split already
+recorded in D016 and ROADMAP.md.
+
+Reasons and tradeoffs:
+Benchmarking four models in one pass gives broader early evidence at low
+incremental cost on hardware already provisioned under D016, at the cost of a
+slightly larger provisional surface to track before Phase 5. Keeping role
+assignments provisional and explicitly outside canonical state and model routing
+preserves model and vendor replaceability (D001, D008) while letting later phases
+build on measured performance instead of assumptions.
+
+Security and data implications:
+No live personal or Brainstorm data was processed by this benchmark; all four
+models ran locally on-device with no external network exposure, consistent with
+SECURITY.md's preference for local processing. Data classification and trust
+boundaries (SECURITY.md, D003) are unchanged. This decision reaffirms that
+model-quality or cost findings do not override SECURITY.md's data-classification
+rule: DeepSeek's hosted API is not approved as a default provider for
+confidential Brainstorm or personal data, independent of its cost or quality.
+
+Consequences:
+ROADMAP.md Phase 1's two local-model-benchmark items are marked complete, the
+first reworded to name the four models actually benchmarked instead of "one fast
+... one stronger." Phase 5's existing wording ("Integrate the fast local model
+benchmarked in Phase 1" / "the stronger local model benchmarked in Phase 1") is
+unchanged in substance; this decision identifies which specific models
+provisionally fill those two roles, plus two additional provisional roles
+(reasoning tier, coding tier) Phase 5 or Phase 7 may draw on for reasoning- or
+coding-oriented workflows. No canonical state, memory, or model-router code
+changes result from this decision.
+
+Verification:
+Confirm all four named models remain installed and no additional models are
+installed until a new benchmarking decision authorizes it. Confirm no canonical
+state, memory, or model-router code references these models yet (Phase 5
+remains open). Confirm DeepSeek's hosted API is not configured as a provider
+anywhere in the codebase.
+
+Approval or source:
+Zac Campbell, local-model benchmark on Mac Studio, 2026-09-18.
+
+Supersedes:
+None. Extends D016 (benchmarks the Ollama and local models it sequenced for
+installation) and D008 (informs, but does not implement, model routing).
+
 ## Open Decisions
 These choices have not yet been made:
 - Application language and framework

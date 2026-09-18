@@ -76,8 +76,12 @@ For each phase:
   credential solely to run this test). A successful Lane A restore
   drill alone does not satisfy this item; it remains incomplete until
   Lane B and Lane C have each been tested under those conditions.
-- [ ] Install Ollama and benchmark one fast local model and one stronger local model on real Zac AI tasks (evaluation only; not yet wired into canonical state, memory, or model routing).
-- [ ] Record local-model benchmark results and hardware fit as a decision in DECISIONS.md.
+- [x] Install Ollama and benchmark local models on real Zac AI tasks: a fast
+  model, a stronger everyday model, a stronger reasoning model, and a coding
+  model (evaluation only; not yet wired into canonical state, memory, or model
+  routing). (D019)
+- [x] Record local-model benchmark results and hardware fit as a decision in
+  DECISIONS.md. (D019)
 
 ## Phase 2 - Canonical State, Memory, and Evidence
 - [ ] Define schemas for all first-class entities in ARCHITECTURE.md.
