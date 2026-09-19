@@ -1,0 +1,19 @@
+# Zac AI Gitleaks configuration (DECISIONS.md D022).
+#
+# Extends Gitleaks' default ruleset with no changes. This file exists so the
+# pre-commit hook has an explicit, versioned config to point at rather than
+# relying on Gitleaks' implicit "no config file found" fallback.
+#
+# Add an allowlist entry here only when a specific, real false positive
+# appears, and keep it as narrow as possible:
+#   1. Prefer a trailing `gitleaks:allow` comment on the exact matching line
+#      in the source file itself - this is the narrowest option and needs no
+#      change here.
+#   2. Only if that is not possible, add a scoped [[rules]] regex/path
+#      allowlist entry below, with a comment explaining exactly why.
+# Never exclude an entire file and never disable a detector/rule wholesale.
+
+title = "Zac AI"
+
+[extend]
+useDefault = true

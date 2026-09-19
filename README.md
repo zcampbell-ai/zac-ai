@@ -112,6 +112,20 @@ Inspect pending changes with:
 
     git status
 
+### One-time setup: local secret-scanning safeguard (D022)
+
+Before making any commit, install Gitleaks and point Git at this repo's
+versioned hook directory (both are local, one-time steps every clone needs -
+see RECOVERY.md):
+
+    brew install gitleaks
+    git config core.hooksPath .githooks
+
+This makes every `git commit` run `gitleaks git --staged` against the staged
+diff first and blocks the commit if a likely secret is found. See
+`.gitleaks.toml` and DECISIONS.md D022 for how allowlisting a known false
+positive works.
+
 ### Application (Phase 1 minimal health-check app)
 
 Dependencies are managed with `uv` (see DECISIONS.md D020). Install them with:

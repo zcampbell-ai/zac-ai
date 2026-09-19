@@ -61,7 +61,11 @@ depends on recovering another.
    non-secret configuration (Lane A).
 3. Follow the tool sequence recorded in DECISIONS.md (for example
    D016) to reinstall the development stack in the same order it was
-   originally installed.
+   originally installed. This includes the local secret-scanning
+   safeguard (D022): `brew install gitleaks`, then
+   `git config core.hooksPath .githooks` inside the cloned repository -
+   both are local, one-time steps that do not survive the clone by
+   themselves.
 4. Recreate each needed Keychain entry from the password manager
    escrow (Lane C), using the naming convention in SECRETS.md:
    `zacai-<boundary>-<service>-<credential>`.

@@ -997,6 +997,135 @@ None. Extends D017 (implements explicit, fail-safe environment/tier
 selection that D017 assumed but never specified) and D020 (refines the
 `Settings.environment` field D020 introduced as a free-form string).
 
+## D022 - Local Secret-Scanning Safeguard
+Status: Accepted
+Date: 2026-09-19
+
+Context:
+D017 required "a lightweight local secret-scanning safeguard before any real
+credential is introduced," explicitly deferring CI-enforced scanning, but
+never chose a mechanism. ROADMAP.md Phase 1 lists this as its own item. An
+architecture review (design-only pass, then approved implementation)
+evaluated Gitleaks, detect-secrets, a hand-rolled regex script, and a bare
+(untracked) git hook against: catching common secret shapes, working fully
+locally with no external service calls, low operational complexity, being
+easy for Claude Code and future coding agents to respect, not requiring real
+secrets to test, and being reproducible on a replacement Mac. The review
+initially specified Gitleaks' `protect`/`detect` subcommands, but the
+installed version (8.30.1, via Homebrew) does not have those commands at all
+- `gitleaks --help` shows only `git`, `dir`, `stdin`, `completion`, and
+`version`. `gitleaks git --help` confirms `--staged` as the current
+supported staged-diff scan flag ("scan staged commits (good for
+pre-commit)"), so the hook uses `gitleaks git --staged`, not the
+deprecated/removed form.
+
+Decision:
+Adopt Gitleaks, installed via Homebrew, run from a committed, versioned hook,
+blocking commits by default:
+
+- `brew install gitleaks` (8.30.1 at the time of this decision).
+- `.gitleaks.toml`: extends Gitleaks' default ruleset (`[extend]
+  useDefault = true`) with no allowlist entries. A full-history scan
+  (`gitleaks git --redact --config .gitleaks.toml .`, 9 commits, ~227KB)
+  and a staged-diff scan of this decision's own new files both came back
+  clean against the default ruleset alone - including against the existing
+  fake test fixtures in `tests/test_config.py` and
+  `tests/test_logging_config.py` (`fake-personal-value-123`,
+  `hunter2-fake-password`, `sk-fake-1234567890abcdef`, etc.), none of which
+  triggered a finding. No allowlist entry was needed or added. Should a real
+  false positive appear later, the required order is: (1) a trailing
+  `gitleaks:allow` comment on the exact matching line, (2) only if that is
+  not possible, a narrow, commented `[[rules]]`/regex or path entry in
+  `.gitleaks.toml`. Excluding an entire file or disabling a detector
+  wholesale is not permitted by this decision.
+- `.githooks/pre-commit`: a committed, executable shell script running
+  `gitleaks git --staged --redact --config .gitleaks.toml .`. `--redact`
+  keeps any matched secret value out of terminal output even locally. The
+  script's exit code is Gitleaks' own, so any finding blocks the commit.
+- `git config core.hooksPath .githooks`: a local, per-clone Git setting (not
+  committed, not pushed, does not touch remotes, authentication, or SSH)
+  that points Git's hook lookup at the versioned directory above instead of
+  the untracked, unreproducible `.git/hooks/`.
+- The safeguard blocks commits by default, effective immediately, rather
+  than running as an optional manual check. `git commit --no-verify` remains
+  available as git's own escape hatch for a genuine emergency; it is not a
+  documented or recommended part of the normal workflow.
+
+Alternatives considered:
+detect-secrets was rejected: it would add a Python dev dependency and an
+ongoing `.secrets.baseline` file that must be regenerated and re-audited as
+the repo grows, more operational overhead than a stateless binary scan for a
+single-operator project. A hand-rolled regex script was rejected: the
+failure mode that matters here is a missed real secret, and Gitleaks'
+maintained ruleset is more broadly tested than anything reasonable to write
+and maintain in this repo. A bare, uncommitted `.git/hooks/pre-commit` was
+rejected: `.git/hooks/` is not tracked by Git, so it would silently not
+exist after a fresh clone or on a replacement Mac, failing the requirement
+that this be reproducible; the `pre-commit` framework was considered as an
+alternative way to solve that same reproducibility problem but rejected as
+heavier than needed (its own Python install, YAML config, and a per-clone
+`pre-commit install` step) for one check, when a committed hooks directory
+plus `core.hooksPath` solves the same problem with one config line and no
+new dependency. Manual-only (non-blocking) operation was rejected: relying
+on remembering to run a scan recreates exactly the gap this safeguard exists
+to close, and the repo is small and currently clean, which is the cheapest
+possible time to turn on a blocking check.
+
+Reasons and tradeoffs:
+A static Homebrew binary keeps this entirely outside the application's own
+dependency tree (`pyproject.toml`/`uv.lock` are untouched), consistent with
+D016's preference for native Homebrew tools over added frameworks. Blocking
+by default trades a small chance of an unexpected block for closing the gap
+immediately rather than leaving an unenforced rail in place; the allowlist
+order (inline comment first, narrow config entry only if necessary, never a
+blanket exclusion) keeps any future false-positive handling itself
+auditable rather than quietly widening what the safeguard ignores.
+`core.hooksPath` being a per-clone setting is an inherent limitation shared
+by every git-hook approach, including the `pre-commit` framework's own
+install step; it is mitigated by documenting the one-time setup in
+README.md and RECOVERY.md rather than by a heavier mechanism.
+
+Security and data implications:
+No real credential, Keychain entry, or live integration was created or
+connected. Gitleaks makes no network calls; verification (full-history scan,
+an isolated temporary-repo proof that a fake AWS-key-shaped string is
+blocked, and a staged non-secret scan of this decision's own files) used
+only fake, obviously-not-real values, and the temporary proof repository was
+created outside this project and deleted immediately after the test - no
+fake-secret content was ever staged or committed in this repository. `git
+config core.hooksPath` is local only; it is never pushed and does not
+change any remote, authentication, or SSH configuration. `--redact` is used
+on every invocation so a real accidental secret, if one were ever caught,
+would not itself be printed to the terminal or captured in shell history.
+
+Consequences:
+ROADMAP.md Phase 1's "Add a lightweight local secret-scanning safeguard
+before any real credential is introduced" item is marked complete, verified
+by a clean full-history scan, a successful isolated block-test, and a clean
+staged-diff scan of this decision's own files. Every future commit in this
+repository (once each clone has run the one-time setup) is scanned before it
+can be created. CI-enforced scanning remains explicitly deferred, unchanged
+from D017.
+
+Verification:
+Confirm `gitleaks version` reports 8.30.1 or later and that `gitleaks
+--help` still exposes a staged-diff scan flag under whichever subcommand is
+current at the time; do not assume the `git --staged` form persists forever
+across major Gitleaks versions without checking. Confirm `gitleaks git
+--redact --config .gitleaks.toml .` over the full repository history reports
+no leaks. Confirm a fake-secret-shaped commit is blocked in an isolated,
+disposable repository (never in this one). Confirm `git config
+core.hooksPath` resolves to `.githooks` in this repository. Confirm no real
+credential, Keychain entry, `.env.development`, or `.env.production` file
+exists as a result of this decision.
+
+Approval or source:
+Zac Campbell, architecture review conversation, 2026-09-19.
+
+Supersedes:
+None. Extends D017 (implements the secret-scanning safeguard D017 required
+but left unspecified).
+
 ## Open Decisions
 These choices have not yet been made:
 - Database and search/retrieval technologies

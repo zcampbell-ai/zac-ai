@@ -67,8 +67,10 @@ For each phase:
   production secrets. Enforce PERSONAL_/BRAINSTORM_/SHARED_
   trust-boundary access in code, and apply centralized redacted
   logging. (D017)
-- [ ] Add a lightweight local secret-scanning safeguard before any real
-  credential is introduced. (D017)
+- [x] Add a lightweight local secret-scanning safeguard before any real
+  credential is introduced. (D017, D022: Gitleaks via Homebrew, blocking
+  `.githooks/pre-commit` via `core.hooksPath`; verified via a clean
+  full-history scan, an isolated block-test, and a clean staged-diff scan)
 - [ ] Implement personal and Brainstorm trust boundaries.
 - [ ] Implement data classification and policy enforcement.
 - [ ] Implement the initial action gateway with writes denied by default.
