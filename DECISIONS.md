@@ -1291,6 +1291,177 @@ separation D003 required), D004 (decision reasons support explainability),
 and D017 (generalizes the narrower secret-name `TrustBoundary` it
 introduced into the broader data-access policy layer).
 
+## D024 - Action/Approval Gateway (v1)
+Status: Accepted
+Date: 2026-09-19
+
+Context:
+ROADMAP.md Phase 1 left two open items directly addressed here: "Implement
+the initial action gateway with writes denied by default" and "Add
+automated checks for boundary and permission enforcement." ARCHITECTURE.md
+Section 10 defines three action risk tiers (Low/Medium/High) and lists
+sensitive-action examples (external email, deleting data, modifying
+contracts, financial changes, spending money, modifying credentials,
+publishing externally). SECURITY.md requires destructive, external, and
+financial/credential/permission/production actions to be explicitly
+approved, and defines the agent permission ladder (Read, Analyze,
+Recommend, Draft, Act with approval, Selective autonomy). D007 already
+decided that external actions route through a central approval gateway;
+D023 built the policy layer that decision and this one both depend on, and
+D023's own text explicitly reserved this exact hook: "a future Action/
+Approval Gateway (Phase 6) may impose further restrictions or require
+human approval on top of an otherwise-permitted operation, but it does
+not, and must not, override a policy denial produced by `evaluate_access`.
+There is no override parameter or bypass path anywhere in this module." An
+architecture review (design-only pass, then approved with one
+clarification on how REQUIRE_APPROVAL should be represented) evaluated the
+minimum v1 model needed.
+
+Decision:
+Add `src/zacai/gateway.py`, downstream of and calling `zacai.policy.
+evaluate_access` (D023), never modifying it:
+
+- `ActionType` (23 members) enumerates the kinds of operations Zac AI may
+  attempt: read/analyze/summarize/recommend, draft (non-executing, kept
+  structurally separate from any send/publish type so no single flag can
+  turn a draft into an executing send), external communication/publishing
+  writes, CRM/task/calendar create/update/delete, a scoped single-file
+  delete, and five actions considered too undesigned to leave at
+  REQUIRE_APPROVAL: bulk/unscoped data deletion, spending money, modifying
+  a credential, changing a permission, and modifying a production
+  configuration.
+- `ActionRisk` (LOW/MEDIUM/HIGH, ARCHITECTURE.md Section 10) is derived
+  internally from the outcome an action receives (with `DELETE_FILE`
+  overridden to HIGH despite remaining REQUIRE_APPROVAL, per SECURITY.md's
+  "high-risk deletions" language) - never a field a caller can set.
+- `GatewayOutcome`: `ALLOW` / `REQUIRE_APPROVAL` / `DENY`, a tri-state,
+  never a boolean, so "not denied" and "does not execute now" are never
+  conflated with each other or with a plain allow.
+- `ActionRequest` (frozen Pydantic model): `action_type`, `access:
+  AccessRequest` (D023's type, embedded rather than re-declared), and a
+  `description` string used only for audit/logging, never parsed or
+  branched on. It has no approval, override, or execute/dry-run field of
+  any kind - locked in by a dedicated structural test.
+- `GatewayDecision` (frozen Pydantic model): `outcome`, `reason: str`
+  (always populated, mirroring `PolicyDecision.reason`), `risk`.
+- `evaluate_gateway(request) -> GatewayDecision`: calls `evaluate_access
+  (request.access)` first, unconditionally, with no parameter or code path
+  that skips it. If policy denies, returns DENY immediately without
+  consulting action-type classification at all. Only if policy allows does
+  it classify `action_type` into exactly one of three fixed, disjoint,
+  exhaustive sets (`_ALLOW_ACTIONS`, `_REQUIRE_APPROVAL_ACTIONS`,
+  `_DENY_ACTIONS`) and return the matching outcome; an action type absent
+  from all three (should be unreachable) fails closed to DENY.
+
+REQUIRE_APPROVAL is a terminal result in this decision: it means execution
+must stop and no action may occur until a future, separately designed
+approval mechanism satisfies the requirement. This decision does not
+design that mechanism - no `ApprovalRecord`, token, persistence, lookup
+interface, expiry, or replay protection is introduced, and `evaluate_
+gateway`'s signature gains no approval-related parameter. It records only
+these binding invariants for whenever that mechanism is designed:
+- An approval must never override a D023 policy DENY.
+- An approval must never override a D024 hard DENY.
+- Approval must eventually be bound to the specific action being
+  authorized, not represented as a caller-controlled boolean.
+- Approval must be auditable.
+- Replay/stale-approval risks must be addressed when that system is
+  designed.
+
+No connector (Gmail, Slack, Salesforce, Calendar, ClickUp) is wired to
+this gateway. No database, approval UI, or agent is created. No real
+Personal or Brainstorm data, credential, or Keychain entry was created;
+`tests/test_gateway.py` uses only synthetic fixtures.
+
+Alternatives considered:
+An `approval`/`override` field on `ActionRequest` was proposed and
+rejected: it would recreate the exact shape of D023's rejected
+`explicit_override` flag - a bypass a caller could simply set, whether or
+not v1 code happened to read it. Pre-computing a `PolicyDecision` and
+passing it into `evaluate_gateway` as a parameter (instead of calling
+`evaluate_access` internally) was rejected: it would let a caller fabricate
+an allow and skip policy entirely, defeating the "policy remains
+authoritative" requirement. A boolean `GatewayDecision.outcome` (mirroring
+`PolicyDecision.allowed`) was rejected in favor of a tri-state enum: a
+boolean cannot represent REQUIRE_APPROVAL without conflating it with
+either ALLOW or DENY. Designing an `evaluate_gateway(request,
+approval_lookup=...)` API and an `ApprovalRecord`/token type now (so a
+future approval mechanism would have less to build later) was proposed
+during review and explicitly deferred: REQUIRE_APPROVAL is sufficient as a
+terminal state for v1, and committing to an API shape before the approval
+architecture (binding, replay/expiry protection, audit) is actually
+designed risks constraining that later design or having to be reworked.
+Leaving the five v1-hard-denied action types at REQUIRE_APPROVAL (matching
+the brief's raw example list) was considered and rejected: with no
+approval-binding/replay-prevention mechanism yet, REQUIRE_APPROVAL is not
+a safe waiting room for actions that could defeat other controls
+(credential/permission changes), cause irreversible loss with no verified
+backup/restore yet (bulk delete - ROADMAP's backup-verification item is
+still unchecked), or cause real monetary/production harm.
+
+Reasons and tradeoffs:
+Embedding D023's `AccessRequest` inside `ActionRequest` rather than
+flattening its fields onto `ActionRequest` means `evaluate_gateway` calls
+`evaluate_access(request.access)` with zero translation code, eliminating
+any risk of a field-mapping bug silently changing policy semantics.
+Classifying `ActionType` via three disjoint frozensets rather than a
+single `dict[ActionType, GatewayOutcome]` makes "is every action type
+classified, exactly once" a structural set-algebra assertion
+(`test_all_action_types_are_classified`) rather than an implicit property
+of a mapping's keys. Hard-denying five actions instead of leaving them at
+REQUIRE_APPROVAL trades short-term flexibility (nothing can move them
+forward even manually yet) for not building an approval mechanism with no
+real binding or replay protection to rely on; this is reversible by a
+future, explicit decision once that mechanism exists, per the recorded
+invariants above.
+
+Security and data implications:
+No live connector, database, or UI is touched. Nothing added here causes
+any real external send, spend, delete, credential change, or permission
+change to occur - no code path anywhere calls a connector, and none is
+wired. `reason` and `description` strings may echo caller-provided
+content and should be passed through the existing `zacai.logging_config`
+redaction path by any future caller that logs them.
+
+Consequences:
+ROADMAP.md Phase 1's "Implement the initial action gateway with writes
+denied by default" and "Add automated checks for boundary and permission
+enforcement" items are marked complete, verified by `uv run pytest` (143
+passed, including 98 new gateway tests and all 45 pre-existing tests
+unmodified), a clean `uv run ruff check .`, and a clean `uv run mypy src`.
+Future work (Phase 4 agents, Phase 5 model routing, Phase 6 approvals)
+must route attempted actions through `evaluate_gateway` rather than
+re-implementing this classification, must not add an override path around
+either the D023 policy check or the D024 `_DENY_ACTIONS` set without its
+own explicit decision, and must extend `evaluate_gateway`'s signature only
+additively (never by adding an approval field to `ActionRequest`) when the
+approval mechanism is eventually designed.
+
+Verification:
+Confirm `uv run pytest`, `uv run ruff check .`, and `uv run mypy src` all
+pass. Confirm every `ActionType` combined with a denied `AccessRequest`
+returns DENY, including a LOW-risk type like `READ_DATA` under the
+HIGHLY_RESTRICTED+EXTERNAL hard deny (proving action-type classification
+never runs once policy denies). Confirm `MODIFY_CREDENTIAL` with an
+allowed policy still returns DENY, not REQUIRE_APPROVAL. Confirm
+`DRAFT_CONTENT` and `SEND_EMAIL` with identical descriptions return ALLOW
+and REQUIRE_APPROVAL respectively. Confirm `ActionRequest`'s field set is
+exactly `{action_type, access, description}`. Confirm `_ALLOW_ACTIONS`,
+`_REQUIRE_APPROVAL_ACTIONS`, and `_DENY_ACTIONS` are pairwise disjoint and
+their union equals every `ActionType` member. Confirm `git diff --check`
+and `git status` show only `src/zacai/gateway.py` and
+`tests/test_gateway.py` added, with `src/zacai/policy.py` unchanged.
+
+Approval or source:
+Zac Campbell, architecture review conversation, 2026-09-19.
+
+Supersedes:
+None. Extends D007 (External Actions Use a Central Approval Gateway) by
+providing its first concrete implementation, and D023 (Trust-Boundary and
+Data-Classification Policy Layer) by consuming `evaluate_access` as the
+mandatory first step per D023's own forward-looking language, without
+modifying `policy.py`'s public contract.
+
 ## Open Decisions
 These choices have not yet been made:
 - Database and search/retrieval technologies

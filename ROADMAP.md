@@ -80,8 +80,20 @@ For each phase:
   implemented and tested, but this only covers the external-transmission
   case - storage/retention/logging-specific classification rules remain
   future work)
-- [ ] Implement the initial action gateway with writes denied by default.
-- [ ] Add automated checks for boundary and permission enforcement.
+- [x] Implement the initial action gateway with writes denied by default.
+  (D024: `src/zacai/gateway.py`, `ActionType`/`ActionRequest`/
+  `GatewayDecision`/`evaluate_gateway`; calls `evaluate_access` first and
+  unconditionally, so a D023 policy denial can never be overridden;
+  external/state-changing writes default to REQUIRE_APPROVAL, and
+  credential, permission, production, financial, and bulk-delete actions
+  are hard-denied in v1 with no approval path yet; verified via automated
+  tests)
+- [x] Add automated checks for boundary and permission enforcement. (D024:
+  `tests/test_gateway.py` proves policy-deny precedence cannot be
+  overridden, drafts are non-executing and structurally separate from
+  sends, writes require approval by default, dangerous/unsupported
+  actions are denied even hypothetically approved, and every `ActionType`
+  is classified into exactly one outcome)
 - [ ] Establish private access and document service startup and shutdown.
 - [ ] Create an initial backup and verify restoration across all
   three recovery lanes (D017, D018): code/docs (Lane A, tested now),
