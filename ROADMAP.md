@@ -71,8 +71,15 @@ For each phase:
   credential is introduced. (D017, D022: Gitleaks via Homebrew, blocking
   `.githooks/pre-commit` via `core.hooksPath`; verified via a clean
   full-history scan, an isolated block-test, and a clean staged-diff scan)
-- [ ] Implement personal and Brainstorm trust boundaries.
-- [ ] Implement data classification and policy enforcement.
+- [x] Implement personal and Brainstorm trust boundaries. (D023:
+  `src/zacai/policy.py`, `TrustBoundary`/`evaluate_access`; verified via
+  automated tests)
+- [x] Implement data classification and policy enforcement. (D023:
+  `DataClassification`/`Destination`/`AccessRequest`/`PolicyDecision` in
+  `src/zacai/policy.py`; the HIGHLY_RESTRICTED+EXTERNAL hard-deny rule is
+  implemented and tested, but this only covers the external-transmission
+  case - storage/retention/logging-specific classification rules remain
+  future work)
 - [ ] Implement the initial action gateway with writes denied by default.
 - [ ] Add automated checks for boundary and permission enforcement.
 - [ ] Establish private access and document service startup and shutdown.

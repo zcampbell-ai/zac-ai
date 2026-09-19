@@ -1,9 +1,13 @@
 """Tier-0 configuration and the boundary-checked secrets accessor.
 
-See SECRETS.md and DECISIONS.md D017/D021 for the full policy this implements:
+See SECRETS.md and DECISIONS.md D017/D021/D023 for the full policy this
+implements:
 - Tier 0: versioned, non-secret configuration (this module's `Settings`).
 - Every secret name must carry a PERSONAL_/BRAINSTORM_/SHARED_ trust-boundary
   prefix, enforced here in code rather than by naming convention alone.
+  `TrustBoundary` itself is defined in `zacai.policy` (D023), which is the
+  broader, data-access policy layer this secret-name check is one narrow
+  consumer of - re-exported here so existing imports keep working.
 - The runtime `Environment` is explicit and fails safely on an invalid value;
   only development mode ever reads `.env.development` (D021).
 
@@ -21,6 +25,17 @@ from collections.abc import Mapping
 from enum import Enum
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from zacai.policy import TrustBoundary
+
+__all__ = [
+    "BoundaryError",
+    "Environment",
+    "Settings",
+    "TrustBoundary",
+    "get_secret",
+    "get_settings",
+]
 
 
 class Environment(str, Enum):
@@ -64,14 +79,6 @@ def _select_env_file(raw_environment: str) -> str | None:
 def get_settings() -> Settings:
     raw_environment = os.environ.get("ZACAI_ENVIRONMENT", Environment.DEVELOPMENT.value)
     return Settings(_env_file=_select_env_file(raw_environment))
-
-
-class TrustBoundary(str, Enum):
-    """Trust boundaries a secret name must declare (SECURITY.md, D003)."""
-
-    PERSONAL = "PERSONAL"
-    BRAINSTORM = "BRAINSTORM"
-    SHARED = "SHARED"
 
 
 class BoundaryError(ValueError):

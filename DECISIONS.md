@@ -1126,6 +1126,171 @@ Supersedes:
 None. Extends D017 (implements the secret-scanning safeguard D017 required
 but left unspecified).
 
+## D023 - Trust-Boundary and Data-Classification Policy Layer
+Status: Accepted
+Date: 2026-09-19
+
+Context:
+ARCHITECTURE.md Section 16 and SECURITY.md require Personal/Brainstorm
+logical separation, four data-classification levels (Public, Internal,
+Confidential, Highly Restricted), and rules such as "Highly Restricted
+information should not automatically be sent to external model providers."
+D003 already decided that access from one boundary into another must be
+deliberate and authorized. Until this decision, the only implemented piece
+of this was `zacai.config.TrustBoundary`, scoped narrowly to enforcing a
+PERSONAL_/BRAINSTORM_/SHARED_ prefix on secret *names* (D017/D020) - a
+secret-naming check, not a general data-access decision. No entity, agent,
+model router, or action gateway exists yet (all later phases), so this
+decision builds the policy layer those will consult later, independent of
+all of them, ahead of any real Personal or Brainstorm data being
+introduced. An architecture review (design-only pass, then approved with
+two security clarifications) evaluated the minimum v1 model needed.
+
+Decision:
+Add `src/zacai/policy.py` as the single source of truth for trust-boundary
+and data-classification access decisions:
+
+- `TrustBoundary` moves here as its canonical definition (values unchanged:
+  PERSONAL, BRAINSTORM, SHARED). `zacai.config` imports and re-exports it
+  (`from zacai.policy import TrustBoundary`), so `get_secret()` and every
+  existing `from zacai.config import TrustBoundary` import keep working
+  unchanged - verified by `config_module.TrustBoundary is
+  zacai.policy.TrustBoundary` in the test suite.
+- `DataClassification`: PUBLIC, INTERNAL, CONFIDENTIAL, HIGHLY_RESTRICTED -
+  directly from SECURITY.md's existing four levels.
+- `Destination`: LOCAL, EXTERNAL - whether handling a request would keep
+  data on-system or send it to an external destination (e.g. a cloud model
+  provider). This is independent of trust boundary: no `TrustBoundary`
+  value means "the cloud," so the "don't send Highly Restricted externally"
+  rule needed its own axis.
+- `AccessRequest` (frozen Pydantic model): `data_boundary`,
+  `data_classification`, `requestor_boundaries: frozenset[TrustBoundary]`,
+  `destination`. An invalid value for any enum field fails Pydantic
+  validation at construction - fail-closed, matching the `Environment`
+  pattern from D021 - rather than reaching a decision function in an
+  ambiguous state.
+- `PolicyDecision` (frozen Pydantic model): `allowed: bool`, `reason: str`.
+  `reason` is always populated, allow or deny, so every decision is
+  self-explanatory in a log line on its own.
+- `evaluate_access(request) -> PolicyDecision`: exactly two checks, both
+  must pass:
+  1. If `data_classification is HIGHLY_RESTRICTED` and
+     `destination is EXTERNAL`: deny. This is a **hard deny with no
+     override inside this module** (see the architecture principle below).
+  2. Else if `data_boundary not in requestor_boundaries`: deny, naming the
+     missing boundary. Otherwise: allow.
+  This one function is what a future model router (Phase 5) and a future
+  Action/Approval Gateway (Phase 6) are both meant to call - the access
+  question does not differ by caller.
+
+SHARED policy invariant (security clarification, binding on this and all
+future policy work): SHARED means data that genuinely belongs to neither
+Personal nor Brainstorm exclusively (e.g. Zac AI's own operational data).
+It is independently authorized, never a combination of or bridge between
+the other two:
+- PERSONAL authorization does not imply SHARED.
+- BRAINSTORM authorization does not imply SHARED.
+- PERSONAL + BRAINSTORM authorization does not imply SHARED.
+- SHARED authorization grants no PERSONAL or BRAINSTORM access.
+SHARED must never be used to relabel mixed or provenance-bearing data to
+sidestep this check; such data must keep its actual source boundary. All
+five invariants above have a dedicated automated test
+(`tests/test_policy.py`). Deciding whether a given entity genuinely
+deserves the SHARED label is a data-classification/entity-tagging decision
+made elsewhere (not yet built); this module only enforces access once data
+is already labeled.
+
+HIGHLY_RESTRICTED + EXTERNAL architecture principle (security
+clarification, binding on this and all future policy/gateway work): policy
+determines whether an operation is permitted at all. A future Action/
+Approval Gateway (Phase 6, ARCHITECTURE.md Section 10) may impose further
+restrictions or require human approval on top of an otherwise-permitted
+operation, but it does not, and must not, override a policy denial produced
+by `evaluate_access`. There is no override parameter or bypass path
+anywhere in this module. Changing the HIGHLY_RESTRICTED+EXTERNAL rule
+itself would require its own future, explicit security/architecture
+decision - never an ordinary runtime approval.
+
+No entity, agent, model router, or action gateway is created by this
+decision. No database is chosen. No real Personal or Brainstorm data,
+credential, or Keychain entry was created; `tests/test_policy.py` uses only
+synthetic fixtures.
+
+Alternatives considered:
+Keeping `TrustBoundary` defined only in `config.py` and having `policy.py`
+import it from there was considered and rejected: `policy.py` is now the
+broader authority on trust boundaries, and `config.py`'s secret-name check
+is one narrow consumer of that vocabulary, not its owner. Modeling denial as
+a raised exception (extending `BoundaryError`) was rejected: an
+access-denied outcome is an expected, everyday business decision a caller
+needs to branch on (log it, surface it, try a narrower request), not a
+programmer error - a first-class `PolicyDecision` return value fits that
+better than exception-based control flow. Adding an `explicit_override`
+flag to `AccessRequest` for the Highly-Restricted-external case (to model
+SECURITY.md's "unless explicitly authorized for that specific use" clause)
+was proposed initially and explicitly rejected on review: it would let any
+caller flip a boolean to bypass the deny, which is exactly the override
+path the security clarification above forbids. That future exception path,
+if ever pursued, would need its own explicit, later architecture decision -
+not a parameter added quietly here. Gating same-boundary/local access by
+classification level (e.g. requiring extra approval for Confidential data
+even within its own boundary) was considered and deferred: SECURITY.md ties
+its concrete classification rule specifically to external transmission, and
+inventing additional restrictions beyond what is specified would exceed
+"keep the implementation minimal."
+
+Reasons and tradeoffs:
+Collapsing the boundary rule to a single set-membership check
+(`data_boundary in requestor_boundaries`) rather than writing separate
+same-boundary/SHARED/cross-boundary branches makes SHARED's lack of special
+treatment structural rather than a matter of remembering not to special-case
+it, and makes the empty-authorization case ("missing/unknown boundary")
+fall out for free with no extra code. Making the HIGHLY_RESTRICTED+EXTERNAL
+rule a hard deny with no in-module override trades away a convenience (a
+one-off legitimate exception must go through a not-yet-built approval
+mechanism rather than a flag here) for the stronger, auditable guarantee
+that this module's answer to "is this permitted at all" cannot be
+quietly bypassed by whichever future component calls it.
+
+Security and data implications:
+No real Personal or Brainstorm data, credential, or Keychain entry was
+created. All 17 new tests use synthetic fixtures only. This decision adds a
+policy-decision capability but does not yet gate any real code path (no
+model router or action gateway calls `evaluate_access` yet) - its value at
+this stage is that the rules, invariants, and their tests exist and are
+verified before anything real depends on them.
+
+Consequences:
+ROADMAP.md Phase 1's "Implement personal and Brainstorm trust boundaries"
+and "Implement data classification and policy enforcement" items are marked
+complete, verified by `uv run pytest` (45 passed, including all 17 new
+policy tests and all pre-existing tests unmodified), a clean `uv run ruff
+check .`, and a clean `uv run mypy src`. Future work (Phase 5 model
+routing, Phase 6 action gateway, Phase 7 agents) must call
+`evaluate_access` rather than re-implementing boundary or classification
+logic, and must not add an override path around the HIGHLY_RESTRICTED+
+EXTERNAL deny without its own explicit decision.
+
+Verification:
+Confirm `uv run pytest`, `uv run ruff check .`, and `uv run mypy src` all
+pass. Confirm `zacai.config.TrustBoundary is zacai.policy.TrustBoundary`.
+Confirm each of the five SHARED invariants above has a passing, explicitly
+named test. Confirm HIGHLY_RESTRICTED+EXTERNAL is denied even when the
+requestor is fully authorized for the matching boundary, and that
+HIGHLY_RESTRICTED+LOCAL and CONFIDENTIAL+EXTERNAL are both allowed under
+the same same-boundary authorization (proving the ceiling is specific, not
+blanket). Confirm no real Personal or Brainstorm data, credential, or
+Keychain entry exists as a result of this decision.
+
+Approval or source:
+Zac Campbell, architecture review conversation, 2026-09-19.
+
+Supersedes:
+None. Extends D003 (implements the deliberate-and-authorized boundary
+separation D003 required), D004 (decision reasons support explainability),
+and D017 (generalizes the narrower secret-name `TrustBoundary` it
+introduced into the broader data-access policy layer).
+
 ## Open Decisions
 These choices have not yet been made:
 - Database and search/retrieval technologies
