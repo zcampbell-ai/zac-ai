@@ -724,9 +724,145 @@ Supersedes:
 None. Extends D016 (benchmarks the Ollama and local models it sequenced for
 installation) and D008 (informs, but does not implement, model routing).
 
+## D020 - Initial Application Language and Framework (v1)
+Status: Accepted
+Date: 2026-09-19
+
+Context:
+D016 sequenced Python (managed via `uv`) as a runtime to install "later, when
+justified," but explicitly left "the still-open application language and
+framework decision" unresolved. ROADMAP.md Phase 1's next unchecked items were
+"Select and document the initial implementation stack" and "Create a minimal,
+runnable application with health checks." DECISIONS.md's Open Decisions list
+still carried "Application language and framework" as unresolved. An
+architecture review evaluated Python+FastAPI, Python with another lightweight
+framework (Litestar, Flask, Sanic), and TypeScript/Node.js against: AI/model
+integration, async/event-driven workflows, strong typing/schema validation,
+local model access via Ollama now with replaceable providers later, future
+Gmail/Slack/Drive/Fireflies/ClickUp/Salesforce connectors, temporal/source-backed
+state, future PostgreSQL/pgvector, security/testability, simple single-node
+deployment, ease of use by Claude Code and future coding agents, observability,
+the ability to evolve into the full ARCHITECTURE.md system without a rewrite,
+minimal operational complexity, novice-friendly maintenance, and vendor
+neutrality. A Plan-agent review of the resulting recommendation, cross-checked
+against ARCHITECTURE.md, SECURITY.md, ROADMAP.md, SECRETS.md, and D016/D017,
+confirmed the stack choice and identified one scoping adjustment (folded into
+this decision): ROADMAP.md Phase 1 lists secrets management (boundary-checked
+access and centralized redacted logging, D017) as its own item alongside
+"create a minimal app," not as a later phase, so the v1 milestone was scoped to
+include both.
+
+Decision:
+Adopt Python, managed via `uv`, with FastAPI as the application framework and
+Pydantic v2 as the schema/validation layer, for Zac AI's first runnable
+application and going forward as the default backend stack until a specific
+later phase justifies otherwise.
+
+Implement the Phase 1 minimal milestone as:
+- `src/zacai/main.py`: a FastAPI app exposing `GET /health` (status, version,
+  UTC timestamp), with no external calls, no secrets, and no model calls.
+- `src/zacai/config.py`: a Tier-0 settings loader (`pydantic-settings`, reading
+  only non-secret configuration - host, port, log level, environment) and a
+  boundary-checked secrets accessor (`get_secret`) that enforces the
+  PERSONAL_/BRAINSTORM_/SHARED_ prefix in code per SECRETS.md/D017, even though
+  no real secret exists yet.
+- `src/zacai/logging_config.py`: structured JSON logging to stdout with a
+  redaction function that strips secret-like key/value pairs and bearer tokens
+  before anything is emitted, wired so that uvicorn's own request/lifecycle
+  logs also flow through it (`log_config=None`) rather than bypassing it.
+- Automated tests for the health endpoint, for the secrets accessor's
+  boundary enforcement (matching, absent, and cross-boundary/unprefixed
+  lookups, using only fake test values), and for logging redaction (fake
+  password/token values, asserting they never appear unredacted in emitted
+  output).
+- README.md documents local install/run/test commands.
+
+Deliberately deferred, not part of this decision: any Ollama or model-provider
+integration, any database, any live external integration, the standalone
+local secret-scanning safeguard (ROADMAP.md's separate Phase 1 item), Zac
+State, and Node.js/npm/Docker/OpenClaw (unchanged from D016).
+
+Alternatives considered:
+Python with another lightweight framework (Litestar, Flask, Sanic) was
+rejected: FastAPI's native Pydantic integration doubles as the future
+entity/event schema layer ARCHITECTURE.md Section 4 calls for, its
+auto-generated OpenAPI will help the future approval/action interface (Phase
+6) and multiple clients (Phase 5), and it has the deepest representation in
+coding-agent training data among the async Python options, which measurably
+helps Claude Code and future agents work on this codebase reliably.
+TypeScript/Node.js was rejected: the AI/local-model ecosystem (Ollama clients,
+structured-output tooling) is deepest in Python, which the project needs
+regardless of what serves the API; adding Node as a second runtime would
+increase operational complexity on a single-operator, single-node system; and
+D016 already declined to install Node/npm with no new justification having
+appeared. No other language was found genuinely superior against the stated
+priorities. A bare Starlette app or no framework at all was considered for the
+literal health-check milestone but rejected as saving nothing meaningful
+today while giving up the Pydantic/OpenAPI/WebSocket benefits above -
+FastAPI's dependency-injection machinery is opt-in and unused by a
+single-route app, so it does not add the operational complexity a "framework"
+label might suggest.
+
+Reasons and tradeoffs:
+Python was already required for AI/local-model work, so FastAPI adds one
+focused dependency rather than a second language or runtime. Building the
+boundary-checked secrets accessor and redacted logging now, before any real
+secret exists, trades a small amount of near-term scope for having the
+security rails verified and tested before anything sensitive depends on them -
+consistent with how D017 and D018 built their rails ahead of real credentials
+and real state. Wiring uvicorn's own logs through the same redaction path
+(`log_config=None`) trades uvicorn's default log formatting for a single,
+centrally-redacted logging path, avoiding a gap where the framework's own
+request logs could bypass SECURITY.md's redaction requirement once real
+requests carry sensitive data.
+
+Security and data implications:
+No live personal or Brainstorm data, credentials, or Keychain entries are
+introduced by this decision. The boundary-checked accessor and redaction
+function were exercised only against fake, clearly-not-real test values in
+automated tests - never a real credential. Data classification and trust
+boundaries (SECURITY.md, D003) are unchanged. The application binds to
+`127.0.0.1` only by default (verified manually), consistent with SECURITY.md's
+private-networking requirement; Tailscale-only remote access is unaffected by
+this decision.
+
+Consequences:
+ROADMAP.md Phase 1's "Select and document the initial implementation stack"
+and "Create a minimal, runnable application with health checks" items are
+marked complete, verified by a passing test suite (`uv run pytest`), a clean
+lint pass (`uv run ruff check`), a clean type-check pass (`uv run mypy src`),
+and a manual health-check/localhost-binding verification. The Phase 1 secrets
+management item is not marked complete: the boundary-checked accessor and
+redacted logging it requires now exist and are tested, but the macOS Keychain
+loader for real production/runtime secrets does not exist yet and remains
+gated on a specific approved integration actually needing a credential, per
+D017. DECISIONS.md's Open Decisions list drops "Application language and
+framework." "Database and search/retrieval technologies" and "Event transport
+and workflow execution mechanism" remain open and undecided by this decision.
+
+Verification:
+Confirm `uv run pytest`, `uv run ruff check .`, and `uv run mypy src` all pass.
+Confirm `uv run zacai` binds only to `127.0.0.1` (checked via `lsof`), never a
+public interface. Confirm `curl http://127.0.0.1:8000/health` returns a 200
+with status/version/timestamp. Confirm the running server's own logs (not just
+directly-called application code) are emitted as redacted JSON. Confirm no
+real credential, Keychain entry, `.env.production` file, or other secret was
+created by this decision (`git status` / `git diff --check` clean, only the
+files listed above added or modified).
+
+Approval or source:
+Zac Campbell, architecture review conversation, 2026-09-19.
+
+Supersedes:
+None. Resolves the "Application language and framework" item from the Open
+Decisions list. Extends D016 (completes its deferred framework choice), D017
+(implements the boundary-checked accessor and redacted logging it specified),
+and D008/D001 (keeps model/vendor replaceability intact - this decision only
+selects a web/schema layer, never a model provider or orchestration
+framework).
+
 ## Open Decisions
 These choices have not yet been made:
-- Application language and framework
 - Database and search/retrieval technologies
 - Local model runtime and specific models
 - Cloud models and account configuration

@@ -51,8 +51,11 @@ For each phase:
 
 ## Phase 1 - Local Runtime and Safety Foundation
 - [ ] Inventory Mac Studio hardware and existing software.
-- [ ] Select and document the initial implementation stack.
-- [ ] Create a minimal, runnable application with health checks.
+- [x] Select and document the initial implementation stack. (D020: Python,
+  `uv`, FastAPI, Pydantic v2)
+- [x] Create a minimal, runnable application with health checks. (D020;
+  verified via `uv run pytest`, `uv run ruff check`, `uv run mypy src`, and a
+  manual `GET /health` check against a `127.0.0.1`-only server)
 - [ ] Establish development and production configuration separation.
 - [ ] Establish secrets management: `.env.development` is allowed for
   development/test secrets only; real production/runtime secrets use

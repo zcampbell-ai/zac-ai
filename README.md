@@ -112,8 +112,33 @@ Inspect pending changes with:
 
     git status
 
-Application installation, startup, testing, and shutdown commands
-will be documented when the implementation exists and is verified.
+### Application (Phase 1 minimal health-check app)
+
+Dependencies are managed with `uv` (see DECISIONS.md D020). Install them with:
+
+    uv sync
+
+Run the app (binds to `127.0.0.1` by default; see `src/zacai/config.py` for
+Tier-0 settings):
+
+    uv run zacai
+
+Verify it is running:
+
+    curl http://127.0.0.1:8000/health
+
+Stop it with `Ctrl+C` in the terminal running it, or:
+
+    lsof -tiTCP:8000 -sTCP:LISTEN | xargs kill
+
+Run tests, lint, and type checks:
+
+    uv run pytest
+    uv run ruff check .
+    uv run mypy src
+
+Logs are written as structured, redacted JSON to stdout (see
+`src/zacai/logging_config.py` and SECURITY.md/DECISIONS.md D017).
 
 ## Secrets and Private Data
 Keep credentials and private operational data out of this repository.
