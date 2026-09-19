@@ -1,13 +1,17 @@
 """Tier-0 configuration and the boundary-checked secrets accessor.
 
-See SECRETS.md and DECISIONS.md D017 for the full policy this implements:
+See SECRETS.md and DECISIONS.md D017/D021 for the full policy this implements:
 - Tier 0: versioned, non-secret configuration (this module's `Settings`).
 - Every secret name must carry a PERSONAL_/BRAINSTORM_/SHARED_ trust-boundary
   prefix, enforced here in code rather than by naming convention alone.
+- The runtime `Environment` is explicit and fails safely on an invalid value;
+  only development mode ever reads `.env.development` (D021).
 
 No real secret values exist yet. `get_secret` only establishes the
 enforcement mechanism so it is in place before any real credential is
-introduced (Tier 1 `.env.development` or Tier 2 macOS Keychain).
+introduced (Tier 1 `.env.development` or Tier 2 macOS Keychain). Wiring
+`get_secret` to actually read `.env.development` remains separate,
+not-yet-done work (D021) - see DECISIONS.md.
 """
 
 from __future__ import annotations
@@ -19,12 +23,22 @@ from enum import Enum
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+class Environment(str, Enum):
+    """Runtime modes Zac AI can start in (SECRETS.md, D017, D021).
+
+    Exactly two values. Any other value must fail Settings validation at
+    startup rather than being silently accepted or coerced.
+    """
+
+    DEVELOPMENT = "development"
+    PRODUCTION = "production"
+
+
 class Settings(BaseSettings):
     """Tier-0, non-secret configuration only. Never add a secret value here."""
 
     model_config = SettingsConfigDict(
         env_prefix="ZACAI_",
-        env_file=".env.development",
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -32,11 +46,24 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"
     port: int = 8000
     log_level: str = "INFO"
-    environment: str = "development"
+    environment: Environment = Environment.DEVELOPMENT
+
+
+def _select_env_file(raw_environment: str) -> str | None:
+    """The one code path deciding whether a dotenv file is loaded.
+
+    Only an exact "development" match loads `.env.development`. Anything
+    else - "production", a typo, an empty value - loads nothing, so an
+    invalid value falls through to Settings validation and fails startup
+    instead of silently falling back, and a production run can never pick
+    up a dev-only file (DECISIONS.md D021).
+    """
+    return ".env.development" if raw_environment == Environment.DEVELOPMENT.value else None
 
 
 def get_settings() -> Settings:
-    return Settings()
+    raw_environment = os.environ.get("ZACAI_ENVIRONMENT", Environment.DEVELOPMENT.value)
+    return Settings(_env_file=_select_env_file(raw_environment))
 
 
 class TrustBoundary(str, Enum):

@@ -7,6 +7,7 @@ integration - those are later, separately-approved roadmap phases.
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, version
 
@@ -23,6 +24,9 @@ except PackageNotFoundError:
 
 settings = get_settings()
 configure_logging(settings.log_level)
+
+logger = logging.getLogger("zacai")
+logger.info("starting in %s mode", settings.environment.value)
 
 app = FastAPI(title="Zac AI")
 

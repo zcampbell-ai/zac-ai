@@ -38,6 +38,7 @@ src = ["src", "tests"]
 python_version = "3.12"
 packages = ["zacai"]
 strict = true
+plugins = ["pydantic.mypy"]
 
 [build-system]
 requires = ["uv_build>=0.12.16,<0.13.0"]

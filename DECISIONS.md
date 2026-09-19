@@ -861,6 +861,142 @@ and D008/D001 (keeps model/vendor replaceability intact - this decision only
 selects a web/schema layer, never a model provider or orchestration
 framework).
 
+## D021 - Development/Production Runtime Mode Separation
+Status: Accepted
+Date: 2026-09-19
+
+Context:
+D017 defined the secrets/configuration tiers (Tier 0 non-secret config, Tier 1
+`.env.development` for dev/test secrets, Tier 2 macOS Keychain for real
+production/runtime secrets) but never specified how a running Zac AI process
+determines which tier or mode it is actually in, or what happens if that
+determination is missing or wrong. D020's `Settings.environment` field was a
+free-form, unvalidated string that had no effect on behavior: any value was
+accepted, and `.env.development` was read unconditionally regardless of the
+declared environment. An architecture review (design-only pass, then approved
+implementation) identified this as a real gap ahead of introducing any real
+data or credentials: a production run had no way to guarantee it would never
+read a developer's local dotenv file, and an invalid or mistyped environment
+value had no defined failure behavior.
+
+Decision:
+Make the runtime environment explicit, strictly typed, and fail-safe, and
+make dotenv-file selection a single, environment-aware code path:
+
+- Add `zacai.config.Environment`, a `str, Enum` with exactly two values:
+  `development` and `production`. `Settings.environment` is typed as
+  `Environment`, defaulting to `Environment.DEVELOPMENT`. Any other value
+  (a typo, an empty string, `"staging"`, etc.) fails Pydantic validation
+  when `Settings` is constructed - the application does not start.
+- Remove the static `env_file=".env.development"` from `Settings.model_config`
+  entirely. The only place that decides whether a dotenv file is read is a
+  new `_select_env_file(raw_environment: str) -> str | None` function:
+  it returns `".env.development"` only for an exact `"development"` match,
+  and `None` for everything else, including invalid values - so an invalid
+  value loads nothing and then fails through `Settings` validation, rather
+  than silently falling back to some default behavior.
+- `get_settings()` reads the raw `ZACAI_ENVIRONMENT` value from the real
+  process environment (defaulting to `"development"` when absent), passes
+  the result of `_select_env_file` as `Settings(_env_file=...)`, and lets
+  `Settings` validate the same raw value into the `Environment` enum.
+- `main.py` logs the resolved environment (`settings.environment.value`) at
+  startup through the existing centralized, redacted structured-logging path
+  - not sensitive, but makes the active mode auditable from the logs.
+- Tier-0 defaults (`host=127.0.0.1`, `port=8000`, `log_level=INFO`) are
+  unchanged and identical in both modes. No `.env.production` file is
+  introduced or referenced anywhere.
+
+Deliberately out of scope: wiring `get_secret()` to actually read
+`.env.development`. Tracing the existing code confirmed `get_secret()` only
+ever reads real `os.environ` (or an injected test mapping); because
+pydantic-settings' dotenv loader never mutates `os.environ`, nothing in
+`.env.development` is currently visible to `get_secret()` at all. This is a
+pre-existing gap from D020, not something this decision closes - closing it
+now, with no real dev/test credential yet to justify it, would be exactly the
+kind of building-ahead-of-need D016/D017 already reject. It remains
+documented, separate secrets-management work for when a specific approved
+integration actually needs a development credential (see SECRETS.md's
+credential-adding procedure).
+
+Alternatives considered:
+Keeping `environment` as a free-form string and validating it manually inside
+`get_settings()` was rejected: it would duplicate validation logic in two
+places (a manual check plus whatever `Settings` itself does) and would not
+give the same fail-closed guarantee an enum-typed Pydantic field gives for
+free. Making `.env.production` a real, loadable file path (even if never
+populated) was rejected: SECRETS.md and D017 already prohibit a real
+credential in a plaintext `.env.production` file, and giving it a code path
+at all would invite exactly that mistake later. Defaulting an absent
+`ZACAI_ENVIRONMENT` to `"production"` (fail toward the more restrictive mode)
+was considered and rejected in favor of defaulting to `"development"`: on
+this single-operator project, nothing unsafe happens if a manually-started
+run is accidentally in development mode, whereas an unset variable silently
+behaving like production could later matter once production-only behavior
+(real Keychain secrets, live integrations) actually exists; requiring an
+explicit `ZACAI_ENVIRONMENT=production` to opt into that mode is the more
+conservative choice today. Wiring `get_secret()` to `.env.development` now
+was considered and rejected per the "deliberately out of scope" note above.
+
+Reasons and tradeoffs:
+An enum-typed field gets fail-safe validation from Pydantic itself rather
+than hand-written checks, and collapses "what counts as a valid environment"
+into one declaration. Centralizing dotenv-file selection in one function
+(`_select_env_file`) means there is exactly one place that can be audited or
+tested for the property "production never reads a dev file" that the review
+identified as the actual risk, rather than that guarantee depending on
+`model_config` staying correct forever. Logging the resolved mode adds a
+trivial amount of log volume in exchange for an operator being able to
+confirm from `curl`/log output alone which mode a given run is actually in,
+which directly serves SECURITY.md's "fail safely and request approval when
+uncertain" posture applied to configuration rather than just to actions.
+
+Security and data implications:
+No real credential, Keychain entry, `.env.development`, or `.env.production`
+file was created by this decision or its implementation. The application was
+manually verified to bind to `127.0.0.1` only in both development and
+production mode. A temporary `.env.development`-shaped file was created only
+inside pytest's isolated `tmp_path` fixtures to test that production ignores
+it and development reads it - never in the project's real working directory,
+and never containing anything but a fake, non-secret port number. Data
+classification and trust boundaries (SECURITY.md, D003) are unchanged; this
+decision only changes which non-secret Tier-0 configuration source is
+consulted and how invalid environment input is handled.
+
+Consequences:
+ROADMAP.md Phase 1's "Establish development and production configuration
+separation" item is marked complete, verified by a passing test suite
+(`uv run pytest`), a clean lint pass (`uv run ruff check`), a clean type-check
+pass (`uv run mypy src`, with the `pydantic.mypy` plugin now enabled so mypy
+understands `Settings`' pydantic-settings-specific constructor), and a manual
+run of the application in both development and production mode confirming
+correct logging and continued `127.0.0.1`-only binding. The separate Phase 1
+"Establish secrets management" item remains unchecked: the macOS Keychain
+loader for real production/runtime secrets still does not exist, and
+`get_secret()` still does not read `.env.development`, both unchanged by this
+decision and gated on a specific approved integration actually needing a
+credential, per D017.
+
+Verification:
+Confirm `uv run pytest`, `uv run ruff check .`, and `uv run mypy src` all
+pass. Confirm `Settings(environment="staging")` (or any value other than
+`"development"`/`"production"`) raises a `pydantic.ValidationError`. Confirm
+`ZACAI_ENVIRONMENT=production uv run zacai` binds only to `127.0.0.1` (via
+`lsof`) and logs `"starting in production mode"`; confirm the same for
+`ZACAI_ENVIRONMENT=development` (and for the variable being absent, which
+must behave identically to explicit `development`). Confirm no
+`.env.production` file exists anywhere in the repository. Confirm no real
+credential, Keychain entry, or live integration was introduced
+(`git status` / `git diff --check` clean, only the files this decision
+describes added or modified).
+
+Approval or source:
+Zac Campbell, architecture review conversation, 2026-09-19.
+
+Supersedes:
+None. Extends D017 (implements explicit, fail-safe environment/tier
+selection that D017 assumed but never specified) and D020 (refines the
+`Settings.environment` field D020 introduced as a free-form string).
+
 ## Open Decisions
 These choices have not yet been made:
 - Database and search/retrieval technologies

@@ -123,6 +123,14 @@ Tier-0 settings):
 
     uv run zacai
 
+Runtime mode is explicit and defaults to `development` (see DECISIONS.md
+D021). Set `ZACAI_ENVIRONMENT=production` to run in production mode; only
+`development` and `production` are accepted, and any other value fails
+startup rather than being silently accepted. Only `development` mode ever
+reads a local `.env.development` file:
+
+    ZACAI_ENVIRONMENT=production uv run zacai
+
 Verify it is running:
 
     curl http://127.0.0.1:8000/health

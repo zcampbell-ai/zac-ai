@@ -56,7 +56,11 @@ For each phase:
 - [x] Create a minimal, runnable application with health checks. (D020;
   verified via `uv run pytest`, `uv run ruff check`, `uv run mypy src`, and a
   manual `GET /health` check against a `127.0.0.1`-only server)
-- [ ] Establish development and production configuration separation.
+- [x] Establish development and production configuration separation. (D021:
+  explicit `Environment` enum with exactly `development`/`production`,
+  fail-safe on any other value, `.env.development` read only in development
+  mode, production defaults unchanged and conservative; verified via
+  automated tests and a manual run in each mode)
 - [ ] Establish secrets management: `.env.development` is allowed for
   development/test secrets only; real production/runtime secrets use
   macOS Keychain; no plaintext `.env.production` file is used for real
