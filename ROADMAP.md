@@ -10,8 +10,10 @@ DECISIONS.md records meaningful architectural decisions.
 This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position
-Phase 0 is in progress.
-Implementation has not yet been verified.
+Phase 0 and Phase 1 are complete (see the Phase 1 completion audit,
+DECISIONS.md D016-D025). Phase 2 (Canonical State, Memory, and Evidence)
+has not yet started; D026 (Zac State v1 storage foundation) is under
+architecture review before any Phase 2 implementation begins.
 
 ## Tracking Rules
 - [ ] means incomplete or not yet verified.
@@ -47,10 +49,14 @@ For each phase:
 - [x] Verify the foundation is backed up to the private repository.
 - [x] Install and authenticate Claude Code on the Mac Studio.
 - [x] Verify Claude Code reads and follows the project instructions. (Initial read-only review passed; this does not establish enforcement of every security policy.)
-- [ ] Give Claude Code one bounded initial implementation task.
+- [x] Give Claude Code one bounded initial implementation task. (Satisfied
+  repeatedly since: D020-D025 were each a single, bounded, reviewed
+  implementation task.)
 
 ## Phase 1 - Local Runtime and Safety Foundation
-- [ ] Inventory Mac Studio hardware and existing software.
+- [x] Inventory Mac Studio hardware and existing software. (D016: read-only
+  inventory recorded in D016's Context - Apple M4 Max, 16 CPU cores, 40 GPU
+  cores, 64GB memory, ~911GB free storage.)
 - [x] Select and document the initial implementation stack. (D020: Python,
   `uv`, FastAPI, Pydantic v2)
 - [x] Create a minimal, runnable application with health checks. (D020;
@@ -115,6 +121,13 @@ For each phase:
   credential solely to run this test). A successful Lane A restore
   drill alone does not satisfy this item; it remains incomplete until
   Lane B and Lane C have each been tested under those conditions.
+  Status: Lane A is complete; Lane B and Lane C are deferred by design,
+  not incomplete work - Lane B cannot exist before Phase 2 creates
+  canonical Zac State, and Lane C cannot be tested without a real
+  approved credential, which must not be created solely to run this
+  test (see RECOVERY.md). This item correctly stays open and does not
+  block starting Phase 2 - Phase 2 is the prerequisite Lane B is
+  waiting on.
 - [x] Install Ollama and benchmark local models on real Zac AI tasks: a fast
   model, a stronger everyday model, a stronger reasoning model, and a coding
   model (evaluation only; not yet wired into canonical state, memory, or model
@@ -241,4 +254,7 @@ Backups and operational checks begin in Phase 1 and continue throughout.
 - [ ] Verify Zac's personal data never becomes company-wide by default.
 
 ## Next Concrete Step
-Inventory Mac Studio hardware and existing development tools using read-only checks before selecting the implementation stack.
+Complete the D026 architecture review for Zac AI's Phase 2 Zac State v1
+storage and schema foundation (database choice, boundary-storage design,
+minimal first entity slice, temporal/versioning and provenance design)
+before any Phase 2 implementation begins.
