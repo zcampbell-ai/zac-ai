@@ -62,6 +62,11 @@ class Settings(BaseSettings):
     port: int = 8000
     log_level: str = "INFO"
     environment: Environment = Environment.DEVELOPMENT
+    # Local, loopback-only, trust-authenticated dev default with no embedded
+    # credential. If a future PostgreSQL deployment ever requires a password,
+    # it must be loaded via get_secret()/Keychain (D017), never embedded in
+    # this or any committed database_url value (D026).
+    database_url: str = "postgresql+psycopg://127.0.0.1:5432/zacai_dev"
 
 
 def _select_env_file(raw_environment: str) -> str | None:

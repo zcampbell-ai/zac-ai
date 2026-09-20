@@ -1644,6 +1644,215 @@ enforced in code), and D017/SECRETS.md (identifies, without building, the
 future Keychain-loading integration point this LaunchAgent choice keeps
 straightforward).
 
+## D026 - Zac State v1 Storage Foundation (Person, Commitment, Source)
+Status: Accepted
+Date: 2026-09-19
+
+Context:
+ROADMAP.md Phase 2 ("Canonical State, Memory, and Evidence") requires
+entity schemas, versioned/temporal history, and source-backed evidence
+before any live connector is approved. DECISIONS.md's Open Decisions list
+carried "Database and search/retrieval technologies" unresolved since
+D016, which named PostgreSQL, pgvector, and MLX only as candidates to
+"install later, when justified by the relevant implementation phase" -
+that phase is Phase 2. D023 built the trust-boundary/data-classification
+policy layer but explicitly declined to choose a database or address
+storage representation ("No database is chosen" - D023 has no discussion
+anywhere of columns, schemas, or separate databases). D024 flagged a
+future need for a persisted, auditable `ApprovalRecord`. D018 requires
+Personal and Brainstorm state to be backed up with separate encryption
+keys, never a shared key across boundaries, once Lane B exists. An
+architecture review (two design-only passes, each revised before
+approval) evaluated the minimum v1 model needed.
+
+Decision:
+Add PostgreSQL 18 (`brew install postgresql@18`) as the v1 canonical
+store, with pgvector deliberately not installed, plus:
+
+- `src/zacai/db.py`: engine/session construction only, reading
+  `Settings.database_url` (new Tier-0, non-secret field in
+  `zacai.config`, default `postgresql+psycopg://127.0.0.1:5432/zacai_dev`
+  - loopback-only, no embedded credential).
+- `src/zacai/state.py`: the v1 schema - `source` (immutable provenance,
+  never versioned), `person` and `commitment` (append-only, one row per
+  `(entity_id, version)`), `person_head`/`commitment_head` (the one
+  deliberate, mutable exception - a boundary plus a version pointer, no
+  content), and typed `person_evidence`/`commitment_evidence` (not a
+  generic polymorphic association table). `TrustBoundary`/
+  `DataClassification` are reused unchanged from `zacai.policy` - never
+  redefined here. Every boundary-scoped table carries `trust_boundary`
+  `NOT NULL` with a database `CHECK` constraint (`Enum(...,
+  native_enum=False, create_constraint=True)` - SQLAlchemy 2.0 changed
+  this default to `False`, so it must be passed explicitly or no
+  constraint is generated at all). `source`, `person`, and `commitment`
+  each also carry `data_classification NOT NULL`, so a stored row already
+  carries enough to reconstruct a D023 `AccessRequest` without chasing
+  provenance first.
+- Cross-boundary leakage is prevented by real composite foreign keys, not
+  repository convention alone: `person_evidence`/`commitment_evidence`
+  FK their `trust_boundary` to both the entity version and the `source`
+  they cite; `commitment` FKs `(owner_person_id, trust_boundary)` to
+  `person_head(entity_id, trust_boundary)`, so a commitment can only ever
+  reference a person in its own exact boundary - SHARED is never a
+  bridge. `person`/`commitment` also FK `(entity_id, trust_boundary)` to
+  their own head table, and a head row's `trust_boundary` is set once at
+  creation and never updated - making it structurally impossible for any
+  version to be inserted with a different boundary than its entity's
+  original one, even if the repository's own check were bypassed.
+- Version allocation (`_allocate_version` in `state_repository.py`) is
+  concurrency-safe using only ordinary PostgreSQL mechanisms - `INSERT
+  ... ON CONFLICT DO NOTHING` followed by `SELECT ... FOR UPDATE` - never
+  an unguarded `SELECT max(version) + 1`. One algorithm, not two, handles
+  both a brand-new entity and an existing one: for two concurrent callers
+  targeting the same not-yet-existing `entity_id`, Postgres blocks the
+  second's `INSERT ... ON CONFLICT` on the first's uncommitted row until
+  it resolves, after which the second's insert becomes a no-op and it
+  proceeds to lock the now-existing row - fully serializing both cases
+  with nothing but row-level locking, no advisory lock, no external lock
+  service.
+- `create_person`/`create_commitment` require at least one `SUPPORTS`
+  evidence row per version and enforce a non-weakening classification
+  invariant: a version's `data_classification` may never be less
+  restrictive than any `SUPPORTS` evidence backing it (checked in the
+  repository layer, inside the same transaction as the write - not a DB
+  trigger, and not automatic propagation; a caller must still supply a
+  classification, the repository only rejects one the evidence doesn't
+  justify).
+- `source`/`person`/`commitment`/`person_evidence`/`commitment_evidence`
+  are append-only, enforced by a database trigger
+  (`zacai_forbid_mutation()`) that raises on any `UPDATE` or `DELETE` -
+  not a `REVOKE`, since a table's owner always bypasses `GRANT`/`REVOKE`
+  on their own objects in PostgreSQL regardless of privileges granted
+  away. `person_head`/`commitment_head` carry no such trigger - they are
+  the one deliberate, named exception. Logical deletion is a normal new
+  version with `status="RETRACTED"` (a tombstone), going through the
+  identical version-creation path as any other change - never a physical
+  `DELETE`, which the trigger forbids
+  outright regardless.
+- One Alembic migration (`alembic/versions/0001_initial_state_schema.py`)
+  creates all seven tables plus the trigger function and its five
+  triggers, hand-reviewed and edited after `--autogenerate` (which cannot
+  infer the composite foreign keys or the trigger-based append-only
+  enforcement).
+
+Alternatives considered:
+SQLite was rejected: its single-writer model becomes a near-term
+bottleneck given Phase 3's seven connectors and Phase 4's Chief-of-Staff
+process, and it has no path to vector search later, forcing a future
+storage-engine rewrite rather than an additive extension. Installing
+pgvector now was rejected: ARCHITECTURE.md has no vector/semantic-search
+requirement anywhere, and Phase 2's own checklist has none either -
+installing it now would be infrastructure with no consuming feature,
+against D016's own "wait for the phase that needs it" principle.
+PostgreSQL 16 was rejected in favor of 18 (the current stable major as of
+this review, with a Homebrew formula on Apple Silicon): no dependency in
+this v1 slice (plain tables, foreign keys, transactions; pgvector
+deferred) pins to an older major. Separate schemas or separate databases
+per trust boundary were rejected in favor of one database with mandatory
+boundary columns: they would map cleanly onto D018's per-boundary backup
+keys, but cost real foreign-key integrity across boundaries, triplicated
+migrations, and multiple credential sets for a single novice maintainer -
+a worse tradeoff than a small boundary-aware backup export step. A
+generic polymorphic `evidence_link(entity_type, entity_id, version,
+source_id)` table was rejected in favor of typed `person_evidence`/
+`commitment_evidence` tables: a polymorphic discriminator column cannot
+be enforced by a real foreign key the way a typed table can.
+Advisory-lock-based concurrency was rejected in favor of `INSERT ON
+CONFLICT` + `SELECT FOR UPDATE`: it achieves the same serialization using
+only ordinary row locks already relied on elsewhere in this design, with
+no hash-key-collision risk an advisory lock's integer key would
+introduce. A single-column `owner_person_id` FK to `person.entity_id`
+alone, deferring owner-boundary checking to the repository layer, was
+rejected for the same "prefer database-enforceable constraints" reasoning
+already applied to the evidence tables.
+
+Reasons and tradeoffs:
+Embedding a `trust_boundary` column directly on `person_head`/
+`commitment_head` (rather than only on the versioned tables) is what
+makes both the version-boundary-immutability FK and the
+commitment-owner-boundary FK possible with an ordinary composite foreign
+key - a small, deliberate schema addition in exchange for two real
+database-level guarantees instead of two repository-layer conventions.
+Checking the classification non-weakening rule in the repository layer
+rather than a database trigger trades a small amount of enforcement
+strength (a direct, ORM-bypassing SQL write could in principle violate it)
+for avoiding a more complex piece of PL/pgSQL for a rule that is not
+itself a simple column-level constraint (it spans version, evidence, and
+source rows) - explicitly not addressed by automatic classification
+propagation, which was out of scope by design. Making `person`/
+`commitment` referencing `owner_person_id`/evidence non-version-pinned
+(referencing the entity via its head row, not a specific version) avoids
+forcing an unrelated re-versioning cascade every time a referenced
+entity's own content changes for unrelated reasons.
+
+Security and data implications:
+No real Personal, Brainstorm, or Shared data was created by this
+decision - `zacai_dev` contains only synthetic test fixtures (and a small
+number of synthetic rows deliberately left behind by the two concurrency
+tests, which cannot be deleted by design - the append-only trigger
+applies to test cleanup attempts exactly as it does to any other write).
+No credential was created; `Settings.database_url` has no embedded
+password (local trust authentication via `127.0.0.1`). This decision does
+not establish a precedent that a production database password belongs in
+Tier-0 `Settings`: if a future PostgreSQL deployment ever requires
+authentication, that credential must be loaded via `get_secret`/Keychain
+(D017), never embedded in a committed or configured `database_url` value.
+No pgvector,
+embeddings, or full-text search was installed or added. The
+`trust_boundary`/`data_classification` columns this decision adds are
+what make a future `AccessRequest` reconstructible directly from a stored
+row, without weakening or duplicating `zacai.policy`'s logic - D023's
+`evaluate_access` and D024's `evaluate_gateway` are both unchanged by this
+decision.
+
+Consequences:
+Phase 2 gains a real, tested storage foundation for exactly three
+entities (Person, Commitment, Source) - not the full entity graph, not
+identity resolution, and not a claim that ROADMAP.md's broader Phase 2
+checklist items are complete. D018's Lane B backup design gains a
+concrete mechanism to build next (a boundary-aware `COPY`-based export
+per boundary, not yet implemented) rather than remaining purely
+theoretical, and D026 records an explicit extension D018 itself did not:
+`SHARED` requires its own separate backup encryption key, not just
+Personal and Brainstorm, since D018 predates SHARED as a third,
+independently-authorized boundary. Future work extending this schema
+(Company, Task, Project, identity resolution, retention/export/deletion
+behavior, any connector) must route through `zacai.state_repository`
+rather than querying `zacai.state` tables directly, and must not weaken
+the append-only trigger, the boundary-immutability FKs, or the
+classification non-weakening check without its own explicit decision.
+
+Verification:
+Confirmed `uv run pytest` (195 passed, including 42 new D026 tests: 4 in
+`tests/test_db.py`, 6 in `tests/test_state.py`, 32 in
+`tests/test_state_repository.py`), a clean `uv run ruff check .`, a clean
+`uv run mypy src`, and a clean `git diff --check`. Confirmed
+`alembic upgrade head` / `alembic downgrade base` / `alembic upgrade
+head` round-trips cleanly against `zacai_dev`, leaving exactly the seven
+application tables plus `alembic_version`. Confirmed the append-only
+triggers reject `UPDATE`/`DELETE` on `source`/`person`/`commitment`/
+`person_evidence`/`commitment_evidence` while `person_head`/
+`commitment_head` remain updatable. Confirmed both the first-version and
+next-version concurrency tests produce sequential, non-duplicate versions
+under real concurrent transactions. Confirmed the nine-combination
+owner-boundary matrix and the SHARED-is-not-a-bridge boundary-leak tests
+all pass, and that a raw SQL insert bypassing `state_repository` entirely
+is still rejected by the relevant foreign key in each case. Confirmed
+`git status` shows no live LaunchAgent, Tailscale, or credential change,
+and that `src/zacai/policy.py` and `src/zacai/gateway.py` are unchanged.
+
+Approval or source:
+Zac Campbell, architecture review conversation, 2026-09-19.
+
+Supersedes:
+None. Extends D004 (source-backed, versioned state), D016 (resolves the
+long-deferred "install later" candidacy of PostgreSQL, explicitly still
+deferring pgvector), D018 (gives Lane B's per-boundary encryption
+requirement a concrete storage shape to back up, and extends it to
+explicitly cover SHARED), and D023 (consumes `TrustBoundary`/
+`DataClassification` unchanged, and answers the storage-representation
+question D023 explicitly left open, without modifying `policy.py`).
+
 ## Open Decisions
 These choices have not yet been made:
 - Database and search/retrieval technologies
