@@ -1,16 +1,19 @@
-"""Tests for zacai.state_repository (D026).
+"""Tests for zacai.state_repository (D026/D027).
 
-Uses `zacai_dev` only, synthetic data only. Most tests use the
-`db_session` fixture (tests/conftest.py), which rolls back at teardown.
+Uses the disposable `zacai_test` database only (D027) - never
+`zacai_dev`. Most tests use the `db_session` fixture (tests/conftest.py),
+which rolls back at teardown.
 
 The concurrency tests are a deliberate, documented exception: they must
 exercise genuinely separate, independently-committed transactions to mean
-anything, so they use their own sessions via `get_session_factory()`
-directly and commit for real. Because the schema is append-only by
-design (tests/test_state.py proves DELETE is rejected even for test
-cleanup), the synthetic rows these two tests create are left behind in
-`zacai_dev` - an accepted, documented tradeoff for a local dev database,
-each run using a fresh random `entity_id` so nothing collides.
+anything, so they use their own sessions via the `test_session_factory`
+fixture (tests/conftest.py - bound to the disposable zacai_test engine,
+never `zacai.db`'s app-level factory) and commit for real. Because the
+schema is append-only by design (tests/test_state.py proves DELETE is
+rejected even for test cleanup), the synthetic rows these two tests
+create are left behind in `zacai_test` until the next session's D027
+reset wipes them - harmless, since that database exists for exactly this
+purpose.
 """
 
 from __future__ import annotations
@@ -22,9 +25,8 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 from sqlalchemy import select, text
 from sqlalchemy.exc import DBAPIError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
-from zacai.db import get_session_factory
 from zacai.policy import DataClassification, TrustBoundary
 from zacai.state import (
     Commitment,
@@ -488,21 +490,27 @@ def test_retract_commitment_creates_tombstone_version(db_session: Session) -> No
 #
 # These two tests deliberately do not use the `db_session` fixture - they
 # need genuinely independent connections/transactions to exercise real
-# PostgreSQL row-locking, and they commit for real. Synthetic rows they
-# create are intentionally left in zacai_dev (see module docstring).
+# PostgreSQL row-locking, and they commit for real. They use
+# `test_session_factory` (tests/conftest.py, D027) rather than
+# `zacai.db.get_session_factory()`, so they run against the disposable
+# zacai_test database, never zacai_dev. Synthetic rows they create are
+# intentionally left behind until the next session's D027 reset (see
+# module docstring).
 
 
-def test_concurrent_first_version_creation_same_entity() -> None:
+def test_concurrent_first_version_creation_same_entity(
+    test_session_factory: sessionmaker[Session],
+) -> None:
     entity_id = uuid.uuid4()
     boundary = TrustBoundary.PERSONAL
 
-    with get_session_factory()() as setup_session:
+    with test_session_factory() as setup_session:
         source = _make_source(setup_session, trust_boundary=boundary)
         source_id = source.id
         setup_session.commit()
 
     def _create(display_name: str) -> None:
-        session = get_session_factory()()
+        session = test_session_factory()
         try:
             create_person(
                 session,
@@ -521,7 +529,7 @@ def test_concurrent_first_version_creation_same_entity() -> None:
         for future in futures:
             future.result()  # re-raises if either call failed
 
-    with get_session_factory()() as verify_session:
+    with test_session_factory() as verify_session:
         head = verify_session.get(PersonHead, entity_id)
         versions = (
             verify_session.execute(select(Person.version).where(Person.entity_id == entity_id).order_by(Person.version))
@@ -534,11 +542,13 @@ def test_concurrent_first_version_creation_same_entity() -> None:
     assert versions == [1, 2]
 
 
-def test_concurrent_next_version_creation_existing_entity() -> None:
+def test_concurrent_next_version_creation_existing_entity(
+    test_session_factory: sessionmaker[Session],
+) -> None:
     entity_id = uuid.uuid4()
     boundary = TrustBoundary.PERSONAL
 
-    with get_session_factory()() as setup_session:
+    with test_session_factory() as setup_session:
         source = _make_source(setup_session, trust_boundary=boundary)
         source_id = source.id
         create_person(
@@ -552,7 +562,7 @@ def test_concurrent_next_version_creation_existing_entity() -> None:
         setup_session.commit()
 
     def _create(display_name: str) -> None:
-        session = get_session_factory()()
+        session = test_session_factory()
         try:
             create_person(
                 session,
@@ -571,7 +581,7 @@ def test_concurrent_next_version_creation_existing_entity() -> None:
         for future in futures:
             future.result()
 
-    with get_session_factory()() as verify_session:
+    with test_session_factory() as verify_session:
         head = verify_session.get(PersonHead, entity_id)
         versions = (
             verify_session.execute(select(Person.version).where(Person.entity_id == entity_id).order_by(Person.version))

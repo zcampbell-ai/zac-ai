@@ -2,8 +2,9 @@
 constraints and the append-only triggers, independent of the
 `state_repository` layer that normally sits in front of them.
 
-Uses `zacai_dev` only, synthetic data only, rolled back via the
-`db_session` fixture (tests/conftest.py) - nothing here is left behind.
+Uses the disposable `zacai_test` database only (D027), synthetic data
+only, rolled back via the `db_session` fixture (tests/conftest.py) -
+nothing here is left behind.
 """
 
 from __future__ import annotations

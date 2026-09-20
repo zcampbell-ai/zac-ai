@@ -18,7 +18,16 @@ if config.config_file_name is not None:
 # The single source of truth for the DB URL is Settings.database_url
 # (D026), not a value duplicated into alembic.ini - so dev/prod never
 # drift out of sync with the application's own configuration.
-config.set_main_option("sqlalchemy.url", get_settings().database_url)
+#
+# D027: a caller (tests/conftest.py) may set "sqlalchemy.url" explicitly
+# via config.set_main_option() *before* invoking alembic's Python API, to
+# point migrations at the disposable zacai_test database instead of
+# zacai_dev. This must be checked first and left alone if already set -
+# unconditionally overwriting it here would silently redirect a
+# test-database reset back onto zacai_dev, defeating D027 entirely.
+_placeholder_url = "driver://user:pass@localhost/dbname"
+if config.get_main_option("sqlalchemy.url") in (None, _placeholder_url):
+    config.set_main_option("sqlalchemy.url", get_settings().database_url)
 
 target_metadata = Base.metadata
 

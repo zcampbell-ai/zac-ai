@@ -153,6 +153,20 @@ Stop it with `Ctrl+C` in the terminal running it, or:
 
     lsof -tiTCP:8000 -sTCP:LISTEN | xargs kill
 
+### One-time setup: the disposable test database (D027)
+
+Database tests never run against `zacai_dev` - they run against a
+separate, disposable `zacai_test` database instead, reset automatically
+at the start of every test session. Create it once, locally:
+
+    createdb zacai_test
+
+That's the only setup needed. Tests refuse to run (with a clear error) if
+`zacai_test` doesn't exist, doesn't resolve to exactly `127.0.0.1:5432`,
+or has an embedded password - `zacai_dev` can never be used by mistake.
+It's safe to drop and recreate `zacai_test` at any time; nothing valuable
+is ever stored there.
+
 Run tests, lint, and type checks:
 
     uv run pytest

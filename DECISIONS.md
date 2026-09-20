@@ -1853,6 +1853,170 @@ explicitly cover SHARED), and D023 (consumes `TrustBoundary`/
 `DataClassification` unchanged, and answers the storage-representation
 question D023 explicitly left open, without modifying `policy.py`).
 
+## D027 - Test Database Isolation
+Status: Accepted
+Date: 2026-09-19
+
+Context:
+D026's two concurrency tests must commit real, independent transactions
+to exercise genuine PostgreSQL row-locking, so they cannot use the
+rollback-based `db_session` fixture - they were writing directly into
+`zacai_dev`. This left synthetic rows in the persistent development
+database after every test run, requiring a manual `dropdb`/`createdb`
+reset after D026 shipped. Normal test runs must never be able to mutate
+`zacai_dev` again. An architecture review (design-only pass, then
+approved with two safety additions - a tightened URL allowlist plus a
+post-connect verification, and a cross-process advisory lock) evaluated
+the minimum reliable fix.
+
+Decision:
+All database tests now run against a dedicated, disposable `zacai_test`
+database - never `zacai_dev` - via `tests/conftest.py`:
+
+- `assert_safe_test_database_url(url)`: a strict allowlist, checked
+  field-by-field with a specific error per failure. `host` must be
+  exactly `"127.0.0.1"` (rejects `"localhost"`, `"::1"`, any LAN/
+  Tailscale/remote address); `database` must be exactly `"zacai_test"`
+  (rejects `"zacai_dev"` or anything else); `port` must be omitted or
+  exactly `5432`; the URL must carry no password. Run once per test
+  session, before any connection is opened.
+- `assert_connected_to_safe_test_database(reported_database)`: a second,
+  independent check - defense in depth, not redundancy. After the first
+  connection opens, `SELECT current_database()` is compared against the
+  same literal. The URL string is validated pre-connect; this verifies
+  what was *actually* connected to, catching anything a string alone
+  couldn't (a connection alias, a DSN quirk, an unexpected driver
+  default). It is a pure function taking a plain string, kept separate
+  from the query itself so it is unit-testable without a live connection.
+- A fixed PostgreSQL session-level advisory lock (`_TEST_SESSION_LOCK_KEY
+  = 727027`, tied to "D027," documented as never to collide with a future
+  key added elsewhere) serializes two concurrent `pytest` processes:
+  `pg_try_advisory_lock` is attempted first for immediate feedback; on
+  failure, a clear message is printed to stderr before falling back to
+  the blocking `pg_advisory_lock`, so a second run waits and proceeds
+  automatically rather than failing fast or corrupting the first run's
+  reset. Held on one dedicated connection for the whole test session,
+  released via `pg_advisory_unlock` at teardown. Test infrastructure
+  only - no application code uses this lock, and it is unrelated to and
+  never interacts with D026's own row-level concurrency mechanism
+  (`INSERT ON CONFLICT` + `SELECT FOR UPDATE` in `state_repository.py`).
+- The schema is reset once per test session - `alembic downgrade base`
+  (skipped on a completely fresh database with no `alembic_version`
+  table yet) then `alembic upgrade head` - run programmatically against
+  the test URL, using the exact same migration file
+  (`alembic/versions/0001_initial_state_schema.py`) that defines
+  `zacai_dev`'s schema. No hand-built test tables exist anywhere.
+- `db_session` (the existing SAVEPOINT-based rollback fixture) now binds
+  to this test engine instead of `zacai.db.get_engine()`. The two D026
+  concurrency tests now take a `test_session_factory` fixture parameter
+  instead of importing `zacai.db.get_session_factory()` directly - there
+  is no code path left, in any test, through which `zacai_dev` could be
+  reached.
+- `alembic/env.py` was corrected: it previously unconditionally
+  overwrote `sqlalchemy.url` from `Settings.database_url` on every
+  invocation, which would have silently redirected this test-session
+  reset back onto `zacai_dev` regardless of what `tests/conftest.py` set
+  programmatically. It now only falls back to `Settings.database_url`
+  when no URL has already been explicitly configured (i.e. normal `uv
+  run alembic ...` CLI usage against `zacai_dev`/production is
+  unaffected; a caller that has already called `config.set_main_option`
+  is left alone).
+- `tests/test_db.py`'s two `session_scope()` tests (a `zacai.db` function
+  that otherwise always resolves `Settings.database_url`) monkeypatch
+  `zacai.db`'s module-level singletons and `get_settings` for the
+  duration of one test each, redirecting them at the already-validated
+  test engine, so `session_scope()` itself is genuinely exercised without
+  ever opening a connection to `zacai_dev`.
+
+Alternatives considered:
+A temporary, per-test database (`CREATE DATABASE` per test function) was
+rejected: real catalog-level database creation is not free, and churning
+through one per test adds meaningful cost and complexity for a benefit
+the existing rollback fixture already provides to every test that doesn't
+need real concurrency. Rollback/SAVEPOINT isolation alone, with no
+separate database at all, was rejected as the *complete* answer (though
+it remains exactly right for ordinary tests): it cannot exercise real
+concurrent-transaction locking, since two "connections" nested under one
+enclosing transaction share the same MVCC snapshot and never actually
+contend for a lock the way two independently-committed transactions do -
+the two concurrency tests specifically need what only a real, separate
+database provides. Failing fast on lock contention (`pg_try_advisory_lock`
+alone, no fallback) was rejected in favor of try-then-block: failing fast
+forces a manual retry for what is normally an accidental double-launch,
+where waiting and proceeding automatically is the friendlier default, as
+long as the wait is clearly announced rather than silent. A Docker-based
+or otherwise external disposable database was rejected as unnecessary and
+explicitly excluded - the same local Postgres 18 instance already serving
+`zacai_dev` can just as easily own a second, empty database.
+
+Reasons and tradeoffs:
+Checking each URL field individually rather than one combined condition
+trades a few extra lines for immediate diagnosability - a misconfigured
+test environment names exactly which field is wrong, matching this
+project's established fail-closed, specific-error style (D021, D025).
+Splitting `assert_connected_to_safe_test_database` into a pure,
+string-only function rather than inlining the query result comparison
+allows it to be unit-tested directly, the same reasoning already applied
+to `assert_safe_bind_host` (D025) and the classification/boundary checks
+in `state_repository.py` (D026). Fixing `alembic/env.py`'s
+unconditional-overwrite behavior, rather than working around it from
+`tests/conftest.py` alone, was necessary, not optional - the review
+process itself caught that the original code would have silently
+defeated this entire decision.
+
+Security and data implications:
+No real Personal, Brainstorm, or Shared data was created by this
+decision. `zacai_dev` remained empty and at Alembic head across
+repeated verification runs, confirmed by direct row-count queries before
+and after. No credential was created; the test database URL carries none,
+enforced by the guard itself. No pgvector, embeddings, or full-text
+search was touched. D026's application storage semantics
+(`zacai.state`, `zacai.state_repository`, the migration file) are
+completely unchanged by this decision - only test infrastructure was
+added or modified.
+
+Consequences:
+Future contributors and agents writing database tests must use the
+`db_session` or `test_session_factory` fixtures from `tests/conftest.py`
+- never `zacai.db.get_engine()`/`get_session_factory()` directly in a
+test - or risk the guard rejecting the run outright rather than silently
+touching `zacai_dev`. `zacai_test` is disposable by design: it is reset
+at the start of every test session, so nothing about its contents between
+runs needs to be tracked, backed up, or treated as meaningful. Any future
+database test file must be added to this same fixture-based pattern
+rather than constructing its own engine.
+
+Verification:
+Confirmed `uv run pytest` (218 passed, including 23 new D027 tests: the
+URL-guard cases, the post-connect-checker cases, and the real-engine
+integration test in `tests/test_conftest_safety.py`, plus updated tests
+in `tests/test_db.py` and the two D026 concurrency tests in
+`tests/test_state_repository.py`), a clean `uv run ruff check .`, and a
+clean `uv run mypy src`. Confirmed `zacai_dev`'s seven state tables held
+zero rows both before and after two consecutive full `uv run pytest`
+runs, and that `alembic current` against `zacai_dev` remained `0001
+(head)` throughout - proving isolation empirically, not just by code
+inspection. Confirmed `zacai_test`'s row count did not accumulate across
+the two runs (reset to zero and repopulated identically each time by the
+concurrency tests), proving the per-session reset actually resets.
+Performed the one manual verification: two processes contending for the
+real advisory lock via the actual `_acquire_test_session_lock`/
+`_release_test_session_lock` functions - the first acquired immediately,
+the second printed the documented waiting message and blocked for
+approximately the remaining hold time before acquiring, proving the lock
+genuinely serializes two concurrent owners rather than allowing a
+concurrent reset. `git diff --check` clean.
+
+Approval or source:
+Zac Campbell, architecture review conversation, 2026-09-19.
+
+Supersedes:
+None. Extends D026 (fixes the one operational gap its own concurrency
+tests introduced - direct, uncontrolled writes to `zacai_dev`) without
+changing any of D026's application storage semantics, and follows the
+same fail-closed, specific-error pattern D025's `assert_safe_bind_host`
+established.
+
 ## Open Decisions
 These choices have not yet been made:
 - Database and search/retrieval technologies
