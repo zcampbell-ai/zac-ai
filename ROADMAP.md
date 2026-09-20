@@ -100,9 +100,12 @@ For each phase:
   and a new `assert_safe_bind_host()` guard in `src/zacai/main.py` that
   refuses to start unless bound to `127.0.0.1`; README documents the full
   start/stop/restart/status/health/log workflow; verified via automated
-  tests. Live installation on the Mac Studio - `launchctl bootstrap` and
-  confirming the service actually runs - is a separate, not-yet-approved
-  step; Tailscale remote access and log rotation remain future work)
+  tests. Live installation and operational verification on the Mac
+  Studio are complete: the LaunchAgent is installed and running, `lsof`
+  confirmed it listens only on `127.0.0.1:8000`, and `launchctl kickstart
+  -k` (restart) and `launchctl bootout` (clean stop, no auto-restart) were
+  both verified; Tailscale remote access and log rotation remain future
+  work)
 - [ ] Create an initial backup and verify restoration across all
   three recovery lanes (D017, D018): code/docs (Lane A, tested now),
   Zac State/database (Lane B, tested once canonical Zac State exists,

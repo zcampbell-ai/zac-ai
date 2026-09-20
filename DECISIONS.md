@@ -1523,11 +1523,17 @@ code-level safety invariant:
 This decision explicitly does **not**: configure or execute `tailscale
 serve` or `tailscale funnel`, or any other Tailscale-configuration-changing
 command; create `/etc/newsyslog.d/zacai.conf` or any other `sudo`/
-system-wide change; install the LaunchAgent into `~/Library/LaunchAgents`;
-run `launchctl` at all; build Keychain secret loading; change any firewall,
-router, or network setting. Live installation on the Mac Studio (rendering
-the real plist and running `launchctl bootstrap`) is a separate,
-not-yet-approved step.
+system-wide change; build Keychain secret loading; change any firewall,
+router, or network setting.
+
+Live installation on the Mac Studio was subsequently approved and
+completed: the rendered plist was loaded as a per-user LaunchAgent running
+`/Users/brainstormzac/zac-ai/.venv/bin/zacai` from working directory
+`/Users/brainstormzac/zac-ai` with `ZACAI_ENVIRONMENT=production` confirmed
+in the live launchd environment; `lsof` confirmed the service listens only
+on `127.0.0.1:8000`, with no `0.0.0.0`, LAN, Tailscale, or public interface
+bound; `launchctl kickstart -k` and `launchctl bootout` were both exercised
+successfully (see Verification below).
 
 Alternatives considered:
 A LaunchDaemon (root, system-wide, can start before login) was considered
@@ -1582,9 +1588,10 @@ documented gap, not an oversight.
 
 Consequences:
 ROADMAP.md's "Establish private access and document service startup and
-shutdown" item is marked complete for its code/tooling/documentation
-scope, with an explicit note that live installation on the Mac Studio is a
-separate, not-yet-approved step. Future work must route any change to the
+shutdown" item is marked fully complete: both the code/tooling/
+documentation scope and live installation and operational verification on
+the Mac Studio (loopback-only binding, clean restart, clean stop) are
+done. Future work must route any change to the
 app's bind address through `assert_safe_bind_host` rather than bypassing
 it, must not configure `tailscale serve`/`funnel` without its own explicit
 approval, must add log rotation before meaningful production log volume
@@ -1607,10 +1614,23 @@ and an arbitrary hostname. Confirm `git diff --check` is clean and
 `src/zacai/config.py`, `src/zacai/policy.py`, and `src/zacai/gateway.py`
 unchanged. Confirm no `launchctl`, `tailscale`, or `sudo` command was run,
 and no file was written outside this repository, during implementation.
-Live verification (plist lints cleanly, the service starts and answers
-`/health`, only `127.0.0.1:8000` is listening, exactly one instance runs,
-logs land in `~/Library/Logs/zacai/`, and `bootout` actually stops it) is
-deferred to the separate, later-approved live-installation step.
+
+Live verification is complete, performed by Zac Campbell on the Mac
+Studio: the LaunchAgent loaded and `/health` returned
+`{"status":"ok","version":"0.1.0",...}`; `lsof` confirmed listening only
+on `127.0.0.1:8000`; structured JSON logs were present in
+`~/Library/Logs/zacai/zacai.out.log` with `zacai.err.log` empty;
+`launchctl kickstart -k` cleanly stopped the original process (PID 10573)
+and started a new, healthy one (PID 10594); `launchctl bootout` unloaded
+the LaunchAgent, stopped the health endpoint from responding, and `lsof`
+confirmed nothing remained listening on port 8000 with no automatic
+restart, after which the LaunchAgent was restored to its normal running
+state. A duplicate `launchctl bootstrap` attempt made while the service
+was already loaded returned `"Bootstrap failed: 5: Input/output error"`;
+`launchctl print` at that moment confirmed the already-loaded instance was
+healthy and unaffected, so this specific result reflected the service
+already being loaded and running, not a service failure, and no root/sudo
+workaround was used.
 
 Approval or source:
 Zac Campbell, architecture review conversation, 2026-09-19.
