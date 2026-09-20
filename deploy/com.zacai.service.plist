@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  D025 LaunchAgent template (see DECISIONS.md D025 and README.md).
+
+  This is a TEMPLATE, not the real installed file: __ZACAI_REPO_PATH__ and
+  __ZACAI_LOG_DIR__ are placeholders substituted by scripts/service-install.sh
+  with this machine's real, absolute paths. The rendered file is written to
+  ~/Library/LaunchAgents/com.zacai.service.plist, outside this repository,
+  so a real username/path is never committed to version control.
+
+  ProgramArguments points at the venv's own installed console-script
+  (.venv/bin/zacai) by absolute path rather than "uv run zacai", because
+  launchd gives spawned jobs a minimal environment that may not have uv or
+  Homebrew on PATH.
+
+  EnvironmentVariables sets only ZACAI_ENVIRONMENT=production (D021):
+  ZACAI_HOST/ZACAI_PORT/ZACAI_LOG_LEVEL are deliberately left unset so this
+  managed instance uses Tier-0's own conservative defaults from
+  src/zacai/config.py rather than duplicating them here.
+
+  KeepAlive.SuccessfulExit=false restarts the job on a crash (nonzero
+  exit/signal) but not after a deliberate `launchctl bootout`, which
+  removes the job from launchd's tracked set before anything is killed.
+  ThrottleInterval bounds how tightly a genuine crash loop can spin.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.zacai.service</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__ZACAI_REPO_PATH__/.venv/bin/zacai</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__ZACAI_REPO_PATH__</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>ZACAI_ENVIRONMENT</key>
+        <string>production</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>__ZACAI_LOG_DIR__/zacai.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__ZACAI_LOG_DIR__/zacai.err.log</string>
+</dict>
+</plist>

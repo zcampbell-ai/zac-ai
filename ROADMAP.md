@@ -94,7 +94,15 @@ For each phase:
   sends, writes require approval by default, dangerous/unsupported
   actions are denied even hypothetically approved, and every `ActionType`
   is classified into exactly one outcome)
-- [ ] Establish private access and document service startup and shutdown.
+- [x] Establish private access and document service startup and shutdown.
+  (D025: `deploy/com.zacai.service.plist` LaunchAgent template,
+  `scripts/service-install.sh`/`service-uninstall.sh`/`service-status.sh`,
+  and a new `assert_safe_bind_host()` guard in `src/zacai/main.py` that
+  refuses to start unless bound to `127.0.0.1`; README documents the full
+  start/stop/restart/status/health/log workflow; verified via automated
+  tests. Live installation on the Mac Studio - `launchctl bootstrap` and
+  confirming the service actually runs - is a separate, not-yet-approved
+  step; Tailscale remote access and log rotation remain future work)
 - [ ] Create an initial backup and verify restoration across all
   three recovery lanes (D017, D018): code/docs (Lane A, tested now),
   Zac State/database (Lane B, tested once canonical Zac State exists,

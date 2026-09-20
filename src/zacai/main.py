@@ -42,8 +42,31 @@ def health() -> HealthResponse:
     return HealthResponse(status="ok", version=APP_VERSION, timestamp=datetime.now(UTC))
 
 
+_SAFE_BIND_HOST = "127.0.0.1"
+
+
+def assert_safe_bind_host(host: str) -> None:
+    """Fail closed unless `host` is exactly the one value D025 permits.
+
+    v1 is deliberately boring and unambiguous: only the literal
+    "127.0.0.1" is accepted. Everything else - "localhost", "::1",
+    "0.0.0.0", "::", a Tailscale/LAN/public address, an empty string, any
+    other hostname - is rejected. This is a strict allowlist, not a
+    denylist, so an unrecognized value refuses to start the server rather
+    than silently binding somewhere unintended (DECISIONS.md D025). Future
+    private remote access (e.g. Tailscale Serve as a reverse proxy to this
+    same loopback-only service) is a separate, later decision - it does
+    not require, and must not motivate, loosening this check.
+    """
+    if host != _SAFE_BIND_HOST:
+        raise RuntimeError(
+            f"refusing to start: host {host!r} is not {_SAFE_BIND_HOST!r}, "
+            "the only value Zac AI is permitted to bind to in v1 (D025)"
+        )
+
+
 def run() -> None:
-    """Run the app bound to the configured host/port (localhost by default).
+    """Run the app bound to the configured host/port (127.0.0.1 only).
 
     `log_config=None` stops uvicorn from installing its own logging
     dictConfig, which would otherwise replace the redacted JSON handler
@@ -51,6 +74,7 @@ def run() -> None:
     """
     import uvicorn
 
+    assert_safe_bind_host(settings.host)
     uvicorn.run("zacai.main:app", host=settings.host, port=settings.port, log_config=None)
 
 

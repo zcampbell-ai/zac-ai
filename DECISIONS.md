@@ -1462,6 +1462,168 @@ Data-Classification Policy Layer) by consuming `evaluate_access` as the
 mandatory first step per D023's own forward-looking language, without
 modifying `policy.py`'s public contract.
 
+## D025 - Private Service Lifecycle and Startup/Shutdown (v1)
+Status: Accepted
+Date: 2026-09-19
+
+Context:
+ROADMAP.md Phase 1's last standalone open item was "Establish private
+access and document service startup and shutdown." Until this decision,
+running Zac AI meant a manual, foreground `uv run zacai` in a terminal,
+stopped with Ctrl+C or a manual `kill` - nothing restarted it after a
+crash, a reboot, or a login, and nothing in code enforced the
+`127.0.0.1`-only binding D020 verified manually and D021 fixed as Tier-0's
+default in both runtime modes. D016 already lists Tailscale as installed
+and configured on the Mac Studio, satisfying the Phase 1 private-access
+task "in principle," but the operational wiring of this specific FastAPI
+service into an always-on, restart-on-failure process was still open.
+SECRETS.md and D017 gate macOS Keychain-based production secret loading on
+a specific, already-approved integration actually needing a credential -
+none exists yet, so that loader is not built here, only identified as a
+future integration point. An architecture review (design-only pass,
+approved with four scope/security tightenings) evaluated the minimum v1
+model needed.
+
+Decision:
+Add a native macOS `launchd` LaunchAgent (not a LaunchDaemon, not Docker or
+another process manager) as the service-lifecycle mechanism, plus one new
+code-level safety invariant:
+
+- `assert_safe_bind_host(host)` (`src/zacai/main.py`), called in `run()`
+  immediately before `uvicorn.run()`: a strict allowlist accepting only
+  the literal `"127.0.0.1"`. Every other value - `"localhost"`, `"::1"`,
+  `"0.0.0.0"`, `"::"`, a Tailscale/LAN/public address, an empty string, or
+  any other hostname - raises `RuntimeError` and aborts startup before a
+  socket is ever opened. This is purely additive: `Settings`,
+  `_select_env_file`, and `Environment` validation in `config.py` are
+  unchanged.
+- `deploy/com.zacai.service.plist`: a committed **template**, not the real
+  installed file, using `__ZACAI_REPO_PATH__`/`__ZACAI_LOG_DIR__`
+  placeholders so no real username or absolute path is ever committed to
+  version control. Key plist settings: `ProgramArguments` points at the
+  venv's own `.venv/bin/zacai` by absolute path (launchd's minimal
+  environment may not have `uv`/Homebrew on `PATH`); `EnvironmentVariables`
+  sets only `ZACAI_ENVIRONMENT=production`, leaving host/port/log-level at
+  Tier-0's own defaults; `RunAtLoad: true` (starts at login, not boot -
+  see Alternatives); `KeepAlive: {SuccessfulExit: false}` (restarts on a
+  crash, not after a deliberate `launchctl bootout`); `ThrottleInterval:
+  10` (bounds crash-loop pacing); `StandardOutPath`/`StandardErrorPath`
+  redirect the app's existing, unchanged stdout-only redacted-JSON log
+  stream to `~/Library/Logs/zacai/` - no second logging system is built.
+- `scripts/service-install.sh`, `scripts/service-uninstall.sh`,
+  `scripts/service-status.sh`: user-space shell scripts (matching
+  `.githooks/pre-commit`'s style) that render/manage the real plist and
+  report status. `service-install.sh` deliberately does not itself run
+  `launchctl bootstrap` - loading the service is a separate, deliberate
+  command the operator runs themselves.
+- README.md documents the full install/start/stop/restart/status/health/
+  log-inspection/reboot-recovery/disable-autostart workflow in
+  novice-readable terms.
+
+This decision explicitly does **not**: configure or execute `tailscale
+serve` or `tailscale funnel`, or any other Tailscale-configuration-changing
+command; create `/etc/newsyslog.d/zacai.conf` or any other `sudo`/
+system-wide change; install the LaunchAgent into `~/Library/LaunchAgents`;
+run `launchctl` at all; build Keychain secret loading; change any firewall,
+router, or network setting. Live installation on the Mac Studio (rendering
+the real plist and running `launchctl bootstrap`) is a separate,
+not-yet-approved step.
+
+Alternatives considered:
+A LaunchDaemon (root, system-wide, can start before login) was considered
+and rejected in favor of a per-user LaunchAgent: a LaunchDaemon has no
+access to a logged-in user's unlocked login keychain, which would directly
+conflict with D017/SECRETS.md's already-chosen Tier-2 mechanism (reading
+production secrets from the user's login keychain at service startup) the
+first time a real credential is added - migrating from LaunchDaemon to
+LaunchAgent later would be pure rework. Binding the app directly to the
+Mac's Tailscale interface IP via `ZACAI_HOST` (instead of keeping it
+`127.0.0.1`-only) was considered and rejected: it would make this specific
+app's own socket the thing directly reachable tailnet-wide, so any bug in
+this app's binding logic becomes a network-exposure bug, and it is the
+configuration most likely to get "fixed" into `0.0.0.0` under
+troubleshooting pressure; `tailscale serve` as a reverse proxy to the
+unchanged loopback-only service is recorded as the approved future
+direction instead, but is a separate, later decision to actually configure.
+Building `/etc/newsyslog.d` log rotation now was proposed and deferred:
+this milestone has no meaningful production log volume yet, and adding a
+`sudo`-gated system-wide file was judged premature relative to the
+already-approved boring v1 scope; it is recorded as an open operational
+item that must be resolved before real log volume accumulates. Docker or
+another process manager was rejected, consistent with D016's native-tooling
+preference on a single always-on node.
+
+Reasons and tradeoffs:
+Starting the LaunchAgent at login rather than boot trades boot-time
+availability (the service would otherwise come up even with nobody signed
+in) for Keychain-readiness and mechanism simplicity; the Mac Studio is a
+single-operator node that is expected to be logged into when in active
+use, so this is judged an acceptable v1 tradeoff, reversible by a later,
+explicit LaunchDaemon migration decision if boot-time availability without
+login is ever actually needed. Making `assert_safe_bind_host` a strict
+single-literal allowlist rather than a broader "is this loopback-shaped"
+check trades flexibility (no `::1`, no bare `"localhost"`) for
+unambiguity: a v1 with exactly one accepted value has no edge cases to
+reason about later, and widening it is a deliberate, visible, future code
+change rather than a silent gap.
+
+Security and data implications:
+No public internet exposure is introduced or enabled by this decision -
+the app remains bound to `127.0.0.1` only, now enforced in code rather
+than by convention alone, and no Tailscale-reachability command is run.
+No real credential, Keychain entry, or production secret is created; no
+`.env.production` file is introduced anywhere. The existing redacted
+stdout logging path (D017) is reused unchanged; launchd's
+`StandardOutPath`/`StandardErrorPath` are a passive file sink for output
+that is already redacted before it is written. Log rotation is not yet
+implemented - `~/Library/Logs/zacai/*.log` can grow unbounded until a
+future decision adds `newsyslog` configuration; this is a known,
+documented gap, not an oversight.
+
+Consequences:
+ROADMAP.md's "Establish private access and document service startup and
+shutdown" item is marked complete for its code/tooling/documentation
+scope, with an explicit note that live installation on the Mac Studio is a
+separate, not-yet-approved step. Future work must route any change to the
+app's bind address through `assert_safe_bind_host` rather than bypassing
+it, must not configure `tailscale serve`/`funnel` without its own explicit
+approval, must add log rotation before meaningful production log volume
+accumulates, and - when a specific, approved integration first needs a
+production credential (D017) - must implement the `_load_keychain_secrets`
+integration point this decision identified but did not build, taking
+advantage of the LaunchAgent's user-session Keychain access chosen here.
+
+Verification:
+Confirm `uv run pytest` (153 passed, including 10 new
+`tests/test_main.py` cases), `uv run ruff check .`, and `uv run mypy src`
+all pass. Confirm `assert_safe_bind_host` accepts only the literal
+`"127.0.0.1"` and rejects `"localhost"`, `"::1"`, `"0.0.0.0"`, `"::"`, a
+Tailscale-range address, a LAN address, a public address, an empty string,
+and an arbitrary hostname. Confirm `git diff --check` is clean and
+`git status` shows only `deploy/com.zacai.service.plist`,
+`scripts/service-install.sh`, `scripts/service-uninstall.sh`,
+`scripts/service-status.sh`, `src/zacai/main.py`, `tests/test_main.py`,
+`README.md`, `ROADMAP.md`, and `DECISIONS.md` touched, with
+`src/zacai/config.py`, `src/zacai/policy.py`, and `src/zacai/gateway.py`
+unchanged. Confirm no `launchctl`, `tailscale`, or `sudo` command was run,
+and no file was written outside this repository, during implementation.
+Live verification (plist lints cleanly, the service starts and answers
+`/health`, only `127.0.0.1:8000` is listening, exactly one instance runs,
+logs land in `~/Library/Logs/zacai/`, and `bootout` actually stops it) is
+deferred to the separate, later-approved live-installation step.
+
+Approval or source:
+Zac Campbell, architecture review conversation, 2026-09-19.
+
+Supersedes:
+None. Extends D016 (fulfills the private-access task Tailscale's
+installation was said to satisfy "in principle"), D020 and D021 (keeps
+their `127.0.0.1`-only, Tier-0-defaults, and `.env.development`/
+`.env.production` invariants completely unchanged, now additionally
+enforced in code), and D017/SECRETS.md (identifies, without building, the
+future Keychain-loading integration point this LaunchAgent choice keeps
+straightforward).
+
 ## Open Decisions
 These choices have not yet been made:
 - Database and search/retrieval technologies

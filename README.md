@@ -162,6 +162,79 @@ Run tests, lint, and type checks:
 Logs are written as structured, redacted JSON to stdout (see
 `src/zacai/logging_config.py` and SECURITY.md/DECISIONS.md D017).
 
+### Running as a background service (launchd, D025)
+
+The app can also run as an always-on background service on the Mac Studio,
+managed by macOS's built-in `launchd`, instead of a terminal you have to
+keep open. This never exposes the service publicly: it still binds only
+`127.0.0.1` (now enforced in code - the app refuses to start on any other
+address), and the LaunchAgent starts it automatically each time you log in.
+
+**One-time setup:**
+
+    uv sync
+    scripts/service-install.sh
+
+This writes `~/Library/LaunchAgents/com.zacai.service.plist` from the
+`deploy/com.zacai.service.plist` template, using this checkout's real path,
+and creates `~/Library/Logs/zacai/` for its log files. It does not start
+anything by itself - it prints the exact next commands to run:
+
+    plutil -lint ~/Library/LaunchAgents/com.zacai.service.plist
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.zacai.service.plist
+    curl http://127.0.0.1:8000/health
+
+**Check whether it's running:**
+
+    scripts/service-status.sh
+
+This prints the LaunchAgent's loaded/running state and whether `/health`
+responds - nothing to interpret beyond "is there a PID" and "did curl get
+a response."
+
+**Restart it** (after a code or config change):
+
+    launchctl kickstart -k gui/$(id -u)/com.zacai.service
+
+**Stop it:**
+
+    launchctl bootout gui/$(id -u)/com.zacai.service
+
+Use `bootout`, not `kill <pid>` - killing the process directly leaves the
+job registered as "should be running," so launchd just starts it again.
+`bootout` unregisters it first, so it actually stays stopped.
+
+**Turn off automatic startup entirely** (stop it first, then):
+
+    scripts/service-uninstall.sh
+
+This stops the service if it's loaded and removes the installed plist, so
+it will not start again at your next login. Re-run `service-install.sh`
+any time you want it back.
+
+**Inspect recent logs:**
+
+    tail -n 50 ~/Library/Logs/zacai/zacai.out.log
+    tail -n 50 ~/Library/Logs/zacai/zacai.err.log
+
+These are the same structured, redacted JSON lines the app always writes -
+`launchd` just redirects them to these two files instead of your terminal.
+Log rotation is not yet configured (see DECISIONS.md D025); keep an eye on
+these files' size and clear old lines by hand until that is addressed.
+
+**After a reboot:** log back in - the LaunchAgent starts automatically
+(`RunAtLoad`), the same as any other login item. Run `scripts/service-status.sh`
+to confirm it came back up.
+
+This service always runs in `production` mode (`ZACAI_ENVIRONMENT=production`
+is set in the plist), so it never reads `.env.development` (DECISIONS.md
+D021) - that file is only ever used by a manual `uv run zacai` during local
+development.
+
+Private remote access from a laptop or iPhone over Tailscale (e.g. via
+`tailscale serve` proxying to this same `127.0.0.1:8000` service) is a
+separate, not-yet-configured future step - see DECISIONS.md D025.
+
 ## Secrets and Private Data
 Keep credentials and private operational data out of this repository.
 
