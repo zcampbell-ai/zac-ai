@@ -2017,6 +2017,198 @@ changing any of D026's application storage semantics, and follows the
 same fail-closed, specific-error pattern D025's `assert_safe_bind_host`
 established.
 
+## D028 - Zac State Lane B Backup and Restore (v1)
+Status: Accepted
+Date: 2026-09-19
+
+Context:
+D018 already decided Lane B's shape - client-side encryption before any
+off-device copy leaves the Mac Studio, separate encryption keys per
+trust boundary, `age` as the preferred-but-unadopted candidate tool - but
+deferred building or testing it until canonical Zac State existed. D026
+created that state; D027 established the disposable, purpose-named
+test-database pattern this decision reuses for `zacai_restore_test`.
+RECOVERY.md's own text states Lane B "must be tested once canonical Zac
+State exists" - it now does. D018 also predates D023's SHARED boundary,
+naming separate keys only for "Personal and Brainstorm." An architecture
+review (two design-only passes, the second adding three safety
+corrections - a streaming pipeline avoiding plaintext, an explicit
+Lane B/Lane C distinction, and D027-style destructive-target protection)
+evaluated the minimum reliable v1 mechanism.
+
+Decision:
+Add `src/zacai/backup_safety.py` and `src/zacai/backup.py`, plus a
+`uv run zacai-backup` console script, implementing:
+
+- **Adopts `age`** as Lane B's encryption tool (resolving D018's
+  "preferred, not adopted" status), in key-file mode, with **three**
+  separate keypairs - Personal, Brainstorm, and Shared - explicitly
+  extending D018's "separate keys" requirement to cover the SHARED
+  boundary it predates. Private identities are generated and escrowed by
+  Zac himself; this decision creates no real key material.
+- **A streaming export/encryption pipeline**
+  (`export_boundary`/`export_boundary_stream`): for one trust boundary,
+  every row across all seven `zacai.state` tables, in one fixed FK-safe
+  order (`source` -> `person_head` -> `commitment_head` -> `person` ->
+  `commitment` -> `person_evidence` -> `commitment_evidence`), is
+  streamed via PostgreSQL `COPY ... TO STDOUT`, framed with a small
+  length-prefixed format, and piped directly into an encryption
+  subprocess's stdin. **No plaintext file is ever written to disk in the
+  normal path** - the only file created is the final encrypted artifact,
+  with mode `0600` set atomically at creation (`O_CREAT | O_EXCL`, not a
+  permissions fix applied after the fact), removed automatically if
+  anything fails partway through. Each table is buffered in memory
+  (never on disk) before framing - the appropriate "smallest reliable"
+  choice at Zac AI's actual v1 data scale, named explicitly as a scope
+  limit, not an oversight; true chunked disk-avoiding streaming for an
+  arbitrarily large single table is a distinct future revision only if
+  data volume ever actually demands it.
+- **A matching streaming restore pipeline**
+  (`restore_boundary`/`restore_boundary_stream`): a decryption
+  subprocess's stdout is read frame-by-frame, in the exact same fixed
+  order, straight into `COPY ... FROM STDIN` - restoring all seven
+  tables without any plaintext ever touching disk either. Restoring
+  frames out of the recorded order raises immediately rather than
+  silently violating a foreign key.
+- **Lane B key escrow is explicitly distinguished from Lane C.** The
+  three private identities need two independently recoverable copies -
+  local (outside this repository, restrictive permissions) and the
+  existing password manager. Reusing the password manager as this
+  escrow location is a **location reuse of an already-existing off-device
+  store, not a functional dependency on Lane C** - it does not mark Lane
+  C implemented or tested. Lane C remains entirely, separately deferred
+  until a real, approved application credential exists in Keychain.
+  Private identities are never committed, logged, embedded in a script,
+  passed as CLI key material directly (`age -i <path>` only), or stored
+  beside the artifact they decrypt as its only recovery copy.
+- **`assert_safe_restore_target_url`/`assert_connected_to_safe_restore_database`**
+  (`backup_safety.py`): a D027-style fail-closed guard, hardcoded to the
+  single literal `zacai_restore_test` (host `127.0.0.1`, port omitted or
+  `5432`, no password) - checked pre-connect via the URL string and
+  post-connect via a live `SELECT current_database()`. Distinct from,
+  and never confusable with, D027's own `zacai_test` guard.
+- **Two-connection, fixed-constant destructive orchestration**
+  (`recreate_restore_test_database`/`drop_restore_test_database`):
+  PostgreSQL cannot drop a database while connected to it, so these
+  functions connect to the always-present `postgres` maintenance
+  database (itself validated by `assert_safe_admin_url`, pre- and
+  post-connect) to issue `DROP`/`CREATE DATABASE zacai_restore_test`,
+  where the target name is a **module constant, never a function
+  parameter** - there is no code path by which a caller could redirect
+  either function to a different database. `upgrade_restore_test_schema`
+  then connects directly to `zacai_restore_test` (validated the same way)
+  and runs the exact same Alembic migration `zacai_dev`/`zacai_test` use
+  - no hand-built restore-test schema.
+- **Local fast-recovery backup**: a plain, unencrypted `pg_dump -Fc` of
+  the whole `zacai_dev` database remains a separate, local-only,
+  explicitly non-Lane-B safety net (not built by this decision's
+  automated tooling - documented as a manual operator step).
+- **Off-device destination remains explicitly open**, unchanged from
+  D018 - this decision's mechanism is destination-agnostic by design and
+  does not invent one.
+- **Manual only for v1** - no `launchd`/cron scheduling. Automating an
+  unproven mechanism risks silently automating a broken backup, which is
+  worse than no backup; scheduling is a distinct, later decision once
+  manual drills have succeeded repeatedly.
+
+Alternatives considered:
+Writing plaintext CSV files to a temp directory and encrypting them
+afterward was proposed initially and rejected on review: it makes
+"delete it afterward" the primary security control for real Personal/
+Brainstorm/Shared content, rather than never creating it. A per-test
+temporary database for restore drills was rejected in favor of one
+fixed, dedicated `zacai_restore_test`: D027's `zacai_test` already
+demonstrates that a single, purpose-named disposable database, reset
+deterministically, is simpler than provisioning one per run. Reusing
+`zacai_test` itself for restore drills was rejected: it would conflate
+pytest's own disposable sandbox with a distinct, human-driven
+verification exercise. Passphrase-mode `age` encryption was rejected in
+favor of key-file mode: passphrases block unattended/scriptable
+encryption and have no escrow story as clean as a key file. Naming a
+specific off-device destination (e.g. a particular cloud drive) now was
+rejected as premature invention beyond what D018 itself deferred.
+Advisory-lock-style protection for the destructive restore-test path was
+considered and rejected in favor of URL validation plus live
+verification plus fixed constants: D027's advisory lock solves a
+different problem (two concurrent *pytest sessions*), not "can a caller
+redirect a DROP DATABASE to the wrong target," which fixed constants
+solve more directly.
+
+Reasons and tradeoffs:
+Buffering each table's CSV in memory rather than building true
+constant-memory chunked streaming trades some theoretical scalability
+for a materially simpler v1 implementation, appropriate at Zac AI's
+actual personal/small-business data scale; this is a named, deliberate
+limit, not a gap discovered later. Hardcoding the restore-test database
+name as a module constant rather than accepting it as a parameter (even
+an "internal" one) trades a small amount of flexibility for eliminating
+an entire class of "what if a caller passes the wrong name" bugs before
+they can exist. Validating both the fixed administrative connection
+(`postgres`) and the restore-test connection, even though neither is
+ever influenced by external input, is a self-check against a future
+accidental edit to either constant, not a defense against an adversarial
+caller.
+
+Security and data implications:
+No real Personal, Brainstorm, or Shared data was created by this
+decision. No credential or real `age` key material was generated by
+Claude - Zac generates and escrows the three identities himself. No
+plaintext backup artifact was left on disk by any successful export in
+testing (verified directly). `zacai_dev` was never connected to by any
+automated test in this decision - all automated verification ran against
+`zacai_test` (source) and `zacai_restore_test` (target), consistent with
+D027's own invariant; `zacai_dev`'s row counts were confirmed unchanged
+(zero) before and after, via a separate manual check outside the test
+suite. Reusing the password manager for Lane B key escrow does not
+change Lane C's status in any way (see Decision, above).
+
+Consequences:
+Lane B gains a real, drill-tested mechanism; RECOVERY.md documents it in
+place of the prior "does not exist yet" status. ROADMAP's backup/restore
+item still is not fully complete - Lane C remains separately deferred,
+and running Lane B for real against `zacai_dev` (rather than synthetic
+`zacai_test` data) is a distinct, later, explicitly-approved step, since
+`zacai_dev` currently holds no real data to back up. Future work adding
+scheduled automation must reuse `zacai.backup`'s existing functions
+rather than re-implementing export/restore logic, and must not weaken
+the streaming-only export path, the three-key-per-boundary requirement,
+or the fixed-constant restore-target protection without its own explicit
+decision.
+
+Verification:
+Confirmed `uv run pytest` (261 passed, including 34 new
+`tests/test_backup_safety.py` guard tests and 9 new
+`tests/test_backup.py` pipeline tests), a clean `uv run ruff check .`,
+and a clean `uv run mypy src`. Confirmed a full drill end-to-end using a
+no-op passthrough command in place of `age` (proving the framing/
+streaming/FK-order logic independent of whether `age` is installed):
+export from `zacai_test`'s synthetic data, `recreate_restore_test_database`
++ `upgrade_restore_test_schema` + `restore_boundary` into
+`zacai_restore_test`, confirming the restored rows match the source
+exactly, contain only the exported boundary, and that the append-only
+trigger survives a fresh Alembic-built schema in the restore-test
+database. Confirmed the exported artifact is created with mode `0600`
+and that no other file exists in its output directory after a successful
+export, and that a failed encryption command leaves no partial file
+behind. Confirmed `recreate_restore_test_database`/
+`drop_restore_test_database` accept no parameters at all (a structural
+test, not just a behavioral one). Confirmed `zacai_restore_test` does not
+exist after the test suite completes (dropped by the drill test's own
+cleanup), and confirmed `zacai_dev` held zero rows in all seven state
+tables both before and after the full test run, via a manual check
+outside pytest.
+
+Approval or source:
+Zac Campbell, architecture review conversation, 2026-09-19.
+
+Supersedes:
+None. Extends D018 (adopts `age`, builds the mechanism D018 deferred, and
+explicitly extends its "separate keys" requirement to cover SHARED),
+D023 (the boundary this decision was missing), D026 (backs up exactly
+the schema D026 created, without any schema change), and D027 (reuses
+its disposable-database pattern for `zacai_restore_test` and its
+fail-closed URL-guard style for the new restore-target protection).
+
 ## Open Decisions
 These choices have not yet been made:
 - Database and search/retrieval technologies

@@ -19,6 +19,7 @@ dependencies = [
 
 [project.scripts]
 zacai = "zacai.main:run"
+zacai-backup = "zacai.backup:main"
 
 [dependency-groups]
 dev = [

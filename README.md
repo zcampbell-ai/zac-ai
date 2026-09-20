@@ -176,6 +176,60 @@ Run tests, lint, and type checks:
 Logs are written as structured, redacted JSON to stdout (see
 `src/zacai/logging_config.py` and SECURITY.md/DECISIONS.md D017).
 
+### Backing up and restoring Zac State (Lane B, D028)
+
+Zac State backups are encrypted, one trust boundary at a time (Personal,
+Brainstorm, Shared), and never written to disk as plaintext. This is
+Lane B of the three-lane recovery model (see RECOVERY.md); it does not
+touch or depend on Lane C (secrets escrow) in any way, even though both
+happen to use the same password manager for off-device storage.
+
+**One-time setup** (you do this yourself - Claude does not install
+software or generate key material):
+
+    brew install age
+
+Generate one keypair per trust boundary and note each public key
+("recipient"):
+
+    age-keygen -o personal.key
+    age-keygen -o brainstorm.key
+    age-keygen -o shared.key
+
+Move the three `.key` files somewhere outside this repository with
+restrictive permissions (`chmod 600 *.key`), and also save a copy of each
+in your password manager. Losing a key file means losing the ability to
+ever decrypt that boundary's backups - two independent copies (local +
+password manager) is the whole point.
+
+**Export one boundary** (reads `zacai_dev`, writes one `.age` file - never
+a plaintext file):
+
+    uv run zacai-backup export \
+        --source-url postgresql+psycopg://127.0.0.1:5432/zacai_dev \
+        --boundary PERSONAL \
+        --output ~/zacai-backups/personal-$(date +%F).age \
+        --recipient "$(age-keygen -y personal.key)"
+
+Repeat for `BRAINSTORM` and `SHARED`, each with its own key.
+
+**Run a restore drill** (decrypts one artifact into a disposable
+database, never `zacai_dev`):
+
+    uv run zacai-backup drill \
+        --artifact ~/zacai-backups/personal-2026-09-19.age \
+        --identity personal.key
+
+This recreates `zacai_restore_test` from the current Alembic migration,
+restores the artifact into it, and leaves it there for you to inspect
+(`psql -d zacai_restore_test`). The tooling refuses to touch any database
+other than `zacai_restore_test` for this operation - see DECISIONS.md
+D028.
+
+There is no scheduled/automatic backup job yet (v1 is manual only, by
+design - see DECISIONS.md D028), and the off-device destination for these
+`.age` files is not yet chosen (see DECISIONS.md Open Decisions).
+
 ### Running as a background service (launchd, D025)
 
 The app can also run as an always-on background service on the Mac Studio,

@@ -22,6 +22,11 @@
 /private-data/
 /exports/
 /backups/
+
+# D028 Lane B backup artifacts and key material (defense in depth - these
+# should never be created inside the repo; private identities already
+# use the .key extension, covered above)
+*.age
 /logs/
 *.log
 *.sqlite

@@ -1,8 +1,9 @@
 # Zac AI Recovery Architecture
 
-Status: security rails only. Lane B does not yet exist (no canonical
-Zac State/database). Lane C holds no real Zac AI credential yet. See
-DECISIONS.md D018 for the full architecture decision and rationale.
+Status: Lane B's mechanism is built and drill-tested against synthetic
+data (D028), but not yet exercised against `zacai_dev` for real - see
+Lane B below. Lane C holds no real Zac AI credential yet. See
+DECISIONS.md D018/D028 for the full architecture decisions and rationale.
 
 ## The three lanes
 
@@ -24,21 +25,42 @@ depends on recovering another.
 - Status: complete and already validated by normal use.
 
 ### Lane B - Zac State / database
-- What: the canonical Zac State and Brainstorm State database, once
-  it exists (Phase 2+).
-- Where: a local encrypted dump on the Mac Studio, plus a client-side
-  encrypted copy at an off-device destination. The specific
-  destination is deferred (DECISIONS.md Open Decisions) until closer
-  to when canonical Zac State is created.
-- Encryption: client-side, before any copy leaves the Mac Studio.
-  Personal and Brainstorm state use separate encryption keys - never
-  one shared key across both trust boundaries. The specific
-  encryption tool is not yet chosen; `age` is the current preferred
-  candidate, not yet adopted or installed.
+- What: the canonical Zac State (Person, Commitment, Source, and their
+  evidence/head tables - D026), exported one trust boundary at a time.
+- How (D028): `zacai.backup.export_boundary` streams every row for one
+  boundary, across all seven tables in a fixed FK-safe order, directly
+  through `age` encryption into a single artifact - no plaintext export
+  file is ever written to disk in the normal path (see DECISIONS.md
+  D028). Restore reverses this exactly, into a disposable
+  `zacai_restore_test` database created and dropped only through a
+  fixed-constant, D027-style guarded path - never `zacai_dev` or
+  `zacai_test`.
+- Where: a local, unencrypted `pg_dump -Fc` of the whole `zacai_dev`
+  database is a separate, local-only fast-recovery safety net (never
+  leaves the Mac Studio, not itself Lane B/off-device compliant). The
+  actual Lane B artifacts are the three per-boundary encrypted exports;
+  the off-device destination for them remains deferred (DECISIONS.md
+  Open Decisions), unchanged by D028.
+- Encryption: client-side, via `age`, before any copy would leave the
+  Mac Studio. **Three** separate keys - Personal, Brainstorm, and
+  Shared - never one key across boundaries (D018, extended by D028 to
+  cover the SHARED boundary D018 predates). Key-file mode, not
+  passphrase mode. Private identities are never committed, logged,
+  embedded in a script, or passed as CLI key material directly.
+- Key recovery vs. Lane C: the three private identities are recoverable
+  from two independent copies - local (outside this repository) and the
+  existing password manager. **Reusing the password manager as this
+  escrow location does not mean Lane C is implemented or tested** -
+  Lane C remains entirely about real application credentials, which do
+  not exist yet (see Lane C below). This is a location reuse only.
 - Frequency/retention: intended as a daily dump with a small rolling
-  window (for example, 7 daily plus 4 weekly), once Lane B exists.
-- Status: does not exist yet. Not implemented until Phase 2 creates
-  real Zac State.
+  window (for example, 7 daily plus 4 weekly) once this runs against
+  real data; v1 is manual only, no scheduled job yet (D028).
+- Status: mechanism built and drill-tested (export from synthetic data,
+  encrypt, decrypt, restore into a disposable database, verify boundary
+  purity and integrity - D028). Running it for real against `zacai_dev`
+  is a separate, later, explicitly-approved step, since `zacai_dev`
+  currently holds no real data to back up yet.
 
 ### Lane C - Secrets escrow
 - What: an off-device copy of whatever credentials exist in macOS
@@ -69,10 +91,12 @@ depends on recovering another.
 4. Recreate each needed Keychain entry from the password manager
    escrow (Lane C), using the naming convention in SECRETS.md:
    `zacai-<boundary>-<service>-<credential>`.
-5. Once Lane B exists: retrieve the latest encrypted database backup
-   from its off-device destination, decrypt it with the
-   separately-held key for the correct trust boundary, and restore it
-   into a freshly installed database engine.
+5. Once real Lane B backups exist: retrieve each boundary's latest
+   encrypted artifact from its off-device destination, decrypt it with
+   that boundary's separately-held `age` identity (recovered from the
+   password manager escrow, per Lane B above), and restore it into a
+   freshly installed database engine using the same FK-safe restore
+   logic `zacai.backup` uses for drills (D028).
 6. Run the project's health checks to confirm the service starts,
    reads secrets correctly, and reconnects to state.
 7. Re-verify that access is Tailscale-only before treating the system
@@ -85,9 +109,11 @@ depends on recovering another.
 - Lane A: tested now. Clone this repository into a fresh, empty
   location and confirm it matches `origin/main`. This validates Lane
   A only.
-- Lane B: must be tested once canonical Zac State exists. Restore the
-  latest encrypted database backup into a separate test instance and
-  verify the data matches.
+- Lane B: the mechanism itself is tested (D028) - export, encrypt,
+  decrypt, and restore into the disposable `zacai_restore_test`
+  database, verified against synthetic data. Testing it against real
+  `zacai_dev` data, and choosing the off-device destination, remain
+  separate, later steps once real data actually exists.
 - Lane C: must be tested once the first real, approved credential
   exists in Keychain and the password manager escrow. Verify the
   credential can be recovered from the password manager and used to
@@ -104,7 +130,7 @@ depends on recovering another.
 - SECURITY.md - core backup, recovery, and secrets rules
 - SECRETS.md - secrets management rules and credential-adding
   procedure
-- DECISIONS.md D014, D017, D018 - recovery, secrets, and backup
+- DECISIONS.md D014, D017, D018, D028 - recovery, secrets, and backup
   architecture rationale
 - ROADMAP.md Phase 1 and Phase 11 - backup/restore and recovery
   testing tasks
