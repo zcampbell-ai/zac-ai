@@ -72,6 +72,14 @@ class Settings(BaseSettings):
     # raw ingestion artifacts under. Never committed content, never a
     # secret value itself - just a path.
     artifact_store_root: str = "var/artifacts"
+    # Non-secret Tier-0 config (D031B): the S3-compatible off-device
+    # artifact backup destination for the BRAINSTORM boundary. `None`
+    # until Zac creates a real bucket/endpoint himself - no default
+    # points at any real provider. The credential itself is never a
+    # Settings field - see get_secret()/D017 and .env.example.
+    artifact_backup_endpoint_url: str | None = None
+    artifact_backup_bucket_brainstorm: str | None = None
+    artifact_backup_region: str = "auto"
 
 
 def _select_env_file(raw_environment: str) -> str | None:
