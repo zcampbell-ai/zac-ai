@@ -211,7 +211,7 @@ def test_orphan_artifact_from_failed_batch_is_safely_reused_on_retry(
     expected_location = store.location_for(digest)
 
     # The artifact exists on disk and is hash-valid - a genuine orphan.
-    assert content_hash_of(store.get(expected_location)) == digest
+    assert content_hash_of(store.get(TrustBoundary.BRAINSTORM, expected_location)) == digest
 
     with test_session_factory() as session:
         assert is_artifact_referenced(session, content_location=expected_location) is False

@@ -2745,6 +2745,238 @@ disposable-database pattern unchanged), and D029 (reuses its
 retraction-table shape for candidate review and classification
 elevation).
 
+## D031A - Encrypted Raw Artifact Backup + Restore (Cryptographic/Synthetic Foundation)
+Status: Accepted
+Date: 2026-09-21
+
+Context:
+D030 built a real, tested (synthetic-only) ingestion architecture whose
+raw artifacts live in a `LocalFilesystemArtifactStore` that D028's Lane B
+mechanism never backs up - an explicit gap that hard-blocks any real
+Fireflies ingestion (D030's real-ingestion hard gate). An architecture
+review designed the smallest robust extension of Lane B needed to
+protect those artifacts, split deliberately into D031A (cryptographic/
+procedural foundation, this decision) and D031B (a real off-device
+backend and a real drill, not built here). The review also found, while
+reading D030's shipped code rather than its original design sketch, that
+`LocalFilesystemArtifactStore` used a flat, unpartitioned local layout
+with no trust-boundary segmentation at all - corrected here, before any
+real artifact data existed to migrate.
+
+Decision:
+**D031A implements the cryptographic/synthetic foundation only - it does
+not lift the real-ingestion hard gate.** No real off-device backend, no
+real credential/key, and no real Fireflies data are introduced.
+
+- **`LocalFilesystemArtifactStore` is corrected to be boundary-
+  partitioned**: `<root>/<trust_boundary>/<hash[:2]>/<hash>.bin`,
+  replacing D030's shipped flat layout. `ArtifactStore.put`/`get` now
+  require an explicit `trust_boundary` parameter; `content_location`
+  itself (and `location_for`) stays boundary-agnostic, so the boundary
+  is never inferred from a path string or by scanning the filesystem -
+  it must always be supplied by the caller, who already holds it from
+  the `Source` row's own `trust_boundary` column. There is no cross-
+  boundary fallback: `get` resolves strictly within the supplied
+  boundary and raises if the file isn't there, even when an identical
+  `content_location` string happens to exist under a different
+  boundary - a rare content-hash coincidence that the old flat layout
+  would have incorrectly shared as one physical file. This was a pure
+  source-code correction with nothing to migrate, since no real artifact
+  ever existed under the old layout.
+- **`src/zacai/backup_artifacts.py`** (new) implements: `age`-encrypted,
+  content-addressed backup objects (`<boundary>/<hash[:2]>/<hash>.age`,
+  one per artifact, not one continuous D028-style stream, since
+  artifacts are independent immutable blobs where per-object encryption
+  gives incremental backup for free); an encrypted, per-boundary
+  manifest (`content_hash`, `content_location`, `backup_object_key`,
+  `size_bytes`, `ciphertext_sha256`, `backed_up_at`, plus
+  `manifest_version`/`boundary`/`generated_at`); a `BackupObjectStore`
+  protocol with `LocalDirectoryBackupStore` as the only v1
+  implementation (a second local directory - proves the cryptographic/
+  procedural pipeline only, explicitly never claimed as off-device
+  durability); the backup, restore, and reconciliation algorithms below.
+- **Backup only ever uses the public `age` recipient** - reusing D028's
+  exact three existing per-boundary identities/recipients unchanged, no
+  new key system. The private identity is never read, referenced, or
+  required during a backup run; only restore needs it, supplied out-of-
+  band exactly like D028's `--identity` flag. No key was generated,
+  rotated, exposed, or otherwise touched by this decision.
+- **Backup is driven entirely by `Source` rows, never by scanning the
+  filesystem.** An artifact with no `Source` reference (an orphan,
+  D030) is never backed up - it cannot be assigned a trust boundary for
+  encryption without guessing.
+- **The "already protected" check is a strengthened, four-part
+  verification**, never a bare manifest-membership test: (A) a prior
+  local record exists, (B) the backup object exists, (C) its size
+  matches, (D) its ciphertext SHA-256 matches. Any failure triggers
+  repair - re-verify the local plaintext
+  (`sha256(local_bytes) == Source.content_hash`, preserved exactly, and
+  always checked before any (re-)encryption), re-encrypt, atomically
+  write and finalize the new object, read it back, verify size and
+  ciphertext hash, and only then update the record. No object is
+  decrypted during routine incremental backup - full plaintext
+  verification is reserved for restore.
+- **A local, plaintext manifest cache is kept purely as a same-run-to-
+  run comparison baseline for the four-part check** - a real
+  architectural necessity discovered during implementation: `age`
+  encryption is non-deterministic (the same plaintext re-encrypted
+  produces different ciphertext each time), so *some* durable baseline
+  is required to detect ciphertext corruption without decrypting; reading
+  it back from the *encrypted* off-device manifest would require the
+  private identity, breaking backup's public-key-only property. This
+  local cache is never uploaded and is never treated as the durable
+  backup representation - only the encrypted manifest object written to
+  the `BackupObjectStore` is. Losing the local cache is always safe: the
+  next run simply finds no baseline for each hash and re-verifies/
+  re-uploads everything, which costs extra work, never correctness.
+- **`artifact_backup_run`** (new table, migration `0004`) mirrors
+  `ingestion_run`'s exact `STARTED -> SUCCEEDED/FAILED` lifecycle (D030)
+  - a mutable, operational-audit-only table, the seventh deliberate
+  exception to this schema's append-only rule. **Never authoritative for
+  whether an artifact is protected** - the encrypted manifest, valid only
+  after the four-part check, is the sole source of truth. A crash may
+  leave a row stuck at `STARTED`; this is an accepted, honest audit gap,
+  never a false "backed up" signal, since protection status is never
+  read from this table. A backup run is marked `FAILED` (not
+  `SUCCEEDED`) if any artifact failed, even though the manifest still
+  durably protects whatever did succeed - success requires zero
+  unresolved errors.
+- **Restore** targets a dedicated, non-production location, guarded by
+  `assert_safe_restore_target` (fails closed if the target equals the
+  live `ArtifactStore` root - adapted from D027/D028's fixed-target
+  guard pattern for a filesystem, not a database, target). **Two-layer
+  wrong-boundary rejection**: `age -d` fails outright for a non-matching
+  identity, and the decrypted manifest's own `boundary` field is
+  independently checked against the boundary requested. Every restored
+  artifact's plaintext hash is verified against its expected
+  `content_hash` - never silently accepted on mismatch.
+- **Reconciliation** computes `verified`/`missing`/`unexpected` sets
+  against an independently-supplied set of expected `Source.content_hash`
+  values. A restore is successful only if `missing` is empty and no
+  artifact failed verification; a non-empty `unexpected` set is always
+  surfaced but does not by itself force failure - a regression signal to
+  investigate, not automatically fatal.
+- **Two real implementation bugs were found and fixed during this
+  decision's own test-writing** (not merely designed around): a
+  `RestoreOutcome.successful` property referenced a non-existent
+  `self.missing` attribute instead of `self.reconciliation.missing`
+  (caught by `mypy --strict`); and a missing local artifact
+  (`ArtifactStore.get` raising `OSError`) was not originally caught as a
+  per-item failure and would have crashed an entire backup run instead
+  of being recorded and skipped - fixed by introducing
+  `MissingLocalArtifactError` and catching it explicitly, then proven via
+  a dedicated test and via encountering the exact scenario naturally
+  through accumulated synthetic test data in `zacai_test`.
+
+Alternatives considered:
+Encrypting local artifacts at rest with the same per-boundary key used
+for backup was considered and rejected: it would require the private
+identity to live permanently on the Mac Studio to decrypt artifacts
+during normal ingestion - a strictly worse posture than today, where
+private identities only ever touch the machine during an actual restore
+drill. Relying on FileVault (already enabled) for local-at-rest
+protection, exactly matching the precedent already accepted for the live
+`zacai_dev` Postgres data directory, was adopted instead - sufficient to
+satisfy the real-ingestion gate; local-at-rest artifact encryption
+remains a possible, explicitly non-required future defense-in-depth
+improvement. Merging D031A's artifact backup format with D028's database
+export format was considered and rejected in favor of two independent
+mechanisms, preserving D018's "each lane independently restorable"
+principle and the different growth shapes of a relational dump versus an
+incremental, content-addressed object store. Deriving the manifest fresh
+each run purely from `Source` rows and backup-store state (no local
+cache at all) was considered and rejected once it became clear that
+`age`'s non-deterministic encryption makes ciphertext hashes unstable
+across runs without a persisted baseline - the local plaintext cache
+(never the durable backup) is the smallest fix that preserves both
+"encrypt the manifest" and "backup never needs the private key."
+
+Reasons and tradeoffs:
+Per-object encryption (one `age`-encrypted file per artifact) trades a
+larger number of small backup objects for exactly the incremental/
+idempotent backup behavior this decision requires - D028's single
+continuous per-boundary stream would not allow skipping unchanged
+artifacts without re-deriving the whole export. Keeping a local,
+plaintext manifest cache trades a small, explicitly-scoped exception to
+"minimize plaintext copies" for preserving a stronger, more important
+property - that routine backup never needs the private `age` identity at
+all; the cache's total loss is always safe, only ever costing repeat
+work. Marking a backup run `FAILED` whenever any single artifact fails,
+even though the manifest still correctly protects everything that
+succeeded, trades a slightly alarming-looking audit trail for an honest
+one - a partially-successful run must never look identical to a fully
+successful one.
+
+Security and data implications:
+No real Personal, Brainstorm, or Shared data was created by this
+decision - `zacai_dev` was confirmed to hold zero rows in all 29
+application tables both before and after this work. No real credential
+or key material was generated, rotated, exposed, or referenced - every
+`age` identity used in testing is a throwaway keypair generated fresh
+per test via `age-keygen`, verified (by a dedicated test) never to appear
+in any error message this module produces. Backup itself never requires,
+reads, or references a private identity at any point. `zacai.policy` and
+`zacai.gateway` are byte-for-byte unchanged, and a dedicated test proves
+`zacai.backup_artifacts` never imports `zacai.gateway` or references
+`ActionType`. `src/zacai/backup.py` and `backup_safety.py` (D028) are
+unchanged - no correctness problem was found requiring a change to
+either.
+
+Consequences:
+Zac AI now has a drill-tested (against synthetic data only) mechanism
+for encrypting and reconciling raw ingestion artifacts, ready to receive
+a real off-device backend once D031B is designed and implemented - that
+future decision, not this one, is what still blocks ROADMAP.md Phase
+3's "Add Fireflies" item and the real-ingestion hard gate. Future work
+choosing D031B's actual backend must satisfy the same `BackupObjectStore`
+protocol without modification to `backup_artifacts.py`'s backup/restore/
+reconciliation logic. Future connectors' artifact backup must reuse this
+mechanism rather than inventing a parallel one, and must not weaken the
+four-part protection check, the two-layer boundary rejection on restore,
+or the "never claim protection without full verification" invariant
+without its own explicit decision.
+
+Verification:
+Confirmed `uv run pytest` (373 passed: 338 pre-existing plus 35 new - 7
+boundary-partitioning/isolation tests in `test_ingestion_artifact_store.py`,
+28 in the new `test_backup_artifacts.py`), a clean `uv run ruff check .`,
+a clean `uv run mypy src` (17 source files), and a clean
+`git diff --check`. Confirmed `alembic upgrade head` applied migration
+`0004` against `zacai_dev` (0003 -> 0004) and a full downgrade/upgrade
+round-trip (0004 -> 0003 -> 0004) leaves exactly the expected table set
+at each step, with migrations `0001`-`0003` themselves unmodified.
+Confirmed a full synthetic drill end-to-end (real `age` encryption/
+decryption with throwaway keys, not a `cat` passthrough): three synthetic
+artifacts backed up, encrypted, and reconciled with zero
+missing/unexpected/failures; separately, a leftover artifact from
+accumulated test-session state (a different test's already-vanished
+`tmp_path`) was correctly caught as a per-item backup failure and
+correctly flagged as `missing` during restore reconciliation - real,
+unstaged evidence the failure-handling behaves correctly under messy
+conditions, not just the clean-path test. Confirmed `zacai_dev` held
+zero rows in all 29 application tables both before and after this work.
+**This drill proves cryptographic/procedural correctness only - it used
+`LocalDirectoryBackupStore` (a second local directory), never a real
+off-device destination, and does not and cannot demonstrate off-device
+durability. The real-ingestion hard gate remains fully in place.**
+
+Approval or source:
+Zac Campbell, architecture review conversation, 2026-09-21.
+
+Supersedes:
+None. Extends D018/D028 (implements the artifact half of Lane B's
+per-boundary encryption requirement, reusing its exact key hierarchy and
+its "encrypt client-side before anything leaves the device" principle,
+without yet satisfying the off-device requirement itself - that is
+D031B), D023 (reuses `TrustBoundary` unchanged; boundary partitioning is
+enforced structurally in `ArtifactStore`, not just checked), D027/D028
+(reuses their fixed-target, fail-closed restore-guard pattern, adapted
+for a filesystem target), and D030 (corrects
+`LocalFilesystemArtifactStore`'s local layout before any real data
+existed, and reuses its `ArtifactStore` protocol, `content_hash`/
+`content_location` columns, and `ingestion_run`-style mutable-audit-table
+pattern unchanged).
+
 ## Open Decisions
 These choices have not yet been made:
 - Database and search/retrieval technologies

@@ -50,6 +50,8 @@ from sqlalchemy.orm import Session
 
 from zacai.policy import DataClassification, TrustBoundary
 from zacai.state import (
+    ArtifactBackupRun,
+    ArtifactBackupRunStatus,
     Base,
     Commitment,
     CommitmentEvidence,
@@ -1604,3 +1606,60 @@ def elevate_source_classification(
     session.add(elevation)
     session.flush()
     return elevation
+
+
+# --- D031A: artifact_backup_run (operational audit only) -------------------
+
+
+def start_artifact_backup_run(session: Session, *, trust_boundary: TrustBoundary) -> ArtifactBackupRun:
+    """Step 1 of the D031A backup-run lifecycle: caller must commit the
+    session containing this call immediately, before any risky work
+    begins - see `zacai.backup_artifacts`. Mirrors `start_ingestion_run`
+    (D030) exactly."""
+    run = ArtifactBackupRun(trust_boundary=trust_boundary, status=ArtifactBackupRunStatus.STARTED)
+    session.add(run)
+    session.flush()
+    return run
+
+
+def complete_artifact_backup_run(
+    session: Session,
+    *,
+    run_id: uuid.UUID,
+    artifacts_checked: int,
+    artifacts_backed_up: int,
+    artifacts_already_protected: int,
+    artifacts_repaired: int,
+    artifacts_failed: int,
+) -> None:
+    """Terminal success update - must run in a fresh transaction opened
+    after the backup work has resolved (D030's `complete_ingestion_run`
+    lifecycle pattern). Never consulted to decide protection status -
+    see `ArtifactBackupRun`'s docstring."""
+    table = cast(Table, ArtifactBackupRun.__table__)
+    session.execute(
+        update(table)
+        .where(table.c.id == run_id)
+        .values(
+            status=ArtifactBackupRunStatus.SUCCEEDED,
+            finished_at=func.now(),
+            artifacts_checked=artifacts_checked,
+            artifacts_backed_up=artifacts_backed_up,
+            artifacts_already_protected=artifacts_already_protected,
+            artifacts_repaired=artifacts_repaired,
+            artifacts_failed=artifacts_failed,
+        )
+    )
+
+
+def fail_artifact_backup_run(session: Session, *, run_id: uuid.UUID, error: str) -> None:
+    """Terminal failure update - a crash before this ever runs leaves the
+    row at `STARTED` (an accepted, honest audit gap - never a false
+    "backed up" signal, since protection status is never read from this
+    table)."""
+    table = cast(Table, ArtifactBackupRun.__table__)
+    session.execute(
+        update(table)
+        .where(table.c.id == run_id)
+        .values(status=ArtifactBackupRunStatus.FAILED, finished_at=func.now(), error=error)
+    )

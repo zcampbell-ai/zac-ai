@@ -101,8 +101,8 @@ def ingest_fireflies_batch(
 
                 # Artifact write happens fully outside the DB transaction -
                 # see module docstring.
-                content_location = artifact_store.put(hash_value, exact_bytes)
-                if content_hash_of(artifact_store.get(content_location)) != hash_value:
+                content_location = artifact_store.put(trust_boundary, hash_value, exact_bytes)
+                if content_hash_of(artifact_store.get(trust_boundary, content_location)) != hash_value:
                     raise ArtifactIntegrityError(
                         f"artifact at {content_location!r} does not hash to {hash_value!r} after write"
                     )

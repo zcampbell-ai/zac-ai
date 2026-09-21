@@ -182,11 +182,14 @@ For each phase:
 - [ ] Add Google Drive.
 - [ ] Add Slack.
 - [ ] Add Fireflies. (D030 built and tested the synthetic ingestion
-  pipeline this will use. The real connection remains hard-gated - not
-  merely pending - until raw artifact backup/recovery is designed,
-  implemented, and restore-drill tested per RECOVERY.md's Lane B
-  extension and DECISIONS.md D030. No real credential, account, network
-  call, or transcript has been used.)
+  pipeline this will use. D031A designed and implemented the raw
+  artifact backup/restore mechanism cryptographically/synthetically -
+  encrypted, drill-tested against a stand-in local "off-device" store.
+  The real connection remains hard-gated - not merely pending - until a
+  real off-device backend is configured and a real restore drill
+  succeeds (D031B), per RECOVERY.md's Lane B extension and DECISIONS.md
+  D030/D031A. No real credential, account, network call, transcript, or
+  off-device storage has been used.)
 - [ ] Add ClickUp.
 - [ ] Add Salesforce.
 - [ ] Verify each integration independently before adding the next.

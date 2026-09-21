@@ -2,11 +2,13 @@
 
 Status: Lane B's database mechanism is built and drill-tested against
 synthetic data (D028), but not yet exercised against `zacai_dev` for
-real - see Lane B below. Lane B's raw-artifact extension (D030) is a
-**hard, unsatisfied gate**: it blocks any real ingestion connector until
-designed, implemented, and drill-tested - see Lane B below. Lane C holds
-no real Zac AI credential yet. See DECISIONS.md D018/D028/D030 for the
-full architecture decisions and rationale.
+real - see Lane B below. Lane B's raw-artifact extension is designed and
+implemented cryptographically/synthetically (D031A), but real off-device
+durability is **not yet implemented or tested (D031B)** - this remains a
+**hard, unsatisfied gate** blocking any real ingestion connector - see
+Lane B below. Lane C holds no real Zac AI credential yet. See
+DECISIONS.md D018/D028/D030/D031A for the full architecture decisions
+and rationale.
 
 ## The three lanes
 
@@ -93,12 +95,33 @@ ingested until all of the following are true:**
 - Every restored artifact passes:
   `sha256(restored_bytes) == Source.content_hash`.
 
-Status: **not designed, not implemented, not drilled.** D030's synthetic
-implementation is exempt from this gate (it stores only synthetic
-fixture bytes, never real content), but a future, separate, explicitly-
-approved milestone connecting a real Fireflies (or any other) account
-must not be approved until this gate is satisfied. See DECISIONS.md D030
-for the full architecture this extends.
+Status: **designed and implemented cryptographically/synthetically
+(D031A); off-device durability NOT implemented or tested.** D031A
+(`src/zacai/backup_artifacts.py`) implements `age`-encrypted, content-
+addressed, per-artifact backup objects and an encrypted per-boundary
+manifest, a strengthened four-part "already protected" verification with
+repair-on-failure, restore, and integrity reconciliation against `Source`
+rows - reusing D028's exact three per-boundary `age` identities
+unchanged, no new key system. It has been drill-tested end-to-end
+(encrypt, upload, verify, restore, reconcile - real `age` cryptography
+with throwaway test keys, not a passthrough) using
+`LocalDirectoryBackupStore`, a **second local directory that stands in
+for "off-device" storage only to prove the pipeline** - this is
+explicitly not off-device durability and does not satisfy the gate by
+itself.
+
+**Real ingestion remains hard-gated on D031B**: a real off-device
+backend (external drive or object storage - not yet chosen) must be
+configured, a real backup of representative synthetic artifacts must be
+durably stored there, and a real disaster-recovery-shaped restore drill
+(decrypt, hash-verify every artifact, reconcile against a D028-restored
+`Source` set, specifically demonstrated for the BRAINSTORM boundary)
+must succeed and be recorded in its own DECISIONS.md entry before this
+gate may be lifted. D030's/D031A's synthetic work remains exempt from
+the gate (no real content is ever stored by either), but a future, separate,
+explicitly-approved milestone connecting a real Fireflies (or any other)
+account must not be approved until D031B is complete. See DECISIONS.md
+D030/D031A for the full architecture this extends.
 
 ### Lane C - Secrets escrow
 - What: an off-device copy of whatever credentials exist in macOS
@@ -168,7 +191,7 @@ for the full architecture this extends.
 - SECURITY.md - core backup, recovery, and secrets rules
 - SECRETS.md - secrets management rules and credential-adding
   procedure
-- DECISIONS.md D014, D017, D018, D028, D030 - recovery, secrets, backup,
-  and ingestion-artifact architecture rationale
+- DECISIONS.md D014, D017, D018, D028, D030, D031A - recovery, secrets,
+  backup, and ingestion-artifact backup architecture rationale
 - ROADMAP.md Phase 1, Phase 3, and Phase 11 - backup/restore, ingestion,
   and recovery testing tasks

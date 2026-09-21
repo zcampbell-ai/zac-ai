@@ -159,6 +159,16 @@ class ExtractionReviewOutcome(str, Enum):
     REJECTED = "REJECTED"
 
 
+class ArtifactBackupRunStatus(str, Enum):
+    """Lifecycle of one raw-artifact backup run (D031A) - see
+    `ArtifactBackupRun`. Same three-value shape as `IngestionRunStatus`
+    (D030), same reasoning."""
+
+    STARTED = "STARTED"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+
+
 def _enum_column(enum_cls: type[Enum], name: str) -> SAEnum:
     """A VARCHAR + CHECK-constraint enum, not a native Postgres ENUM type -
     simpler to extend later (an additive migration, not an `ALTER TYPE`),
@@ -1139,3 +1149,42 @@ class UnresolvedIdentity(Base):
             name="fk_unresolved_identity_meeting",
         ),
     )
+
+
+# --- D031A: raw artifact backup (operational audit only) -------------------
+
+
+class ArtifactBackupRun(Base):
+    """One raw-artifact backup run's lifecycle (D031A): `STARTED` is
+    written before any work begins; `SUCCEEDED`/`FAILED` is written when
+    the run resolves. Mutable - the seventh deliberate exception to this
+    schema's append-only rule (joining `person_head`/`commitment_head`/
+    `company_head`/`project_head`/`ingestion_cursor`/`ingestion_run`) -
+    pure operational bookkeeping, not a content-bearing fact.
+
+    **Never authoritative for whether an artifact is protected.** The
+    encrypted per-boundary manifest, verified via the four-part check in
+    `zacai.backup_artifacts`, is the sole source of truth. A crash may
+    leave a row stuck at `STARTED` - this is an accepted, honest audit
+    gap, never a false "backed up" signal, because nothing about
+    protection status is ever read from this table."""
+
+    __tablename__ = "artifact_backup_run"
+
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "artifact_backup_run_trust_boundary"), nullable=False
+    )
+    status: Mapped[ArtifactBackupRunStatus] = mapped_column(
+        _enum_column(ArtifactBackupRunStatus, "artifact_backup_run_status"),
+        nullable=False,
+        default=ArtifactBackupRunStatus.STARTED,
+    )
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    artifacts_checked: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    artifacts_backed_up: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    artifacts_already_protected: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    artifacts_repaired: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    artifacts_failed: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
