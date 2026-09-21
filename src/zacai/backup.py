@@ -42,18 +42,21 @@ from zacai.backup_safety import (
 )
 from zacai.policy import TrustBoundary
 
-# Fixed FK-safe order: every reference in this schema (D026/D029) points
-# only earlier in this list, so a single top-to-bottom pass satisfies
-# every foreign key without deferring constraints - with exactly one
-# exception: decision.supersedes_decision_id, a self-reference within the
-# `decision` table itself, which cannot be solved by ordering alone (two
-# decision rows can reference each other regardless of which is written
-# first). That FK is declared DEFERRABLE INITIALLY DEFERRED in the schema
-# (D029), so PostgreSQL checks it only at the final COMMIT of a boundary's
+# Fixed FK-safe order: every reference in this schema (D026/D029/D030)
+# points only earlier in this list, so a single top-to-bottom pass
+# satisfies every foreign key without deferring constraints - with
+# exactly two exceptions, both self-references within their own table,
+# which cannot be solved by ordering alone (two rows can reference each
+# other regardless of which is written first):
+#   - decision.supersedes_decision_id (D029)
+#   - source.supersedes_source_id (D030 Source lineage)
+# Both FKs are declared DEFERRABLE INITIALLY DEFERRED in the schema, so
+# PostgreSQL checks them only at the final COMMIT of a boundary's
 # restore - restore_boundary_stream already runs one boundary's entire
-# table set inside a single transaction, so this composes with no pipeline
-# code change. `decision`'s own row order below therefore only needs to
-# be deterministic for human-readability, not for FK correctness.
+# table set inside a single transaction, so this composes with no
+# pipeline code change. `decision`'s and `source`'s own row order below
+# therefore only needs to be deterministic for human-readability, not
+# for FK correctness.
 TABLE_ORDER: tuple[str, ...] = (
     "source",
     "company_head",
@@ -76,6 +79,13 @@ TABLE_ORDER: tuple[str, ...] = (
     "decision_evidence",
     "decision_retraction",
     "meeting_retraction",
+    "ingestion_cursor",
+    "ingestion_run",
+    "extraction_record",
+    "extraction_candidate",
+    "extraction_candidate_review",
+    "source_classification_elevation",
+    "unresolved_identity",
 )
 
 _ORDER_BY: dict[str, str] = {
@@ -100,6 +110,13 @@ _ORDER_BY: dict[str, str] = {
     "decision_evidence": "id",
     "decision_retraction": "id",
     "meeting_retraction": "id",
+    "ingestion_cursor": "id",
+    "ingestion_run": "id",
+    "extraction_record": "id",
+    "extraction_candidate": "id",
+    "extraction_candidate_review": "id",
+    "source_classification_elevation": "id",
+    "unresolved_identity": "id",
 }
 
 # Fixed constants for the one destructive restore target this module is

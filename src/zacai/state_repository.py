@@ -44,7 +44,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import cast
 
-from sqlalchemy import Table, select, update
+from sqlalchemy import Table, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -64,6 +64,15 @@ from zacai.state import (
     DecisionEvidence,
     DecisionRetraction,
     EvidenceStance,
+    ExtractionCandidate,
+    ExtractionCandidateReview,
+    ExtractionCandidateType,
+    ExtractionRecord,
+    ExtractionRecordStatus,
+    ExtractionReviewOutcome,
+    IngestionCursor,
+    IngestionRun,
+    IngestionRunStatus,
     Meeting,
     MeetingAttendee,
     MeetingRetraction,
@@ -80,6 +89,9 @@ from zacai.state import (
     ProjectHead,
     ProjectStatus,
     Source,
+    SourceClassificationElevation,
+    SourceSystem,
+    UnresolvedIdentity,
 )
 
 _CLASSIFICATION_ORDER: dict[DataClassification, int] = {
@@ -115,6 +127,12 @@ class ClassificationTooWeakError(ValueError):
 
 class MissingSupportingEvidenceError(ValueError):
     """Raised when a version is submitted with no SUPPORTS evidence at all."""
+
+
+class ClassificationNotElevatedError(ValueError):
+    """Raised when a Source classification 'elevation' would not
+    strictly increase its effective classification (D030) - elevation is
+    monotonic upward-only, never a way to weaken it."""
 
 
 @dataclass(frozen=True)
@@ -198,14 +216,38 @@ def _assert_evidence_matches_boundary(
             )
 
 
+def get_effective_source_classification(session: Session, *, source_id: uuid.UUID) -> DataClassification:
+    """The Source's own classification, elevated by its most recent
+    `source_classification_elevation` row if one exists (D030). Elevation
+    is enforced strictly upward-only (`elevate_source_classification`),
+    so "most recent" and "maximum" always agree. This is the only correct
+    way to ask how sensitive a Source currently is anywhere downstream -
+    never read `Source.data_classification` directly for a policy/access
+    decision."""
+    latest = session.execute(
+        select(SourceClassificationElevation.new_classification)
+        .where(SourceClassificationElevation.source_id == source_id)
+        .order_by(SourceClassificationElevation.elevated_at.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+    if latest is not None:
+        return latest
+
+    stored = session.execute(select(Source.data_classification).where(Source.id == source_id)).scalar_one_or_none()
+    if stored is None:
+        raise ValueError(f"source {source_id} does not exist")
+    return stored
+
+
 def _assert_classification_not_weaker_than_evidence(
-    data_classification: DataClassification, supporting_sources: Sequence[Source]
+    session: Session, data_classification: DataClassification, supporting_sources: Sequence[Source]
 ) -> None:
     for source in supporting_sources:
-        if _CLASSIFICATION_ORDER[data_classification] < _CLASSIFICATION_ORDER[source.data_classification]:
+        effective = get_effective_source_classification(session, source_id=source.id)
+        if _CLASSIFICATION_ORDER[data_classification] < _CLASSIFICATION_ORDER[effective]:
             raise ClassificationTooWeakError(
                 f"classification {data_classification} is less restrictive than "
-                f"supporting source {source.id} ({source.data_classification})"
+                f"supporting source {source.id}'s effective classification {effective}"
             )
 
 
@@ -277,7 +319,7 @@ def create_person(
     sources_by_id = _load_sources(session, {item.source_id for item in evidence})
     _assert_evidence_matches_boundary(sources_by_id, trust_boundary)
     supporting = [sources_by_id[item.source_id] for item in evidence if item.stance == EvidenceStance.SUPPORTS]
-    _assert_classification_not_weaker_than_evidence(data_classification, supporting)
+    _assert_classification_not_weaker_than_evidence(session, data_classification, supporting)
 
     version = _allocate_version(session, PersonHead, entity_id, trust_boundary)
 
@@ -401,7 +443,7 @@ def create_commitment(
     sources_by_id = _load_sources(session, {item.source_id for item in evidence})
     _assert_evidence_matches_boundary(sources_by_id, trust_boundary)
     supporting = [sources_by_id[item.source_id] for item in evidence if item.stance == EvidenceStance.SUPPORTS]
-    _assert_classification_not_weaker_than_evidence(data_classification, supporting)
+    _assert_classification_not_weaker_than_evidence(session, data_classification, supporting)
 
     version = _allocate_version(session, CommitmentHead, entity_id, trust_boundary)
 
@@ -512,7 +554,7 @@ def create_company(
     sources_by_id = _load_sources(session, {item.source_id for item in evidence})
     _assert_evidence_matches_boundary(sources_by_id, trust_boundary)
     supporting = [sources_by_id[item.source_id] for item in evidence if item.stance == EvidenceStance.SUPPORTS]
-    _assert_classification_not_weaker_than_evidence(data_classification, supporting)
+    _assert_classification_not_weaker_than_evidence(session, data_classification, supporting)
 
     version = _allocate_version(session, CompanyHead, entity_id, trust_boundary)
 
@@ -622,7 +664,7 @@ def create_project(
     sources_by_id = _load_sources(session, {item.source_id for item in evidence})
     _assert_evidence_matches_boundary(sources_by_id, trust_boundary)
     supporting = [sources_by_id[item.source_id] for item in evidence if item.stance == EvidenceStance.SUPPORTS]
-    _assert_classification_not_weaker_than_evidence(data_classification, supporting)
+    _assert_classification_not_weaker_than_evidence(session, data_classification, supporting)
 
     version = _allocate_version(session, ProjectHead, entity_id, trust_boundary)
 
@@ -969,7 +1011,7 @@ def create_decision(
     sources_by_id = _load_sources(session, {item.source_id for item in evidence})
     _assert_evidence_matches_boundary(sources_by_id, trust_boundary)
     supporting = [sources_by_id[item.source_id] for item in evidence if item.stance == EvidenceStance.SUPPORTS]
-    _assert_classification_not_weaker_than_evidence(data_classification, supporting)
+    _assert_classification_not_weaker_than_evidence(session, data_classification, supporting)
 
     decision = Decision(
         trust_boundary=trust_boundary,
@@ -1062,3 +1104,503 @@ def retract_decision(
     session.add(retraction)
     session.flush()
     return retraction
+
+
+# --- D030: Source lineage/idempotency ---------------------------------------
+
+
+def get_current_source_revision(
+    session: Session,
+    *,
+    system: SourceSystem,
+    external_ref: str,
+    trust_boundary: TrustBoundary,
+    lock: bool = False,
+) -> Source | None:
+    """The tip of a `(system, external_ref, trust_boundary)` lineage
+    chain - the one row nothing else's `supersedes_source_id` points to.
+    Structural, not timestamp-based (D030). `lock=True` row-locks the tip
+    (if any) via `SELECT ... FOR UPDATE` for use inside `record_source`."""
+    superseded_ids = select(Source.supersedes_source_id).where(Source.supersedes_source_id.is_not(None))
+    stmt = select(Source).where(
+        Source.system == system,
+        Source.external_ref == external_ref,
+        Source.trust_boundary == trust_boundary,
+        Source.id.not_in(superseded_ids),
+    )
+    if lock:
+        stmt = stmt.with_for_update()
+    return session.execute(stmt).scalar_one_or_none()
+
+
+def record_source(
+    session: Session,
+    *,
+    trust_boundary: TrustBoundary,
+    data_classification: DataClassification,
+    system: SourceSystem,
+    content_hash: str,
+    content_location: str,
+    external_ref: str | None = None,
+    captured_at: datetime | None = None,
+    excerpt: str | None = None,
+) -> tuple[Source, bool]:
+    """Idempotently records one Source. Returns `(source, was_new)`.
+
+    Idempotency key: `(system, external_ref, trust_boundary,
+    content_hash)` - a second call with identical values is a no-op
+    returning the existing row. A call with the same
+    `(system, external_ref, trust_boundary)` but a *different*
+    `content_hash` is a legitimate content revision (D030 Source
+    lineage): a new, immutable row is inserted with
+    `supersedes_source_id` set to the current (row-locked) tip of that
+    chain - the prior row is never mutated. `content_hash`/
+    `content_location` must already reference bytes an `ArtifactStore`
+    has durably written before this is called - this function performs
+    no filesystem I/O itself (see `zacai.ingestion.artifact_store`,
+    `zacai.ingestion.pipeline`).
+
+    Concurrency note: the tip lookup below is row-locked when an existing
+    chain is found, serializing concurrent revisions of the same
+    `external_ref`. Two fully concurrent *first-ever* inserts of
+    different content for a never-before-seen `external_ref` are not
+    fully serialized by this function alone - acceptable for this
+    milestone's single-writer, no-scheduler synthetic pipeline (D030);
+    closing that gap for a multi-writer future is separate, later work.
+    """
+    existing = None
+    if external_ref is not None:
+        existing = session.execute(
+            select(Source).where(
+                Source.system == system,
+                Source.external_ref == external_ref,
+                Source.trust_boundary == trust_boundary,
+                Source.content_hash == content_hash,
+            )
+        ).scalar_one_or_none()
+    if existing is not None:
+        return existing, False
+
+    supersedes_source_id: uuid.UUID | None = None
+    if external_ref is not None:
+        current_tip = get_current_source_revision(
+            session, system=system, external_ref=external_ref, trust_boundary=trust_boundary, lock=True
+        )
+        if current_tip is not None:
+            supersedes_source_id = current_tip.id
+
+    source_kwargs: dict[str, object] = {
+        "trust_boundary": trust_boundary,
+        "data_classification": data_classification,
+        "system": system,
+        "external_ref": external_ref,
+        "excerpt": excerpt,
+        "content_hash": content_hash,
+        "content_location": content_location,
+        "supersedes_source_id": supersedes_source_id,
+    }
+    if captured_at is not None:
+        source_kwargs["captured_at"] = captured_at
+
+    source = Source(**source_kwargs)
+    session.add(source)
+    session.flush()
+    return source, True
+
+
+def is_artifact_referenced(session: Session, *, content_location: str) -> bool:
+    """True if any `Source` row references this artifact location - the
+    observability primitive a future, separate, not-yet-built
+    orphan-artifact reconciliation process would use (D030). Never
+    deletes anything itself."""
+    existing = session.execute(
+        select(Source.id).where(Source.content_location == content_location)
+    ).scalar_one_or_none()
+    return existing is not None
+
+
+# --- D030: identity resolution (minimal, "unresolved rather than guessed") -
+
+
+def find_person_by_email(
+    session: Session,
+    *,
+    trust_boundary: TrustBoundary,
+    email: str,
+) -> Person | None:
+    """Exact, case-insensitive match against the CURRENT version's
+    `primary_email`, within one trust boundary only - never cross-
+    boundary, never fuzzy (D030). Returns `None` - never guesses - if
+    zero or more than one active Person matches."""
+    stmt = (
+        select(Person)
+        .join(
+            PersonHead,
+            (PersonHead.entity_id == Person.entity_id) & (PersonHead.trust_boundary == Person.trust_boundary),
+        )
+        .where(
+            Person.version == PersonHead.current_version,
+            Person.trust_boundary == trust_boundary,
+            Person.status == PersonStatus.ACTIVE,
+            func.lower(Person.primary_email) == email.lower(),
+        )
+    )
+    matches = session.execute(stmt).scalars().all()
+    if len(matches) != 1:
+        return None
+    return matches[0]
+
+
+def record_unresolved_identity(
+    session: Session,
+    *,
+    trust_boundary: TrustBoundary,
+    source_id: uuid.UUID,
+    context: str,
+    meeting_id: uuid.UUID | None = None,
+    raw_name: str | None = None,
+    raw_email: str | None = None,
+) -> UnresolvedIdentity:
+    """Records a reference that could not be confidently matched to an
+    existing Person - never a merge, never a guess (D030). No 'resolved'
+    status here; a future, separate identity-resolution workflow is what
+    would eventually consume this table."""
+    record = UnresolvedIdentity(
+        trust_boundary=trust_boundary,
+        source_id=source_id,
+        meeting_id=meeting_id,
+        raw_name=raw_name,
+        raw_email=raw_email,
+        context=context,
+    )
+    session.add(record)
+    session.flush()
+    return record
+
+
+# --- D030: ingestion cursor/run lifecycle -----------------------------------
+
+
+def get_ingestion_cursor(session: Session, *, connector: str, trust_boundary: TrustBoundary) -> str | None:
+    return session.execute(
+        select(IngestionCursor.cursor_value).where(
+            IngestionCursor.connector == connector, IngestionCursor.trust_boundary == trust_boundary
+        )
+    ).scalar_one_or_none()
+
+
+def advance_ingestion_cursor(
+    session: Session, *, connector: str, trust_boundary: TrustBoundary, cursor_value: str
+) -> None:
+    """Upserts the single `(connector, trust_boundary)` cursor row - a
+    mutable pointer (D030), not an append-only fact history. Must run in
+    the same transaction as the data batch it checkpoints - see
+    `zacai.ingestion.pipeline`'s three-transaction lifecycle."""
+    table = cast(Table, IngestionCursor.__table__)
+    session.execute(
+        pg_insert(table)
+        .values(connector=connector, trust_boundary=trust_boundary, cursor_value=cursor_value)
+        .on_conflict_do_update(
+            index_elements=["connector", "trust_boundary"],
+            set_={"cursor_value": cursor_value, "updated_at": func.now()},
+        )
+    )
+
+
+def start_ingestion_run(session: Session, *, connector: str, trust_boundary: TrustBoundary) -> IngestionRun:
+    """Step 1 of the D030 three-transaction ingestion-run lifecycle:
+    caller must commit the session containing this call immediately,
+    before any risky work begins - see `zacai.ingestion.pipeline`."""
+    run = IngestionRun(connector=connector, trust_boundary=trust_boundary, status=IngestionRunStatus.STARTED)
+    session.add(run)
+    session.flush()
+    return run
+
+
+def complete_ingestion_run(
+    session: Session,
+    *,
+    run_id: uuid.UUID,
+    items_fetched: int,
+    items_ingested: int,
+    items_skipped: int,
+    items_failed: int,
+) -> None:
+    """Step 3, success case: must run in a fresh transaction opened after
+    the data batch's own transaction has already committed (D030)."""
+    table = cast(Table, IngestionRun.__table__)
+    session.execute(
+        update(table)
+        .where(table.c.id == run_id)
+        .values(
+            status=IngestionRunStatus.SUCCEEDED,
+            finished_at=func.now(),
+            items_fetched=items_fetched,
+            items_ingested=items_ingested,
+            items_skipped=items_skipped,
+            items_failed=items_failed,
+        )
+    )
+
+
+def fail_ingestion_run(session: Session, *, run_id: uuid.UUID, error: str) -> None:
+    """Step 3, failure case: must run in a fresh transaction opened after
+    the data batch's own transaction has been rolled back - this is what
+    lets the failure audit record survive the data rollback (D030)."""
+    table = cast(Table, IngestionRun.__table__)
+    session.execute(
+        update(table).where(table.c.id == run_id).values(status=IngestionRunStatus.FAILED, finished_at=func.now(), error=error)
+    )
+
+
+# --- D030: extraction candidates (never canonical facts until approved) ----
+
+
+def record_extraction_attempt(
+    session: Session,
+    *,
+    source_id: uuid.UUID,
+    trust_boundary: TrustBoundary,
+    model_name: str,
+    prompt_version: str,
+    status: ExtractionRecordStatus,
+    candidate_count: int = 0,
+    error: str | None = None,
+) -> ExtractionRecord:
+    """Append-only: one row per extraction attempt. No uniqueness
+    constraint - a deliberate re-run is expected and always retained."""
+    record = ExtractionRecord(
+        source_id=source_id,
+        trust_boundary=trust_boundary,
+        model_name=model_name,
+        prompt_version=prompt_version,
+        status=status,
+        candidate_count=candidate_count,
+        error=error,
+    )
+    session.add(record)
+    session.flush()
+    return record
+
+
+def has_succeeded_extraction(
+    session: Session, *, source_id: uuid.UUID, model_name: str, prompt_version: str
+) -> bool:
+    """True if a `SUCCEEDED` extraction_record already exists for this
+    exact `(source, model, prompt)` key - the reprocessing idempotency
+    check (D030): a caller checks this before running extraction again."""
+    existing = session.execute(
+        select(ExtractionRecord.id).where(
+            ExtractionRecord.source_id == source_id,
+            ExtractionRecord.model_name == model_name,
+            ExtractionRecord.prompt_version == prompt_version,
+            ExtractionRecord.status == ExtractionRecordStatus.SUCCEEDED,
+        )
+    ).scalar_one_or_none()
+    return existing is not None
+
+
+def create_extraction_candidate(
+    session: Session,
+    *,
+    trust_boundary: TrustBoundary,
+    extraction_record_id: uuid.UUID,
+    candidate_type: ExtractionCandidateType,
+    source_id: uuid.UUID,
+    description: str,
+    proposed_classification: DataClassification,
+    confidence: float,
+    meeting_id: uuid.UUID | None = None,
+    project_id: uuid.UUID | None = None,
+    owner_person_id: uuid.UUID | None = None,
+    due_date: date | None = None,
+) -> ExtractionCandidate:
+    """Writes one immutable candidate - never a canonical Decision/
+    Commitment (D030). `owner_person_id` is required for `COMMITMENT`
+    candidates (checked here, not only by the DB, since the column
+    itself is nullable to accommodate `DECISION` candidates, which have
+    no owner). `proposed_classification` must already be at least as
+    restrictive as the cited Source's *effective* classification (D030
+    classification elevation) - checked here using the same
+    `_CLASSIFICATION_ORDER` the rest of this module uses."""
+    if candidate_type == ExtractionCandidateType.COMMITMENT and owner_person_id is None:
+        raise ValueError("a COMMITMENT candidate requires owner_person_id")
+
+    effective = get_effective_source_classification(session, source_id=source_id)
+    if _CLASSIFICATION_ORDER[proposed_classification] < _CLASSIFICATION_ORDER[effective]:
+        raise ClassificationTooWeakError(
+            f"candidate classification {proposed_classification} is less restrictive than "
+            f"source {source_id}'s effective classification {effective}"
+        )
+
+    candidate = ExtractionCandidate(
+        trust_boundary=trust_boundary,
+        extraction_record_id=extraction_record_id,
+        candidate_type=candidate_type,
+        source_id=source_id,
+        meeting_id=meeting_id,
+        project_id=project_id,
+        description=description,
+        owner_person_id=owner_person_id,
+        due_date=due_date,
+        proposed_classification=proposed_classification,
+        confidence=confidence,
+    )
+    session.add(candidate)
+    session.flush()
+    return candidate
+
+
+def get_candidate_review(session: Session, *, candidate_id: uuid.UUID) -> ExtractionCandidateReview | None:
+    return session.execute(
+        select(ExtractionCandidateReview).where(ExtractionCandidateReview.candidate_id == candidate_id)
+    ).scalar_one_or_none()
+
+
+def approve_extraction_candidate(
+    session: Session,
+    *,
+    candidate_id: uuid.UUID,
+    requestor_boundaries: frozenset[TrustBoundary],
+    reviewed_by: str,
+) -> ExtractionCandidateReview:
+    """The only path a candidate may become canonical state (D030):
+    promotes it through the normal, existing `create_decision`/
+    `create_commitment` functions - never a shortcut write. Canonical
+    evidence cites the candidate's original `source_id`, never the
+    candidate row itself."""
+    candidate = session.execute(
+        select(ExtractionCandidate).where(
+            ExtractionCandidate.id == candidate_id,
+            ExtractionCandidate.trust_boundary.in_(requestor_boundaries),
+        )
+    ).scalar_one_or_none()
+    if candidate is None:
+        raise ValueError(f"candidate {candidate_id} not found or not authorized for {requestor_boundaries}")
+    if get_candidate_review(session, candidate_id=candidate_id) is not None:
+        raise ValueError(f"candidate {candidate_id} has already been reviewed")
+
+    evidence = [
+        EvidenceInput(source_id=candidate.source_id, stance=EvidenceStance.SUPPORTS, confidence=candidate.confidence)
+    ]
+
+    promoted_entity_id: uuid.UUID
+    if candidate.candidate_type == ExtractionCandidateType.DECISION:
+        decision = create_decision(
+            session,
+            trust_boundary=candidate.trust_boundary,
+            data_classification=candidate.proposed_classification,
+            description=candidate.description,
+            evidence=evidence,
+            project_id=candidate.project_id,
+            meeting_id=candidate.meeting_id,
+        )
+        promoted_entity_id = decision.id
+    else:
+        if candidate.owner_person_id is None:
+            raise ValueError(f"candidate {candidate_id} is a COMMITMENT candidate with no owner_person_id")
+        commitment = create_commitment(
+            session,
+            trust_boundary=candidate.trust_boundary,
+            data_classification=candidate.proposed_classification,
+            owner_person_id=candidate.owner_person_id,
+            description=candidate.description,
+            evidence=evidence,
+            due_date=candidate.due_date,
+            project_id=candidate.project_id,
+        )
+        promoted_entity_id = commitment.entity_id
+
+    review = ExtractionCandidateReview(
+        candidate_id=candidate_id,
+        trust_boundary=candidate.trust_boundary,
+        outcome=ExtractionReviewOutcome.APPROVED,
+        reviewed_by=reviewed_by,
+        promoted_entity_id=promoted_entity_id,
+    )
+    session.add(review)
+    session.flush()
+    return review
+
+
+def reject_extraction_candidate(
+    session: Session,
+    *,
+    candidate_id: uuid.UUID,
+    requestor_boundaries: frozenset[TrustBoundary],
+    reviewed_by: str,
+    reason: str,
+) -> ExtractionCandidateReview:
+    """Records a rejection - creates no Decision/Commitment. `reason` is
+    required (D030: "rejection must remain auditable")."""
+    if not reason:
+        raise ValueError("rejecting a candidate requires a reason")
+
+    candidate = session.execute(
+        select(ExtractionCandidate).where(
+            ExtractionCandidate.id == candidate_id,
+            ExtractionCandidate.trust_boundary.in_(requestor_boundaries),
+        )
+    ).scalar_one_or_none()
+    if candidate is None:
+        raise ValueError(f"candidate {candidate_id} not found or not authorized for {requestor_boundaries}")
+    if get_candidate_review(session, candidate_id=candidate_id) is not None:
+        raise ValueError(f"candidate {candidate_id} has already been reviewed")
+
+    review = ExtractionCandidateReview(
+        candidate_id=candidate_id,
+        trust_boundary=candidate.trust_boundary,
+        outcome=ExtractionReviewOutcome.REJECTED,
+        reviewed_by=reviewed_by,
+        reason=reason,
+    )
+    session.add(review)
+    session.flush()
+    return review
+
+
+# --- D030: Source classification elevation ----------------------------------
+
+
+def elevate_source_classification(
+    session: Session,
+    *,
+    source_id: uuid.UUID,
+    trust_boundary: TrustBoundary,
+    new_classification: DataClassification,
+    reason: str,
+    elevated_by: str,
+) -> SourceClassificationElevation:
+    """Records that a Source is more sensitive than previously known -
+    never mutates `Source.data_classification` itself (Source is
+    immutable). `new_classification` must be strictly more restrictive
+    than the Source's current effective classification - elevation is
+    monotonic upward-only (D030), never a way to weaken it."""
+    source_boundary = session.execute(
+        select(Source.trust_boundary).where(Source.id == source_id)
+    ).scalar_one_or_none()
+    if source_boundary is None:
+        raise ValueError(f"source {source_id} does not exist")
+    if source_boundary != trust_boundary:
+        raise RelatedEntityBoundaryMismatchError(
+            f"boundary {trust_boundary} does not match source boundary {source_boundary}"
+        )
+
+    current = get_effective_source_classification(session, source_id=source_id)
+    if _CLASSIFICATION_ORDER[new_classification] <= _CLASSIFICATION_ORDER[current]:
+        raise ClassificationNotElevatedError(
+            f"new classification {new_classification} is not strictly more restrictive "
+            f"than the current effective classification {current}"
+        )
+
+    elevation = SourceClassificationElevation(
+        source_id=source_id,
+        trust_boundary=trust_boundary,
+        previous_classification=current,
+        new_classification=new_classification,
+        reason=reason,
+        elevated_by=elevated_by,
+    )
+    session.add(elevation)
+    session.flush()
+    return elevation

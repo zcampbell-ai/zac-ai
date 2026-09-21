@@ -136,6 +136,29 @@ class MeetingSourceRole(str, Enum):
     FOLLOW_UP = "FOLLOW_UP"
 
 
+class IngestionRunStatus(str, Enum):
+    """Lifecycle of one ingestion batch (D030) - see `IngestionRun`."""
+
+    STARTED = "STARTED"
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+
+
+class ExtractionRecordStatus(str, Enum):
+    SUCCEEDED = "SUCCEEDED"
+    FAILED = "FAILED"
+
+
+class ExtractionCandidateType(str, Enum):
+    DECISION = "DECISION"
+    COMMITMENT = "COMMITMENT"
+
+
+class ExtractionReviewOutcome(str, Enum):
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
 def _enum_column(enum_cls: type[Enum], name: str) -> SAEnum:
     """A VARCHAR + CHECK-constraint enum, not a native Postgres ENUM type -
     simpler to extend later (an additive migration, not an `ALTER TYPE`),
@@ -161,7 +184,22 @@ def _enum_column(enum_cls: type[Enum], name: str) -> SAEnum:
 class Source(Base):
     """An immutable provenance record. Never versioned - a source does not
     change after capture; a corrected understanding of it is a new Source
-    row, cited by a new entity version."""
+    row, cited by a new entity version.
+
+    D030 additions: `content_hash`/`content_location` point at the raw
+    artifact bytes held by a separate `zacai.ingestion.artifact_store`
+    implementation, never at a `JSONB` column here - `content_location`
+    is opaque to this schema, owned entirely by whichever ArtifactStore
+    wrote it. `supersedes_source_id` models a genuine content revision
+    (same `(system, external_ref, trust_boundary)`, different
+    `content_hash`) as a new, linked, immutable row - never a mutation.
+    Its FK is DEFERRABLE INITIALLY DEFERRED for the same reason as
+    `Decision.supersedes_decision_id` (D029): a self-reference within one
+    table cannot be solved by row ordering alone during a bulk restore.
+    The "current" revision of a lineage chain is the one row nothing
+    else's `supersedes_source_id` points to - structural, not
+    timestamp-based (see `state_repository.get_current_source_revision`).
+    """
 
     __tablename__ = "source"
 
@@ -176,8 +214,27 @@ class Source(Base):
     external_ref: Mapped[str | None] = mapped_column(Text, nullable=True)
     captured_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
     excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content_hash: Mapped[str | None] = mapped_column(Text, nullable=True)
+    content_location: Mapped[str | None] = mapped_column(Text, nullable=True)
+    supersedes_source_id: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
 
-    __table_args__ = (UniqueConstraint("id", "trust_boundary", name="uq_source_id_boundary"),)
+    __table_args__ = (
+        UniqueConstraint("id", "trust_boundary", name="uq_source_id_boundary"),
+        UniqueConstraint(
+            "system",
+            "external_ref",
+            "trust_boundary",
+            "content_hash",
+            name="uq_source_system_external_ref_hash_boundary",
+        ),
+        ForeignKeyConstraint(
+            ["supersedes_source_id", "trust_boundary"],
+            ["source.id", "source.trust_boundary"],
+            name="fk_source_supersedes_boundary",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+    )
 
 
 class PersonHead(Base):
@@ -824,5 +881,261 @@ class MeetingRetraction(Base):
             ["source_id", "trust_boundary"],
             ["source.id", "source.trust_boundary"],
             name="fk_meeting_retraction_source",
+        ),
+    )
+
+
+# --- D030: ingestion cursor/run (mutable, operational bookkeeping) ----------
+
+
+class IngestionCursor(Base):
+    """The resume point for one (connector, trust_boundary) sync stream -
+    a mutable pointer, the sixth deliberate exception to this schema's
+    append-only rule (joining `person_head`/`commitment_head`/
+    `company_head`/`project_head`), since a cursor is pure bookkeeping,
+    not a content-bearing fact. `cursor_value` is opaque and
+    connector-defined (D030)."""
+
+    __tablename__ = "ingestion_cursor"
+
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    connector: Mapped[str] = mapped_column(Text, nullable=False)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "ingestion_cursor_trust_boundary"), nullable=False
+    )
+    cursor_value: Mapped[str] = mapped_column(Text, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("connector", "trust_boundary", name="uq_ingestion_cursor_connector_boundary"),
+    )
+
+
+class IngestionRun(Base):
+    """One ingestion batch's lifecycle (D030): `STARTED` is written and
+    committed before any risky work begins; `SUCCEEDED`/`FAILED` is
+    written in a separate, later transaction so a rolled-back data batch
+    can never erase the failure audit record. Mutable - a run's own
+    lifecycle status is operational bookkeeping, not a fact whose full
+    history must be preserved the way a Decision or Meeting is."""
+
+    __tablename__ = "ingestion_run"
+
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    connector: Mapped[str] = mapped_column(Text, nullable=False)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "ingestion_run_trust_boundary"), nullable=False
+    )
+    status: Mapped[IngestionRunStatus] = mapped_column(
+        _enum_column(IngestionRunStatus, "ingestion_run_status"),
+        nullable=False,
+        default=IngestionRunStatus.STARTED,
+    )
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    items_fetched: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    items_ingested: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    items_skipped: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    items_failed: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+# --- D030: extraction (candidates, never canonical facts, until review) ----
+
+
+class ExtractionRecord(Base):
+    """One append-only row per extraction attempt over one Source. No
+    uniqueness constraint - a deliberate re-run (bug fix, better model)
+    is expected and always retained (D030), matching the reasoning
+    already applied to `PersonCompanyRelationship`."""
+
+    __tablename__ = "extraction_record"
+
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "extraction_record_trust_boundary"), nullable=False
+    )
+    model_name: Mapped[str] = mapped_column(Text, nullable=False)
+    prompt_version: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[ExtractionRecordStatus] = mapped_column(
+        _enum_column(ExtractionRecordStatus, "extraction_record_status"), nullable=False
+    )
+    candidate_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("id", "trust_boundary", name="uq_extraction_record_id_boundary"),
+        ForeignKeyConstraint(
+            ["source_id", "trust_boundary"],
+            ["source.id", "source.trust_boundary"],
+            name="fk_extraction_record_source",
+        ),
+    )
+
+
+class ExtractionCandidate(Base):
+    """An LLM-proposed Decision or Commitment - never itself canonical
+    state (D030). Immutable once written; review outcomes live in the
+    separate `ExtractionCandidateReview` table, exactly mirroring why
+    `Decision`/`Meeting` are immutable and their retractions live
+    separately. Typed columns, not a generic JSON payload - the smallest
+    shape that covers both candidate types without a polymorphic blob,
+    consistent with this schema's typed-evidence precedent."""
+
+    __tablename__ = "extraction_candidate"
+
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "extraction_candidate_trust_boundary"), nullable=False
+    )
+    extraction_record_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    candidate_type: Mapped[ExtractionCandidateType] = mapped_column(
+        _enum_column(ExtractionCandidateType, "extraction_candidate_type"), nullable=False
+    )
+    source_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    meeting_id: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    project_id: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    owner_person_id: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    due_date: Mapped[date | None] = mapped_column(nullable=True)
+    proposed_classification: Mapped[DataClassification] = mapped_column(
+        _enum_column(DataClassification, "extraction_candidate_proposed_classification"), nullable=False
+    )
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("id", "trust_boundary", name="uq_extraction_candidate_id_boundary"),
+        CheckConstraint("confidence >= 0.0 AND confidence <= 1.0", name="ck_extraction_candidate_confidence_range"),
+        ForeignKeyConstraint(
+            ["extraction_record_id", "trust_boundary"],
+            ["extraction_record.id", "extraction_record.trust_boundary"],
+            name="fk_extraction_candidate_record",
+        ),
+        ForeignKeyConstraint(
+            ["source_id", "trust_boundary"],
+            ["source.id", "source.trust_boundary"],
+            name="fk_extraction_candidate_source",
+        ),
+        ForeignKeyConstraint(
+            ["meeting_id", "trust_boundary"],
+            ["meeting.id", "meeting.trust_boundary"],
+            name="fk_extraction_candidate_meeting",
+        ),
+        ForeignKeyConstraint(
+            ["project_id", "trust_boundary"],
+            ["project_head.entity_id", "project_head.trust_boundary"],
+            name="fk_extraction_candidate_project",
+        ),
+    )
+
+
+class ExtractionCandidateReview(Base):
+    """The only way a candidate's disposition is recorded - presence of a
+    row here, not a mutable status column on `ExtractionCandidate`,
+    mirrors `DecisionRetraction`/`MeetingRetraction` exactly. At most one
+    review per candidate (`UNIQUE(candidate_id)`). `promoted_entity_id`
+    is set only on `APPROVED`, pointing at the resulting
+    `decision.id`/`commitment.entity_id` - traceable, but the canonical
+    evidence for that promoted fact still cites the original `Source`,
+    never this row."""
+
+    __tablename__ = "extraction_candidate_review"
+
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    candidate_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "extraction_candidate_review_trust_boundary"), nullable=False
+    )
+    outcome: Mapped[ExtractionReviewOutcome] = mapped_column(
+        _enum_column(ExtractionReviewOutcome, "extraction_candidate_review_outcome"), nullable=False
+    )
+    reviewed_by: Mapped[str] = mapped_column(Text, nullable=False)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    promoted_entity_id: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    reviewed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("candidate_id", name="uq_extraction_candidate_review_candidate_id"),
+        ForeignKeyConstraint(
+            ["candidate_id", "trust_boundary"],
+            ["extraction_candidate.id", "extraction_candidate.trust_boundary"],
+            name="fk_extraction_candidate_review_candidate",
+        ),
+    )
+
+
+# --- D030: Source classification elevation ----------------------------------
+
+
+class SourceClassificationElevation(Base):
+    """Records that a Source is more sensitive than previously known -
+    never mutates `Source.data_classification` itself (Source is
+    immutable); presence-based, exactly like retraction. Multiple rows
+    per Source are legitimate (each strictly more restrictive than the
+    last) - see `state_repository.get_effective_source_classification`,
+    the only correct way to ask how sensitive a Source currently is."""
+
+    __tablename__ = "source_classification_elevation"
+
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "source_classification_elevation_trust_boundary"), nullable=False
+    )
+    previous_classification: Mapped[DataClassification] = mapped_column(
+        _enum_column(DataClassification, "source_classification_elevation_previous"), nullable=False
+    )
+    new_classification: Mapped[DataClassification] = mapped_column(
+        _enum_column(DataClassification, "source_classification_elevation_new"), nullable=False
+    )
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    elevated_by: Mapped[str] = mapped_column(Text, nullable=False)
+    elevated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["source_id", "trust_boundary"],
+            ["source.id", "source.trust_boundary"],
+            name="fk_source_classification_elevation_source",
+        ),
+    )
+
+
+# --- D030: unresolved identity ----------------------------------------------
+
+
+class UnresolvedIdentity(Base):
+    """A reference (meeting attendee, etc.) that could not be confidently
+    matched to an existing Person - never a merge, never a guess (D030).
+    No 'resolved' status: a future, separate identity-resolution
+    workflow is what would eventually consume this table as its input
+    queue."""
+
+    __tablename__ = "unresolved_identity"
+
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "unresolved_identity_trust_boundary"), nullable=False
+    )
+    source_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    meeting_id: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    raw_name: Mapped[str | None] = mapped_column(Text, nullable=True)
+    raw_email: Mapped[str | None] = mapped_column(Text, nullable=True)
+    context: Mapped[str] = mapped_column(Text, nullable=False)
+    noted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["source_id", "trust_boundary"],
+            ["source.id", "source.trust_boundary"],
+            name="fk_unresolved_identity_source",
+        ),
+        ForeignKeyConstraint(
+            ["meeting_id", "trust_boundary"],
+            ["meeting.id", "meeting.trust_boundary"],
+            name="fk_unresolved_identity_meeting",
         ),
     )

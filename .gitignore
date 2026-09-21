@@ -27,6 +27,11 @@
 # should never be created inside the repo; private identities already
 # use the .key extension, covered above)
 *.age
+
+# D030 raw ingestion artifacts (defense in depth - the configured
+# artifact_store_root should never be inside the repo either, but this
+# covers the default value)
+/var/artifacts/
 /logs/
 *.log
 *.sqlite

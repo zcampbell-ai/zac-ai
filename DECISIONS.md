@@ -2464,6 +2464,287 @@ helpers), and D028 (extends its `TABLE_ORDER`/`_ORDER_BY` constants only,
 with no change to its export/restore pipeline, restore-target guards, or
 destructive-orchestration logic).
 
+## D030 - First Read-Only Ingestion Architecture (Synthetic v1)
+Status: Accepted
+Date: 2026-09-21
+
+Context:
+Phase 2 (D026-D029) built canonical Zac State with a real, tested storage
+foundation, but no live external source has ever written into it - every
+row through D029 is synthetic test data. ROADMAP.md Phase 3 requires
+choosing and documenting the first useful read-only integration before
+any live account is connected, and Phase 2's own checklist requires
+validating with synthetic data first. An architecture review compared
+Fireflies, Google Calendar, Gmail, and Slack against Chief-of-Staff
+value, clean mapping to D029's entities, source/provenance quality,
+identity ambiguity, trust-boundary difficulty, idempotency, API
+complexity, blast radius, and usefulness for validating Decision/
+Commitment extraction. The review went through three further correction
+rounds - each revising the design before implementation - covering raw
+artifact storage, Source lineage, extraction-candidate review, ingestion-
+run transaction semantics, classification elevation, and finally the
+artifact/database transaction ordering and a real-ingestion hard gate.
+
+Decision:
+**Fireflies is selected as Zac AI's first read-only ingestion source.**
+Google Calendar was the strongest alternative - its OAuth-verified
+attendee emails are actually a cleaner identity signal than Fireflies' -
+but it has no transcript content, so it cannot validate Decision/
+Commitment extraction, the highest-value, least-proven capability on the
+roadmap, and a personal/work mixed calendar reintroduces real per-item
+boundary ambiguity Fireflies doesn't have (a single connected Fireflies
+account has one deterministic boundary, matching SECURITY.md's own
+Fireflies-under-Brainstorm placement). Gmail and Slack were rejected as
+structurally premature: both require a `Message` entity this project has
+not yet built, and both carry materially higher blast radius (Gmail
+especially, given SECURITY.md's own HIGHLY_RESTRICTED examples routinely
+appear in an inbox) than is appropriate for a first pipeline whose job is
+proving the pipeline itself is safe, not maximizing day-one coverage.
+
+**This decision implements synthetic ingestion infrastructure only.** No
+real Fireflies credential, account, network call, real transcript, or
+real LLM call has occurred or is introduced by this decision. Every test
+uses hand-built, Fireflies-shaped fixture payloads and a caller-supplied
+stub in place of a model call.
+
+- **Raw artifact content lives behind a replaceable `ArtifactStore`
+  abstraction (`src/zacai/ingestion/artifact_store.py`), never in a
+  PostgreSQL `JSONB` column.** `Source.content_location` is opaque to
+  the database - its meaning belongs entirely to whichever
+  `ArtifactStore` implementation wrote it, so a future encrypted/
+  object-storage backend requires only a new class satisfying the same
+  `put`/`get` protocol, never a `Source` schema change.
+  **`LocalFilesystemArtifactStore` is the only v1 backend** - local
+  disk, content-addressed (identical bytes always resolve to the
+  identical path), atomic writes (`tempfile` + `os.replace`, never a
+  direct write to the final path), `0700`/`0600` permissions. No S3 or
+  cloud/object storage exists yet.
+- **`content_hash` is the SHA-256 of the *exact* bytes `ArtifactStore`
+  stores** - one canonicalization function
+  (`zacai.ingestion.artifact_store.canonical_bytes`) produces the bytes
+  both hashed and written, so hashing and storage can never silently
+  diverge from two independently produced serializations. The invariant
+  `sha256(artifact_store.get(source.content_location)) ==
+  source.content_hash` is enforced at write time (a read-after-write
+  check before the database transaction even opens) and by dedicated
+  tests.
+- **`Source` gains `content_hash`, `content_location`, and
+  `supersedes_source_id`** (additive, still immutable/append-only - no
+  trigger change). A content revision - the same
+  `(system, external_ref, trust_boundary)` arriving with a different
+  `content_hash` - is a new, immutable row linked via
+  `supersedes_source_id`, never a mutation. That FK is `DEFERRABLE
+  INITIALLY DEFERRED`, the same mechanism and reasoning as
+  `Decision.supersedes_decision_id` (D029), and was proved safe under a
+  reversed-row-order restore drill exactly like D029's. The "current"
+  revision of a lineage chain is structural - the one row nothing else's
+  `supersedes_source_id` points to - never timestamp-based.
+- **Artifact writes happen before the database transaction opens**,
+  because the two systems cannot share one transaction. If the artifact
+  write succeeds but the database transaction that would record its
+  `Source` row later fails or rolls back, the result is a **safe,
+  named, accepted "orphan artifact"**: a real, valid, correctly-hashed
+  file with no `Source` row referencing it. This is deliberately
+  preferred over the reverse ordering (which could leave a `Source` row
+  pointing at bytes that were never actually written - real data loss
+  disguised as success). **Automatic orphan-artifact garbage collection
+  is deliberately deferred** - only an observability primitive
+  (`is_artifact_referenced`) was built; a future reconciliation process
+  is sketched, not implemented, and no filesystem rollback/delete-on-
+  failure is attempted (deleting on one caller's failure could delete
+  bytes a concurrent or retried caller legitimately still needs, since
+  content-addressed storage is inherently shareable).
+- **`ingestion_run` uses a three-transaction lifecycle**: `STARTED` is
+  inserted and committed immediately, before any risky work begins; the
+  data batch (Source/Meeting writes plus cursor advance) runs in its own
+  transaction; the terminal `SUCCEEDED`/`FAILED` update runs in a third,
+  fresh transaction opened after the data transaction has already
+  resolved either way. This is what lets a rolled-back data transaction
+  never erase the failure audit record - proved by a test that forces a
+  real rollback and confirms the `FAILED` row survives it.
+  **`ingestion_cursor` advancement is atomic with the data batch's own
+  commit** - the cursor never advances on failure, verified directly.
+- **Identity resolution is minimal and exact**: only a case-insensitive,
+  same-trust-boundary exact match on `person.primary_email` links an
+  attendee to an existing Person. Every other case - no email, no match,
+  or an ambiguous match against more than one Person - is recorded in a
+  new `unresolved_identity` table rather than guessed or merged. No
+  company/project auto-association from meeting content exists.
+- **Extraction creates candidates only** (`extraction_candidate`, a new
+  immutable, typed table) - never a canonical Decision or Commitment
+  directly. **LLM/model output is never itself canonical Zac State.**
+  Promotion requires an explicit, separately-recorded human approval
+  (`approve_extraction_candidate`) that routes through the *same*,
+  unmodified `create_decision`/`create_commitment` repository functions
+  every other write already uses, citing the candidate's original
+  `Source` as real evidence. **Rejection remains auditable**: a
+  `reject_extraction_candidate` call requires a reason and records an
+  `extraction_candidate_review` row (`UNIQUE(candidate_id)` - one final
+  review per candidate, the same presence-based pattern D029's
+  `decision_retraction`/`meeting_retraction` already established) rather
+  than silently discarding anything. Reprocessing a Source with a new
+  model/prompt version creates an independent, coexisting candidate set
+  via a fresh, non-unique `extraction_record` row; a retried *failed*
+  attempt never duplicates a prior attempt's (empty) output.
+- **Source classification elevation is append-only and strictly
+  upward-only.** A new `source_classification_elevation` table (never
+  mutating `Source.data_classification` itself) records that a Source is
+  more sensitive than originally assumed; `elevate_source_classification`
+  rejects any attempt to elevate to an equal or weaker classification,
+  reusing the existing `_CLASSIFICATION_ORDER` unchanged. **The Source's
+  *effective* classification - not only its original stored value - is
+  now the binding one for every downstream evidence/access check**:
+  `get_effective_source_classification` is the only correct way to ask
+  how sensitive a Source currently is, and
+  `_assert_classification_not_weaker_than_evidence` (D026) was updated to
+  call it instead of reading the stored column directly, so an elevated
+  Source's `HIGHLY_RESTRICTED` status correctly and automatically trips
+  `evaluate_access`'s existing, unconditional external hard-deny with no
+  change to `zacai.policy` at all.
+- **`extraction_candidate` uses typed, first-class columns** (`
+  description`, `owner_person_id`, `due_date`, `project_id`,
+  `proposed_classification`, `confidence`) instead of the `proposed_
+  fields` `JSONB` blob originally sketched during design review. This is
+  recorded here as a deliberate implementation simplification, consistent
+  with this schema's typed-evidence-over-generic-blob philosophy already
+  established in D026/D029, with no loss of capability for the two
+  candidate types (`DECISION`/`COMMITMENT`) this milestone supports.
+- **D023/D024 semantics are entirely unchanged.** `zacai.policy` and
+  `zacai.gateway` were not modified; a dedicated test asserts nothing
+  under `src/zacai/ingestion/` ever imports `zacai.gateway` or references
+  `ActionType`. Ingestion only ever writes through
+  `zacai.state_repository`, exactly like every existing synthetic
+  fixture.
+- **Migration `0003` is the ingestion architecture migration** - hand-
+  reviewed after `--autogenerate`, adds the `Source` additions and seven
+  new tables, append-only triggers on all but the two deliberate mutable
+  exceptions (`ingestion_cursor`, `ingestion_run` - joining `person_head`/
+  `commitment_head`/`company_head`/`project_head`). Migrations `0001` and
+  `0002` are untouched.
+- **D028's backup/restore pipeline is extended only for the new
+  PostgreSQL state** - `TABLE_ORDER`/`_ORDER_BY` gained the seven new
+  tables and `Source`'s new columns in FK-safe order, with zero change to
+  `export_boundary_stream`/`restore_boundary_stream` or the restore-
+  target guards, exactly as D029's additions required no pipeline
+  change.
+
+**Real-ingestion hard gate**: no real Fireflies content may be ingested
+until raw artifact backup/recovery has been designed, implemented,
+encrypted before any off-device storage, separated by PERSONAL/
+BRAINSTORM/SHARED boundary protections consistent with D018/D028, and
+restored in a real drill in which every restored artifact satisfies
+`sha256(restored_bytes) == Source.content_hash`. This is a blocking
+prerequisite, not a recommendation - see RECOVERY.md's Lane B section,
+updated by this decision to record it. The synthetic implementation this
+decision approves is exempt from this gate, since it never stores real
+content; a future, separate, explicitly-approved milestone is required
+before any live Fireflies account is connected.
+
+Alternatives considered:
+See the Decision section for the full Fireflies-vs-Calendar-vs-Gmail-vs-
+Slack comparison. A single `Meeting.source_id`/no-lineage design was
+rejected in the first design round in favor of typed multi-source
+provenance (already D029) and, for content revisions specifically, the
+`supersedes_source_id` lineage mechanism, for the same "typed, not
+generic" reasoning applied throughout. Storing raw artifacts directly in
+`Source.raw_payload` as `JSONB` was rejected in the first design round in
+favor of the `ArtifactStore` abstraction - keeping large/variable raw
+content out of the hot relational schema and out of vendor lock-in.
+Having extraction write directly to `create_decision`/`create_commitment`
+was rejected in favor of the candidate/review layer - an LLM's own
+confidence is not the same thing as canonical truth, and D030's "prefer
+unresolved/reviewed over incorrectly merged" principle (already applied
+to identity resolution) applies equally to extracted facts. Attempting
+filesystem rollback or delete-on-failure for a failed artifact write was
+considered and rejected - it introduces a new failure mode (the delete
+itself can fail) and is actively dangerous under content-addressed
+storage, where a "failed" caller's bytes may already be legitimately
+relied on by a different, successful caller.
+
+Reasons and tradeoffs:
+Writing the artifact before opening the database transaction, rather
+than the reverse, trades a small, accepted risk (a harmless orphan file
+on a rolled-back write) for avoiding a much worse one (a `Source` row
+that claims content exists when it never was durably written). Splitting
+`ingestion_run`'s lifecycle into three transactions rather than one
+trades a small amount of mechanical complexity for a guarantee that
+matters specifically because it protects the failure case: an audit
+record that only a *successful* write could produce would be useless for
+diagnosing exactly the failures it exists to catch. Keeping
+`extraction_candidate` on typed columns rather than a `JSONB` blob trades
+a small amount of schema flexibility (a future third candidate type would
+need its own columns) for full `mypy --strict` type safety and
+consistency with every other table in this schema, appropriate given
+this milestone supports exactly two candidate types.
+
+Security and data implications:
+No real Personal, Brainstorm, or Shared data was created by this
+decision - `zacai_dev` was confirmed to hold zero rows in all 28
+application tables both before and after this work. No real credential
+was created; `BRAINSTORM_FIREFLIES_API_KEY` and
+`ZACAI_ARTIFACT_STORE_ROOT` were added to `.env.example` as names only,
+with no value, consistent with SECRETS.md. No network call, no real LLM
+call, and no write-scope request exist anywhere in this milestone's code
+or tests - verified both by inspection and by a dedicated test. The
+local artifact store's root directory is covered by `.gitignore` as
+defense in depth, and its own default (`var/artifacts`) never overlaps
+with any secret-bearing path. `zacai.policy` and `zacai.gateway` are
+byte-for-byte unchanged by this decision.
+
+Consequences:
+Zac AI now has a proven, tested (against synthetic data), read-only
+ingestion architecture ready to receive its first real credential once
+the real-ingestion hard gate above is satisfied - that gate, not this
+decision, is what still blocks ROADMAP.md Phase 3's "Add Fireflies" item
+from being marked complete. Future work adding a second connector should
+reuse the same `ArtifactStore` protocol, the same candidate/review
+extraction pattern, and the same three-transaction ingestion-run
+lifecycle rather than inventing parallel mechanisms, and must not weaken
+the append-only guarantees, the "unresolved rather than guessed" identity
+rule, or the classification non-weakening/elevation invariants without
+its own explicit decision. Raw artifact backup/recovery remains a
+named, open, blocking gap - it must be designed and drill-tested before
+any real content is ever written to the artifact store.
+
+Verification:
+Confirmed `uv run pytest` (338 passed: 291 pre-existing plus 47 new -
+9 artifact-store, 28 repository-level, 8 pipeline-integration, 2
+extended backup/restore), a clean `uv run ruff check .`, a clean
+`uv run mypy src` (16 source files), and a clean `git diff --check`.
+Confirmed `alembic upgrade head` applied migration `0003` against
+`zacai_dev` (0002 -> 0003) and a full downgrade/upgrade round-trip
+(0003 -> 0002 -> 0003) leaves exactly the expected table set at each
+step, with migrations `0001`/`0002` themselves unmodified. Confirmed the
+`fk_source_supersedes_boundary` constraint has `condeferrable=t,
+condeferred=t` via `psql`, and that the append-only trigger exists on
+every new content-bearing table except the two deliberate mutable
+exceptions. Confirmed the extended backup/restore drill against
+`zacai_restore_test` (all seven new tables restored with >=1 row,
+append-only trigger still active post-restore) and the reversed-row-order
+Source-lineage restore, both via the real, unmodified `restore_boundary()`
+pipeline. Confirmed `zacai_dev` held zero rows in all 28 application
+tables both before and after this work, via a manual check outside
+pytest.
+
+Approval or source:
+Zac Campbell, architecture review conversation, 2026-09-21.
+
+Supersedes:
+None. Extends D018/D028 (the real-ingestion hard gate is a direct
+extension of Lane B's per-boundary encryption requirement to artifact
+content, not yet satisfied), D023 (every new boundary/classification
+column reuses `TrustBoundary`/`DataClassification` unchanged; `evaluate_
+access`'s HIGHLY_RESTRICTED+EXTERNAL hard-deny is exercised, not
+modified), D024 (entirely untouched - verified by a dedicated test),
+D026 (reuses its evidence/confidence mechanism unchanged for extraction
+candidates, and its classification non-weakening check is updated, not
+replaced, to consult effective classification), D028 (extends
+`TABLE_ORDER`/`_ORDER_BY` only, reuses its restore-target guards and
+disposable-database pattern unchanged), and D029 (reuses its
+`supersedes_*`/`DEFERRABLE INITIALLY DEFERRED` self-FK pattern and its
+retraction-table shape for candidate review and classification
+elevation).
+
 ## Open Decisions
 These choices have not yet been made:
 - Database and search/retrieval technologies

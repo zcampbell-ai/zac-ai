@@ -1,9 +1,12 @@
 # Zac AI Recovery Architecture
 
-Status: Lane B's mechanism is built and drill-tested against synthetic
-data (D028), but not yet exercised against `zacai_dev` for real - see
-Lane B below. Lane C holds no real Zac AI credential yet. See
-DECISIONS.md D018/D028 for the full architecture decisions and rationale.
+Status: Lane B's database mechanism is built and drill-tested against
+synthetic data (D028), but not yet exercised against `zacai_dev` for
+real - see Lane B below. Lane B's raw-artifact extension (D030) is a
+**hard, unsatisfied gate**: it blocks any real ingestion connector until
+designed, implemented, and drill-tested - see Lane B below. Lane C holds
+no real Zac AI credential yet. See DECISIONS.md D018/D028/D030 for the
+full architecture decisions and rationale.
 
 ## The three lanes
 
@@ -61,6 +64,41 @@ depends on recovering another.
   purity and integrity - D028). Running it for real against `zacai_dev`
   is a separate, later, explicitly-approved step, since `zacai_dev`
   currently holds no real data to back up yet.
+
+#### Lane B extension: raw ingestion artifacts (D030) - REAL-INGESTION HARD GATE
+
+D030 added Zac State's first read-only ingestion architecture
+(Fireflies, synthetic v1). Its raw artifact content (e.g. a transcript's
+full text) does **not** live in PostgreSQL - it lives behind a separate
+`zacai.ingestion.artifact_store.ArtifactStore` abstraction, with
+`LocalFilesystemArtifactStore` as the only v1 backend, addressed by a
+SHA-256 `content_hash` recorded on the corresponding `Source` row. Lane
+B's mechanism above backs up PostgreSQL rows only - it does **not**
+cover this local artifact directory at all.
+
+**This is a blocking prerequisite, not a recommendation: no real
+Fireflies content (or any future connector's real content) may be
+ingested until all of the following are true:**
+- Raw artifact backup/recovery has been **designed**.
+- It has been **implemented**.
+- Artifacts are **encrypted before any off-device storage** - the same
+  "encrypt client-side before anything leaves the Mac Studio" principle
+  Lane B's database export already follows (D018).
+- Backups are **separated by PERSONAL/BRAINSTORM/SHARED boundary
+  protections**, consistent with D018/D028's three-separate-keys
+  requirement - never one shared key or one shared artifact set across
+  boundaries.
+- A **real restore drill has succeeded** - a design document alone does
+  not satisfy this gate.
+- Every restored artifact passes:
+  `sha256(restored_bytes) == Source.content_hash`.
+
+Status: **not designed, not implemented, not drilled.** D030's synthetic
+implementation is exempt from this gate (it stores only synthetic
+fixture bytes, never real content), but a future, separate, explicitly-
+approved milestone connecting a real Fireflies (or any other) account
+must not be approved until this gate is satisfied. See DECISIONS.md D030
+for the full architecture this extends.
 
 ### Lane C - Secrets escrow
 - What: an off-device copy of whatever credentials exist in macOS
@@ -130,7 +168,7 @@ depends on recovering another.
 - SECURITY.md - core backup, recovery, and secrets rules
 - SECRETS.md - secrets management rules and credential-adding
   procedure
-- DECISIONS.md D014, D017, D018, D028 - recovery, secrets, and backup
-  architecture rationale
-- ROADMAP.md Phase 1 and Phase 11 - backup/restore and recovery
-  testing tasks
+- DECISIONS.md D014, D017, D018, D028, D030 - recovery, secrets, backup,
+  and ingestion-artifact architecture rationale
+- ROADMAP.md Phase 1, Phase 3, and Phase 11 - backup/restore, ingestion,
+  and recovery testing tasks

@@ -67,6 +67,11 @@ class Settings(BaseSettings):
     # it must be loaded via get_secret()/Keychain (D017), never embedded in
     # this or any committed database_url value (D026).
     database_url: str = "postgresql+psycopg://127.0.0.1:5432/zacai_dev"
+    # Non-secret Tier-0 config (D030): the local directory
+    # `zacai.ingestion.artifact_store.LocalFilesystemArtifactStore` writes
+    # raw ingestion artifacts under. Never committed content, never a
+    # secret value itself - just a path.
+    artifact_store_root: str = "var/artifacts"
 
 
 def _select_env_file(raw_environment: str) -> str | None:

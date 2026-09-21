@@ -53,6 +53,8 @@ from zacai.backup import (
 from zacai.policy import DataClassification, TrustBoundary
 from zacai.state import (
     CompanyRelationshipKind,
+    ExtractionCandidateType,
+    ExtractionRecordStatus,
     MeetingSourceRole,
     PersonCompanyRelationshipKind,
     Source,
@@ -62,13 +64,22 @@ from zacai.state_repository import (
     EvidenceInput,
     EvidenceStance,
     MeetingSourceInput,
+    advance_ingestion_cursor,
+    approve_extraction_candidate,
+    complete_ingestion_run,
     create_commitment,
     create_company,
     create_decision,
+    create_extraction_candidate,
     create_meeting,
     create_person,
     create_project,
+    elevate_source_classification,
+    record_extraction_attempt,
     record_person_company_relationship,
+    record_source,
+    record_unresolved_identity,
+    start_ingestion_run,
 )
 
 RESTORE_TEST_URL = "postgresql+psycopg://127.0.0.1:5432/zacai_restore_test"
@@ -468,6 +479,223 @@ def test_extended_d029_backup_restore_round_trip(test_session_factory: sessionma
                     # freshly Alembic-built restore-test schema.
                     with pytest.raises(Exception, match="append-only"):
                         conn.execute(text("UPDATE company SET name = 'x' WHERE name = :n"), {"n": marker})
+                        conn.commit()
+                    conn.rollback()
+            finally:
+                engine.dispose()
+        finally:
+            drop_restore_test_database()
+
+
+def _reverse_source_rows(source_csv: bytes, first_marker: str, second_marker: str) -> bytes:
+    """Reorders exactly the two rows whose `excerpt` matches
+    `first_marker`/`second_marker` so `second_marker` (the superseding
+    Source revision) appears BEFORE `first_marker` (the superseded one)
+    in the CSV - the opposite of natural insertion order. Used to prove
+    `Source.supersedes_source_id`'s DEFERRABLE INITIALLY DEFERRED foreign
+    key, not row order, is what makes restore safe (D030)."""
+    reader = csv.DictReader(io.StringIO(source_csv.decode()))
+    fieldnames = reader.fieldnames
+    assert fieldnames is not None
+    rows = list(reader)
+
+    first = next(row for row in rows if row["excerpt"] == first_marker)
+    second = next(row for row in rows if row["excerpt"] == second_marker)
+    others = [row for row in rows if row["excerpt"] not in (first_marker, second_marker)]
+
+    out = io.StringIO()
+    writer = csv.DictWriter(out, fieldnames=fieldnames)
+    writer.writeheader()
+    writer.writerows([*others, second, first])
+    return out.getvalue().encode()
+
+
+def test_source_lineage_restores_with_reversed_row_order(
+    test_session_factory: sessionmaker[Session],
+) -> None:
+    boundary = TrustBoundary.BRAINSTORM
+    external_ref = f"D030-lineage-{uuid.uuid4()}"
+    marker_a = f"D030-reversed-A-{uuid.uuid4()}"
+    marker_b = f"D030-reversed-B-{uuid.uuid4()}"
+
+    with test_session_factory() as session:
+        first, _ = record_source(
+            session,
+            trust_boundary=boundary,
+            data_classification=DataClassification.INTERNAL,
+            system=SourceSystem.FIREFLIES,
+            content_hash=f"hash-a-{external_ref}",
+            content_location=f"loc/a-{external_ref}.bin",
+            external_ref=external_ref,
+            excerpt=marker_a,
+        )
+        second, _ = record_source(
+            session,
+            trust_boundary=boundary,
+            data_classification=DataClassification.INTERNAL,
+            system=SourceSystem.FIREFLIES,
+            content_hash=f"hash-b-{external_ref}",
+            content_location=f"loc/b-{external_ref}.bin",
+            external_ref=external_ref,
+            excerpt=marker_b,
+        )
+        session.commit()
+        first_id = first.id
+        assert second.supersedes_source_id == first_id
+
+    engine = create_engine(_TEST_DB_URL, future=True)
+    try:
+        raw_stream = io.BytesIO()
+        export_boundary_stream(engine, boundary, raw_stream)
+    finally:
+        engine.dispose()
+
+    frames = _parse_frames(raw_stream)
+    frames["source"] = _reverse_source_rows(frames["source"], marker_a, marker_b)
+
+    rebuilt = io.BytesIO()
+    for table in TABLE_ORDER:
+        _write_frame(rebuilt, table, frames[table])
+
+    with tempfile.TemporaryDirectory() as tmp:
+        artifact = Path(tmp) / "reversed-source.bin"
+        artifact.write_bytes(rebuilt.getvalue())
+
+        recreate_restore_test_database()
+        try:
+            upgrade_restore_test_schema()
+            # Must not raise - the deferred FK is what makes this safe,
+            # not the (here, deliberately wrong) row order.
+            restore_boundary(artifact, RESTORE_TEST_URL, ["cat"])
+
+            verify_engine = create_engine(RESTORE_TEST_URL, future=True)
+            try:
+                with verify_engine.connect() as conn:
+                    row_b = conn.execute(
+                        text("SELECT supersedes_source_id FROM source WHERE excerpt = :e"),
+                        {"e": marker_b},
+                    ).one()
+                    assert row_b.supersedes_source_id == first_id
+            finally:
+                verify_engine.dispose()
+        finally:
+            drop_restore_test_database()
+
+
+def test_extended_d030_backup_restore_round_trip(test_session_factory: sessionmaker[Session]) -> None:
+    """Proves the D030 tables (extended Source, ingestion_cursor,
+    ingestion_run, extraction_record, extraction_candidate,
+    extraction_candidate_review, source_classification_elevation,
+    unresolved_identity) restore correctly via the same generic D028
+    pipeline - no pipeline code change was needed, only extending
+    TABLE_ORDER."""
+    boundary = TrustBoundary.BRAINSTORM
+    marker = f"D030-extended-{uuid.uuid4()}"
+
+    with test_session_factory() as session:
+        source, _ = record_source(
+            session,
+            trust_boundary=boundary,
+            data_classification=DataClassification.INTERNAL,
+            system=SourceSystem.FIREFLIES,
+            content_hash=f"hash-{marker}",
+            content_location=f"loc/{marker}.bin",
+            external_ref=marker,
+            excerpt=marker,
+        )
+        meeting = create_meeting(
+            session,
+            trust_boundary=boundary,
+            data_classification=DataClassification.INTERNAL,
+            title=marker,
+            occurred_at=datetime.now(UTC),
+            sources=[MeetingSourceInput(source_id=source.id, source_role=MeetingSourceRole.TRANSCRIPT)],
+        )
+        run = start_ingestion_run(session, connector="fireflies", trust_boundary=boundary)
+        advance_ingestion_cursor(session, connector="fireflies", trust_boundary=boundary, cursor_value="1")
+        complete_ingestion_run(
+            session,
+            run_id=run.id,
+            items_fetched=1,
+            items_ingested=1,
+            items_skipped=0,
+            items_failed=0,
+        )
+        record = record_extraction_attempt(
+            session,
+            source_id=source.id,
+            trust_boundary=boundary,
+            model_name="stub",
+            prompt_version="v1",
+            status=ExtractionRecordStatus.SUCCEEDED,
+            candidate_count=1,
+        )
+        candidate = create_extraction_candidate(
+            session,
+            trust_boundary=boundary,
+            extraction_record_id=record.id,
+            candidate_type=ExtractionCandidateType.DECISION,
+            source_id=source.id,
+            meeting_id=meeting.id,
+            description=marker,
+            proposed_classification=DataClassification.INTERNAL,
+            confidence=0.7,
+        )
+        approve_extraction_candidate(
+            session,
+            candidate_id=candidate.id,
+            requestor_boundaries=frozenset({boundary}),
+            reviewed_by="zac",
+        )
+        elevate_source_classification(
+            session,
+            source_id=source.id,
+            trust_boundary=boundary,
+            new_classification=DataClassification.CONFIDENTIAL,
+            reason="D030 backup test fixture",
+            elevated_by="zac",
+        )
+        record_unresolved_identity(
+            session,
+            trust_boundary=boundary,
+            source_id=source.id,
+            meeting_id=meeting.id,
+            context="meeting_attendee",
+            raw_name="Unknown Person",
+        )
+        session.commit()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        artifact = Path(tmp) / "extended-d030.bin"
+        export_boundary(_TEST_DB_URL, boundary, artifact, ["cat"])
+
+        recreate_restore_test_database()
+        try:
+            upgrade_restore_test_schema()
+            restore_boundary(artifact, RESTORE_TEST_URL, ["cat"])
+
+            engine = create_engine(RESTORE_TEST_URL, future=True)
+            try:
+                with engine.connect() as conn:
+                    for table in (
+                        "ingestion_cursor",
+                        "ingestion_run",
+                        "extraction_record",
+                        "extraction_candidate",
+                        "extraction_candidate_review",
+                        "source_classification_elevation",
+                        "unresolved_identity",
+                    ):
+                        count = conn.execute(text(f"SELECT count(*) FROM {table}")).scalar_one()
+                        assert count >= 1, f"{table} has no restored rows"
+
+                    # Append-only still active on a D030 table in the
+                    # freshly Alembic-built restore-test schema.
+                    with pytest.raises(Exception, match="append-only"):
+                        conn.execute(
+                            text("UPDATE extraction_candidate SET description = 'x' WHERE description = :d"),
+                            {"d": marker},
+                        )
                         conn.commit()
                     conn.rollback()
             finally:

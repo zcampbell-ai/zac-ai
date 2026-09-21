@@ -146,16 +146,35 @@ For each phase:
 - [ ] Validate using synthetic data before connecting private sources.
 
 ## Phase 3 - Read-Only Integrations and Events
-- [ ] Confirm Phase 1 secrets management, redacted logging, and a verified backup/restore are complete before connecting any live Gmail, Slack, Salesforce, or ClickUp account.
-- [ ] Choose and document the first useful read-only integration.
-- [ ] Implement a reusable connector and normalized event interface.
-- [ ] Support deduplication, incremental sync, retries, and sync status.
+- [ ] Confirm Phase 1 secrets management, redacted logging, and a verified backup/restore are complete before connecting any live Gmail, Slack, Salesforce, or ClickUp account. (D030's real-ingestion hard gate adds a further, Fireflies-specific precondition - see RECOVERY.md Lane B.)
+- [x] Choose and document the first useful read-only integration. (D030:
+  Fireflies selected after comparing it against Google Calendar, Gmail,
+  and Slack on Chief-of-Staff value, entity fit, identity/boundary risk,
+  and blast radius; see DECISIONS.md D030.)
+- [x] Implement a reusable connector and normalized event interface.
+  (D030: a deterministic fetch/validate/store/resolve pipeline, a
+  separate extraction stage, and a replaceable `ArtifactStore`
+  abstraction - built and tested entirely against synthetic,
+  Fireflies-shaped fixtures. No live connector exists yet.)
+- [x] Support deduplication, incremental sync, retries, and sync status.
+  (D030: content-hash idempotency and Source lineage, a per-connector/
+  boundary ingestion cursor, retry-safe batch transactions, and an
+  `ingestion_run` status lifecycle - implemented and tested against
+  synthetic data only.)
 - [ ] Preserve source permissions, provenance, and processing status.
+  (D030 implemented provenance and processing-status tracking for the
+  synthetic pipeline; preserving a real connector's actual granted
+  permissions remains unverified until one exists.)
 - [ ] Add Gmail.
 - [ ] Add Google Calendar.
 - [ ] Add Google Drive.
 - [ ] Add Slack.
-- [ ] Add Fireflies.
+- [ ] Add Fireflies. (D030 built and tested the synthetic ingestion
+  pipeline this will use. The real connection remains hard-gated - not
+  merely pending - until raw artifact backup/recovery is designed,
+  implemented, and restore-drill tested per RECOVERY.md's Lane B
+  extension and DECISIONS.md D030. No real credential, account, network
+  call, or transcript has been used.)
 - [ ] Add ClickUp.
 - [ ] Add Salesforce.
 - [ ] Verify each integration independently before adding the next.
