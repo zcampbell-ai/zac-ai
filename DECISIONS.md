@@ -2209,6 +2209,261 @@ the schema D026 created, without any schema change), and D027 (reuses
 its disposable-database pattern for `zacai_restore_test` and its
 fail-closed URL-guard style for the new restore-target protection).
 
+## D029 - Zac State Entity Model Expansion (v1)
+Status: Accepted
+Date: 2026-09-21
+
+Context:
+D026 established Zac State's v1 storage foundation for exactly three
+entities - Person, Commitment, Source. ARCHITECTURE.md names People,
+Companies, Projects, Opportunities, Commitments, Decisions, and Meetings
+as first-class entities; D026 explicitly deferred all but the first two.
+Phase 2 requires the entity graph to grow toward that list before any
+connector is approved. An architecture review evaluated nine candidate
+entities (Company, Project, Task, Decision, Meeting, Event, Opportunity,
+Message, Document) against ARCHITECTURE.md's list and against D026's
+established patterns (versioned head+version tables for mutable-history
+entities, typed evidence tables, composite-FK boundary enforcement,
+append-only triggers), and went through two further design-review
+rounds - each revising the model before implementation - before
+approval.
+
+Decision:
+Add four entities - Company, Project, Decision, Meeting - plus their
+supporting association/evidence/retraction tables, extending
+`src/zacai/state.py` and `src/zacai/state_repository.py` without
+modifying `src/zacai/policy.py` or `src/zacai/gateway.py`:
+
+- **Task, Opportunity, Event, Message, and Document remain deferred.**
+  Task was rejected as redundant with the existing Commitment entity -
+  D026's Commitment already models an owned, trackable obligation, and a
+  separate Task table would either duplicate that shape or require an
+  immediate reconciliation this decision has no need to force yet.
+  Opportunity, Event, Message, and Document are connector-shaped
+  entities - each is best modeled once a real connector (Salesforce,
+  Google Calendar, Gmail/Slack, Google Drive) supplies actual field
+  requirements, rather than guessing a schema now and reworking it after
+  the first real integration lands, which would violate the "read-only
+  first, and don't build ahead of the phase that needs it" reasoning
+  D016 and D026 already established.
+- **Company and Project are versioned, head-based entities** -
+  `company`/`company_head`/`company_evidence` and
+  `project`/`project_head`/`project_evidence` reuse D026's Person/
+  Commitment pattern exactly: append-only version rows, a mutable head
+  row holding only a boundary and a version pointer, typed (non-
+  polymorphic) evidence tables, and the append-only trigger on every
+  table except the two head tables. `project` requires a `company_id`
+  (composite FK to `company_head`); no entity in this decision's scope
+  requires a Project.
+- **Decision and Meeting are immutable, event-like entities**, not
+  versioned - a Decision or a Meeting is a fact about something that
+  happened, not a mutable-over-time record the way Person or Commitment
+  is. Each carries its own `trust_boundary` and `data_classification`
+  and a `UNIQUE(id, trust_boundary)` constraint so other tables can FK
+  to it by its exact boundary, but has no head table and no version
+  column.
+- **Person <-> Company uses a typed, append-only
+  `person_company_relationship` table, not `person.company_id`.** A
+  single FK column wrongly assumes one person has exactly one company
+  relationship at a time; a real person can be a current employee, have
+  a prior employment history at a different company, and simultaneously
+  be an external contact at a third - all valid, all worth retaining.
+  `person_company_relationship` carries no uniqueness constraint on
+  `(person_id, company_id)`: multiple concurrent and multiple historical
+  rows for the same pair are both expected. `relationship_kind`
+  (`EMPLOYEE`/`CONTACT`/`OTHER`) is the smallest split that matters for
+  Chief-of-Staff queries today, not an attempt to enumerate every
+  professional relationship type.
+- **`person_company_relationship` is independently classified and
+  source-backed**, not inherited from either endpoint. It carries its
+  own `trust_boundary NOT NULL` and `data_classification NOT NULL`
+  (composite FKs pin its boundary to match both `person_head` and
+  `company_head` exactly - SHARED is never a bridge between a PERSONAL
+  person and a BRAINSTORM company), plus a required `source_id`
+  (composite FK to `source`), since a relationship fact - e.g. a still-
+  confidential departure - can be more sensitive than either party's own
+  record and must never be asserted without a citation, matching every
+  other content-bearing table in this schema.
+- **Meeting supports multiple typed `meeting_source` rows** instead of a
+  single `Meeting.source_id` column, for the same reason a meeting can
+  have a calendar event, a transcript, a summary, a recording, notes,
+  and follow-up material - not exactly one source document.
+  `meeting_source` uses a role-based `source_role` enum
+  (`CALENDAR_EVENT`/`TRANSCRIPT`/`SUMMARY`/`RECORDING`/`NOTES`/
+  `FOLLOW_UP`), deliberately not `EvidenceStance` (`SUPPORTS`/
+  `CONTRADICTS`) - a transcript doesn't "support" that a meeting
+  happened the way a `Source` supports a claim about a Person; it is a
+  piece of material the meeting produced, playing a specific role.
+  `create_meeting` requires at least one `meeting_source` row at
+  creation (mirroring D026's at-least-one-`SUPPORTS`-evidence rule);
+  `add_meeting_source` appends more later.
+- **Decision supersession and Decision/Meeting retraction are distinct
+  mechanisms, not one.** Supersession (`decision.supersedes_decision_id`)
+  means "this Decision was real, but a later real Decision replaces
+  it" - both rows remain, both stay valid history. Retraction
+  (`decision_retraction`/`meeting_retraction`) means "this record should
+  never have been asserted, or is no longer valid as a fact" - a
+  presence-based check in a separate table, never a mutated status
+  column, since the original row can never change. `get_decision`/
+  `get_meeting` exclude retracted records by default, with an explicit
+  `include_retracted` override. Both retraction tables require a
+  `source_id`, a `UNIQUE` constraint on their target's ID (one retraction
+  per record), and their own `trust_boundary` matched by composite FK to
+  the record they retract.
+- **`decision.supersedes_decision_id` uses a `DEFERRABLE INITIALLY
+  DEFERRED` composite foreign key**, not reliance on `decided_at`
+  ordering, because timestamps can be equal, backfilled, or otherwise
+  imperfect and cannot be trusted to guarantee a superseded Decision's
+  row exists before the superseding one during a bulk restore. Deferring
+  constraint validation to transaction commit means `restore_boundary_
+  stream` - which already commits an entire boundary's restore in one
+  transaction (fixed during D028) - restores a Decision supersession
+  chain correctly regardless of row order, with zero changes to the
+  restore pipeline itself.
+- **All cross-entity links use exact trust-boundary composite foreign
+  keys**, the same pattern D026 established: Project->Company,
+  Commitment->Project, PersonCompanyRelationship->Person/Company/Source,
+  Meeting->Project, MeetingSource->Meeting/Source,
+  MeetingAttendee->Person, Decision->Project/Meeting/supersedes-target,
+  DecisionRetraction/MeetingRetraction->Decision/Meeting/Source. Every
+  one of these is enforced at the database level, not only in the
+  repository layer - verified by raw-SQL backstop tests that bypass
+  `state_repository` entirely.
+- **Commitment gains a nullable `project_id`** (composite FK to
+  `project_head`) - purely additive, does not change D026's owner-
+  boundary semantics or any existing Commitment behavior.
+- **D028's backup/restore pipeline is extended only by reviewed
+  `TABLE_ORDER`/`_ORDER_BY` additions** in `src/zacai/backup.py` - all
+  14 new tables added in FK-safe order; `export_boundary_stream`,
+  `restore_boundary_stream`, the restore-target guards, and the two-
+  connection destructive orchestration are all unchanged, exactly as
+  D028 already made them generic over `TABLE_ORDER`.
+- **Repository functions remain explicit and typed, not a generic
+  entity/relationship framework**: `create_company`/`get_company`/
+  `retract_company`, `create_project`/`get_project`/`retract_project`,
+  `record_person_company_relationship`/`get_current_company_
+  relationships`, `create_meeting`/`add_meeting_source`/`get_meeting`/
+  `retract_meeting`, `create_decision`/`get_decision`/`retract_decision`.
+  `_allocate_version`/`_advance_head` are generalized from a closed union
+  of head-table types to `type[Base]`, since both functions only ever
+  touch `.__table__` generically - a purely typing-level change with no
+  behavior difference.
+- One new Alembic migration (`0002_entity_model_expansion.py`) adds all
+  14 tables plus the append-only trigger on every one of them except the
+  two new head tables, and the `commitment.project_id` column/FK.
+  Migration `0001` is unchanged.
+- **No Task/Opportunity/Event/Message/Document implementation**, no
+  connectors, no identity resolution, no pgvector, no model routing, no
+  agents, and no real data were introduced by this decision.
+
+Alternatives considered:
+A single `person.company_id` column was rejected (see Decision, above) -
+it structurally cannot represent concurrent or historical multi-company
+relationships, which are common in practice (a board member, a former
+employee now an external contact). A single `Meeting.source_id` column
+was rejected for the same reason applied to `meeting_source`: a meeting
+routinely has more than one piece of supporting material. A generic
+polymorphic retraction/correction framework (one `retraction` table with
+an entity-type discriminator) was rejected in favor of two small, typed
+tables (`decision_retraction`, `meeting_retraction`), consistent with
+D026's rejection of a generic polymorphic evidence table for the same
+reason - a discriminator column cannot be enforced by a real foreign
+key. Relying on `decision.decided_at` ordering to make self-referencing
+FK restoration safe was rejected in favor of `DEFERRABLE INITIALLY
+DEFERRED` (see Decision, above) - an ordering assumption is a latent bug
+waiting for a backfilled or duplicate timestamp, while a deferred
+constraint is enforced by Postgres itself with no ordering assumption at
+all. Building Task, Opportunity, Event, Message, and Document now,
+speculatively, was rejected as building ahead of the connector that
+would supply their real shape - the same "wait for the phase that needs
+it" reasoning D016 and D026 already established for pgvector.
+
+Reasons and tradeoffs:
+Giving `person_company_relationship` its own `data_classification`
+column rather than deriving it from Person and Company on every read
+trades a small amount of storage/write-time burden (the caller must
+supply a classification explicitly) for avoiding a join-and-max
+computation on every read and for correctly handling the case where the
+relationship fact itself is more sensitive than either endpoint's own
+record. Requiring `DEFERRABLE INITIALLY DEFERRED` only on the one FK
+that actually needs it (`decision.supersedes_decision_id`), rather than
+deferring every foreign key in the new schema, keeps the ordering
+guarantee narrowly scoped to the one place a self-reference within a
+single bulk restore transaction actually requires it. Choosing
+presence-in-a-separate-table for retraction, rather than reusing
+Person/Commitment's in-row `status="RETRACTED"` tombstone pattern, trades
+a small amount of pattern consistency for correctness: Decision and
+Meeting have no version column to attach a new tombstone version to, so
+a separate presence-based table is the only option that never mutates
+the original row.
+
+Security and data implications:
+No real Personal, Brainstorm, or Shared data was created by this
+decision - `zacai_dev` was confirmed to hold zero rows in all 21
+application tables both before and after this work, via a manual check
+outside pytest, consistent with every prior decision's invariant. No
+connector, credential, or identity-resolution logic was added. Every new
+cross-entity reference is boundary-enforced by a real composite foreign
+key, not repository convention alone, and this was verified both through
+the repository layer (`RelatedEntityBoundaryMismatchError`) and through
+raw-SQL backstop tests that insert directly against the schema,
+bypassing `state_repository` entirely. `person_company_relationship`,
+`decision_retraction`, and `meeting_retraction` all require a
+`source_id`, so no relationship or retraction fact can be recorded
+without a citation, consistent with D026's source-backing requirement
+for `person`/`commitment`.
+
+Consequences:
+Zac State's entity graph now covers six of ARCHITECTURE.md's named
+first-class entities (Person, Commitment, Source, Company, Project,
+Decision, Meeting) - Task/Opportunity/Event/Message/Document remain
+explicitly deferred until a real connector justifies their shape. D028's
+backup/restore mechanism now covers the full expanded schema, proven by
+an extended restore drill and a reversed-row-order Decision-supersession
+test against the real, unmodified restore pipeline. Future work adding
+Task, Opportunity, Event, Message, or Document must route through
+`zacai.state_repository` with the same explicit-typed-function,
+composite-FK-boundary, and append-only-trigger patterns established
+here and in D026, and must not add a generic entity/relationship
+abstraction without its own explicit decision. Future work must not add
+`person.company_id` or `meeting.source_id` - both were explicitly
+rejected in this decision and superseding that choice requires a new
+decision, not a quiet schema edit.
+
+Verification:
+Confirmed `uv run pytest` (291 passed, including 28 new tests in
+`tests/test_state_d029.py` and 2 new tests in `tests/test_backup.py`), a
+clean `uv run ruff check .`, a clean `uv run mypy src`, and a clean `git
+diff --check`. Confirmed `alembic upgrade head` applied migration `0002`
+against `zacai_dev` (revision 0001 -> 0002), and confirmed a full
+downgrade/upgrade round-trip (`0002` -> `0001` -> `0002`) leaves exactly
+the expected table set at each step, with migration `0001` itself
+unmodified (`git diff --stat` empty for that file). Confirmed the
+extended backup/restore drill: a full Company -> Project -> Person ->
+PersonCompanyRelationship -> Commitment -> Meeting -> Decision scenario
+exported from `zacai_test` and restored into `zacai_restore_test` via
+the real, unmodified pipeline, with all row counts and the append-only
+trigger confirmed post-restore. Confirmed a Decision-supersession chain
+restores correctly even with its two rows' export order physically
+reversed, proving the `DEFERRABLE INITIALLY DEFERRED` constraint on
+`fk_decision_supersedes_boundary` (verified via `psql` to have
+`condeferrable=t, condeferred=t`) works as designed, using the real
+`restore_boundary()` entry point, not a hypothetical. Confirmed
+`zacai_dev` held zero rows in all 21 application tables both before and
+after this work, via a manual check outside pytest.
+
+Approval or source:
+Zac Campbell, architecture review conversation, 2026-09-21.
+
+Supersedes:
+None. Extends D023 (every new table's boundary/classification columns
+reuse `TrustBoundary`/`DataClassification` unchanged), D026 (reuses its
+head+version, typed-evidence, append-only-trigger, and concurrency-safe
+version-allocation patterns exactly, and generalizes its head-table
+helpers), and D028 (extends its `TABLE_ORDER`/`_ORDER_BY` constants only,
+with no change to its export/restore pipeline, restore-target guards, or
+destructive-orchestration logic).
+
 ## Open Decisions
 These choices have not yet been made:
 - Database and search/retrieval technologies

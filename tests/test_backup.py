@@ -23,11 +23,13 @@ tests.
 
 from __future__ import annotations
 
+import csv
 import inspect
 import io
 import stat
 import tempfile
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -39,6 +41,7 @@ from zacai.backup import (
     TABLE_ORDER,
     _read_exact,
     _read_line,
+    _write_frame,
     drop_restore_test_database,
     export_boundary,
     export_boundary_stream,
@@ -48,8 +51,25 @@ from zacai.backup import (
     upgrade_restore_test_schema,
 )
 from zacai.policy import DataClassification, TrustBoundary
-from zacai.state import Source, SourceSystem
-from zacai.state_repository import EvidenceInput, EvidenceStance, create_commitment, create_person
+from zacai.state import (
+    CompanyRelationshipKind,
+    MeetingSourceRole,
+    PersonCompanyRelationshipKind,
+    Source,
+    SourceSystem,
+)
+from zacai.state_repository import (
+    EvidenceInput,
+    EvidenceStance,
+    MeetingSourceInput,
+    create_commitment,
+    create_company,
+    create_decision,
+    create_meeting,
+    create_person,
+    create_project,
+    record_person_company_relationship,
+)
 
 RESTORE_TEST_URL = "postgresql+psycopg://127.0.0.1:5432/zacai_restore_test"
 _TEST_DB_URL = "postgresql+psycopg://127.0.0.1:5432/zacai_test"
@@ -249,5 +269,208 @@ def test_full_export_restore_drill_round_trip(test_session_factory: sessionmaker
                     conn.rollback()
             finally:
                 restore_engine.dispose()
+        finally:
+            drop_restore_test_database()
+
+
+# --- D029: extended round-trip and the reversed-order Decision drill -------
+
+
+def _reverse_decision_rows(decision_csv: bytes, first_marker: str, second_marker: str) -> bytes:
+    """Reorders exactly the two rows whose `description` matches
+    `first_marker`/`second_marker` so `second_marker` (the superseding
+    decision) appears BEFORE `first_marker` (the superseded one) in the
+    CSV - the opposite of natural insertion order. Used to prove
+    `decision.supersedes_decision_id`'s DEFERRABLE INITIALLY DEFERRED
+    foreign key, not row order, is what makes restore safe (D029)."""
+    reader = csv.DictReader(io.StringIO(decision_csv.decode()))
+    fieldnames = reader.fieldnames
+    assert fieldnames is not None
+    rows = list(reader)
+
+    first = next(row for row in rows if row["description"] == first_marker)
+    second = next(row for row in rows if row["description"] == second_marker)
+    others = [row for row in rows if row["description"] not in (first_marker, second_marker)]
+
+    out = io.StringIO()
+    writer = csv.DictWriter(out, fieldnames=fieldnames)
+    writer.writeheader()
+    writer.writerows([*others, second, first])
+    return out.getvalue().encode()
+
+
+def test_decision_supersession_restores_with_reversed_row_order(
+    test_session_factory: sessionmaker[Session],
+) -> None:
+    boundary = TrustBoundary.BRAINSTORM
+    marker_a = f"D029-reversed-A-{uuid.uuid4()}"
+    marker_b = f"D029-reversed-B-{uuid.uuid4()}"
+
+    with test_session_factory() as session:
+        source_id = _make_source(session, trust_boundary=boundary)
+        evidence = [EvidenceInput(source_id=source_id, stance=EvidenceStance.SUPPORTS, confidence=0.9)]
+        decision_a = create_decision(
+            session,
+            trust_boundary=boundary,
+            data_classification=DataClassification.INTERNAL,
+            description=marker_a,
+            evidence=evidence,
+        )
+        create_decision(
+            session,
+            trust_boundary=boundary,
+            data_classification=DataClassification.INTERNAL,
+            description=marker_b,
+            evidence=evidence,
+            supersedes_decision_id=decision_a.id,
+        )
+        session.commit()
+        decision_a_id = decision_a.id
+
+    engine = create_engine(_TEST_DB_URL, future=True)
+    try:
+        raw_stream = io.BytesIO()
+        export_boundary_stream(engine, boundary, raw_stream)
+    finally:
+        engine.dispose()
+
+    frames = _parse_frames(raw_stream)
+    frames["decision"] = _reverse_decision_rows(frames["decision"], marker_a, marker_b)
+
+    rebuilt = io.BytesIO()
+    for table in TABLE_ORDER:
+        _write_frame(rebuilt, table, frames[table])
+
+    with tempfile.TemporaryDirectory() as tmp:
+        artifact = Path(tmp) / "reversed.bin"
+        artifact.write_bytes(rebuilt.getvalue())
+
+        recreate_restore_test_database()
+        try:
+            upgrade_restore_test_schema()
+            # Must not raise - the deferred FK is what makes this safe,
+            # not the (here, deliberately wrong) row order.
+            restore_boundary(artifact, RESTORE_TEST_URL, ["cat"])
+
+            verify_engine = create_engine(RESTORE_TEST_URL, future=True)
+            try:
+                with verify_engine.connect() as conn:
+                    row_b = conn.execute(
+                        text("SELECT supersedes_decision_id FROM decision WHERE description = :d"),
+                        {"d": marker_b},
+                    ).one()
+                    assert row_b.supersedes_decision_id == decision_a_id
+            finally:
+                verify_engine.dispose()
+        finally:
+            drop_restore_test_database()
+
+
+def test_extended_d029_backup_restore_round_trip(test_session_factory: sessionmaker[Session]) -> None:
+    """Proves the D029 tables (Company, Project, Decision, Meeting,
+    PersonCompanyRelationship, and their typed link/evidence/retraction
+    tables) restore correctly via the same generic D028 pipeline - no
+    pipeline code change was needed, only extending TABLE_ORDER."""
+    boundary = TrustBoundary.BRAINSTORM
+    marker = f"D029-extended-{uuid.uuid4()}"
+
+    with test_session_factory() as session:
+        source_id = _make_source(session, trust_boundary=boundary)
+        evidence = [EvidenceInput(source_id=source_id, stance=EvidenceStance.SUPPORTS, confidence=0.9)]
+
+        company = create_company(
+            session,
+            trust_boundary=boundary,
+            data_classification=DataClassification.INTERNAL,
+            name=marker,
+            relationship_kind=CompanyRelationshipKind.CLIENT,
+            evidence=evidence,
+        )
+        project = create_project(
+            session,
+            trust_boundary=boundary,
+            data_classification=DataClassification.INTERNAL,
+            name=marker,
+            company_id=company.entity_id,
+            evidence=evidence,
+        )
+        owner = create_person(
+            session,
+            trust_boundary=boundary,
+            data_classification=DataClassification.INTERNAL,
+            display_name=marker,
+            evidence=evidence,
+        )
+        record_person_company_relationship(
+            session,
+            person_id=owner.entity_id,
+            company_id=company.entity_id,
+            trust_boundary=boundary,
+            data_classification=DataClassification.INTERNAL,
+            relationship_kind=PersonCompanyRelationshipKind.EMPLOYEE,
+            source_id=source_id,
+        )
+        create_commitment(
+            session,
+            trust_boundary=boundary,
+            data_classification=DataClassification.INTERNAL,
+            owner_person_id=owner.entity_id,
+            description=marker,
+            project_id=project.entity_id,
+            evidence=evidence,
+        )
+        meeting = create_meeting(
+            session,
+            trust_boundary=boundary,
+            data_classification=DataClassification.INTERNAL,
+            title=marker,
+            occurred_at=datetime.now(UTC),
+            sources=[MeetingSourceInput(source_id=source_id, source_role=MeetingSourceRole.TRANSCRIPT)],
+            project_id=project.entity_id,
+            attendees=[owner.entity_id],
+        )
+        create_decision(
+            session,
+            trust_boundary=boundary,
+            data_classification=DataClassification.INTERNAL,
+            description=marker,
+            evidence=evidence,
+            project_id=project.entity_id,
+            meeting_id=meeting.id,
+        )
+        session.commit()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        artifact = Path(tmp) / "extended.bin"
+        export_boundary(_TEST_DB_URL, boundary, artifact, ["cat"])
+
+        recreate_restore_test_database()
+        try:
+            upgrade_restore_test_schema()
+            restore_boundary(artifact, RESTORE_TEST_URL, ["cat"])
+
+            engine = create_engine(RESTORE_TEST_URL, future=True)
+            try:
+                with engine.connect() as conn:
+                    for table in (
+                        "company",
+                        "project",
+                        "person_company_relationship",
+                        "meeting",
+                        "meeting_source",
+                        "meeting_attendee",
+                        "decision",
+                    ):
+                        count = conn.execute(text(f"SELECT count(*) FROM {table}")).scalar_one()
+                        assert count >= 1, f"{table} has no restored rows"
+
+                    # Append-only still active on a D029 table in the
+                    # freshly Alembic-built restore-test schema.
+                    with pytest.raises(Exception, match="append-only"):
+                        conn.execute(text("UPDATE company SET name = 'x' WHERE name = :n"), {"n": marker})
+                        conn.commit()
+                    conn.rollback()
+            finally:
+                engine.dispose()
         finally:
             drop_restore_test_database()

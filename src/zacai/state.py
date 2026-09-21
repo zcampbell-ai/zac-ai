@@ -91,6 +91,51 @@ class EvidenceStance(str, Enum):
     CONTRADICTS = "CONTRADICTS"
 
 
+class CompanyRelationshipKind(str, Enum):
+    """A Company's own relationship to Brainstorm - distinct from
+    `PersonCompanyRelationshipKind`, which describes a Person's
+    relationship to a Company."""
+
+    CLIENT = "CLIENT"
+    PROSPECT = "PROSPECT"
+    PARTNER = "PARTNER"
+    INTERNAL = "INTERNAL"
+
+
+class CompanyStatus(str, Enum):
+    ACTIVE = "ACTIVE"
+    RETRACTED = "RETRACTED"
+
+
+class ProjectStatus(str, Enum):
+    ACTIVE = "ACTIVE"
+    ON_HOLD = "ON_HOLD"
+    COMPLETE = "COMPLETE"
+    RETRACTED = "RETRACTED"
+
+
+class PersonCompanyRelationshipKind(str, Enum):
+    """A Person's relationship to a Company (D029) - deliberately not an
+    attempt to enumerate every professional relationship type; `OTHER` is
+    the escape hatch, and this is additive to extend later."""
+
+    EMPLOYEE = "EMPLOYEE"
+    CONTACT = "CONTACT"
+    OTHER = "OTHER"
+
+
+class MeetingSourceRole(str, Enum):
+    """What kind of material a Source is, with respect to a Meeting -
+    orthogonal to `Source.system` (which connector produced it)."""
+
+    CALENDAR_EVENT = "CALENDAR_EVENT"
+    TRANSCRIPT = "TRANSCRIPT"
+    SUMMARY = "SUMMARY"
+    RECORDING = "RECORDING"
+    NOTES = "NOTES"
+    FOLLOW_UP = "FOLLOW_UP"
+
+
 def _enum_column(enum_cls: type[Enum], name: str) -> SAEnum:
     """A VARCHAR + CHECK-constraint enum, not a native Postgres ENUM type -
     simpler to extend later (an additive migration, not an `ALTER TYPE`),
@@ -163,6 +208,34 @@ class CommitmentHead(Base):
     __table_args__ = (UniqueConstraint("entity_id", "trust_boundary", name="uq_commitment_head_entity_boundary"),)
 
 
+class CompanyHead(Base):
+    """See `PersonHead` - identical shape, mutable-by-design pointer only."""
+
+    __tablename__ = "company_head"
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "company_head_trust_boundary"), nullable=False
+    )
+    current_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    __table_args__ = (UniqueConstraint("entity_id", "trust_boundary", name="uq_company_head_entity_boundary"),)
+
+
+class ProjectHead(Base):
+    """See `PersonHead` - identical shape, mutable-by-design pointer only."""
+
+    __tablename__ = "project_head"
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "project_head_trust_boundary"), nullable=False
+    )
+    current_version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    __table_args__ = (UniqueConstraint("entity_id", "trust_boundary", name="uq_project_head_entity_boundary"),)
+
+
 class Person(Base):
     """One immutable version of a Person. `(entity_id, version)` is the
     primary key; a new belief about a Person is always a new row, never an
@@ -217,6 +290,7 @@ class Commitment(Base):
     owner_person_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
     due_date: Mapped[date | None] = mapped_column(nullable=True)
+    project_id: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     valid_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     __table_args__ = (
@@ -230,6 +304,11 @@ class Commitment(Base):
             ["owner_person_id", "trust_boundary"],
             ["person_head.entity_id", "person_head.trust_boundary"],
             name="fk_commitment_owner_boundary",
+        ),
+        ForeignKeyConstraint(
+            ["project_id", "trust_boundary"],
+            ["project_head.entity_id", "project_head.trust_boundary"],
+            name="fk_commitment_project_boundary",
         ),
     )
 
@@ -296,5 +375,454 @@ class CommitmentEvidence(Base):
             ["source_id", "trust_boundary"],
             ["source.id", "source.trust_boundary"],
             name="fk_commitment_evidence_source",
+        ),
+    )
+
+
+# --- D029: Company, Project ------------------------------------------------
+
+
+class Company(Base):
+    """One immutable version of a Company. Same shape as `Person`."""
+
+    __tablename__ = "company"
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True)
+    version: Mapped[int] = mapped_column(Integer, primary_key=True)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "company_trust_boundary"), nullable=False
+    )
+    data_classification: Mapped[DataClassification] = mapped_column(
+        _enum_column(DataClassification, "company_data_classification"), nullable=False
+    )
+    status: Mapped[CompanyStatus] = mapped_column(
+        _enum_column(CompanyStatus, "company_status"), nullable=False, default=CompanyStatus.ACTIVE
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    relationship_kind: Mapped[CompanyRelationshipKind] = mapped_column(
+        _enum_column(CompanyRelationshipKind, "company_relationship_kind"), nullable=False
+    )
+    valid_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("entity_id", "version", "trust_boundary", name="uq_company_entity_version_boundary"),
+        ForeignKeyConstraint(
+            ["entity_id", "trust_boundary"],
+            ["company_head.entity_id", "company_head.trust_boundary"],
+            name="fk_company_head_boundary",
+        ),
+    )
+
+
+class Project(Base):
+    """One immutable version of a Project. Requires a Company in the same
+    trust boundary."""
+
+    __tablename__ = "project"
+
+    entity_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True)
+    version: Mapped[int] = mapped_column(Integer, primary_key=True)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "project_trust_boundary"), nullable=False
+    )
+    data_classification: Mapped[DataClassification] = mapped_column(
+        _enum_column(DataClassification, "project_data_classification"), nullable=False
+    )
+    status: Mapped[ProjectStatus] = mapped_column(
+        _enum_column(ProjectStatus, "project_status"), nullable=False, default=ProjectStatus.ACTIVE
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    company_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    valid_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("entity_id", "version", "trust_boundary", name="uq_project_entity_version_boundary"),
+        ForeignKeyConstraint(
+            ["entity_id", "trust_boundary"],
+            ["project_head.entity_id", "project_head.trust_boundary"],
+            name="fk_project_head_boundary",
+        ),
+        ForeignKeyConstraint(
+            ["company_id", "trust_boundary"],
+            ["company_head.entity_id", "company_head.trust_boundary"],
+            name="fk_project_company_boundary",
+        ),
+    )
+
+
+class CompanyEvidence(Base):
+    """A typed (non-polymorphic) link from one Company version to a
+    Source that supports or contradicts it."""
+
+    __tablename__ = "company_evidence"
+
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_entity_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    company_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "company_evidence_trust_boundary"), nullable=False
+    )
+    source_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    stance: Mapped[EvidenceStance] = mapped_column(
+        _enum_column(EvidenceStance, "company_evidence_stance"), nullable=False
+    )
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    noted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint("confidence >= 0.0 AND confidence <= 1.0", name="ck_company_evidence_confidence_range"),
+        ForeignKeyConstraint(
+            ["company_entity_id", "company_version", "trust_boundary"],
+            ["company.entity_id", "company.version", "company.trust_boundary"],
+            name="fk_company_evidence_company",
+        ),
+        ForeignKeyConstraint(
+            ["source_id", "trust_boundary"],
+            ["source.id", "source.trust_boundary"],
+            name="fk_company_evidence_source",
+        ),
+    )
+
+
+class ProjectEvidence(Base):
+    """A typed (non-polymorphic) link from one Project version to a
+    Source that supports or contradicts it."""
+
+    __tablename__ = "project_evidence"
+
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_entity_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    project_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "project_evidence_trust_boundary"), nullable=False
+    )
+    source_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    stance: Mapped[EvidenceStance] = mapped_column(
+        _enum_column(EvidenceStance, "project_evidence_stance"), nullable=False
+    )
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    noted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint("confidence >= 0.0 AND confidence <= 1.0", name="ck_project_evidence_confidence_range"),
+        ForeignKeyConstraint(
+            ["project_entity_id", "project_version", "trust_boundary"],
+            ["project.entity_id", "project.version", "project.trust_boundary"],
+            name="fk_project_evidence_project",
+        ),
+        ForeignKeyConstraint(
+            ["source_id", "trust_boundary"],
+            ["source.id", "source.trust_boundary"],
+            name="fk_project_evidence_source",
+        ),
+    )
+
+
+# --- D029: PersonCompanyRelationship ----------------------------------------
+
+
+class PersonCompanyRelationship(Base):
+    """An append-only, source-backed assertion that a Person has some
+    relationship to a Company. Multiple rows for the same
+    (person, company) pair are expected and meaningful, both concurrently
+    (e.g. employee at one company, board member at another) and over time
+    (e.g. employee 2020-2022, then contact 2023-present) - "current" is
+    derived by the repository layer (e.g. `ended_at IS NULL`), never by
+    mutating an earlier row. `data_classification` lives here rather than
+    being inherited from Person/Company, since a relationship fact can be
+    more or less sensitive than either endpoint's own record."""
+
+    __tablename__ = "person_company_relationship"
+
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    person_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    company_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "person_company_relationship_trust_boundary"), nullable=False
+    )
+    data_classification: Mapped[DataClassification] = mapped_column(
+        _enum_column(DataClassification, "person_company_relationship_data_classification"), nullable=False
+    )
+    relationship_kind: Mapped[PersonCompanyRelationshipKind] = mapped_column(
+        _enum_column(PersonCompanyRelationshipKind, "person_company_relationship_kind"), nullable=False
+    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    source_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    noted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["person_id", "trust_boundary"],
+            ["person_head.entity_id", "person_head.trust_boundary"],
+            name="fk_person_company_relationship_person",
+        ),
+        ForeignKeyConstraint(
+            ["company_id", "trust_boundary"],
+            ["company_head.entity_id", "company_head.trust_boundary"],
+            name="fk_person_company_relationship_company",
+        ),
+        ForeignKeyConstraint(
+            ["source_id", "trust_boundary"],
+            ["source.id", "source.trust_boundary"],
+            name="fk_person_company_relationship_source",
+        ),
+    )
+
+
+# --- D029: Meeting -----------------------------------------------------------
+
+
+class Meeting(Base):
+    """An immutable, event-like record - a meeting, once recorded, is a
+    historical fact. Not versioned (no meeting_head/version machinery).
+    Carries no direct `source_id`: see `MeetingSource` for its (one or
+    more) typed, role-based provenance."""
+
+    __tablename__ = "meeting"
+
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "meeting_trust_boundary"), nullable=False
+    )
+    data_classification: Mapped[DataClassification] = mapped_column(
+        _enum_column(DataClassification, "meeting_data_classification"), nullable=False
+    )
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    project_id: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    noted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("id", "trust_boundary", name="uq_meeting_id_boundary"),
+        ForeignKeyConstraint(
+            ["project_id", "trust_boundary"],
+            ["project_head.entity_id", "project_head.trust_boundary"],
+            name="fk_meeting_project_boundary",
+        ),
+    )
+
+
+class MeetingSource(Base):
+    """A typed, role-based link from a Meeting to a Source (calendar
+    event, transcript, summary, recording, notes, follow-up material).
+    Deliberately not an `EvidenceStance`-based table: these sources don't
+    "support or contradict" that the meeting happened, they're each
+    different material the meeting itself produced."""
+
+    __tablename__ = "meeting_source"
+
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    meeting_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    source_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "meeting_source_trust_boundary"), nullable=False
+    )
+    source_role: Mapped[MeetingSourceRole] = mapped_column(
+        _enum_column(MeetingSourceRole, "meeting_source_role"), nullable=False
+    )
+    noted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["meeting_id", "trust_boundary"],
+            ["meeting.id", "meeting.trust_boundary"],
+            name="fk_meeting_source_meeting",
+        ),
+        ForeignKeyConstraint(
+            ["source_id", "trust_boundary"],
+            ["source.id", "source.trust_boundary"],
+            name="fk_meeting_source_source",
+        ),
+    )
+
+
+class MeetingAttendee(Base):
+    """A typed (non-polymorphic) link from a Meeting to a Person who
+    attended it. References the person entity generically via
+    `person_head` (like `Commitment.owner_person_id` already does), not a
+    pinned version."""
+
+    __tablename__ = "meeting_attendee"
+
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    meeting_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    person_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "meeting_attendee_trust_boundary"), nullable=False
+    )
+
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["meeting_id", "trust_boundary"],
+            ["meeting.id", "meeting.trust_boundary"],
+            name="fk_meeting_attendee_meeting",
+        ),
+        ForeignKeyConstraint(
+            ["person_id", "trust_boundary"],
+            ["person_head.entity_id", "person_head.trust_boundary"],
+            name="fk_meeting_attendee_person",
+        ),
+    )
+
+
+# --- D029: Decision ----------------------------------------------------------
+
+
+class Decision(Base):
+    """An immutable, event-like record. Not versioned. Revisiting a
+    decision is a NEW row with `supersedes_decision_id` set - the old row
+    is untouched and remains valid history. Distinct from retraction
+    (`DecisionRetraction`): supersession means the old decision was real
+    but a newer one now applies; retraction means the record should not
+    be treated as valid at all.
+
+    `supersedes_decision_id`'s foreign key is DEFERRABLE INITIALLY
+    DEFERRED: it is the one self-referencing FK in this schema, and an
+    ordinary (immediately-checked) FK would fail during a bulk restore if
+    a superseding row happens to be written before the row it supersedes.
+    Deferring the check to transaction commit removes any dependency on
+    row order - `zacai.backup`'s restore already runs one boundary's
+    entire table set inside a single transaction, committing once at the
+    end, so this composes with it with no pipeline code change."""
+
+    __tablename__ = "decision"
+
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "decision_trust_boundary"), nullable=False
+    )
+    data_classification: Mapped[DataClassification] = mapped_column(
+        _enum_column(DataClassification, "decision_data_classification"), nullable=False
+    )
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    project_id: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    meeting_id: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    supersedes_decision_id: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("id", "trust_boundary", name="uq_decision_id_boundary"),
+        ForeignKeyConstraint(
+            ["project_id", "trust_boundary"],
+            ["project_head.entity_id", "project_head.trust_boundary"],
+            name="fk_decision_project_boundary",
+        ),
+        ForeignKeyConstraint(
+            ["meeting_id", "trust_boundary"],
+            ["meeting.id", "meeting.trust_boundary"],
+            name="fk_decision_meeting_boundary",
+        ),
+        ForeignKeyConstraint(
+            ["supersedes_decision_id", "trust_boundary"],
+            ["decision.id", "decision.trust_boundary"],
+            name="fk_decision_supersedes_boundary",
+            deferrable=True,
+            initially="DEFERRED",
+        ),
+    )
+
+
+class DecisionEvidence(Base):
+    """A typed (non-polymorphic) link from a Decision to a Source that
+    supports or contradicts it. No version component (unlike
+    `PersonEvidence`/`CommitmentEvidence`): `Decision` rows are already
+    immutable and individually unique, so there is no version to pin."""
+
+    __tablename__ = "decision_evidence"
+
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    decision_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "decision_evidence_trust_boundary"), nullable=False
+    )
+    source_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    stance: Mapped[EvidenceStance] = mapped_column(
+        _enum_column(EvidenceStance, "decision_evidence_stance"), nullable=False
+    )
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    noted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint("confidence >= 0.0 AND confidence <= 1.0", name="ck_decision_evidence_confidence_range"),
+        ForeignKeyConstraint(
+            ["decision_id", "trust_boundary"],
+            ["decision.id", "decision.trust_boundary"],
+            name="fk_decision_evidence_decision",
+        ),
+        ForeignKeyConstraint(
+            ["source_id", "trust_boundary"],
+            ["source.id", "source.trust_boundary"],
+            name="fk_decision_evidence_source",
+        ),
+    )
+
+
+# --- D029: retraction (distinct from Decision supersession) ----------------
+
+
+class DecisionRetraction(Base):
+    """Marks a Decision as invalid ("should not have been asserted")
+    without ever mutating the original row - presence of a row here, not
+    an in-row status, is what makes a decision "retracted". At most one
+    retraction per decision in v1 (`UNIQUE(decision_id)`). Distinct from
+    supersession (`Decision.supersedes_decision_id`): supersession means
+    the original decision was real; retraction means it should not be
+    treated as valid state."""
+
+    __tablename__ = "decision_retraction"
+
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    decision_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "decision_retraction_trust_boundary"), nullable=False
+    )
+    source_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    retracted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("decision_id", name="uq_decision_retraction_decision_id"),
+        ForeignKeyConstraint(
+            ["decision_id", "trust_boundary"],
+            ["decision.id", "decision.trust_boundary"],
+            name="fk_decision_retraction_decision",
+        ),
+        ForeignKeyConstraint(
+            ["source_id", "trust_boundary"],
+            ["source.id", "source.trust_boundary"],
+            name="fk_decision_retraction_source",
+        ),
+    )
+
+
+class MeetingRetraction(Base):
+    """Marks a Meeting as invalid (duplicate/cancelled/incorrect) without
+    ever mutating the original row. See `DecisionRetraction` - identical
+    shape and reasoning, one per immutable entity type, not a generic
+    retraction framework."""
+
+    __tablename__ = "meeting_retraction"
+
+    id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    meeting_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "meeting_retraction_trust_boundary"), nullable=False
+    )
+    source_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    retracted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("meeting_id", name="uq_meeting_retraction_meeting_id"),
+        ForeignKeyConstraint(
+            ["meeting_id", "trust_boundary"],
+            ["meeting.id", "meeting.trust_boundary"],
+            name="fk_meeting_retraction_meeting",
+        ),
+        ForeignKeyConstraint(
+            ["source_id", "trust_boundary"],
+            ["source.id", "source.trust_boundary"],
+            name="fk_meeting_retraction_source",
         ),
     )

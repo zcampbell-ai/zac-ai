@@ -1,6 +1,6 @@
 """D028 Zac State Lane B backup/restore pipeline.
 
-Streams a trust boundary's data across all seven `zacai.state` tables,
+Streams a trust boundary's data across all `zacai.state` tables in `TABLE_ORDER`,
 in one fixed FK-safe order, directly through an encryption subprocess
 into the durable artifact - no persistent plaintext export ever touches
 disk in the normal path. Restore reverses this exactly: a decrypt
@@ -42,27 +42,64 @@ from zacai.backup_safety import (
 )
 from zacai.policy import TrustBoundary
 
-# Fixed FK-safe order: every reference in this schema (D026) points only
-# earlier in this list, so a single top-to-bottom pass satisfies every
-# foreign key without deferring constraints.
+# Fixed FK-safe order: every reference in this schema (D026/D029) points
+# only earlier in this list, so a single top-to-bottom pass satisfies
+# every foreign key without deferring constraints - with exactly one
+# exception: decision.supersedes_decision_id, a self-reference within the
+# `decision` table itself, which cannot be solved by ordering alone (two
+# decision rows can reference each other regardless of which is written
+# first). That FK is declared DEFERRABLE INITIALLY DEFERRED in the schema
+# (D029), so PostgreSQL checks it only at the final COMMIT of a boundary's
+# restore - restore_boundary_stream already runs one boundary's entire
+# table set inside a single transaction, so this composes with no pipeline
+# code change. `decision`'s own row order below therefore only needs to
+# be deterministic for human-readability, not for FK correctness.
 TABLE_ORDER: tuple[str, ...] = (
     "source",
+    "company_head",
+    "project_head",
     "person_head",
     "commitment_head",
+    "company",
+    "project",
     "person",
+    "person_company_relationship",
+    "meeting",
     "commitment",
+    "decision",
+    "meeting_attendee",
+    "meeting_source",
     "person_evidence",
     "commitment_evidence",
+    "company_evidence",
+    "project_evidence",
+    "decision_evidence",
+    "decision_retraction",
+    "meeting_retraction",
 )
 
 _ORDER_BY: dict[str, str] = {
     "source": "id",
+    "company_head": "entity_id",
+    "project_head": "entity_id",
     "person_head": "entity_id",
     "commitment_head": "entity_id",
+    "company": "entity_id, version",
+    "project": "entity_id, version",
     "person": "entity_id, version",
+    "person_company_relationship": "id",
+    "meeting": "id",
     "commitment": "entity_id, version",
+    "decision": "id",
+    "meeting_attendee": "id",
+    "meeting_source": "id",
     "person_evidence": "id",
     "commitment_evidence": "id",
+    "company_evidence": "id",
+    "project_evidence": "id",
+    "decision_evidence": "id",
+    "decision_retraction": "id",
+    "meeting_retraction": "id",
 }
 
 # Fixed constants for the one destructive restore target this module is
@@ -129,7 +166,7 @@ def _read_exact(stream: IO[bytes], count: int) -> bytes:
 
 
 def export_boundary_stream(engine: Engine, boundary: TrustBoundary, out_stream: IO[bytes]) -> None:
-    """Writes every row belonging to `boundary`, across all seven tables
+    """Writes every row belonging to `boundary`, across all tables
     in `TABLE_ORDER`, as a sequence of length-prefixed frames into
     `out_stream`. Read-only against `engine` - never writes anything."""
     with engine.connect() as conn:
