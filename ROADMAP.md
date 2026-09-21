@@ -12,8 +12,20 @@ This roadmap defines implementation order, not a reduction in scope.
 ## Current Position
 Phase 0 and Phase 1 are complete (see the Phase 1 completion audit,
 DECISIONS.md D016-D025). Phase 2 (Canonical State, Memory, and Evidence)
-has not yet started; D026 (Zac State v1 storage foundation) is under
-architecture review before any Phase 2 implementation begins.
+is complete through D029: Zac State v1 storage foundation (D026), test
+database isolation (D027), encrypted Lane B backup/restore (D028), and
+the entity model expansion - Company, Project, Decision, Meeting, and
+their supporting tables (D029). D030 (synthetic read-only ingestion
+foundation) is also complete: Fireflies is selected as the first source,
+and a deterministic pipeline, a separate extraction/candidate-review
+stage, and a replaceable `ArtifactStore` abstraction are built and
+tested entirely against synthetic fixtures - no real Fireflies account,
+credential, network call, transcript, or LLM call has ever been used.
+The next blocker, not yet started, is raw artifact backup/recovery
+(D031): real Fireflies ingestion remains hard-gated until it is
+designed, implemented, encrypted before off-device storage, and
+restore-drill tested (see RECOVERY.md's Lane B extension and
+DECISIONS.md D030).
 
 ## Tracking Rules
 - [ ] means incomplete or not yet verified.
@@ -273,7 +285,12 @@ Backups and operational checks begin in Phase 1 and continue throughout.
 - [ ] Verify Zac's personal data never becomes company-wide by default.
 
 ## Next Concrete Step
-Complete the D026 architecture review for Zac AI's Phase 2 Zac State v1
-storage and schema foundation (database choice, boundary-storage design,
-minimal first entity slice, temporal/versioning and provenance design)
-before any Phase 2 implementation begins.
+D031 - Encrypted Raw Artifact Backup + Restore: design and implement
+backup/recovery for the raw ingestion artifacts D030's `ArtifactStore`
+writes - encrypted before any off-device storage, separated by
+PERSONAL/BRAINSTORM/SHARED protections consistent with D018/D028, and
+restore-drill tested with `sha256(restored_bytes) == Source.content_hash`
+verification on every restored artifact. This is the real-ingestion hard
+gate: no live Fireflies (or any future connector's) content may be
+ingested until D031 is designed, implemented, and successfully
+drill-tested.
