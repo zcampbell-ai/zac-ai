@@ -106,6 +106,13 @@ class RestoreIntegrityError(BackupArtifactsError):
     verification."""
 
 
+class RestoreTargetUnsafeError(BackupArtifactsError):
+    """Raised when a restore target's safety cannot be verified at all -
+    e.g. an `ArtifactStore` implementation with no inspectable `root`
+    (D031B). Never silently skipped - restore refuses to proceed rather
+    than assume safety."""
+
+
 # --- age subprocess wrappers (public-key-only for backup) -------------------
 
 
@@ -552,6 +559,24 @@ def assert_safe_restore_target(restore_root: Path, live_artifact_root: Path) -> 
         )
 
 
+def _assert_restore_target_is_safe(restore_target: ArtifactStore, live_artifact_root: Path) -> None:
+    """The internal, unconditional call site for `assert_safe_restore_
+    target` (D031B) - `restore_boundary_artifacts` calls this itself,
+    before any decryption or restore work, so the safety property is
+    structural rather than dependent on a caller remembering to invoke
+    it separately. Fails closed (never silently skips the check) if
+    `restore_target` doesn't expose an inspectable filesystem root at
+    all - a backend this function cannot verify is treated as unsafe,
+    not assumed safe."""
+    root = getattr(restore_target, "root", None)
+    if not isinstance(root, Path):
+        raise RestoreTargetUnsafeError(
+            "restore_target does not expose an inspectable 'root' path - "
+            "cannot verify it is distinct from the live artifact store; refusing to proceed"
+        )
+    assert_safe_restore_target(root, live_artifact_root)
+
+
 @dataclass(frozen=True)
 class RestoreFailure:
     content_hash: str
@@ -588,6 +613,7 @@ def restore_boundary_artifacts(
     backup_store: BackupObjectStore,
     identity_path: Path,
     restore_target: ArtifactStore,
+    live_artifact_root: Path,
     expected_source_hashes: set[str],
 ) -> RestoreOutcome:
     """Restores one boundary's artifacts from `backup_store` into
@@ -597,7 +623,16 @@ def restore_boundary_artifacts(
     (2) the decrypted manifest's own `boundary` field is independently
     checked against `trust_boundary`. Never silently accepts a partial
     restore, a hash mismatch, or a missing artifact - see
-    `RestoreOutcome.successful`."""
+    `RestoreOutcome.successful`.
+
+    **Fails closed on an unsafe restore target before any other work**
+    (D031B): `live_artifact_root` is required, not optional, and is
+    checked internally via `_assert_restore_target_is_safe` - this is
+    what makes the restore-target protection structural rather than
+    dependent on a caller remembering to call `assert_safe_restore_
+    target` separately."""
+    _assert_restore_target_is_safe(restore_target, live_artifact_root)
+
     encrypted_manifest = backup_store.get_object(manifest_key_for(trust_boundary))
     manifest_bytes = age_decrypt(encrypted_manifest, identity_path)  # raises DecryptionError on wrong identity
     manifest = Manifest.from_json_bytes(manifest_bytes)

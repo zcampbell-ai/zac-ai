@@ -2977,6 +2977,200 @@ existed, and reuses its `ArtifactStore` protocol, `content_hash`/
 `content_location` columns, and `ingestion_run`-style mutable-audit-table
 pattern unchanged).
 
+## D031B - Real Off-Device Artifact Backup + Restore-Drill-Verified (Gate Satisfied)
+Status: Accepted
+Date: 2026-09-22
+
+Context:
+D031A built and drill-tested the cryptographic/procedural artifact
+backup pipeline but explicitly could not demonstrate off-device
+durability - it used a second local directory as its `BackupObjectStore`
+implementation. The real-ingestion hard gate (D030/D031A) requires a
+real off-device backend and a real, successful restore drill against it
+before any live Fireflies connection may be approved. D031B closes this
+gap in two phases: Phase 1 (already committed) added
+`S3CompatibleBackupObjectStore`, a single `boto3`-based implementation
+satisfying any S3-compatible provider (AWS S3, Cloudflare R2, Backblaze
+B2) via an `endpoint_url` override, proven hermetically against `moto`
+with zero changes needed to `backup_boundary`/`restore_boundary_artifacts`.
+Phase 1 also hardened `restore_boundary_artifacts` to call its restore-
+target safety check internally and unconditionally (`live_artifact_root`
+is now a required parameter), rather than relying on a caller to invoke
+`assert_safe_restore_target` separately. This decision records Phase 2:
+the real drill itself.
+
+Decision:
+**A real off-device disaster-recovery drill for the BRAINSTORM boundary
+was executed against a real Backblaze B2 bucket
+(`zac-ai-brainstorm-backup`, endpoint `s3.us-east-005.backblazeb2.com`),
+using the existing escrowed Brainstorm `age` identity (by path only,
+`/Users/brainstormzac/.config/zacai/backup-keys/brainstorm.agekey`,
+never opened/read/copied) and its known public recipient (supplied
+directly by Zac Campbell, never re-derived from the private identity).
+The drill passed every acceptance criterion. The real-ingestion hard
+gate's artifact-backup/recovery precondition is satisfied for
+BRAINSTORM.**
+
+- Four uniquely-tagged synthetic BRAINSTORM `Source` rows and realistic
+  transcript-shaped artifacts (~20KB each, clearly labeled synthetic, no
+  real Fireflies/customer/connector data) were created in `zacai_test`
+  for the drill. `zacai_test` already held 9 unrelated BRAINSTORM rows
+  from prior test-session activity (a known, accepted consequence of
+  `zacai_test` being a shared, session-lifetime database) plus 4 more
+  left over from a first drill attempt that crashed on an unrelated
+  script bug (see below) - all correctly and safely excluded from the
+  backup (`MissingLocalArtifactError`, their local files long gone) and
+  never uploaded. Acceptance was scoped to the drill's own tagged digest
+  set throughout, exactly as D031A/D031B's repeated shared-database
+  lesson requires, while still exercising the real, unscoped
+  `backup_boundary`/reconciliation algorithms end-to-end.
+- The real `backup_boundary()` call achieved `failed=0` for the drill's
+  own 4 artifacts (13 unrelated historical failures, all expected and
+  harmless - no B2 object created for any of them).
+- Off-device durability was independently verified using a **separately
+  constructed** `S3CompatibleBackupObjectStore`/`boto3` client instance
+  (not the one `backup_boundary` used): each of the 4 encrypted objects
+  and the encrypted manifest were confirmed to exist remotely with
+  matching size, and were independently retrieved and hashed.
+- D028's existing, unmodified `export_boundary`/`recreate_restore_test_database`/
+  `upgrade_restore_test_schema`/`restore_boundary` functions restored the
+  BRAINSTORM boundary's database state into `zacai_restore_test` (never
+  `zacai_dev`/`zacai_test`), confirming the drill's 4 tagged `Source`
+  rows landed correctly.
+- The hardened `restore_boundary_artifacts()` restored all 4 artifacts
+  from **real B2** into a brand-new, previously-unused local root,
+  checked against the real, resolved `Settings().artifact_store_root` as
+  `live_artifact_root`. Reconciliation against the D028-restored,
+  tag-scoped `Source` set: `missing=0`, `unexpected=0`, all 4 verified,
+  `successful=True`. Every restored artifact's `sha256` was independently
+  re-checked against `Source.content_hash` outside the library's own
+  reconciliation logic.
+- **Wrong-boundary identity rejection was verified against the real
+  BRAINSTORM manifest using the actual existing real Personal and
+  Shared `age` identities** (D028's escrowed identities, referenced only
+  by their existing paths -
+  `/Users/brainstormzac/.config/zacai/backup-keys/personal.agekey` and
+  `.../shared.agekey` - never opened, read, copied, or logged). The
+  real, currently-stored BRAINSTORM manifest object was fetched from B2
+  and `age_decrypt` was attempted against it with each identity in turn:
+  both the real Personal and real Shared identities were correctly
+  rejected (`DecryptionError`), and the real Brainstorm identity
+  correctly succeeded, decrypting a manifest whose own `boundary` field
+  reads `BRAINSTORM` with 4 entries. This is a strictly stronger result
+  than this decision originally recorded (a throwaway synthetic keypair
+  substituted for an unknown real identity, since no real Personal/
+  Shared identity path was known to the drill at that time) - the paths
+  were subsequently supplied by Zac Campbell and the check was re-run
+  against them directly, with no other part of the drill re-executed and
+  no B2 object modified or deleted.
+- The restore was proven independent of the original local artifacts,
+  the local plaintext manifest cache, and any same-machine backup
+  directory: the local manifest cache file was deleted before a second
+  restore was run into a second fresh root from real B2 alone, which
+  still succeeded identically.
+- Cleanup removed only drill-local resources: `zacai_restore_test`
+  (via the existing guarded `drop_restore_test_database()`), all
+  temporary local directories/files, and the temporary Keychain-sourced
+  environment variables. No B2 objects were or could be deleted (the B2
+  application key intentionally has no delete permission) - the drill's
+  synthetic encrypted objects and manifest remain in the dedicated
+  Brainstorm backup bucket, as expected and accepted.
+- **One drill-script bug was found and fixed during execution** (not a
+  bug in shipped library code): the drill script's first attempt placed
+  the local plaintext manifest cache file directly under the shared OS
+  temp root via `tempfile.mkstemp`, and `_save_local_manifest_cache`
+  correctly (by design) attempts to `chmod` its containing directory to
+  `0700` - which failed with `PermissionError` against a directory the
+  script did not own. Fixed by giving the cache file (and the DB export
+  artifact) their own dedicated, script-owned temp directories. No
+  `zacai.backup_artifacts` code changed as a result; `age_encrypt`/
+  `_verify_or_repair` had already run to completion for the drill's own
+  4 artifacts before the crash, so real B2 uploads for that first
+  attempt's tag likely already succeeded (content-addressed and
+  overwrite-idempotent, so re-running under a new tag was always safe;
+  its now-orphaned 4 `Source` rows remain in `zacai_test` as additional,
+  harmless historical pollution, already accounted for above).
+
+Alternatives considered:
+Using `run_artifact_backup()` (the audit-wrapping function) instead of
+calling `backup_boundary()` directly was considered and rejected for
+this drill: `run_artifact_backup()` marks the entire `artifact_backup_run`
+`FAILED` if any single artifact fails, which would have conflated the
+drill's own unambiguous success with the expected, harmless failures of
+13 unrelated historical rows with long-vanished local files - calling
+`backup_boundary()` directly and scoping acceptance to the drill's own
+tagged digests exercises the identical underlying algorithm without that
+conflation. Guessing or inferring a path to an existing real Personal/
+Shared identity (e.g. a sibling filename in the same directory as the
+Brainstorm identity) was considered and rejected at the time the drill
+first ran, in favor of a throwaway synthetic keypair, per the standing
+instruction to stop and report rather than exceed what has been
+authorized - the real paths were not guessed; they were subsequently
+supplied explicitly by Zac Campbell in a follow-up instruction, at which
+point the stronger real-identity check (recorded above) was run instead.
+
+Reasons and tradeoffs:
+Verifying off-device durability with a separately constructed client,
+rather than trusting `backup_boundary`'s own upload call, trades a small
+amount of duplicated network I/O for a materially stronger claim - the
+whole point of a disaster-recovery drill is to not merely assume the
+happy path held. Scoping every acceptance check to the drill's own
+uniquely-tagged digest set, rather than asserting on `zacai_test`'s raw
+aggregate state, is the same lesson this project has learned and
+re-applied repeatedly (D031A's own test suite, D031B Phase 1's tests,
+and now this real drill) - a shared, session-lifetime test database
+makes unscoped aggregate assertions inherently fragile and is not itself
+a defect to fix.
+
+Security and data implications:
+No real Personal, Brainstorm, or Shared data was created, read, or
+transmitted - all drill content is clearly-labeled synthetic transcript
+text. `zacai_dev` was confirmed to hold zero rows in all application
+tables both before and after the drill. The real B2 credentials were
+loaded from macOS Keychain into environment variables within a single
+process, never printed or logged, and unset immediately after use in
+the same shell invocation; they were never written to any file. The
+private Brainstorm `age` identity was referenced only by its existing
+path, passed only to the `age` subprocess; it was never opened, read,
+copied, or logged, and its filesystem metadata (mode `0600`, size 189
+bytes) was confirmed unchanged after the drill. No second copy of any
+real private identity was created. `zacai.policy`, `zacai.gateway`, and
+D028's `backup.py`/`backup_safety.py` are confirmed unchanged. No B2
+object was or could be deleted, by design (the application key has no
+delete permission) - this is an accepted, intentional asymmetry, not a
+gap.
+
+Consequences:
+**The real-ingestion hard gate's artifact-backup/recovery precondition
+is now satisfied for the BRAINSTORM trust boundary.** This does not
+itself connect, authorize, or approve any live Fireflies account or any
+other real connector - ROADMAP.md Phase 3's "Add Fireflies" item still
+requires its own separate approval before any real credential, network
+call, or content ingestion occurs. Future connectors ingesting into
+other trust boundaries (PERSONAL, SHARED) must run and pass their own
+equivalent real off-device drill before their own real-ingestion gates
+can be considered satisfied - this decision satisfies BRAINSTORM only.
+
+Verification:
+Confirmed the real drill's 18-point acceptance criteria in full (B2
+upload/verification, D028 DB restore, artifact restore, hash
+verification, reconciliation, wrong-identity rejection, independence
+from local state, cleanup, `zacai_dev` before/after counts). Confirmed
+`uv run pytest -q` (395 passed), a clean `uv run ruff check .`, a clean
+`uv run mypy src`, and a clean `git diff --check`, run immediately after
+the drill with no code changes made as a result of it.
+
+Approval or source:
+Zac Campbell, real off-device disaster-recovery drill approval and
+Brainstorm public recipient/Keychain item names, 2026-09-22; and a
+follow-up instruction the same day supplying the real Personal/Shared
+identity paths for the stronger wrong-boundary verification recorded
+above.
+
+Supersedes:
+None. Completes D031A's deferred off-device requirement; extends D018/
+D027/D028/D030/D031A unchanged.
+
 ## Open Decisions
 These choices have not yet been made:
 - Database and search/retrieval technologies

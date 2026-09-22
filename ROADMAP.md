@@ -21,11 +21,14 @@ and a deterministic pipeline, a separate extraction/candidate-review
 stage, and a replaceable `ArtifactStore` abstraction are built and
 tested entirely against synthetic fixtures - no real Fireflies account,
 credential, network call, transcript, or LLM call has ever been used.
-The next blocker, not yet started, is raw artifact backup/recovery
-(D031): real Fireflies ingestion remains hard-gated until it is
-designed, implemented, encrypted before off-device storage, and
-restore-drill tested (see RECOVERY.md's Lane B extension and
-DECISIONS.md D030).
+Raw artifact backup/recovery (D031A/D031B) is also now complete for the
+BRAINSTORM boundary: encrypted before off-device storage, and
+successfully restore-drill tested against a real Backblaze B2 bucket
+(2026-09-22) - satisfying that precondition of the real-ingestion hard
+gate. Real Fireflies ingestion itself still requires its own separate,
+explicit approval before any real credential, account, network call, or
+transcript is used (see RECOVERY.md's Lane B extension and DECISIONS.md
+D030/D031A/D031B).
 
 ## Tracking Rules
 - [ ] means incomplete or not yet verified.
@@ -182,14 +185,16 @@ For each phase:
 - [ ] Add Google Drive.
 - [ ] Add Slack.
 - [ ] Add Fireflies. (D030 built and tested the synthetic ingestion
-  pipeline this will use. D031A designed and implemented the raw
-  artifact backup/restore mechanism cryptographically/synthetically -
-  encrypted, drill-tested against a stand-in local "off-device" store.
-  The real connection remains hard-gated - not merely pending - until a
-  real off-device backend is configured and a real restore drill
-  succeeds (D031B), per RECOVERY.md's Lane B extension and DECISIONS.md
-  D030/D031A. No real credential, account, network call, transcript, or
-  off-device storage has been used.)
+  pipeline this will use. D031A/D031B designed, implemented, and
+  real-off-device-drill-verified the raw artifact backup/restore
+  mechanism for the BRAINSTORM boundary - a real drill against a real
+  Backblaze B2 bucket succeeded end-to-end (D031B, 2026-09-22),
+  satisfying that mechanism's artifact-backup/recovery precondition.
+  **This does not itself approve or connect Fireflies** - the real
+  connection still requires its own separate, explicit approval before
+  any real credential, account, network call, or transcript is used; no
+  real content has been ingested by any of this work. See RECOVERY.md's
+  Lane B extension and DECISIONS.md D030/D031A/D031B.)
 - [ ] Add ClickUp.
 - [ ] Add Salesforce.
 - [ ] Verify each integration independently before adding the next.
@@ -288,12 +293,16 @@ Backups and operational checks begin in Phase 1 and continue throughout.
 - [ ] Verify Zac's personal data never becomes company-wide by default.
 
 ## Next Concrete Step
-D031 - Encrypted Raw Artifact Backup + Restore: design and implement
-backup/recovery for the raw ingestion artifacts D030's `ArtifactStore`
-writes - encrypted before any off-device storage, separated by
-PERSONAL/BRAINSTORM/SHARED protections consistent with D018/D028, and
-restore-drill tested with `sha256(restored_bytes) == Source.content_hash`
-verification on every restored artifact. This is the real-ingestion hard
-gate: no live Fireflies (or any future connector's) content may be
-ingested until D031 is designed, implemented, and successfully
-drill-tested.
+D031A/D031B - Encrypted Raw Artifact Backup + Restore: **complete for
+the BRAINSTORM boundary.** Backup/recovery for the raw ingestion
+artifacts D030's `ArtifactStore` writes is encrypted before any
+off-device storage and has been successfully restore-drill tested
+against a real off-device backend (Backblaze B2), with
+`sha256(restored_bytes) == Source.content_hash` verified on every
+restored artifact. This satisfies the artifact-backup/recovery
+precondition of the real-ingestion hard gate for BRAINSTORM only -
+PERSONAL/SHARED must each run their own equivalent real drill before
+their own real-ingestion gates are satisfied, and no live Fireflies (or
+any other connector) account may be connected without its own separate,
+explicit approval. The next concrete step is that separate Fireflies
+connection approval, not further backup/recovery work.

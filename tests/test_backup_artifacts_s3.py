@@ -213,7 +213,7 @@ def test_backup_and_restore_round_trip_against_s3_compatible_backend(
     restore_target = LocalFilesystemArtifactStore(tmp_path / "restore")
     outcome = restore_boundary_artifacts(
         trust_boundary=_BOUNDARY, backup_store=backup_store, identity_path=key.identity_path,
-        restore_target=restore_target, expected_source_hashes=digests,
+        restore_target=restore_target, live_artifact_root=artifact_store.root, expected_source_hashes=digests,
     )
     assert outcome.successful
     assert outcome.reconciliation.missing == frozenset()
@@ -252,5 +252,6 @@ def test_wrong_boundary_identity_fails_against_s3_compatible_backend(
     with pytest.raises(DecryptionError):
         restore_boundary_artifacts(
             trust_boundary=_BOUNDARY, backup_store=backup_store, identity_path=personal_key.identity_path,
-            restore_target=restore_target, expected_source_hashes={digest},
+            restore_target=restore_target, live_artifact_root=artifact_store.root,
+            expected_source_hashes={digest},
         )

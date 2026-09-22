@@ -2,13 +2,16 @@
 
 Status: Lane B's database mechanism is built and drill-tested against
 synthetic data (D028), but not yet exercised against `zacai_dev` for
-real - see Lane B below. Lane B's raw-artifact extension is designed and
-implemented cryptographically/synthetically (D031A), but real off-device
-durability is **not yet implemented or tested (D031B)** - this remains a
-**hard, unsatisfied gate** blocking any real ingestion connector - see
-Lane B below. Lane C holds no real Zac AI credential yet. See
-DECISIONS.md D018/D028/D030/D031A for the full architecture decisions
-and rationale.
+real - see Lane B below. Lane B's raw-artifact extension is designed,
+implemented, and **real-off-device-drill-verified for the BRAINSTORM
+boundary (D031B)** - a real drill against a real Backblaze B2 bucket
+succeeded end-to-end, satisfying the artifact-backup/recovery
+precondition of the real-ingestion hard gate for BRAINSTORM. This does
+**not** itself approve any live connector - see Lane B below. PERSONAL/
+SHARED boundaries have not yet run their own equivalent real drill.
+Lane C holds no real Zac AI credential yet. See DECISIONS.md
+D018/D028/D030/D031A/D031B for the full architecture decisions and
+rationale.
 
 ## The three lanes
 
@@ -95,33 +98,36 @@ ingested until all of the following are true:**
 - Every restored artifact passes:
   `sha256(restored_bytes) == Source.content_hash`.
 
-Status: **designed and implemented cryptographically/synthetically
-(D031A); off-device durability NOT implemented or tested.** D031A
-(`src/zacai/backup_artifacts.py`) implements `age`-encrypted, content-
-addressed, per-artifact backup objects and an encrypted per-boundary
-manifest, a strengthened four-part "already protected" verification with
-repair-on-failure, restore, and integrity reconciliation against `Source`
-rows - reusing D028's exact three per-boundary `age` identities
-unchanged, no new key system. It has been drill-tested end-to-end
-(encrypt, upload, verify, restore, reconcile - real `age` cryptography
-with throwaway test keys, not a passthrough) using
-`LocalDirectoryBackupStore`, a **second local directory that stands in
-for "off-device" storage only to prove the pipeline** - this is
-explicitly not off-device durability and does not satisfy the gate by
-itself.
+Status: **implemented and real-off-device-drill-verified for BRAINSTORM
+(D031A/D031B).** D031A (`src/zacai/backup_artifacts.py`) implements
+`age`-encrypted, content-addressed, per-artifact backup objects and an
+encrypted per-boundary manifest, a strengthened four-part "already
+protected" verification with repair-on-failure, restore, and integrity
+reconciliation against `Source` rows - reusing D028's exact three
+per-boundary `age` identities unchanged, no new key system. D031B Phase
+1 added `S3CompatibleBackupObjectStore`, a single `boto3`-based
+implementation satisfying any S3-compatible provider (proven hermetically
+via `moto`, zero changes needed to the backup/restore algorithms) and
+hardened `restore_boundary_artifacts` to enforce its restore-target
+safety check internally and unconditionally. D031B Phase 2 (2026-09-22)
+then ran a **real drill against a real Backblaze B2 bucket**
+(`zac-ai-brainstorm-backup`) for the BRAINSTORM boundary: representative
+synthetic artifacts were encrypted and uploaded, independently verified
+present and byte-correct off-device via a separately constructed client,
+restored into a brand-new local root from B2 alone, hash-verified
+against `Source.content_hash`, and reconciled against a D028-restored
+`zacai_restore_test` database - `missing=0`, `unexpected=0`,
+`successful=True`. Wrong-identity rejection was also proven against the
+real B2 manifest. Full detail in DECISIONS.md D031B.
 
-**Real ingestion remains hard-gated on D031B**: a real off-device
-backend (external drive or object storage - not yet chosen) must be
-configured, a real backup of representative synthetic artifacts must be
-durably stored there, and a real disaster-recovery-shaped restore drill
-(decrypt, hash-verify every artifact, reconcile against a D028-restored
-`Source` set, specifically demonstrated for the BRAINSTORM boundary)
-must succeed and be recorded in its own DECISIONS.md entry before this
-gate may be lifted. D030's/D031A's synthetic work remains exempt from
-the gate (no real content is ever stored by either), but a future, separate,
-explicitly-approved milestone connecting a real Fireflies (or any other)
-account must not be approved until D031B is complete. See DECISIONS.md
-D030/D031A for the full architecture this extends.
+**The artifact-backup/recovery precondition of the real-ingestion hard
+gate is now satisfied for BRAINSTORM.** This does **not** by itself
+approve, connect, or authorize any live Fireflies (or other) connector -
+that remains a future, separate, explicitly-approved milestone (see
+ROADMAP.md Phase 3). PERSONAL and SHARED boundaries have not yet run
+their own equivalent real off-device drill and remain gated until they
+do. See DECISIONS.md D030/D031A/D031B for the full architecture this
+extends.
 
 ### Lane C - Secrets escrow
 - What: an off-device copy of whatever credentials exist in macOS

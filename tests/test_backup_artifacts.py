@@ -29,6 +29,7 @@ from zacai.backup_artifacts import (
     LocalDirectoryBackupStore,
     Manifest,
     ManifestError,
+    RestoreTargetUnsafeError,
     age_decrypt,
     age_encrypt,
     assert_safe_restore_target,
@@ -399,6 +400,7 @@ def test_manifest_boundary_field_mismatch_rejected_independently_of_key(
             backup_store=backup_store,
             identity_path=brainstorm_key.identity_path,
             restore_target=restore_target,
+            live_artifact_root=tmp_path / "artifacts",
             expected_source_hashes=set(),
         )
 
@@ -463,6 +465,7 @@ def test_full_synthetic_round_trip_drill(
         backup_store=backup_store,
         identity_path=brainstorm_key.identity_path,
         restore_target=restore_target,
+        live_artifact_root=artifact_store.root,
         expected_source_hashes=digests,
     )
     assert outcome.successful
@@ -500,6 +503,7 @@ def test_corrupted_ciphertext_object_fails_restore(
         backup_store=backup_store,
         identity_path=brainstorm_key.identity_path,
         restore_target=restore_target,
+        live_artifact_root=artifact_store.root,
         expected_source_hashes={digest},
     )
     assert not outcome.successful
@@ -520,6 +524,7 @@ def test_missing_source_referenced_artifact_detected(
         backup_store=backup_store,
         identity_path=brainstorm_key.identity_path,
         restore_target=restore_target,
+        live_artifact_root=tmp_path / "artifacts",
         expected_source_hashes={"a-hash-that-was-never-backed-up"},
     )
     assert not outcome.successful
@@ -545,6 +550,7 @@ def test_unexpected_restored_artifact_detected_without_forcing_failure(
         backup_store=backup_store,
         identity_path=brainstorm_key.identity_path,
         restore_target=restore_target,
+        live_artifact_root=artifact_store.root,
         expected_source_hashes=set(),  # deliberately doesn't expect this hash
     )
     assert digest in outcome.reconciliation.unexpected
@@ -578,6 +584,7 @@ def test_interrupted_restore_cannot_report_success(
             backup_store=backup_store,
             identity_path=brainstorm_key.identity_path,
             restore_target=restore_target,
+            live_artifact_root=artifact_store.root,
             expected_source_hashes=set(),
         )
 
@@ -590,6 +597,99 @@ def test_assert_safe_restore_target_rejects_the_live_root(tmp_path: Path) -> Non
 
 def test_assert_safe_restore_target_allows_a_distinct_root(tmp_path: Path) -> None:
     assert_safe_restore_target(tmp_path / "artifact_restore_test", tmp_path / "artifacts")
+
+
+# --- D031B: restore_boundary_artifacts fails closed structurally -----------
+#
+# assert_safe_restore_target (above) is a plain function anyone could
+# forget to call. These tests prove the equivalent guarantee is now
+# unconditional and internal to restore_boundary_artifacts itself - it
+# is called before any decryption or restore work happens, for every
+# caller, with no way to opt out.
+
+
+def test_restore_boundary_artifacts_rejects_the_live_artifact_root(
+    db_session: Session, tmp_path: Path, brainstorm_key: AgeKeypair
+) -> None:
+    artifact_store = LocalFilesystemArtifactStore(tmp_path / "artifacts")
+    backup_store = LocalDirectoryBackupStore(tmp_path / "backup")
+    digest = _make_backed_source(
+        db_session, artifact_store=artifact_store, raw_bytes=b"must not restore over itself", external_ref="g1"
+    )
+    backup_boundary(
+        db_session, trust_boundary=_BOUNDARY, artifact_store=artifact_store, backup_store=backup_store,
+        recipient=brainstorm_key.recipient, local_manifest_cache_path=tmp_path / "cache.json",
+    )
+
+    with pytest.raises(RuntimeError, match="live artifact store root"):
+        restore_boundary_artifacts(
+            trust_boundary=_BOUNDARY,
+            backup_store=backup_store,
+            identity_path=brainstorm_key.identity_path,
+            restore_target=LocalFilesystemArtifactStore(tmp_path / "artifacts"),  # same root as artifact_store
+            live_artifact_root=artifact_store.root,
+            expected_source_hashes={digest},
+        )
+
+
+def test_restore_boundary_artifacts_succeeds_with_a_distinct_fresh_root(
+    db_session: Session, tmp_path: Path, brainstorm_key: AgeKeypair
+) -> None:
+    artifact_store = LocalFilesystemArtifactStore(tmp_path / "artifacts")
+    backup_store = LocalDirectoryBackupStore(tmp_path / "backup")
+    digest = _make_backed_source(
+        db_session, artifact_store=artifact_store, raw_bytes=b"distinct root is fine", external_ref="g2"
+    )
+    backup_boundary(
+        db_session, trust_boundary=_BOUNDARY, artifact_store=artifact_store, backup_store=backup_store,
+        recipient=brainstorm_key.recipient, local_manifest_cache_path=tmp_path / "cache.json",
+    )
+
+    restore_target = LocalFilesystemArtifactStore(tmp_path / "restore")  # distinct root
+    outcome = restore_boundary_artifacts(
+        trust_boundary=_BOUNDARY,
+        backup_store=backup_store,
+        identity_path=brainstorm_key.identity_path,
+        restore_target=restore_target,
+        live_artifact_root=artifact_store.root,
+        expected_source_hashes={digest},
+    )
+    assert outcome.successful
+
+
+def test_restore_boundary_artifacts_rejects_a_target_with_no_inspectable_root(
+    db_session: Session, tmp_path: Path, brainstorm_key: AgeKeypair
+) -> None:
+    """A `restore_target` implementation with no `.root` property is
+    refused outright - the safety check never silently no-ops for a
+    backend it cannot verify."""
+
+    class _RootlessArtifactStore:
+        def put(self, trust_boundary: TrustBoundary, content_hash: str, raw_bytes: bytes) -> str:
+            raise NotImplementedError
+
+        def get(self, trust_boundary: TrustBoundary, content_location: str) -> bytes:
+            raise NotImplementedError
+
+    artifact_store = LocalFilesystemArtifactStore(tmp_path / "artifacts")
+    backup_store = LocalDirectoryBackupStore(tmp_path / "backup")
+    digest = _make_backed_source(
+        db_session, artifact_store=artifact_store, raw_bytes=b"rootless target rejected", external_ref="g3"
+    )
+    backup_boundary(
+        db_session, trust_boundary=_BOUNDARY, artifact_store=artifact_store, backup_store=backup_store,
+        recipient=brainstorm_key.recipient, local_manifest_cache_path=tmp_path / "cache.json",
+    )
+
+    with pytest.raises(RestoreTargetUnsafeError):
+        restore_boundary_artifacts(
+            trust_boundary=_BOUNDARY,
+            backup_store=backup_store,
+            identity_path=brainstorm_key.identity_path,
+            restore_target=_RootlessArtifactStore(),
+            live_artifact_root=artifact_store.root,
+            expected_source_hashes={digest},
+        )
 
 
 # --- crash / audit ------------------------------------------------------------
@@ -779,6 +879,7 @@ def test_local_manifest_cache_is_not_authoritative_for_protection(
         backup_store=backup_store,
         identity_path=brainstorm_key.identity_path,
         restore_target=restore_target,
+        live_artifact_root=artifact_store.root,
         expected_source_hashes={digest},
     )
     assert outcome.successful
@@ -852,6 +953,7 @@ def test_encrypted_manifest_alone_is_sufficient_for_restore(
         backup_store=backup_store,
         identity_path=brainstorm_key.identity_path,
         restore_target=restore_target,
+        live_artifact_root=artifact_store.root,
         expected_source_hashes={digest},
     )
     assert outcome.successful

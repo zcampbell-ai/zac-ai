@@ -104,6 +104,13 @@ class LocalFilesystemArtifactStore:
         self._root.mkdir(parents=True, exist_ok=True, mode=_DIR_MODE)
         os.chmod(self._root, _DIR_MODE)
 
+    @property
+    def root(self) -> Path:
+        """The local filesystem root this store is backed by - exposed
+        so restore-target safety checks (D031B) can inspect it without
+        reaching into a private attribute."""
+        return self._root
+
     def _path_for(self, trust_boundary: TrustBoundary, content_hash: str) -> Path:
         """Content-addressed within a boundary, deterministic: the same
         `(trust_boundary, content_hash)` always resolves to the identical
