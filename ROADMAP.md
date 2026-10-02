@@ -19,8 +19,8 @@ their supporting tables (D029). D030 (synthetic read-only ingestion
 foundation) is also complete: Fireflies is selected as the first source,
 and a deterministic pipeline, a separate extraction/candidate-review
 stage, and a replaceable `ArtifactStore` abstraction are built and
-tested entirely against synthetic fixtures - no real Fireflies account,
-credential, network call, transcript, or LLM call has ever been used.
+tested initially against synthetic fixtures. D033C's separately approved
+operator trial has now captured one real meeting; no LLM call was made.
 Raw artifact backup/recovery (D031A/D031B) is also now complete for the
 BRAINSTORM boundary: encrypted before off-device storage, and
 successfully restore-drill tested against a real Backblaze B2 bucket
@@ -34,26 +34,33 @@ D032 Core Intelligence Contracts is complete as a local, synthetic foundation
 with independent Claude review and 639 passing tests. It formalizes one Zac
 Event envelope, source-backed task/result contracts, separate provider/model/
 runtime identities and host-controlled eligibility; it does not complete the
-production routing or action-execution phases. No live source is connected.
+production routing or action-execution phases. Live access is limited to the
+one-shot D033C trial below; recurring ingestion is not enabled.
 
 D033A selected-transcript wire preparation is complete offline, independently
 reviewed by Claude and verified with 667 passing tests. The proposed trial is one meeting
-selected by Zac from his own Fireflies account. No live access is approved or
-performed, and source-permission preservation remains an open Phase 3 item.
+selected by Zac from his own Fireflies account. D033C later exercised that
+bounded scope; complete source-permission preservation remains an open Phase 3 item.
 
 D033B account-identity validation and linked original/normalized capture are
 independently reviewed offline with synthetic data and 699 passing tests.
 All three artifacts enter existing
-BRAINSTORM backup inventory; no live capture or backup upload has occurred.
-The controlled live host still needs credential/escrow verification, fixed
-transport, durable approval/run audit and separately approved one-meeting access.
+BRAINSTORM backup inventory. D033C has now verified the selected capture and
+encrypted backups against the real account and existing off-device destination.
 
 D033C operator host, fixed transport and concrete recovery verifier are complete
 locally with independent Claude review and synthetic validation. Zac selected
 the existing Brainstorm B2 bucket for encrypted state snapshots under a separate
-prefix. No live approval/credential setup/upload is performed. Next is the
-operator runbook/configuration review and separately authorized credential escrow
-and one-meeting trial. Phase 3 live-source/ACL items remain incomplete.
+prefix. On 2026-10-02, Zac confirmed credential escrow/recovery in 1Password
+and explicitly approved the trial. The first attempt failed at Keychain access
+before any Fireflies request. After human Keychain authorization and a fresh
+"approve retry", the second attempt succeeded: verified account owner, one
+meeting, original/normalized evidence, five locally hash-verified Source artifacts
+(including both approval records), and verified encrypted artifact/state backups
+in the existing Brainstorm B2 bucket. No external AI processing, canonical
+Decision/Commitment promotion, recurring sync, or expanded access occurred.
+Phase 3 live-source/ACL items remain incomplete. See DECISIONS.md's D033C
+operator verification and RECOVERY.md for the precise recovery evidence.
 
 ## Tracking Rules
 - [ ] means incomplete or not yet verified.
@@ -195,7 +202,8 @@ For each phase:
   (D030: a deterministic fetch/validate/store/resolve pipeline, a
   separate extraction stage, and a replaceable `ArtifactStore`
   abstraction - built and tested entirely against synthetic,
-  Fireflies-shaped fixtures. No live connector exists yet.)
+  Fireflies-shaped fixtures. D033C later verified one live operator capture;
+  this is not a scheduled connector.)
 - [x] Support deduplication, incremental sync, retries, and sync status.
   (D030: content-hash idempotency and Source lineage, a per-connector/
   boundary ingestion cursor, retry-safe batch transactions, and an
@@ -217,9 +225,10 @@ For each phase:
   satisfying that mechanism's artifact-backup/recovery precondition.
   **This does not itself approve or connect Fireflies** - the real
   connection still requires its own separate, explicit approval before
-  any real credential, account, network call, or transcript is used; no
-  real content has been ingested by any of this work. See RECOVERY.md's
-  Lane B extension and DECISIONS.md D030/D031A/D031B.)
+  any real credential, account, network call, or transcript is used.
+  D033C's separately approved one-meeting trial subsequently succeeded on
+  2026-10-02. Broad account ingestion, recurring sync and complete source ACL
+  preservation remain incomplete. See RECOVERY.md and DECISIONS.md D033C.)
 - [ ] Add ClickUp.
 - [ ] Add Salesforce.
 - [ ] Verify each integration independently before adding the next.
@@ -331,8 +340,10 @@ their own real-ingestion gates are satisfied, and no live Fireflies (or
 any other connector) account may be connected without its own separate,
 explicit approval. D032 Core Intelligence Contracts is now complete as an
 independently reviewed synthetic contract foundation. The next concrete step
-is operator preparation for D033C's reviewed one-run host: review actual local
-configuration and recovery references, obtain bounded live approval, then perform
-credential setup/escrow and the selected meeting's read-only trial.  D032 extends this roadmap without completing production
+is to reconcile D033C's successful one-meeting trial and define the next bounded
+local evidence-review slice in the existing Phase 3 roadmap. Establish the
+useful output Zac wants and the allowed local processing method before analyzing
+real meeting content. Recurring access and wider source permissions require their
+own design and approval. D032 extends this roadmap without completing production
 routing or execution, or changing the later phase order.
 No live connection, credential or transcript is authorized by D031B or D032.

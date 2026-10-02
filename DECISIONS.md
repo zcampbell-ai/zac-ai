@@ -3631,12 +3631,63 @@ Supersedes:
 None. Extends D017/D023/D024/D028/D031/D033A/D033B. Selects the previously open
 BRAINSTORM Lane B off-device destination; PERSONAL/SHARED are unchanged.
 
+### D033C operator verification — 2026-10-02
+
+This records operational evidence after the offline implementation above;
+it does not replace D033C's architecture or authorize broader access.
+
+Zac explicitly approved the account-owned selected meeting as BRAINSTORM /
+CONFIDENTIAL, local capture and encrypted state/artifact protection in the
+existing Brainstorm B2 bucket, with no external AI processing. He confirmed
+"saved and recovered" for the Fireflies credential in a 1Password Secure Note.
+The Mac Keychain item was populated privately by the human; no credential value
+was printed, committed, or passed as command-line key material.
+
+The first approval was consumed and the run recorded FAILED at CREDENTIAL,
+before any Fireflies request. The login Keychain was unlocked and the named
+item existed, but background retrieval did not complete within ten seconds;
+Zac reported no prompt appeared. No unsupported root-cause claim is made.
+Zac then performed a visible Terminal lookup with stdout discarded and selected
+Always Allow. This was a human Keychain access decision, not an agent ACL change.
+He separately replied "approve retry" before a new approval Source and run
+were created. The launcher's conversation reference retains the original scoped
+approval reference; this entry records the fresh retry authorization explicitly.
+No automatic retry or reuse of the first consumed approval occurred.
+
+The second run SUCCEEDED: the account matched the approved owner, the fixed
+selected transcript was captured, and one Meeting with linked original and
+normalized evidence was committed. Local reconciliation found five Sources,
+all BRAINSTORM / CONFIDENTIAL and all matching their artifact content hashes.
+These comprise both approval records plus account reply, original transcript
+and normalized envelope. The artifact backup audit recorded checked=5,
+backed_up=5, failed=0. The concrete protector independently retrieved, decrypted
+and hash-verified the successful run's four approval/evidence artifacts from
+real B2 and independently verified the encrypted state snapshot's ciphertext
+hash and decrypted plaintext equality. The state snapshot uses D028 framing
+and a repeatable-read export of the same canonical database.
+
+Before the current artifact manifest changed, the existing D031B encrypted
+manifest was copied to the BRAINSTORM manifest-history prefix and independently
+read back byte-for-byte. Existing drill objects were not deleted. The ignored
+local trial receipt retains run IDs, remote object references and ciphertext
+hash; no meeting content, private account/meeting identifiers or credentials
+are included in this Git documentation.
+
+Limits: this proves one controlled read-only capture and off-device encrypted
+byte recovery, not a full database restore of the real snapshot, whole-Mac
+recovery, broader source ACL preservation, recurring access or production model
+routing. No Decision/Commitment extraction or promotion, external model call,
+identity merging, scheduler or retention/deletion policy was enabled. The
+next slice must preserve the existing Phase 3 order and determine Zac's useful
+review output and permitted local processing before analyzing real content.
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)
 - Production model/runtime adapters and routing (D019 benchmarks remain provisional)
 - Cloud models and account configuration
-- Fireflies live-connection scope and credential authorization (source selected in D030)
+- Fireflies broader live-connection scope, recurring access and source ACLs
+  (one selected-meeting trial separately approved and verified under D033C)
 - Event transport and workflow execution mechanism
 - Lane B PERSONAL/SHARED state off-device destinations (BRAINSTORM selected in D033C)
 - Text interface implementation
@@ -3663,4 +3714,7 @@ Approval or source:
 Supersedes:
 
 ## Next Concrete Step
-Prepare the separately approved, bounded BRAINSTORM read-only Fireflies trial after D032. Preserve all unresolved roadmap gates and confirm exact account/meeting scope, credential recovery and runtime controls before live access.
+Reconcile D033C's verified one-meeting capture, then define the next bounded
+local evidence-review slice within Phase 3. Obtain Zac's intended useful output
+and permitted processing method before real-content analysis. Preserve unresolved
+source ACL, recurring-access, production-routing and full real-state restore gates.

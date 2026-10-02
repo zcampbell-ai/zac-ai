@@ -50,7 +50,8 @@ depends on recovering another.
   BRAINSTORM off-device destination is now the existing Brainstorm B2 bucket
   (Zac's D033C choice), with separate BRAINSTORM/state run-addressed objects.
   PERSONAL/SHARED destinations remain deferred. This selects architecture;
-  no real database export/upload has been authorized or performed yet.
+  D033C's separately approved trial performed and verified one real encrypted
+  BRAINSTORM state export/upload on 2026-10-02; no recurring backup is scheduled.
 - Encryption: client-side, via `age`, before any copy would leave the
   Mac Studio. **Three** separate keys - Personal, Brainstorm, and
   Shared - never one key across boundaries (D018, extended by D028 to
@@ -61,16 +62,18 @@ depends on recovering another.
   from two independent copies - local (outside this repository) and the
   existing password manager. **Reusing the password manager as this
   escrow location does not mean Lane C is implemented or tested** -
-  Lane C remains entirely about real application credentials, which do
-  not exist yet (see Lane C below). This is a location reuse only.
+  Lane C remains about real application credentials (see Lane C below).
+  This is a location reuse only.
 - Frequency/retention: intended as a daily dump with a small rolling
   window (for example, 7 daily plus 4 weekly) once this runs against
   real data; v1 is manual only, no scheduled job yet (D028).
 - Status: mechanism built and drill-tested (export from synthetic data,
   encrypt, decrypt, restore into a disposable database, verify boundary
   purity and integrity - D028). Running it for real against `zacai_dev`
-  is a separate, later, explicitly-approved step, since `zacai_dev`
-  currently holds no real data to back up yet.
+  was separately approved and exercised for D033C on 2026-10-02. That
+  snapshot includes one real meeting and its evidence. Independent B2 retrieval,
+  ciphertext hash, authenticated decryption and plaintext hash equality passed;
+  a full database restore of this real snapshot has not yet been performed.
 
 #### Lane B extension: raw ingestion artifacts (D030) - REAL-INGESTION HARD GATE
 
@@ -124,24 +127,48 @@ real B2 manifest. Full detail in DECISIONS.md D031B.
 
 **The artifact-backup/recovery precondition of the real-ingestion hard
 gate is now satisfied for BRAINSTORM.** This does **not** by itself
-approve, connect, or authorize any live Fireflies (or other) connector -
-that remains a future, separate, explicitly-approved milestone (see
-ROADMAP.md Phase 3). PERSONAL and SHARED boundaries have not yet run
+approve, connect, or authorize any live Fireflies (or other) connector.
+D033C separately obtained approval and completed one selected-meeting capture
+on 2026-10-02 (see the operator verification below). PERSONAL and SHARED
+boundaries have not yet run
 their own equivalent real off-device drill and remain gated until they
 do. See DECISIONS.md D030/D031A/D031B for the full architecture this
 extends.
 
 ### Lane C - Secrets escrow
 - What: an off-device copy of whatever credentials exist in macOS
-  Keychain.
+  Keychain, scoped to approved integrations.
 - Where: the existing password manager. No separate encrypted
   secrets archive is built.
 - macOS Keychain remains the v1 production/runtime secret store on
   the Mac Studio (see SECRETS.md, DECISIONS.md D017).
 - No Keychain export/import automation exists yet.
-- Neither the password manager nor Keychain holds any real Zac AI
-  credential until a specific approved integration requires it.
-- Status: not populated. Nothing to escrow yet.
+- Status: the approved Fireflies API key is stored in the BRAINSTORM-scoped
+  Mac Keychain item. On 2026-10-02 Zac confirmed that he saved and recovered
+  it from a 1Password Secure Note. This is a human recovery attestation;
+  agents did not read the password manager. Other credentials are not covered
+  by this specific attestation.
+
+### D033C operator verification — 2026-10-02
+- First attempt: consumed approval, FAILED at credential access before any
+  Fireflies request; its audit and approval Source remain preserved.
+- After human Keychain authorization and fresh explicit retry approval,
+  the selected-meeting trial SUCCEEDED. Five BRAINSTORM / CONFIDENTIAL
+  Source artifacts (two approvals, account reply, original transcript and
+  normalized envelope) passed local hash checks and artifact backup coverage;
+  artifact backup audit: checked=5, backed_up=5, failed=0.
+- A separately constructed B2 client retrieved, decrypted and hash-verified
+  the successful trial's four evidence/approval artifacts and the encrypted
+  state snapshot. This proves byte recovery; it does not establish a full
+  real-snapshot database restore or whole-Mac rebuild.
+- The prior D031B encrypted manifest was preserved under the BRAINSTORM
+  manifest-history prefix and independently read back before the canonical
+  manifest changed. No prior drill objects were deleted.
+- Private run identifiers, object references and ciphertext hash are in the
+  local ignored `var/artifacts/trial-receipts/` receipt. Meeting content,
+  account/meeting identifiers and credentials are excluded from Git.
+- No scheduled backup, retention/deletion policy, latest-state pointer,
+  recurring ingestion or external AI processing was enabled.
 
 ## Rebuild procedure if the Mac Studio is lost, fails, or is replaced
 
