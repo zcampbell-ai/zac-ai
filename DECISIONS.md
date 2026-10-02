@@ -3171,12 +3171,149 @@ Supersedes:
 None. Completes D031A's deferred off-device requirement; extends D018/
 D027/D028/D030/D031A unchanged.
 
+## D032 - Core Intelligence Contracts (Synthetic v1)
+Status: Accepted; implemented and independently reviewed
+Date: 2026-10-02
+
+Context:
+D031B is the completed BRAINSTORM artifact-recovery checkpoint. Zac's
+continuation instruction places Core Intelligence Contracts before the first
+controlled read-only Fireflies connection. No prior D032 specification exists
+in the repository or the resumed Claude engineering conversation. Zac explicitly
+authorized developing this design from the existing architecture and proceeding
+with local implementation. Architecture sections 3, 5, 10, 13 and 18 establish
+canonical state, event metadata, centralized approvals, replaceable intelligence
+and independent evaluation. This slice formalizes those interfaces without
+implementing all later roadmap phases.
+
+Decision:
+- Add `src/zacai/intelligence/` with frozen, validated Pydantic contracts and
+  integer version 1 envelopes for `ZacEvent`, `IntelligenceTask` and
+  `IntelligenceResult`. Unknown fields/versions, naive timestamps, non-finite
+  numbers, invalid limits, mixed-boundary references and weakened derived
+  classification fail validation. Public assessment/result boundaries revalidate
+  even existing model objects; unvalidated `model_copy` output is not trusted.
+- `ZacEvent` is the single canonical in-memory event envelope: UUID identity,
+  producer/type, UTC occurrence/observation timestamps, exact trust boundary,
+  classification, source/hash provenance, related entity/version references,
+  correlation/causation IDs, importance, confidence and processing status. v1
+  covers content-addressed, source-backed events. It is not the deferred Event
+  database entity, an event transport, an event log or a new canonical store.
+- `EvidenceReference` carries `Source.id`, its immutable content hash, exact
+  boundary and effective classification. `resolve_evidence_reference` reads via
+  an additive boundary-filtered `state_repository.get_source` and the existing
+  `get_effective_source_classification`; it never substitutes the original
+  `Source.data_classification` for the classification-elevation mechanism.
+  Unknown/unauthorized sources give an indistinguishable error. Old evidence
+  snapshots are historical declarations; a future dispatcher must re-resolve
+  current labels and verify artifacts immediately before sending content.
+- Tasks carry explicitly untrusted context, required capabilities, instruction
+  text, latency/estimated-cost/output limits and source-backed event metadata.
+  Context references must exactly match event provenance. Authorization,
+  credentials, runtime approval and security configuration are not task fields.
+- Provider, model and runtime identities are separate. `ModelRoute` declares
+  destination, capabilities, capacity, availability and cost/latency estimates;
+  provider names never establish locality. `IntelligenceProvider` is a replaceable
+  typed Protocol. No live adapter, credential loader or dispatcher is shipped.
+- `ApprovedRouteRegistry` is an immutable host configuration object, separate
+  from JSON contracts and with no JSON loader. Each registration binds a model/
+  provider/runtime descriptor, its destination, permitted boundaries and
+  permitted classifications. Only trusted host configuration may construct it.
+  This is not a sandbox against hostile Python code or a runtime approval UI.
+- `assess_routes` evaluates only registered routes against independent host
+  authorization, per-route approvals and existing `evaluate_access`, plus
+  capabilities, availability, input/output capacity, estimated cost and latency.
+  It returns explicit exclusions; no eligible route is a terminal report.
+  It does not rank, dispatch, retry, silently register providers or relax privacy
+  on fallback. Text capacity is explicitly measured in characters and includes
+  instruction/context text; serialized request overhead and token capacity must
+  be checked by future adapters. Estimates are not measured costs or guaranteed
+  latency, nor an enforceable spending cap or timeout.
+- Results distinguish success/failure, findings/candidates, usage observations
+  and execution proposals. Failure cannot carry partial proposals; errors use
+  bounded typed codes rather than arbitrary exception text. Boundary validation
+  checks task/route linkage, source IDs against supplied context, non-weakening
+  classification and reported output limits. Source citation alone does not prove
+  factual support; independent evaluation and human promotion remain required.
+  Result linkage validation is not routing approval: a future dispatcher must
+  dispatch/accept only routes present in its current EligibilityReport.eligible_routes.
+  Entity references are declarations only; existence/boundary/version resolution
+  remains future host work and is not established by contract validation.
+- Execution proposals carry action type, target reference, description and
+  evidence only. They cannot execute, approve, acquire credentials or modify
+  state. Future execution must pass the central D023/D024 policy/gateway and a
+  separately designed, action-bound approval mechanism.
+- D030's `ExtractionFunction`/`CandidateProposal`, idempotency, transactional
+  candidate recording and human promotion remain unchanged. These contracts are
+  a general foundation for later capabilities; D032 does not yet rewire D030.
+
+Alternatives considered:
+A provider-specific agent framework, autonomous execution engine or full Phase 5
+router was rejected as premature. Arbitrary mutable payload dictionaries were
+rejected because they obscure validation and allow authority-bearing escape
+hatches. Caller-supplied provider candidates or permissions inside task JSON were
+rejected in favor of a separate host registry. A persistent Event table/event bus
+was rejected: their storage/transport decisions remain deferred. Live model or
+Fireflies calls were rejected for this slice; synthetic adapters suffice to test
+contract interchangeability. Separate permanent design docs were rejected in
+favor of this existing decision log and ROADMAP.md.
+
+Reasons and tradeoffs:
+Explicit contracts separate intelligence from state ownership and action
+execution while preserving future provider/runtime replacement. Pydantic matches
+the existing policy/gateway request convention. Immutable host registry objects
+keep approval configuration outside retrieved content; they rely on trusted host
+code rather than claiming cryptographic authority or sandboxing. v1's required
+content hashes and exact single boundary intentionally limit supported events;
+future operational/hashless or cross-boundary workflows need a deliberate
+extension. Classification ordering matches existing state rules; access denial
+semantics remain exclusively in `evaluate_access`.
+
+Security and data implications:
+Only synthetic fixtures are used. No real transcript, external model call,
+Fireflies request, credential, bucket write, canonical-state promotion, proposed
+action execution, schema migration, service restart or production configuration
+change occurs. New database tests use D027's rollback `db_session`. D023 policy,
+D024 gateway and D030 ingestion/extraction are unchanged. PERSONAL/SHARED live
+recovery gates remain unsatisfied by D031B's BRAINSTORM-only drill.
+
+Consequences:
+A tested contract foundation is available before live ingestion. This does not
+complete Phase 2's entire entity/memory model, Phase 5 production routing,
+Phase 6 approvals or Phase 7 agents. Fireflies remains a separately scoped and
+explicitly approved next milestone. Runtime credential loading/escrow, production
+operations and complete recovery scheduling still require their own verification.
+
+Verification:
+Final implementation: 639 tests passed (395 existing plus 244 D032 cases),
+Ruff clean, strict mypy clean across 22 source files, and git diff --check clean.
+The new cases include the full 192-case boundary/authorization/classification/
+destination matrix, restricted-data fallback rejection, hostile JSON validation,
+canonical classification elevation and two interchangeable synthetic adapters.
+Claude's independent design review identified canonical effective-classification
+resolution and an explicit host registry as required corrections; both are
+implemented. Claude reviewed the implementation in a fork of the existing
+Zac AI engineering session and reported no blocking findings. Its non-blocking
+notes on unresolved entity references and result validation versus route approval
+are documented, and empty-boundary source access is explicitly tested. Staged
+Gitleaks secret scan is clean. No production deployment or live access occurred.
+
+Approval or source:
+Zac Campbell, 2026-10-02: continue the existing build, retain Claude as independent
+reviewer, and develop D032 from the existing architecture. This authorizes the
+local design/implementation/test slice; it does not authorize live Fireflies,
+production deployment, new credentials or expanded autonomy.
+
+Supersedes:
+None. Extends D001/D004/D008/D023/D024/D026/D030; preserves D031B and all
+existing roadmap phases. Updates immediate sequencing to D032 before Fireflies.
+
 ## Open Decisions
 These choices have not yet been made:
-- Database and search/retrieval technologies
-- Local model runtime and specific models
+- Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)
+- Production model/runtime adapters and routing (D019 benchmarks remain provisional)
 - Cloud models and account configuration
-- First read-only integration and its authorization method
+- Fireflies live-connection scope and credential authorization (source selected in D030)
 - Event transport and workflow execution mechanism
 - Lane B (Zac State/database) off-device storage destination (D018)
 - Text interface implementation
@@ -3203,4 +3340,4 @@ Approval or source:
 Supersedes:
 
 ## Next Concrete Step
-Inventory Mac Studio hardware and existing development tools using read-only checks before selecting the implementation stack.
+Prepare the separately approved, bounded BRAINSTORM read-only Fireflies trial after D032. Preserve all unresolved roadmap gates and confirm exact account/meeting scope, credential recovery and runtime controls before live access.

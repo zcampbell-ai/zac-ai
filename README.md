@@ -7,17 +7,16 @@ understand activity across connected systems, track commitments,
 prepare useful work, and execute authorized actions safely.
 
 ## Current Status
-Phase 0: Project Foundation.
+The existing Mac Studio repository is complete through D031B: canonical-state
+storage, synthetic Fireflies-shaped ingestion, encrypted artifact backup and a
+successful real Backblaze B2 restore drill for BRAINSTORM. D032 Core Intelligence Contracts is also complete as a local synthetic foundation,
+independently reviewed by Claude, with 639 passing tests. No live Fireflies connection or real model adapter is implemented.
 
-The private GitHub repository has been cloned to ~/zac-ai on the
-Mac Studio. The architecture, security policy, roadmap, and initial
-decision log have been populated.
-
-Application implementation and runtime operation are not yet verified.
-This repository currently documents the intended system; it does not
-yet establish that the planned capabilities are working.
-
-Use ROADMAP.md for detailed progress and verified completion.
+The core contracts separate event/evidence context, provider/model/runtime
+identity, intelligence output and execution proposals. Eligibility uses a
+host-approved route registry plus the existing policy layer. This is not yet a
+production router or action executor. Use ROADMAP.md for sequence and remaining
+gates, and DECISIONS.md D032 for scope, limitations and verification.
 
 ## Start Here
 - CLAUDE.md: standing instructions for Claude Code.
@@ -323,9 +322,8 @@ appropriate separate backup and recovery procedures.
 Document these procedures and test restoration as the runtime is built.
 
 ## Immediate Next Steps
-- Verify this README.
-- Update the roadmap to reflect verified foundation documents.
-- Inspect repository status and configure Git exclusions.
-- Review, commit, and back up the foundation documents.
-- Install and configure Claude Code.
-- Begin one bounded implementation task from the roadmap.
+After D032, prepare a bounded,
+separately approved BRAINSTORM read-only Fireflies trial. Credentials, selected
+meeting scope, recovery and local storage behavior must be explicit before live
+access. Source reads can create local artifacts and candidates; they never
+approve canonical promotion or external writes by themselves.

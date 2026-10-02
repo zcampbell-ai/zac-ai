@@ -241,6 +241,21 @@ def get_effective_source_classification(session: Session, *, source_id: uuid.UUI
     return stored
 
 
+def get_source(
+    session: Session, *, source_id: uuid.UUID,
+    requestor_boundaries: frozenset[TrustBoundary],
+) -> Source | None:
+    """D032 host evidence resolution; unknown and unauthorized IDs both return None.
+
+    This returns immutable provenance metadata, not artifact content. Call
+    get_effective_source_classification for sensitivity; the stored label alone
+    must never be used for downstream policy decisions.
+    """
+    return session.execute(select(Source).where(
+        Source.id == source_id, Source.trust_boundary.in_(requestor_boundaries)
+    )).scalar_one_or_none()
+
+
 def _assert_classification_not_weaker_than_evidence(
     session: Session, data_classification: DataClassification, supporting_sources: Sequence[Source]
 ) -> None:
