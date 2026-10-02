@@ -48,6 +48,13 @@ BRAINSTORM backup inventory; no live capture or backup upload has occurred.
 The controlled live host still needs credential/escrow verification, fixed
 transport, durable approval/run audit and separately approved one-meeting access.
 
+D033C operator host, fixed transport and concrete recovery verifier are complete
+locally with independent Claude review and synthetic validation. Zac selected
+the existing Brainstorm B2 bucket for encrypted state snapshots under a separate
+prefix. No live approval/credential setup/upload is performed. Next is the
+operator runbook/configuration review and separately authorized credential escrow
+and one-meeting trial. Phase 3 live-source/ACL items remain incomplete.
+
 ## Tracking Rules
 - [ ] means incomplete or not yet verified.
 - [x] means completed and verified.
@@ -324,9 +331,8 @@ their own real-ingestion gates are satisfied, and no live Fireflies (or
 any other connector) account may be connected without its own separate,
 explicit approval. D032 Core Intelligence Contracts is now complete as an
 independently reviewed synthetic contract foundation. The next concrete step
-is D033C: the controlled BRAINSTORM read-only Fireflies host/runtime
-(credential boundary, fixed transport, durable one-run approval/audit and backup
-verification), using D033A/D033B's reviewed wire/identity/capture path. Follow it
-with separately approved credential setup and live trial. D032 extends this roadmap without completing production
+is operator preparation for D033C's reviewed one-run host: review actual local
+configuration and recovery references, obtain bounded live approval, then perform
+credential setup/escrow and the selected meeting's read-only trial.  D032 extends this roadmap without completing production
 routing or execution, or changing the later phase order.
 No live connection, credential or transcript is authorized by D031B or D032.

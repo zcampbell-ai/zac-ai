@@ -3499,6 +3499,138 @@ Official account-query source checked: https://docs.fireflies.ai/graphql-api/que
 Supersedes:
 None. Extends D033A/D030/D031 and preserves the existing roadmap and security gates.
 
+## D033C - Scoped Operator Trial Host and Verified Recovery
+Status: Accepted; local implementation independently reviewed
+Date: 2026-10-02
+
+Context:
+Zac asked to continue after D033A/D033B and pushed those checkpoints. He explicitly
+confirmed BRAINSTORM / CONFIDENTIAL, local capture, encrypted backup and no external
+model processing. He also selected the existing Brainstorm B2 bucket as the
+Lane B state-export destination, with a separate encrypted state prefix; this
+selects a design, not a live-upload authorization. Credential setup/escrow and
+live-source access still require separate bounded approval.
+
+Decision:
+- Add a narrow trusted-operator library host, not a public agent/HTTP tool, daemon
+  or general Phase 6 approval UI. Persist a frozen versioned trial scope as a
+  content-addressed USER_INSTRUCTION Source in BRAINSTORM/CONFIDENTIAL: UUID,
+  exact expected email/meeting ID, human approval reference, explicit recovery
+  evidence references and aware timestamps with at most a 15-minute admission
+  window. No caller approval boolean or cross-boundary/classification override.
+  Scope issuance records a human decision already made; it cannot authenticate a
+  chat or perform password-manager verification. Trusted operator code alone may
+  issue it after those checks. No actual approval has been issued in development.
+- Serialize issuance with a PostgreSQL transaction advisory lock per scope UUID;
+  identical issuance is idempotent, while revision under that UUID is rejected.
+  Claim by locking the immutable Source row, verifying type/namespace/hash and
+  canonical effective classification, checking for any prior matching run, then
+  inserting STARTED and committing in that same transaction. Two simultaneous
+  claimants are tested using real database connections; exactly one succeeds.
+- Existing D023/D024 READ_DATA policy/gateway must allow the local capture.
+  No hard denial is overridden. Recheck time and current effective approval
+  classification before credential lookup, identity query, transcript query and
+  capture. Approval expiry is an admission check, not forcible cancellation of
+  in-flight I/O. Failed, crashed or expired-after-claim runs consume their grant;
+  retries require a new human approval, not an automatic fallback.
+- Read only the fixed macOS Keychain service
+  `zacai-brainstorm-fireflies-api-key` for the approved account after claim and
+  backup preflight. Fixed security binary/arguments contain no credential value;
+  stdout stays in memory, stderr is suppressed and lookup failures are sanitized.
+  Feed D017 get_secret through a short-lived startup environment mapping without
+  modifying global os.environ. No Keychain creation/modification or escrow export
+  is automated. SecretStr hides credential representations; Python memory is not
+  claimed to be securely erased.
+- Fixed direct TLS HTTPS reads go only to api.fireflies.ai/graphql, with normal
+  certificate/hostname validation, HTTP/1.1 ALPN, no proxies/redirects/retries,
+  no caller query/URL, no listing/mutation/audio/video/summary. Validate credential
+  header characters before connecting; reject non-200 replies, unexpected media
+  type/content encoding, and responses over 2 MB. A 20-second socket-operation
+  timeout is not a hard total deadline or DNS/trickle-data cancellation guarantee.
+  HTTP debug logging must stay disabled; no runtime entrypoint exposes debug mode.
+- Verify the key-owner identity before requesting the selected transcript. Capture
+  through D033B in a dedicated session; commit evidence before marking ingestion
+  success. A later backup failure marks the run FAILED, preserving already
+  committed sources/meeting and counts. Failures use fixed stage-specific sanitized audit codes;
+  audit-write failure is explicitly reported. A crash can leave STARTED; no replay
+  is allowed under that approval. No scheduler or external model is invoked.
+- A required BackupProtector performs real preflight/protection, not a success
+  boolean. BrainstormTrialProtector requires the same engine as the capture
+  session factory and separately constructed write/verification object clients.
+  Match operator recovery references and prove recipient/identity pairing via
+  an age challenge. References remain operator attestations, not automatic proof
+  of credential escrow or off-device durability.
+- Run D031's full BRAINSTORM artifact backup inventory and require success.
+  Independently fetch/decrypt/hash-check the four approval/account/raw/normalized
+  artifacts. Export committed canonical BRAINSTORM state via D028 framing under
+  REPEATABLE READ, encrypt in memory, upload to
+  BRAINSTORM/state/<run-UUID>/<ciphertext-SHA256>.age, and independently fetch,
+  compare ciphertext and decrypted-export hashes. Snapshot bytes are capped at
+  64 MB; D028 may allocate an individual table before that buffer check, so this
+  is not a process-wide memory cap. No plaintext export file is written.
+- Return trial success only after protection evidence binds the current approval,
+  run and all four committed source hashes. The host checks evidence linkage;
+  actual ciphertext/cleartext verification occurs inside the concrete protector.
+  State snapshot includes committed capture and its ingestion success audit.
+  If later verification fails, canonical audit is FAILED; a previously uploaded
+  snapshot may still contain the prior success state. Recovery operators must
+  reconcile the latest run status rather than treating an old snapshot as a
+  fresh trial-success receipt. State exports are immutable run-addressed objects,
+  no automatic "latest" pointer or retention/deletion policy is introduced.
+
+Alternatives considered:
+No schema migration is needed for this narrow ledger because the Source lock
+serializes claim plus run insertion, empirically concurrency-tested. A general
+approval-token framework, agent issuance endpoint and parallel canonical store
+were rejected as scope expansion. A new backup provider/bucket was rejected in
+favor of Zac's selected existing B2 destination. Upload-only success and trusting
+self-reported backup hashes were rejected in favor of independent remote reads
+and authenticated decryption. Automatic retries would widen a one-attempt grant.
+
+Security and data implications:
+The host/transport/protector APIs are trusted Python seams, not defenses against
+malicious Python code, DB administrators or compromised operator accounts. No
+new service, CLI, agent capability or production configuration is installed.
+Tests mock Keychain/HTTP, use isolated zacai_test, temporary age identities and
+local object stores. No real credential, Fireflies request/transcript, B2 upload,
+production database or real backup identity is accessed. Tests with local stores
+prove behavior/crypto, not real off-device durability. Selected private meeting
+ID/email remain outside committed fixtures. D031B's real recovery evidence stands.
+
+Remaining live gates:
+Obtain explicit scoped human approval covering account/meeting, Keychain lookup,
+read-only queries, local CONFIDENTIAL capture and encrypted state/artifact uploads
+into the selected existing Brainstorm B2 bucket; acknowledge consumed-on-attempt
+retry behavior. Populate/escrow/recover the first required Fireflies credential
+using SECRETS.md/Lane C, outside agents. Review actual host wiring: local database,
+artifact root, public recipient/private identity, scoped B2 credentials and two
+independent S3 clients. Confirm existing BRAINSTORM inventory is readable and all
+source privacy/processing observations are appropriate. An operator launch/runbook
+and real drill remain pending; no live-ready claim follows from tests alone.
+Complete ACL preservation, recurring sync and external intelligence are deferred.
+
+Verification:
+741 tests pass (699 prior tests plus 42 new host/transport/protection cases),
+Ruff and strict mypy are clean across 29 source files. Claude reviewed the design,
+host implementation and concrete backup verifier independently and reported no
+remaining blockers. The design's claim-race concern is resolved by same-transaction
+locking and a real two-connection test. Crypto tests use throwaway age keys and
+independent local stores; corrupt state readback, wrong identity, capacity limits,
+expiry, mid-run classification elevation, replay, immutable scope and sanitized
+failure audit paths are exercised. Tests remain synthetic, not a live drill.
+Staged Gitleaks and git diff --check are clean. No live access is authorized.
+
+Approval or source:
+Zac Campbell, 2026-10-02: continued local build, contextual CONFIDENTIAL trial
+choice, and explicit selection of the existing Brainstorm B2 bucket for encrypted
+state backups. No live credential/access/upload authorization is inferred.
+Official references: https://docs.python.org/3/library/http.client.html and
+https://docs.fireflies.ai/fundamentals/authorization.
+
+Supersedes:
+None. Extends D017/D023/D024/D028/D031/D033A/D033B. Selects the previously open
+BRAINSTORM Lane B off-device destination; PERSONAL/SHARED are unchanged.
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)
@@ -3506,7 +3638,7 @@ These choices have not yet been made:
 - Cloud models and account configuration
 - Fireflies live-connection scope and credential authorization (source selected in D030)
 - Event transport and workflow execution mechanism
-- Lane B (Zac State/database) off-device storage destination (D018)
+- Lane B PERSONAL/SHARED state off-device destinations (BRAINSTORM selected in D033C)
 - Text interface implementation
 - Voice provider and API
 - Whether to adopt OpenClaw

@@ -47,8 +47,10 @@ depends on recovering another.
   database is a separate, local-only fast-recovery safety net (never
   leaves the Mac Studio, not itself Lane B/off-device compliant). The
   actual Lane B artifacts are the three per-boundary encrypted exports;
-  the off-device destination for them remains deferred (DECISIONS.md
-  Open Decisions), unchanged by D028.
+  BRAINSTORM off-device destination is now the existing Brainstorm B2 bucket
+  (Zac's D033C choice), with separate BRAINSTORM/state run-addressed objects.
+  PERSONAL/SHARED destinations remain deferred. This selects architecture;
+  no real database export/upload has been authorized or performed yet.
 - Encryption: client-side, via `age`, before any copy would leave the
   Mac Studio. **Three** separate keys - Personal, Brainstorm, and
   Shared - never one key across boundaries (D018, extended by D028 to

@@ -327,3 +327,46 @@ separately approved BRAINSTORM read-only Fireflies trial. Credentials, selected
 meeting scope, recovery and local storage behavior must be explicit before live
 access. Source reads can create local artifacts and candidates; they never
 approve canonical promotion or external writes by themselves.
+
+## Controlled Fireflies trial operator checklist (D033C)
+
+The reviewed library host is not installed in the background service and has no
+public/agent issuance or execution endpoint. No live trial is approved yet.
+Use the following sequence only after separate explicit human approval:
+
+1. Review exact account and selected meeting, BRAINSTORM / CONFIDENTIAL,
+   one attempt within a 15-minute admission window, local source storage and
+   encrypted artifact/state upload into the existing Brainstorm B2 bucket.
+   Approval never includes external models, account sync or Fireflies writes.
+2. The human operator obtains the needed API key privately, stores it in macOS
+   Keychain as `zacai-brainstorm-fireflies-api-key` for the approved account,
+   escrows it in the existing password manager and verifies recovery (Lane C).
+   Never put a value in chat, a command argument, a source file or a dotenv file.
+   Do not claim that an API key itself is read-only: the host restricts its calls.
+3. Review the actual local database/engine and artifact root; verify the existing
+   BRAINSTORM inventory is readable. Confirm the D031B recovery checkpoint,
+   public age recipient, matching escrowed private identity, scoped existing
+   B2 credentials and bucket. Record non-secret recovery evidence references.
+   No credential creation, deletion or production service restart is automated.
+4. Trusted operator code wires `BrainstormTrialProtector` with that same engine,
+   D031 artifact store and TWO separately constructed S3-compatible clients for
+   the same approved bucket. These are privileged host dependencies, never
+   values supplied by a transcript/task. No default or local fallback is allowed
+   for a real trial. Confirm Keychain prompts can be answered by the operator.
+5. Only after readiness, record the exact `TrialApproval` through
+   `record_trial_approval` and commit its Source. Its human reference records a
+   decision already made; this API does not invent approval or prove escrow.
+   `execute_trial` consumes its Source once, before Fireflies Keychain access.
+6. Require returned capture/protection receipts: committed Source/Meeting IDs,
+   matching approved run, independent remote artifact decrypt/hash checks and
+   the encrypted BRAINSTORM state object's verified hash. Keep receipts private
+   with canonical approval/run evidence, not in Git or plaintext public logs.
+7. On failure, inspect the fixed phase code and canonical run status; evidence
+   may already be committed. Diagnose before requesting a NEW approval. A crash
+   or transient failure does not permit reuse. No automatic retries or cleanup.
+
+Real source privacy is an observed snapshot, not full ACL preservation. Completion
+and source access must be verified during the trial. State objects have no latest
+pointer/retention automation; operators reconcile run status and select the
+verified run-addressed snapshot. D028's guarded restore procedure remains the
+restoration path. No actual credential or live access follows from this checklist.
