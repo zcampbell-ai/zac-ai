@@ -3747,6 +3747,105 @@ fabricated quote spans, wrong task, classification downgrade, budget overflow an
 forged declarations are covered. These checks prove structural behavior only;
 no real-content summary quality, style fidelity or local model was evaluated.
 
+## D034B - Canonical Review Context and Synthetic Local Evaluation
+
+Date: 2026-10-02
+Status: Implemented and synthetic-benchmark-verified; private dispatch deferred
+
+Decision:
+Build a read-only context assembler for explicitly selected canonical Meeting /
+Source pairs, a provider-neutral generation seam with numbered evidence, and a
+separate SHARED/PUBLIC-only local benchmark. Do not change Zac Event, canonical
+storage, permissions, credential handling or later phase order. Canonical source
+selection and route registration remain trusted host inputs, outside model JSON.
+
+The assembler checks non-retracted meetings, exact source links, one boundary,
+current effective labels, READ_DATA gateway outcomes, artifact SHA-256 integrity,
+normalized v1 format/identity/date and raw/account dependency roles and hashes.
+The raw dependency must be linked to the same Meeting. Labels propagate across
+the selected meetings and their provenance dependencies. Context is bounded to
+eight explicit meetings, 16,000 characters per text and 24,000 total, with no
+silent truncation. Related meeting occurrence must precede the selected meeting;
+that alone does not establish shared project or relevance. The caller owns the
+read snapshot and must refresh classifications/provenance before future dispatch.
+Only normalized Fireflies v1 decoding exists; no source discovery or Gmail /
+ClickUp ingestion is introduced.
+
+Generation returns prose plus opaque quote IDs. The host rebuilds the catalog,
+rejects tampering/unknown/duplicate IDs, resolves exact spans and supplies canonical
+task identity/classification itself. Model fields cannot change those values.
+Generated FOLLOW_UP items are conservatively marked inferred by the host even
+if the model says false. Declared inferred DECISION/COMMITMENT items are rejected.
+Semantic agreement, completion, identity and date support still require evaluation;
+correct citations are not a claim that a paraphrase is true.
+
+The benchmark uses fixed 127.0.0.1:11434 requests and D032 host registry eligibility,
+pinned installed digests, bounded serialized requests/responses, schema output,
+think=false, no tools, temperature=0 and no retries/fallback/auto-pulls. It rejects
+private-boundary or non-PUBLIC declarations before network I/O. Installed model
+identity and remote-model metadata are checked; incomplete/late/over-budget,
+tool-calling or unexpected-thinking responses are rejected. The socket timeout
+is not a hard process deadline and a trusted loopback server is not a sandbox
+against a malicious host or model service. No new private route is authorized.
+
+Actual synthetic evaluation:
+Ollama 0.34.2 was observed listening only on 127.0.0.1:11434. Existing D019 models
+were used unchanged; no downloads, replacements or service configuration changes.
+Three cases cover a follow-up with prior evidence, missing background, and an
+injected instruction plus explicit absence of agreement/owner/date. Both models
+passed all three final structural checks with the same refined prompt and host
+logic. Manual comparison found persistent meaning errors in the 9B model: a
+planned join fix became "Fixed", and an actual promise was misclassified as a
+follow-up while a collective agreement became a commitment. The 27B model kept
+the fix planned, distinguished agreements/promises, preserved missing background,
+left unsupported owners/dates unassigned and ignored the injected instruction in
+these cases. That is a provisional result from three small fixtures, not general
+semantic correctness, completeness or style fidelity.
+
+Final observed request latency (model call, not end-to-end workflow):
+- qwen3.5:9b-mlx: 7.02 / 5.50 / 4.72 seconds; not admitted for real review use.
+- qwen3.8:27b-mlx: 12.51 / 10.95 / 8.47 seconds; candidate for later local shadow evaluation.
+The reusable `benchmarks/compact_meeting_review.py` contains only synthetic cases
+and full public model digest pins. It prints result/usage records and writes no
+state. Raw model output remains a proposal; structural pass is separate from
+manual semantic assessment. Intermediate prompt refinements and rejected outputs
+are not evidence of real-content readiness. No real transcript or email was
+processed in these benchmarks, or provided to the independent engineering reviewer.
+
+Contextual input and next step:
+Zac clarified that this selected meeting likely recurs four times a week and
+should relate to an existing client project/SOW in ClickUp. He does not know the
+exact SOW name. Most current-client conversations concern existing projects or
+new work, and clients can occasionally have multiple projects in flight.
+The project/SOW should therefore be the context anchor; recurrence or customer
+match alone must not create a link. Identify candidates, surface uncertainty and
+require human confirmation. A transcript may touch several projects; do not force
+all content onto one. Meeting.project_id is immutable in D029, so retroactive or
+multiple-project associations need a separately reviewed append-only design,
+not an in-place backfill. No association or ClickUp attachment has been written.
+This requirement refines the existing evidence/context roadmap, not a competing plan.
+
+Verification:
+810 tests pass, including 47 new canonical context/generation/transport cases;
+Ruff is clean and strict mypy passes across 33 source files. DB tests remain in
+guarded zacai_test and use synthetic replies/artifacts only. They cover hash-valid
+forged dependencies/date, effective elevation of each lineage role, corrupt
+artifacts, retracted/unlinked/future meetings, catalog tampering, quote IDs,
+private dispatch denial before network, model pin/cloud rejection, serialized
+capacity, response role/tools/thinking, late/incomplete output and no retries.
+Claude's initial and final independent engineering reviews found no blockers.
+Both reviews were limited to code, documentation and synthetic fixtures.
+
+Approval or source:
+Zac's continuation instruction and project/SOW context clarification, 2026-10-02;
+D019 installed-model benchmarks and D030/D032/D033C/D034 contracts and policy.
+Official API references checked 2026-10-02:
+https://docs.ollama.com/api/chat,
+https://docs.ollama.com/api/tags,
+https://docs.ollama.com/capabilities/structured-outputs.
+
+Supersedes: None. Extends D034 without enabling production routing or private inference.
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)
@@ -3780,7 +3879,9 @@ Approval or source:
 Supersedes:
 
 ## Next Concrete Step
-Validate D034's offline compact review, then design authorized context assembly
-and an evaluated local runtime for Zac's selected output order before real-content
-analysis. Preserve unresolved
+Identify the client and candidate project/SOW for the selected recurring meeting,
+then design a source-backed, reviewed association without mutating the immutable
+Meeting or forcing multiple projects into one. D034B's 27B synthetic result is a
+candidate for future bounded local shadow review, with refresh/audit/evaluation
+controls required before private inference. Preserve unresolved
 source ACL, recurring-access, production-routing and full real-state restore gates.
