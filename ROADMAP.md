@@ -62,6 +62,12 @@ Decision/Commitment promotion, recurring sync, or expanded access occurred.
 Phase 3 live-source/ACL items remain incomplete. See DECISIONS.md's D033C
 operator verification and RECOVERY.md for the precise recovery evidence.
 
+D034's next bounded slice is a context-aware compact meeting-review contract:
+summary with supported connections first, decisions/commitments next, then
+risks/follow-ups. The initial implementation is offline and synthetic. It uses
+D032 tasks/evidence without changing the Zac Event contract. No real summary,
+local model, automatic context retrieval or fact promotion is enabled yet.
+
 ## Tracking Rules
 - [ ] means incomplete or not yet verified.
 - [x] means completed and verified.
@@ -340,10 +346,11 @@ their own real-ingestion gates are satisfied, and no live Fireflies (or
 any other connector) account may be connected without its own separate,
 explicit approval. D032 Core Intelligence Contracts is now complete as an
 independently reviewed synthetic contract foundation. The next concrete step
-is to reconcile D033C's successful one-meeting trial and define the next bounded
-local evidence-review slice in the existing Phase 3 roadmap. Establish the
-useful output Zac wants and the allowed local processing method before analyzing
-real meeting content. Recurring access and wider source permissions require their
+is D034's bounded local evidence review: Zac selected a short context-aware
+summary, decisions/commitments, then risks/follow-ups in concise conversational
+language. Validate the offline review contract, then design authorized context
+assembly and an evaluated local processing runtime before real meeting analysis.
+Recurring access and wider source permissions require their
 own design and approval. D032 extends this roadmap without completing production
 routing or execution, or changing the later phase order.
 No live connection, credential or transcript is authorized by D031B or D032.

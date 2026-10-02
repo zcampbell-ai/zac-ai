@@ -3681,6 +3681,72 @@ identity merging, scheduler or retention/deletion policy was enabled. The
 next slice must preserve the existing Phase 3 order and determine Zac's useful
 review output and permitted local processing before analyzing real content.
 
+## D034 - Context-Aware Compact Meeting Review (Offline Foundation)
+
+Date: 2026-10-02
+Status: Implemented offline; live analysis and model/runtime selection pending
+
+Context and decision:
+Zac requested a short meeting summary that connects to the surrounding work,
+followed by decisions and commitments, then risks and follow-ups. Output should
+use concise, plain conversational language rather than long generic AI prose.
+At his explicit request, a bounded ten-message sample of his sent mail was read
+through the already connected Brainstorm Gmail account to establish a provisional
+style baseline. Only his authored portions informed the baseline; quoted replies,
+forwards and signatures are not style examples. The sample includes short replies
+and longer formal messages; his explicit preference for brevity takes priority.
+No email contents, addresses, message IDs or client facts enter Git or fixtures.
+This read does not install a Gmail connector or ingest mail into canonical state.
+
+The new vendor-neutral review proposal uses the unchanged D032 IntelligenceTask
+and host-selected evidence roles. Every claim must quote the current meeting;
+a claimed connection additionally requires a quote from host-supplied related
+context. Exact character spans must match supplied context text. Unsupported
+connection claims are rejected, and absence of an established connection is
+shown explicitly. Source quotes remain in the structured proposal for future
+on-demand evidence display instead of crowding the default preview.
+
+The preview orders contextual summary, decisions/commitments, risks/follow-ups.
+Initial display limits are 60 words for summary plus connection and 180 words
+for the total preview, including owner/date labels, plus a 1,400-character cap
+against oversized unbroken strings. The preview is visibly labeled Draft review.
+Over-budget proposals fail
+rather than silently discarding issues. Inferences are visibly marked Possible;
+owner/date labels remain proposed and unknown action owners remain unconfirmed.
+These are draft display labels, not canonical identity resolution or facts.
+
+Security, limitations and scope:
+The host must independently resolve authorized canonical evidence, verify current
+effective classifications and content hashes, and supply relevant context.
+Quote presence is structural evidence, not proof of semantic entailment, prior
+chronology, agreement, identity, completeness or accurate prose. An evaluator
+and human review remain necessary. Frozen declarations and quote checks do not
+sandbox malicious Python hosts or neutralize prompt injection in a future model.
+The renderer returns untrusted plain text; a future UI must escape it and expose
+supporting quotes. No provider, local inference service, live analysis, retrieval,
+dispatch, promotion, new canonical store, email send or source permission is
+introduced. Real meeting text remains outside external AI systems, including the
+engineering reviewer. Style imitation is not claimed validated from ten samples;
+future outputs require Zac's feedback. Durable style memory belongs in Zac State,
+not in a provider prompt history or this development document.
+
+Approval or source:
+Zac's explicit output order, contextual-summary requirement, concise writing
+preference and instruction to read sent emails for style, 2026-10-02. This is an
+extension of the existing Phase 3 evidence-review path toward Phase 4 context
+assembly, not a replacement roadmap or authorization for recurring source access.
+Local runtime selection and permitted real-content processing remain next steps.
+
+Supersedes: None. Extends D030/D032/D033C.
+
+Verification:
+763 tests pass, including 22 new synthetic review cases. Ruff is clean and strict
+mypy passes across 30 source files. Claude independently reviewed the review
+contract and tests and found no blockers; overlap of current/related evidence,
+fabricated quote spans, wrong task, classification downgrade, budget overflow and
+forged declarations are covered. These checks prove structural behavior only;
+no real-content summary quality, style fidelity or local model was evaluated.
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)
@@ -3714,7 +3780,7 @@ Approval or source:
 Supersedes:
 
 ## Next Concrete Step
-Reconcile D033C's verified one-meeting capture, then define the next bounded
-local evidence-review slice within Phase 3. Obtain Zac's intended useful output
-and permitted processing method before real-content analysis. Preserve unresolved
+Validate D034's offline compact review, then design authorized context assembly
+and an evaluated local runtime for Zac's selected output order before real-content
+analysis. Preserve unresolved
 source ACL, recurring-access, production-routing and full real-state restore gates.
