@@ -158,25 +158,11 @@ def prepare_transcript_reply(response_bytes: bytes, *, expected_id: str) -> Prep
     build_transcript_request(expected_id)
     if not isinstance(response_bytes, bytes) or len(response_bytes) > MAX_RESPONSE_BYTES:
         raise FirefliesWireError("invalid response size or type")
+    data = parse_graphql_reply(response_bytes, field="transcript")
     try:
-        raw = json.loads(
-            response_bytes,
-            object_pairs_hook=_unique_object,
-            parse_constant=_reject_constant,
-            parse_float=_finite_float,
-        )
-        if not isinstance(raw, dict) or set(raw) - {"data", "errors", "extensions"}:
-            raise FirefliesWireError("invalid response envelope")
-        if "errors" in raw and raw["errors"] != []:
-            raise FirefliesWireError("Fireflies reported a query error")
-        data = raw.get("data")
-        if not isinstance(data, dict) or set(data) != {"transcript"} or data["transcript"] is None:
-            raise FirefliesWireError("transcript unavailable")
-        transcript = WireTranscript.model_validate(data["transcript"])
-    except FirefliesWireError as exc:
-        raise FirefliesWireError(str(exc)) from None
-    except (ValueError, TypeError, UnicodeError, RecursionError, ValidationError):
-        raise FirefliesWireError("invalid or unsuccessful transcript response") from None
+        transcript = WireTranscript.model_validate(data)
+    except (ValueError, TypeError, ValidationError):
+        raise FirefliesWireError("invalid transcript schema") from None
     if transcript.id != expected_id:
         raise FirefliesWireError("response transcript does not match selected ID")
     if transcript.is_live or transcript.privacy not in _PRIVACY_VALUES:
@@ -191,3 +177,31 @@ def prepare_transcript_reply(response_bytes: bytes, *, expected_id: str) -> Prep
         response_bytes=response_bytes,
         response_hash=content_hash_of(response_bytes),
     )
+
+
+def parse_graphql_reply(response_bytes: bytes, *, field: str) -> object:
+    """Shared bounded, strict envelope decoder for fixed read-only queries.
+
+    This parses data only; field selection is not request authorization.
+    """
+    if not isinstance(response_bytes, bytes) or len(response_bytes) > MAX_RESPONSE_BYTES:
+        raise FirefliesWireError("invalid response size or type")
+    try:
+        raw = json.loads(
+            response_bytes,
+            object_pairs_hook=_unique_object,
+            parse_constant=_reject_constant,
+            parse_float=_finite_float,
+        )
+        if not isinstance(raw, dict) or set(raw) - {"data", "errors", "extensions"}:
+            raise FirefliesWireError("invalid response envelope")
+        if "errors" in raw and raw["errors"] != []:
+            raise FirefliesWireError("Fireflies reported a query error")
+        data = raw.get("data")
+        if not isinstance(data, dict) or set(data) != {field} or data[field] is None:
+            raise FirefliesWireError("requested data unavailable")
+        return data[field]
+    except FirefliesWireError as exc:
+        raise FirefliesWireError(str(exc)) from None
+    except (ValueError, TypeError, UnicodeError, RecursionError):
+        raise FirefliesWireError("invalid or unsuccessful response") from None

@@ -41,6 +41,13 @@ reviewed by Claude and verified with 667 passing tests. The proposed trial is on
 selected by Zac from his own Fireflies account. No live access is approved or
 performed, and source-permission preservation remains an open Phase 3 item.
 
+D033B account-identity validation and linked original/normalized capture are
+independently reviewed offline with synthetic data and 699 passing tests.
+All three artifacts enter existing
+BRAINSTORM backup inventory; no live capture or backup upload has occurred.
+The controlled live host still needs credential/escrow verification, fixed
+transport, durable approval/run audit and separately approved one-meeting access.
+
 ## Tracking Rules
 - [ ] means incomplete or not yet verified.
 - [x] means completed and verified.
@@ -317,7 +324,9 @@ their own real-ingestion gates are satisfied, and no live Fireflies (or
 any other connector) account may be connected without its own separate,
 explicit approval. D032 Core Intelligence Contracts is now complete as an
 independently reviewed synthetic contract foundation. The next concrete step
-is the controlled BRAINSTORM read-only Fireflies host/runtime design and
-implementation, followed by separately approved credential setup and live trial. D032 extends this roadmap without completing production
+is D033C: the controlled BRAINSTORM read-only Fireflies host/runtime
+(credential boundary, fixed transport, durable one-run approval/audit and backup
+verification), using D033A/D033B's reviewed wire/identity/capture path. Follow it
+with separately approved credential setup and live trial. D032 extends this roadmap without completing production
 routing or execution, or changing the later phase order.
 No live connection, credential or transcript is authorized by D031B or D032.

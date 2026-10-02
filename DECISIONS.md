@@ -3386,6 +3386,119 @@ Official sources checked 2026-10-02:
 Supersedes:
 None. Extends D030/D032 and preserves D031B's BRAINSTORM-only recovery gate.
 
+## D033B - Account Identity and Linked Capture (Offline Only)
+Status: Accepted; offline implementation independently reviewed
+Date: 2026-10-02
+
+Context:
+Zac supplied the expected Fireflies login identity and asked to continue. No
+credential or live content access is authorized yet. D033A retains exact replies
+but D030 cannot preserve real-wire privacy/owner metadata through normalization.
+The next live host therefore needs an account check and a provenance-preserving
+capture path before its transport/credential/approval wiring is enabled.
+
+Decision:
+- Add a fixed `user { user_id email }` query, with no caller-selected user ID.
+  Official Fireflies documentation states that omitting the ID returns the API
+  key owner. The offline parser compares that identity to host-supplied expected
+  email (ASCII case-insensitive; malformed/whitespace identities fail closed).
+  It uses D033A's shared bounded strict GraphQL envelope parser. This is fixture
+  validation, not evidence that any live credential has been authenticated.
+- Add `capture_selected_transcript`, a single-writer, BRAINSTORM-only storage
+  helper. Independent local access policy, aware capture timestamp, selected ID,
+  expected account email and exact recording-owner ID/email must match before
+  artifact writes. Host-supplied scope values never come from transcript text.
+  Matching declarations do not issue approval or grant live-access authority.
+- Persist three hash-verified artifacts and immutable Source rows: exact account
+  reply, exact transcript reply, and a versioned normalized envelope containing
+  both Source IDs/hashes and the D030-shaped payload. Each representation has its
+  own external-reference namespace, preventing normalization from superseding
+  the raw reply. Source capture time records observation; meeting occurrence time
+  remains the source's actual meeting timestamp. D030's synthetic pipeline used
+  the meeting timestamp for Source.captured_at; it remains unchanged, so consumers
+  must not infer meeting occurrence from every Source.captured_at. Excerpts omit
+  content.
+- Link the raw and normalized Sources to an immutable Meeting as TRANSCRIPT
+  evidence. Role alone cannot distinguish the two; Source.external_ref's typed
+  namespace and the normalized envelope do. No enum/schema migration is added.
+  Unlike D030's exact-email matching, all attendees remain unresolved in this
+  first-trial helper; identity matching is a separate later workflow.
+  The account Source is explicitly referenced by the normalized
+  envelope, not mislabeled as meeting text. Keep every explicit attendee record
+  as an unresolved reference, including email-only records. No inferred identity
+  links, canonical Person merges or extraction/promotion occurs.
+- Identical captures return the existing Meeting; changed raw privacy/content
+  creates linked source revisions and a new immutable Meeting observation.
+  These are source observations, not a completed cross-revision meeting identity
+  resolver. Existing retracted meetings are not revived. Existing effective
+  source/lineage and meeting labels must exactly match requested classification;
+  any relabeling requires a separate review, so neither replay nor changed content
+  silently weakens an elevated source.
+- Artifact writes precede corresponding Source rows and are read back/hash
+  checked. A DB savepoint rolls back partial capture rows even if a caller catches
+  the error; callers own final transaction commit/rollback. Savepoint entry may
+  flush a caller's pending unrelated rows, so live orchestration must use a fresh
+  dedicated session. D030 orphan artifacts remain an accepted failure mode; no
+  automatic deletion occurs. Normalized artifacts orphaned after rollback can
+  cite rolled-back source UUIDs and must never be treated as canonical evidence.
+- All three Source artifacts enter D031's existing boundary backup inventory.
+  This establishes inventory coverage, not a completed backup or live restore
+  drill for these captures. No backup upload is executed by this helper.
+
+Security and data implications:
+All tests use synthetic identities/content and the isolated `zacai_test` database.
+No credentials, Keychain item, API call, transcript fetch, external model,
+production database, service restart or production configuration is introduced.
+No runtime CLI, network transport or approval implementation is shipped. This
+module trusts approved host configuration and ordinary Python code; it is not a
+sandbox against malicious Python callers. The selected private meeting identifier
+and supplied login email remain in the operator conversation, not fixtures/config.
+
+Live-host acceptance criteria (still pending):
+Before loading credentials or sending either query, the trusted Mac Studio host
+must record separately approved exact account/meeting scope, classification and
+bounded one-run lifetime; permit no agent-controlled override or scheduler.
+Credential setup must follow SECRETS.md, Keychain startup environment injection,
+D017 boundary checking and Lane C escrow/recovery verification. Transport must
+use fixed HTTPS `api.fireflies.ai/graphql`, reject redirects/proxy credential
+forwarding, bound time/bytes and sanitize errors, with no listing/mutation/retry
+expansion. It must verify the API-key owner before the selected meeting query,
+confirm source processing/privacy observations, record durable run success/failure
+without source text/secrets, commit canonical capture, then verify encrypted
+state/artifact backup coverage before declaring trial success. Source ACLs remain
+an observed privacy snapshot; full ACL enforcement and continuing synchronization
+remain unresolved. No external model analysis is part of this first trial.
+
+Alternatives considered:
+Passing normalized text alone to D030 was rejected because it loses metadata.
+Treating `transcript.user` as authentication was rejected: the key-owner identity
+must be queried separately. Adding a general approval/token framework, replacing
+D023/D024, creating a new Event store or altering production runtime was rejected
+as premature. Broad account sync and implicit classification changes are rejected.
+
+Verification:
+699 tests pass (667 existing plus 32 new synthetic identity/capture cases),
+Ruff and strict mypy are clean across 26 source files, and git diff --check is
+clean. Claude independently reviewed the implementation and the final corrections
+in the existing engineering-review session and reported no remaining blockers.
+Its timestamp/role/artifact-ordering observations are documented; meeting time
+is consistently normalized to UTC. Tests verify scope mismatch before writes,
+idempotency, privacy revision lineage, effective classification protection,
+retraction protection, all-three-artifact backup inventory coverage, rollback and
+retry after DB/artifact failures, and sanitized errors. Staged Gitleaks is clean.
+No live readiness, credential authentication or actual backup upload is claimed.
+
+Approval or source:
+Zac Campbell's instruction to continue local development and explicit contextual
+confirmation of BRAINSTORM / CONFIDENTIAL, local source storage, encrypted
+Brainstorm backup and no external model processing, 2026-10-02. This confirms the
+trial data-handling choice; credential setup/live access still needs separate
+bounded approval. No actual meeting content is stored in this development slice.
+Official account-query source checked: https://docs.fireflies.ai/graphql-api/query/user
+
+Supersedes:
+None. Extends D033A/D030/D031 and preserves the existing roadmap and security gates.
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)
