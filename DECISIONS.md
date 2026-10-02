@@ -3861,6 +3861,88 @@ https://docs.ollama.com/capabilities/structured-outputs.
 
 Supersedes: None. Extends D034 without enabling production routing or private inference.
 
+## D034C - Reviewed Supplemental Meeting Project Context
+
+Status: Implemented and verified in the synthetic test environment; live rollout pending.
+
+Context:
+Zac confirmed that a continuing project can span successive SOWs and delivery
+lists, and asked to continue general Zac AI development rather than reconstruct
+a particular client's project history. D029 already supplies stable Project
+identities, immutable versions and source-backed ProjectEvidence. D034C extends
+that model instead of treating a contract name or external list as a project ID.
+
+Decision:
+Add two typed canonical tables: MeetingProjectAssociation and its retraction.
+Both are append-only, including database UPDATE/DELETE rejection triggers.
+An association identifies the immutable Meeting, stable Project, exact project
+version reviewed, boundary, classification and manual confirmation Source.
+Multiple actual projects may relate to one meeting. Corrections append a
+withdrawal and, if appropriate, a separately confirmed replacement assertion.
+The original Meeting.project_id remains a separate historical anchor and is
+never rewritten, silently superseded or merged by these APIs.
+
+The trusted host must capture real human confirmation and separately authorize
+state writes outside agents. Requiring a same-boundary MANUAL Source records
+confirmation provenance; it is not proof of authorization or an approval token.
+No model, connector title, customer-name match or source text can self-approve
+an association. Existing versioned ProjectEvidence retains successive source
+records; contract periods, alias matching and automatic retrieval are not added.
+
+Repository behavior:
+Association creation locks ProjectHead, then Meeting, within the caller's
+transaction. It rejects missing/unauthorized/cross-boundary or retracted
+endpoints, stale reviewed versions, non-manual confirmation, weak classification
+and duplicate active associations. Withdrawal serializes on the Meeting and
+remains available after endpoint retraction. Read APIs return supplemental IDs
+and reviewed/current version numbers, never project contents or fetched artifacts.
+A changed project version is visible for later re-review, not silently treated
+as the version the human confirmed.
+
+Effective read classification includes the association, current Meeting and all
+its Sources, reviewed/current Project versions and their supporting evidence,
+and confirmation Source, refreshing Source elevations on every read. Missing
+permission, withdrawn links, retracted endpoints or disallowed classifications
+produce no context. The caller must use a consistent snapshot and refresh
+policy/evidence before dispatch. This API grants neither source access nor
+private inference authority.
+
+Verification:
+837 tests pass, including 27 new synthetic association cases in guarded
+zacai_test. These exercise actual migration/trigger/FK enforcement and schema/ORM parity, multi-project
+context, version continuity, stale review, unchanged original meeting anchors,
+append-only corrections, duplicate concurrent assertions, boundary denial,
+manual-source requirements, sensitivity elevation including older project
+evidence, and withdrawal after endpoint retraction. Ruff passes; strict mypy
+passes across 33 source files. Claude independently reviewed the schema, repository, migration and synthetic
+tests and found no blockers. His minor bool-version test suggestion is covered
+by the final three invalid-version cases; schema/ORM parity is also tested.
+
+Rollout and limits:
+Migration 0005 is tested in zacai_test only. zacai_dev is not upgraded and no
+real associations, ClickUp attachments, additional ingestion, model calls,
+provider/runtime settings or credentials are changed. D034B's review assembler
+is not yet wired to these supplemental links. Do not call the new APIs on a
+production schema before the protected migration rollout. Context identity
+alone does not establish temporal relevance or imply every old fact remains
+current; that selection still belongs to the bounded evidence workflow.
+
+Approval or source:
+Zac's project-continuity clarification and instruction to continue general
+Zac AI development, 2026-10-02; D026/D029/D030/D032/D034B state and policy contracts.
+
+Delivery priority:
+Zac reiterated that delivery quality, correct course and completing foundational
+setup matter more than coding activity. Keep foundational changes tied to the
+existing roadmap and the smallest demonstrable end-to-end workflow. Evaluate
+source accuracy, contextual continuity, uncertainty, concise style and practical
+usefulness with human feedback; structural tests alone do not demonstrate these.
+Roadmap wording now distinguishes verified v1 foundations from broader unchecked
+phase scope. Do not postpone useful shadow delivery to reconstruct a client's
+entire historical contract structure.
+
+Supersedes: None. Extends the existing roadmap without enabling private inference.
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)
@@ -3894,9 +3976,10 @@ Approval or source:
 Supersedes:
 
 ## Next Concrete Step
-Design a source-backed, reviewed association for the confirmed continuing
-project, preserving successive SOW/list records and temporal context without
-mutating the immutable Meeting. Keep genuinely distinct projects separate. D034B's 27B synthetic result is a
+D034C supplemental association storage and repository APIs are verified with
+synthetic data. Next integrate reviewed project context into the bounded review
+workflow and build canonical refresh/audit/evaluator controls; protect the live
+state snapshot before migration rollout. Keep genuinely distinct projects separate. D034B's 27B synthetic result is a
 candidate for future bounded local shadow review, with refresh/audit/evaluation
 controls required before private inference. Preserve unresolved
 source ACL, recurring-access, production-routing and full real-state restore gates.

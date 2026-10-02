@@ -1188,3 +1188,71 @@ class ArtifactBackupRun(Base):
     artifacts_repaired: Mapped[int | None] = mapped_column(Integer, nullable=True)
     artifacts_failed: Mapped[int | None] = mapped_column(Integer, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class MeetingProjectAssociation(Base):
+    """D034C: reviewed, append-only supplemental project context.
+
+    Pins the project version reviewed without replacing its stable identity.
+    Does not mutate Meeting.project_id or grant access to project contents.
+    """
+
+    __tablename__ = "meeting_project_association"
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    meeting_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    project_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    reviewed_project_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "meeting_project_association_trust_boundary"), nullable=False
+    )
+    data_classification: Mapped[DataClassification] = mapped_column(
+        _enum_column(DataClassification, "meeting_project_association_data_classification"),
+        nullable=False,
+    )
+    confirmation_source_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    noted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    __table_args__ = (
+        UniqueConstraint("id", "trust_boundary", name="uq_meeting_project_association_boundary"),
+        ForeignKeyConstraint(
+            ["meeting_id", "trust_boundary"], ["meeting.id", "meeting.trust_boundary"]
+        ),
+        ForeignKeyConstraint(
+            ["project_id", "reviewed_project_version", "trust_boundary"],
+            ["project.entity_id", "project.version", "project.trust_boundary"],
+        ),
+        ForeignKeyConstraint(
+            ["confirmation_source_id", "trust_boundary"], ["source.id", "source.trust_boundary"]
+        ),
+    )
+
+
+class MeetingProjectAssociationRetraction(Base):
+    """Withdraws one association; its historical assertion remains intact."""
+
+    __tablename__ = "meeting_project_association_retraction"
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    association_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    trust_boundary: Mapped[TrustBoundary] = mapped_column(
+        _enum_column(TrustBoundary, "meeting_project_association_retraction_trust_boundary"),
+        nullable=False,
+    )
+    confirmation_source_id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    retracted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    __table_args__ = (
+        UniqueConstraint("association_id", name="uq_meeting_project_association_retraction"),
+        ForeignKeyConstraint(
+            ["association_id", "trust_boundary"],
+            ["meeting_project_association.id", "meeting_project_association.trust_boundary"],
+        ),
+        ForeignKeyConstraint(
+            ["confirmation_source_id", "trust_boundary"], ["source.id", "source.trust_boundary"]
+        ),
+    )

@@ -77,6 +77,8 @@ from zacai.state import (
     IngestionRunStatus,
     Meeting,
     MeetingAttendee,
+    MeetingProjectAssociation,
+    MeetingProjectAssociationRetraction,
     MeetingRetraction,
     MeetingSource,
     MeetingSourceRole,
@@ -1678,3 +1680,262 @@ def fail_artifact_backup_run(session: Session, *, run_id: uuid.UUID, error: str)
         .where(table.c.id == run_id)
         .values(status=ArtifactBackupRunStatus.FAILED, finished_at=func.now(), error=error)
     )
+
+
+# --- D034C: supplemental reviewed project associations --------------------
+
+
+def _association_confirmation(
+    session: Session, source_id: uuid.UUID, boundary: TrustBoundary
+) -> Source:
+    source = get_source(session, source_id=source_id, requestor_boundaries=frozenset({boundary}))
+    if source is None or source.system is not SourceSystem.MANUAL:
+        raise ValueError("association requires a same-boundary manual confirmation source")
+    # MANUAL records provenance, not an approval credential. A trusted host must
+    # capture actual human confirmation and authorize this write outside agents.
+    return source
+
+
+def _project_context_classification(session: Session, project: Project) -> DataClassification:
+    labels = [project.data_classification]
+    evidence = (
+        session.execute(
+            select(ProjectEvidence.source_id).where(
+                ProjectEvidence.project_entity_id == project.entity_id,
+                ProjectEvidence.project_version == project.version,
+                ProjectEvidence.stance == EvidenceStance.SUPPORTS,
+            )
+        )
+        .scalars()
+        .all()
+    )
+    labels.extend(
+        get_effective_source_classification(session, source_id=source_id) for source_id in evidence
+    )
+    return max(labels, key=_CLASSIFICATION_ORDER.__getitem__)
+
+
+def _meeting_context_classification(session: Session, meeting: Meeting) -> DataClassification:
+    labels = [meeting.data_classification]
+    source_ids = (
+        session.execute(
+            select(MeetingSource.source_id).where(
+                MeetingSource.meeting_id == meeting.id,
+            )
+        )
+        .scalars()
+        .all()
+    )
+    labels.extend(
+        get_effective_source_classification(session, source_id=source_id)
+        for source_id in source_ids
+    )
+    return max(labels, key=_CLASSIFICATION_ORDER.__getitem__)
+
+
+def associate_meeting_project(
+    session: Session,
+    *,
+    meeting_id: uuid.UUID,
+    project_id: uuid.UUID,
+    reviewed_project_version: int,
+    confirmation_source_id: uuid.UUID,
+    data_classification: DataClassification,
+    requestor_boundaries: frozenset[TrustBoundary],
+) -> MeetingProjectAssociation:
+    """Trusted host write, after human review; never automatic title matching.
+
+    Locks the project head (also serializes version changes) and meeting in that
+    order. Transaction ownership remains with the caller, as in D026. Pins the
+    reviewed current version, rejects inactive endpoints/duplicate active links,
+    and never changes the historical Meeting.project_id. MANUAL provenance alone
+    is not permission: approval/credential/security gateways remain outside agents.
+    """
+    head = session.execute(
+        select(ProjectHead)
+        .where(
+            ProjectHead.entity_id == project_id,
+            ProjectHead.trust_boundary.in_(requestor_boundaries),
+        )
+        .with_for_update()
+    ).scalar_one_or_none()
+    if head is None:
+        raise ValueError("project not found or not authorized")
+    session.execute(
+        select(Meeting.id)
+        .where(
+            Meeting.id == meeting_id,
+            Meeting.trust_boundary == head.trust_boundary,
+        )
+        .with_for_update()
+    ).scalar_one_or_none()
+    meeting = get_meeting(
+        session, meeting_id=meeting_id, requestor_boundaries=frozenset({head.trust_boundary})
+    )
+    project = get_project(
+        session, entity_id=project_id, requestor_boundaries=frozenset({head.trust_boundary})
+    )
+    if meeting is None or project is None:
+        raise ValueError("active same-boundary endpoints required")
+    if type(reviewed_project_version) is not int or reviewed_project_version != project.version:
+        raise ValueError("project changed since review")
+    _association_confirmation(session, confirmation_source_id, head.trust_boundary)
+    required = max(
+        _project_context_classification(session, project),
+        _meeting_context_classification(session, meeting),
+        get_effective_source_classification(session, source_id=confirmation_source_id),
+        key=_CLASSIFICATION_ORDER.__getitem__,
+    )
+    if _CLASSIFICATION_ORDER[data_classification] < _CLASSIFICATION_ORDER[required]:
+        raise ClassificationTooWeakError("association classification is too weak")
+    existing = session.execute(
+        select(MeetingProjectAssociation.id).where(
+            MeetingProjectAssociation.meeting_id == meeting_id,
+            MeetingProjectAssociation.project_id == project_id,
+            ~select(MeetingProjectAssociationRetraction.id)
+            .where(
+                MeetingProjectAssociationRetraction.association_id == MeetingProjectAssociation.id,
+            )
+            .exists(),
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise ValueError("an active association already exists")
+    association = MeetingProjectAssociation(
+        meeting_id=meeting_id,
+        project_id=project_id,
+        reviewed_project_version=reviewed_project_version,
+        trust_boundary=head.trust_boundary,
+        data_classification=data_classification,
+        confirmation_source_id=confirmation_source_id,
+    )
+    session.add(association)
+    session.flush()
+    return association
+
+
+def retract_meeting_project_association(
+    session: Session,
+    *,
+    association_id: uuid.UUID,
+    confirmation_source_id: uuid.UUID,
+    requestor_boundaries: frozenset[TrustBoundary],
+) -> MeetingProjectAssociationRetraction:
+    """Append a withdrawal after host-authorized human correction.
+
+    Works even if the project/meeting was subsequently retracted. Locks the
+    meeting, as association creation does, to serialize withdrawal/reassertion.
+    """
+    association = session.execute(
+        select(MeetingProjectAssociation).where(
+            MeetingProjectAssociation.id == association_id,
+            MeetingProjectAssociation.trust_boundary.in_(requestor_boundaries),
+        )
+    ).scalar_one_or_none()
+    if association is None:
+        raise ValueError("association not found or not authorized")
+    session.execute(
+        select(Meeting.id).where(Meeting.id == association.meeting_id).with_for_update()
+    ).scalar_one()
+    _association_confirmation(session, confirmation_source_id, association.trust_boundary)
+    existing = session.execute(
+        select(MeetingProjectAssociationRetraction.id).where(
+            MeetingProjectAssociationRetraction.association_id == association_id,
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise ValueError("association already withdrawn")
+    retraction = MeetingProjectAssociationRetraction(
+        association_id=association_id,
+        trust_boundary=association.trust_boundary,
+        confirmation_source_id=confirmation_source_id,
+    )
+    session.add(retraction)
+    session.flush()
+    return retraction
+
+
+@dataclass(frozen=True)
+class MeetingProjectContext:
+    association_id: uuid.UUID
+    project_id: uuid.UUID
+    reviewed_project_version: int
+    current_project_version: int
+    confirmation_source_id: uuid.UUID
+    effective_classification: DataClassification
+
+
+def get_meeting_project_context(
+    session: Session,
+    *,
+    meeting_id: uuid.UUID,
+    requestor_boundaries: frozenset[TrustBoundary],
+    allowed_classifications: frozenset[DataClassification],
+) -> tuple[MeetingProjectContext, ...]:
+    """Read active supplemental links, refreshing evidence labels each time.
+
+    Does not return project text, fetch related sources, infer contract dates,
+    grant access, or merge the separate immutable Meeting.project_id anchor.
+    A changed project version is explicit for the caller to re-review. Caller
+    must use a consistent snapshot and refresh policy/evidence before dispatch.
+    """
+    meeting = get_meeting(session, meeting_id=meeting_id, requestor_boundaries=requestor_boundaries)
+    if meeting is None:
+        return ()
+    associations = (
+        session.execute(
+            select(MeetingProjectAssociation)
+            .where(
+                MeetingProjectAssociation.meeting_id == meeting_id,
+                MeetingProjectAssociation.trust_boundary == meeting.trust_boundary,
+                ~select(MeetingProjectAssociationRetraction.id)
+                .where(
+                    MeetingProjectAssociationRetraction.association_id
+                    == MeetingProjectAssociation.id,
+                )
+                .exists(),
+            )
+            .order_by(MeetingProjectAssociation.noted_at, MeetingProjectAssociation.id)
+        )
+        .scalars()
+        .all()
+    )
+    contexts = []
+    for association in associations:
+        project = get_project(
+            session,
+            entity_id=association.project_id,
+            requestor_boundaries=frozenset({meeting.trust_boundary}),
+        )
+        if project is None:
+            continue
+        reviewed = session.execute(
+            select(Project).where(
+                Project.entity_id == association.project_id,
+                Project.version == association.reviewed_project_version,
+                Project.trust_boundary == meeting.trust_boundary,
+            )
+        ).scalar_one()
+        label = max(
+            association.data_classification,
+            _meeting_context_classification(session, meeting),
+            _project_context_classification(session, project),
+            _project_context_classification(session, reviewed),
+            get_effective_source_classification(
+                session, source_id=association.confirmation_source_id
+            ),
+            key=_CLASSIFICATION_ORDER.__getitem__,
+        )
+        if label not in allowed_classifications:
+            continue
+        contexts.append(
+            MeetingProjectContext(
+                association.id,
+                association.project_id,
+                association.reviewed_project_version,
+                project.version,
+                association.confirmation_source_id,
+                label,
+            )
+        )
+    return tuple(contexts)

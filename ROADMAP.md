@@ -10,9 +10,11 @@ DECISIONS.md records meaningful architectural decisions.
 This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position
-Phase 0 and Phase 1 are complete (see the Phase 1 completion audit,
-DECISIONS.md D016-D025). Phase 2 (Canonical State, Memory, and Evidence)
-is complete through D029: Zac State v1 storage foundation (D026), test
+Phase 0 is complete. Phase 1's audited v1 runtime/safety scope is complete
+(DECISIONS.md D016-D025); broader secrets/recovery items remain tracked below.
+Phase 2 (Canonical State, Memory, and Evidence) has a verified storage
+foundation through D029, not completion of its entire entity/memory scope:
+Zac State v1 storage foundation (D026), test
 database isolation (D027), encrypted Lane B backup/restore (D028), and
 the entity model expansion - Company, Project, Decision, Meeting, and
 their supporting tables (D029). D030 (synthetic read-only ingestion
@@ -75,7 +77,11 @@ promotion is enabled. Zac clarified that client meetings should anchor to the
 continuing project, with its SOWs and delivery lists retained as dated context.
 Zac confirmed that successive contracts can represent the same project over
 time; contract renaming alone must not create a new project. Ambiguous or
-multiple actual projects must still be surfaced for review.
+multiple actual projects must still be surfaced for review. D034C adds tested
+append-only supplemental meeting/project associations with reviewed version pins,
+withdrawals, boundary checks and refreshed sensitivity labels. Migration 0005
+is verified in zacai_test only; live schema rollout and review integration remain
+incomplete.
 
 ## Tracking Rules
 - [ ] means incomplete or not yet verified.
@@ -96,6 +102,12 @@ For each phase:
 - Preserve source provenance and trust boundaries where applicable.
 - Verify recovery or rollback appropriate to the change.
 - Record remaining limitations and meaningful decisions.
+- For intelligence workflows, evaluate delivered outputs against source facts,
+  contextual continuity, uncertainty, Zac's concise writing preferences and
+  usefulness. Tests/schema compliance alone do not establish output quality.
+- Use the smallest end-to-end shadow workflow to gather feedback before
+  expanding sources, scope or autonomy; keep foundational work tied to a
+  demonstrable capability in this existing roadmap.
 
 ## Phase 0 - Project Foundation
 - [x] Create and clone the private zac-ai GitHub repository.
@@ -360,9 +372,11 @@ summary, decisions/commitments, then risks/follow-ups in concise conversational
 language. D034B's context assembly and synthetic benchmark are verified.
 The selected meeting's client and candidate ClickUp records have been identified
 through read-only inspection. Zac confirmed that the relevant successive SOWs
-represent one continuing project. Next design a source-backed, human-reviewed
-association to that stable project, preserving each contract/list's history and
-keeping temporal relevance separate from project identity before real analysis.
+represent one continuing project. D034C now verifies a source-backed, reviewed
+association foundation without changing historical Meetings. Next integrate
+reviewed project context into the bounded evidence workflow and add canonical
+refresh/audit/evaluator controls. Protect the live state snapshot before migration
+rollout; keep temporal relevance separate from project identity before analysis.
 The existing Meeting.project_id is immutable; do not backfill it by mutation.
 The 27B model is a candidate for a bounded local shadow review, not an approved
 private runtime. It still needs canonical refresh, audit and evaluator controls.
