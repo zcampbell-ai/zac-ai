@@ -3308,6 +3308,84 @@ Supersedes:
 None. Extends D001/D004/D008/D023/D024/D026/D030; preserves D031B and all
 existing roadmap phases. Updates immediate sequencing to D032 before Fireflies.
 
+## D033A - Selected Fireflies Transcript Wire Preparation (Offline Only)
+Status: Accepted; offline implementation independently reviewed
+Date: 2026-10-02
+
+Context:
+After D032, Zac selected one Brainstorm work meeting and confirmed it belongs to
+his Fireflies account. The meeting identifier and link remain in the operator
+conversation, not committed configuration. Selection establishes proposed scope,
+not approval to obtain credentials, fetch real content or persist it. Official
+Fireflies schemas differ from D030's fixtures: `dateString` is timezone-aware,
+`participants` is a list of emails, `meeting_attendees` provides explicit names
+and emails, and `sentences` supplies indexed speaker text. D030's normalized
+artifact cannot by itself preserve the real response's observed source privacy.
+
+Decision:
+Add `zacai.connectors.fireflies_wire`, a pure offline adapter with a fixed
+`transcript(id: $transcriptId)` query and variable-only ID binding. It requests
+selected transcript text, explicit attendees, observed privacy, recording-owner
+metadata and completion state; no account listing, mutation, audio/video or
+model-generated summaries. Reply processing rejects GraphQL errors even with
+partial data, unavailable/wrong transcript IDs, live/unfinished meetings, unknown
+privacy values, naive timestamps, duplicate JSON fields/sentence indices,
+invalid schema and responses over 2 MB. Failure messages are sanitized.
+
+The prepared result retains exact original response bytes and their SHA-256,
+plus a frozen typed representation. Its repr omits transcript/response content.
+A separate D030-compatible normalized view orders sentences and maps only
+explicitly named attendees; speaker names are never guessed into attendee email
+identities. Unresolved metadata remains in the original response. No network,
+credential, database or artifact write occurs. D030 is not rewired.
+
+Alternatives considered:
+Feeding a real response directly into the synthetic D030 parser was rejected as
+schema-incompatible. Discarding the original reply after normalizing text was
+rejected because it loses observed source metadata and exact-byte provenance.
+A generic GraphQL client/account-wide sync was rejected as excessive first-trial
+scope. Wiring live transport or production credentials before separately reviewed
+host authorization/storage controls was rejected.
+
+Security and data implications:
+Only synthetic fixtures are exercised. Observed privacy and recording-owner
+metadata are snapshots, not complete source ACLs or authentication of the API-key
+owner. A future trusted host must bind the selected ID to human-approved scope,
+verify account identity, enforce read-only requests and prevent credential leaks.
+Original response bytes require their own canonical Source/provenance reference
+and encrypted backup coverage; ingesting the normalized view alone is explicitly
+insufficient. Live orchestration must verify all those prerequisites before use.
+There is no shipped transport, live CLI, Keychain loader or live fetch in D033A.
+
+Consequences:
+The real-wire mapping is tested before real content is introduced. This does not
+mark Phase 3 Add Fireflies or source-permission preservation complete. Next is a
+bounded live-host design covering approval, credential handling/escrow, identity,
+raw+normalized provenance and backup, followed by explicit live-access approval.
+
+Verification:
+667 tests pass (639 existing plus 28 new synthetic wire cases), Ruff and strict
+mypy are clean across 24 source files, and git diff --check is clean. Claude
+independently reviewed this slice and found no safety blocker. Its diagnostic
+issue (specific sanitized failures caught by the generic ValueError handler) is
+fixed and tested. Its numeric-overflow caveat is addressed with a finite JSON
+float parser. Source processing readiness remains unverified live: is_live=false
+plus nonblank sentences is a conservative snapshot check, not a claim that all
+Fireflies processing is complete. Staged gitleaks secret scan is clean.
+
+Approval or source:
+Zac Campbell's continuation instruction and selection of a single account-owned
+meeting, 2026-10-02. No live-content/credential authorization is inferred.
+Official sources checked 2026-10-02:
+- https://docs.fireflies.ai/graphql-api/query/transcript
+- https://docs.fireflies.ai/schema/transcript
+- https://docs.fireflies.ai/schema/meeting-attendee
+- https://docs.fireflies.ai/schema/sentence
+- https://docs.fireflies.ai/graphql-api/query/user
+
+Supersedes:
+None. Extends D030/D032 and preserves D031B's BRAINSTORM-only recovery gate.
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)

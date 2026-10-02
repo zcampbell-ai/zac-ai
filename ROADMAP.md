@@ -36,6 +36,11 @@ Event envelope, source-backed task/result contracts, separate provider/model/
 runtime identities and host-controlled eligibility; it does not complete the
 production routing or action-execution phases. No live source is connected.
 
+D033A selected-transcript wire preparation is complete offline, independently
+reviewed by Claude and verified with 667 passing tests. The proposed trial is one meeting
+selected by Zac from his own Fireflies account. No live access is approved or
+performed, and source-permission preservation remains an open Phase 3 item.
+
 ## Tracking Rules
 - [ ] means incomplete or not yet verified.
 - [x] means completed and verified.
@@ -312,7 +317,7 @@ their own real-ingestion gates are satisfied, and no live Fireflies (or
 any other connector) account may be connected without its own separate,
 explicit approval. D032 Core Intelligence Contracts is now complete as an
 independently reviewed synthetic contract foundation. The next concrete step
-is to prepare the separately approved, controlled BRAINSTORM read-only
-Fireflies trial. D032 extends this roadmap without completing production
+is the controlled BRAINSTORM read-only Fireflies host/runtime design and
+implementation, followed by separately approved credential setup and live trial. D032 extends this roadmap without completing production
 routing or execution, or changing the later phase order.
 No live connection, credential or transcript is authorized by D031B or D032.
