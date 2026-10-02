@@ -72,7 +72,10 @@ checks; the 9B model still changed planned work into completed work, while
 the 27B model handled the three final synthetic cases more accurately.
 No real meeting analysis, private model route, automatic retrieval or fact
 promotion is enabled. Zac clarified that client meetings should anchor to the
-relevant project/SOW, with ambiguous or multiple projects surfaced for review.
+continuing project, with its SOWs and delivery lists retained as dated context.
+Zac confirmed that successive contracts can represent the same project over
+time; contract renaming alone must not create a new project. Ambiguous or
+multiple actual projects must still be surfaced for review.
 
 ## Tracking Rules
 - [ ] means incomplete or not yet verified.
@@ -355,8 +358,11 @@ independently reviewed synthetic contract foundation. The next concrete step
 is D034's bounded local evidence review: Zac selected a short context-aware
 summary, decisions/commitments, then risks/follow-ups in concise conversational
 language. D034B's context assembly and synthetic benchmark are verified.
-Next identify the selected meeting's client and candidate ClickUp project/SOW,
-then design a source-backed, human-reviewed association before real analysis.
+The selected meeting's client and candidate ClickUp records have been identified
+through read-only inspection. Zac confirmed that the relevant successive SOWs
+represent one continuing project. Next design a source-backed, human-reviewed
+association to that stable project, preserving each contract/list's history and
+keeping temporal relevance separate from project identity before real analysis.
 The existing Meeting.project_id is immutable; do not backfill it by mutation.
 The 27B model is a candidate for a bounded local shadow review, not an approved
 private runtime. It still needs canonical refresh, audit and evaluator controls.

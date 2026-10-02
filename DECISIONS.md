@@ -3825,6 +3825,21 @@ multiple-project associations need a separately reviewed append-only design,
 not an in-place backfill. No association or ClickUp attachment has been written.
 This requirement refines the existing evidence/context roadmap, not a competing plan.
 
+Subsequent contextual clarification, 2026-10-02:
+Read-only ClickUp inspection found an account, successive SOW records, and
+explicit Project Tasks links to their delivery lists. Zac confirmed that the
+selected work continued as one project while contracts/names changed over time.
+Use a stable canonical Project identity as the context anchor; retain each SOW
+and delivery list as distinct source records associated with that project. Do
+not turn each contract into a separate Project or merge/overwrite ClickUp
+records. Project identity does not make every historical fact current: preserve
+source dates, contract scope and uncertainty about transitions, and select only
+relevant background for each review. This human confirmation covers the
+identified engagement, not every same-client contract. No canonical association
+or source ingestion has been written. Private client names, task IDs and
+commercial details are intentionally absent from this engineering checkpoint.
+
+
 Verification:
 810 tests pass, including 47 new canonical context/generation/transport cases;
 Ruff is clean and strict mypy passes across 33 source files. DB tests remain in
@@ -3879,9 +3894,9 @@ Approval or source:
 Supersedes:
 
 ## Next Concrete Step
-Identify the client and candidate project/SOW for the selected recurring meeting,
-then design a source-backed, reviewed association without mutating the immutable
-Meeting or forcing multiple projects into one. D034B's 27B synthetic result is a
+Design a source-backed, reviewed association for the confirmed continuing
+project, preserving successive SOW/list records and temporal context without
+mutating the immutable Meeting. Keep genuinely distinct projects separate. D034B's 27B synthetic result is a
 candidate for future bounded local shadow review, with refresh/audit/evaluation
 controls required before private inference. Preserve unresolved
 source ACL, recurring-access, production-routing and full real-state restore gates.
