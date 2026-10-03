@@ -3943,6 +3943,101 @@ entire historical contract structure.
 
 Supersedes: None. Extends the existing roadmap without enabling private inference.
 
+## D034D - Explicit Reviewed Project Evidence in Meeting Draft Context
+
+Date: 2026-10-03
+Status: Implemented, independently reviewed and synthetic tests verified; live rollout pending.
+
+Context:
+D034C provides canonical supplemental meeting/project associations. Zac asked
+to continue foundational implementation toward useful delivered meeting reviews,
+retaining the existing roadmap and Claude as independent engineering reviewer.
+The next slice connects explicitly selected project evidence to the existing
+canonical meeting assembler and draft quote catalog.
+
+Decision:
+Add an opt-in assemble_project_review_context host seam, preserving the existing
+D034B assembler and Zac Event contract. The host selects one to three exact
+association/Source pairs; it does not discover sources or match titles/customers.
+Each primary association must be active, same-boundary, and still pin the current
+reviewed Project version. The selected Source must SUPPORT that exact version.
+Only explicitly selected, hash-verified MANUAL UTF-8 project artifacts are
+decoded; no ClickUp API source decoder or automatic SOW ingestion is introduced.
+
+Earlier selected meetings must have an active reviewed association to at least
+one selected stable Project identity. Historical association version pins may
+remain older than current, preserving continuity across contract changes; they
+are not converted into present-day scope/status assertions. Shared identity is
+not proof of topical relevance: explicit host relevance selection and semantic
+evaluation remain required. A meeting may span several projects; overlap does
+not attribute its entire transcript to every project.
+
+All classification dependencies enter event provenance as metadata: used
+association confirmations, supporting evidence for reviewed/current Project
+versions, and all Sources linked to selected meetings. The host refreshes
+effective classifications and existing LOCAL READ_DATA gateway checks. Only
+selected transcript/project artifact text enters the model quote catalog;
+confirmation and unselected historical evidence bodies are not fetched. A
+confirmation Source cannot also be selected as project prose, even if cited by
+ProjectEvidence; a regression case enforces this before any artifact reads.
+Project EntityReferences retain stable UUIDs and reviewed version pins.
+Every resulting draft claim still requires selected-meeting evidence; a
+continuity claim additionally needs quoted background evidence. Generation
+instructions explicitly warn that related contract records may be historical
+and must not imply current facts or invented transition dates.
+
+Limits:
+At most eight explicit meetings, three projects and 64 combined provenance
+Sources; selected project artifacts are capped at 16,000 bytes/8,000 characters,
+with the existing 24,000-character combined context cap. Invalid UTF-8, NUL,
+blank text, integrity failure, unsupported source types, stale or withdrawn
+links and disallowed labels fail with fixed sanitized errors. No silent
+truncation or fallbacks. Caller owns a consistent snapshot and must refresh
+canonical evidence/policy before any future dispatch.
+
+Verification:
+862 tests pass, including 25 new synthetic canonical-to-draft integration cases
+in guarded zacai_test. They verify exact Project versions/provenance, quoted
+background reaching the compact preview, metadata-only confirmations, withdrawn
+and stale links, unlinked meetings, old-version sensitivity elevation, boundary
+denial, source corruption, invalid/oversized artifacts, contradictory evidence
+exclusion, shared-source deduplication across distinct projects, duplicate
+project identity rejection and inventory limits. Ruff passes; strict mypy passes across 34 source
+files. These deterministic draft tests verify plumbing, not model semantics or
+real-content readiness. Claude independently reviewed the initial implementation,
+shared-source refinements and final role-isolation guard; all reviews found no
+blockers. The final review confirmed that confirmation-source alias rejection
+occurs before artifact reads and preserves shared-source behavior.
+
+Local PUBLIC-only evaluation:
+The reusable benchmark adds one invented continuing-project/across-contracts
+case; no private source data is supplied. The pinned qwen3.8:27b-mlx initial
+four-case run passed structural checks, but manual review found an overstatement
+of "not agreed" as a nonexistent completion date. After uncertainty wording was
+tightened, the final four-case run passed three cases; the new project case was
+rejected for failing selected-meeting citation requirements. A separate manual
+PUBLIC-only diagnostic confirmed that rejection; no automatic retry or relaxed
+validation was added. The other cases remained around 8.03/10.93/12.45 seconds.
+This is evidence of a remaining model-output weakness, not private-runtime
+readiness or a reason to remove safeguards. Output evaluation and human feedback
+remain required before promotion.
+
+Rollout and limits:
+No new schema migration; the new opt-in path depends on 0005, whose live rollout
+is still pending. No production database changes, real project associations,
+private inference, additional ingestion, external attachments, model downloads
+or runtime configuration changes occur. MANUAL provenance and association
+records do not authorize inference or writes. Canonical refresh, audit/evaluator
+controls, protected migration rollout and bounded local shadow review remain
+next, before real-output evaluation. Wider source ACL/recurring access and full
+real-state restore gates remain open.
+
+Approval or source:
+Zac's continuation instruction, 2026-10-03; existing project-continuity and
+delivery-quality requirements; D026-D034C canonical state/policy contracts.
+
+Supersedes: None. Extends the existing roadmap without promoting private runtime use.
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)
@@ -3976,10 +4071,10 @@ Approval or source:
 Supersedes:
 
 ## Next Concrete Step
-D034C supplemental association storage and repository APIs are verified with
-synthetic data. Next integrate reviewed project context into the bounded review
-workflow and build canonical refresh/audit/evaluator controls; protect the live
-state snapshot before migration rollout. Keep genuinely distinct projects separate. D034B's 27B synthetic result is a
+D034D now integrates explicitly selected reviewed project evidence into the
+canonical meeting/draft context, verified with synthetic data. Next build
+canonical refresh/audit/evaluator controls and the bounded local shadow workflow;
+protect the live state snapshot before migration rollout. Keep genuinely distinct projects separate. D034B's 27B synthetic result is a
 candidate for future bounded local shadow review, with refresh/audit/evaluation
 controls required before private inference. Preserve unresolved
 source ACL, recurring-access, production-routing and full real-state restore gates.

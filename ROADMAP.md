@@ -81,7 +81,10 @@ multiple actual projects must still be surfaced for review. D034C adds tested
 append-only supplemental meeting/project associations with reviewed version pins,
 withdrawals, boundary checks and refreshed sensitivity labels. Migration 0005
 is verified in zacai_test only; live schema rollout and review integration remain
-incomplete.
+incomplete. D034D now integrates explicitly selected reviewed project evidence
+into meeting/draft context, with source hashes, version pins, dependency labels
+and provenance verified in synthetic tests. This does not enable a private
+model runtime, automatic retrieval or production schema rollout.
 
 ## Tracking Rules
 - [ ] means incomplete or not yet verified.
@@ -373,9 +376,9 @@ language. D034B's context assembly and synthetic benchmark are verified.
 The selected meeting's client and candidate ClickUp records have been identified
 through read-only inspection. Zac confirmed that the relevant successive SOWs
 represent one continuing project. D034C now verifies a source-backed, reviewed
-association foundation without changing historical Meetings. Next integrate
-reviewed project context into the bounded evidence workflow and add canonical
-refresh/audit/evaluator controls. Protect the live state snapshot before migration
+association foundation without changing historical Meetings. D034D now verifies
+explicit reviewed project context reaching quote-backed meeting drafts. Next add
+canonical refresh/audit/evaluator controls and the bounded local shadow workflow. Protect the live state snapshot before migration
 rollout; keep temporal relevance separate from project identity before analysis.
 The existing Meeting.project_id is immutable; do not backfill it by mutation.
 The 27B model is a candidate for a bounded local shadow review, not an approved

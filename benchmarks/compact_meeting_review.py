@@ -21,6 +21,20 @@ from zacai.policy import Destination
 from zacai.policy import TrustBoundary as B
 
 CASES = {
+    "project_across_contracts": (
+        (
+            "Jordan: This is the same reporting project under the new engineering support agreement.\n"
+            "Riley: The old Audit Reporting contract ended, but reconciliation is still unfinished.\n"
+            "Riley: We agreed to test the remaining reporting gaps before release.\n"
+            "Jordan: I will send the test results on 2026-10-09.\n"
+            "Riley: We have not agreed a completion date for all reconciliation work."
+        ),
+        (
+            "Historical project note: The Audit Reporting contract ended in August.\n"
+            "Several reporting mismatches remained unresolved at that time.\n"
+            "The ongoing project is reporting reliability; a contract ending does not establish that testing finished."
+        ),
+    ),
     "follow_up": (
         (
             "Alex: This is the follow-up to last week's dashboard totals issue.\n"
@@ -96,7 +110,7 @@ def main():
         "qwen3.5:9b-mlx": "203e30078279db51132b9e026ceb7bb21330e5b1af67ef190671b375c9770404",
         "qwen3.8:27b-mlx": "5642e97495e1a088883805981563dcdc4a040c2f53388b7a41d1f24d3622cf7e",
     }
-    parser = ArgumentParser(description="Run three PUBLIC synthetic local meeting-review cases.")
+    parser = ArgumentParser(description="Run PUBLIC synthetic local meeting-review cases.")
     parser.add_argument("model", choices=pins)
     model = parser.parse_args().model
     digest = pins[model]
