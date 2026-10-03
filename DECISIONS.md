@@ -4082,6 +4082,68 @@ added autoflush guard also found no blockers. Claude reviewed the OCE ownership/
 source capability claims were verified through primary-source browsing by Codex,
 not independently web-verified by the restricted Claude reviewer.
 
+## D034F - Exact Draft Evaluation and Canonical Audit Foundation
+
+Date: 2026-10-03
+Status: Implemented, independently reviewed and synthetic tests verified; live host pending.
+
+Continue the existing D034 workflow while Zac is away. He authorized independent
+engineering and a nonblocking question log; QUESTIONS.md records future approvals
+and delivery feedback without treating them as granted. No immediate question
+blocks this synthetic foundation work.
+
+Evaluation binds an exact structurally validated draft and full context/roles/task
+identity to SHA-256 digests. The eight required criteria are factual support,
+temporal context, agreements/promises, owners/dates, uncertainty, completeness,
+concision and usefulness. Each has PASS/FAIL/UNREVIEWED; FAIL takes precedence over
+unreviewed. All criteria must occur exactly once, and trusted reviewer/builder
+UUID assignments must differ. These are host-assigned identities, not authenticated
+by the schema. Changed draft/context or mismatched evaluation bindings reject.
+No keyword-based grading or automatic correctness/approval threshold is introduced.
+REVIEW_EVALUATION.md defines the rubric and its limits. The code checks bindings
+and supplied judgments; an independent reviewer must actually assess semantics,
+and Zac's delivery feedback remains essential.
+
+Closed audit events record stage, task/run/event UUIDs, context/output digests,
+host route identity where relevant and bound evaluation metadata. Evaluation
+records must pass the exact draft/context check; the general stage audit API
+rejects evaluation events to avoid bypassing that verification. Evaluation
+outcomes must agree with judgments. Raw quotes, generated prose, backend errors,
+email addresses and arbitrary reviewer notes have no payload field.
+
+The trusted operator appends hash-verified artifacts and canonical MANUAL Sources
+through the existing D030 ArtifactStore/Source mechanism, within exact boundaries
+and labels. PostgreSQL transaction advisory locking serializes an audit UUID's
+first insertion/retries within its boundary. Identical retries reuse the Source
+and recheck artifact integrity; a changed payload cannot reuse the event UUID.
+The caller owns commit. This is not a separate canonical store or a production
+workflow state machine. Orphan artifacts on DB failure remain the existing D030
+failure mode; no deletion or automatic cleanup is introduced. Audit Sources enter
+the existing artifact inventory; this does not verify a live encrypted backup.
+
+No private processing, model-route approval, source expansion, migration rollout,
+production service activation or action/fact promotion occurs. PASS remains a
+reviewed draft, not permission. Next build the fresh-snapshot operator host with
+mandatory audit-before-dispatch, route/security checks, failure audit and a bounded
+shadow result. Actual state recovery/rollout and exact private-processing scope
+still require the separately tracked evidence and human decisions.
+
+Verification: 915 tests pass, including 33 new synthetic evaluator/audit tests,
+with Ruff and strict mypy passing across 37 source files. Coverage includes
+incomplete/duplicate rubric inventories, builder/reviewer separation, exact output
+and context binding, failure/unreviewed precedence, stage consistency, no prose
+in artifacts, boundary denial, corruption, immutable retry identity and evaluation
+API bypass rejection, evaluation retries and pending-write rejection before
+autoflush. These fixtures do not grade actual model semantic quality
+or prove the complete dispatch/backup lifecycle. Claude independently reviewed
+the implementation and documentation and found no blockers. Its suggested
+pending-write test was added, alongside evaluation retry coverage, and the final
+915-test suite passed.
+
+Zac then requested a stop at a good checkpoint and a summary. Work is paused at
+this verified library checkpoint; no dispatch host or live workflow was started.
+Further implementation waits for Zac to resume.
+
 ## D035 - OCE Evaluation Before Custom Production Agent Infrastructure
 
 Date: 2026-10-03
@@ -4160,8 +4222,9 @@ Supersedes:
 ## Next Concrete Step
 D034D now integrates explicitly selected reviewed project evidence into the
 canonical meeting/draft context, verified with synthetic data. D034E adds the
-read-only canonical refresh foundation. Next build the fresh-snapshot dispatch
-host, durable audit/evaluator controls and the bounded local shadow workflow;
+read-only canonical refresh foundation. D034F adds exact-draft evaluation and
+canonical audit primitives. Next build the fresh-snapshot operator dispatch host
+with mandatory audit-before-dispatch and the bounded local shadow workflow;
 protect the live state snapshot before migration rollout. Keep genuinely distinct projects separate. D034B's 27B synthetic result is a
 candidate for future bounded local shadow review, with refresh/audit/evaluation
 controls required before private inference. Preserve unresolved

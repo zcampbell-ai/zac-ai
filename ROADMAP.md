@@ -86,8 +86,9 @@ into meeting/draft context, with source hashes, version pins, dependency labels
 and provenance verified in synthetic tests. This does not enable a private
 model runtime, automatic retrieval or production schema rollout. D034E adds a
 read-only canonical refresh foundation with request expiration and exact evidence
-comparison; the fresh-snapshot dispatch host, durable audit and evaluation remain
-incomplete.
+comparison. D034F adds exact-draft evaluation bindings and canonical audit
+primitives. The actual fresh-snapshot dispatch host, audit-before-dispatch and
+independent semantic evaluation remain incomplete.
 
 ## Tracking Rules
 - [ ] means incomplete or not yet verified.
@@ -390,8 +391,9 @@ through read-only inspection. Zac confirmed that the relevant successive SOWs
 represent one continuing project. D034C now verifies a source-backed, reviewed
 association foundation without changing historical Meetings. D034D now verifies
 explicit reviewed project context reaching quote-backed meeting drafts. Next add
-the fresh-snapshot dispatch host, durable audit/evaluator controls and the bounded
-local shadow workflow; D034E verifies the refresh-check library only. Protect the
+the fresh-snapshot dispatch host with mandatory audit-before-dispatch and the
+bounded local shadow workflow; D034E/D034F verify refresh/evaluation/audit libraries
+only. Protect the
 live state snapshot before migration rollout; keep temporal relevance separate from project identity before analysis.
 The existing Meeting.project_id is immutable; do not backfill it by mutation.
 The 27B model is a candidate for a bounded local shadow review, not an approved
