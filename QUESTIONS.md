@@ -4,7 +4,8 @@ Updated: 2026-10-03
 Purpose: Keep nonblocking decisions here while engineering continues. This log
 is not approval evidence. Zac resumed and selected continued engineering and
 synthetic checks before a concrete private-trial proposal. D034G adds the host
-foundation; mandatory live adapters and recovery checks remain to be completed.
+foundation and D034H adds the local transport adapter. Actual matching tokenizer,
+one-shot authorization and recovery checks remain to be completed.
 No immediate contextual question blocks that engineering work.
 
 ## Decisions needed before a live/private step
@@ -72,3 +73,13 @@ must be verified; no export may be called complete merely because files exist.
 Historical instructions and preferences can inform proposed current standards,
 with source/date/version retained, but do not become authority automatically.
 No immediate question is needed to establish this goal.
+
+## Engineering prerequisite — no user decision needed
+
+Before protected schema 0005 rollout, extend and verify Lane B state snapshot
+coverage for meeting_project_association and its retractions. The existing fixed
+backup TABLE_ORDER omits these new business tables. Preserve restoration of old
+snapshots and export compatibility with the actual live 0004 schema; do not simply
+append new tables and break pre-rollout exports. Also verify consistent snapshot
+isolation across all exported tables before claiming concurrent-write recovery.
+This belongs to the existing recovery gate, not a new feature or phase change.

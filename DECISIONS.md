@@ -4216,6 +4216,64 @@ private model processing was performed as part of this clarification.
 Supersedes: D034B's per-meeting 16,000-character limit only. Extends D034E/D034F;
 no production deployment, source permission or phase-order change.
 
+## D034H - Shared Local Review Runtime and Exact Capacity Binding
+
+Date: 2026-10-03
+Status: Implemented and mocked/synthetic tests verified; actual tokenizer and
+private authorization/protection remain pending. No runtime activated.
+
+Continue D034 after D034G, reusing the existing loopback benchmark transport
+rather than creating a second provider path. The benchmark retains its explicit
+SHARED/PUBLIC-only guard and route eligibility checks. Shared payload/model/JSON/
+response validation lives in local_review_runtime.py; no cloud endpoint, proxy,
+redirect, model pull, tools or fallback path is added.
+
+LocalReviewRuntime is an explicit trusted host adapter, not an approval mechanism.
+Its mandatory local prompt token counter must match the exact model digest and
+count the full rendered chat-template/schema prompt without sending evidence to
+an inference or remote service. No actual tokenizer backend/default is shipped.
+Serialized character/byte capacity and input plus reserved output token capacity
+are checked before metadata requests. Runtime input usage must equal the trusted
+preflight count, otherwise possible clipping/template mismatch discards output.
+The fixed 8,192-token request context is retained from the benchmark; larger
+context is not silently selected. No private source is forced through this cap.
+
+Preflight sends only model-name metadata, binds exact payload/context/task identity
+and clears stale binding on a failed new preflight. Generation requires that
+binding, consumes the instance even on failure, checks exact single-name installed
+model registration and remote flags before and after one chat call, then returns
+only structurally parsed ReviewDraft. Usage stays absent on failure. Total adapter
+latency includes metadata rechecks; socket timeouts and late-output rejection are
+not an OS-enforced hard process-kill deadline. Host freshness/authority checks
+still surround dispatch. Trusted server/model/tokenizer declarations do not prove
+locality or integrity against a hostile host or configuration race. The adapter
+cannot issue permission or replace canonical evidence, gateway or recovery checks.
+
+Tests cover metadata-only preflight, changed/missing binding, a new task with the
+same prose, replay, failed preflight invalidation, pre/post-generation pin changes,
+ambiguous registrations, tokenizer pin/capacity/usage mismatch, malformed/late/
+foreign/incomplete output, tools, safe diagnostics and bounded response/connection
+closure. A mocked runtime integration proves the separate-transaction audit is
+committed before chat dispatch through D034G. No actual model call, tokenizer
+installation, private processing, schema rollout or service activation occurred.
+
+Verification: 967 guarded synthetic tests pass, Ruff is clean and strict mypy
+passes across 39 source files. Claude independently reviewed the adapter, shared
+benchmark path, added failure/scope tests and documentation and found no blockers.
+Its initial concern about absent boundary enforcement was reconciled against
+D034G's existing host gateway/route checks and denied-scope integration tests;
+no synthetic-only restriction was substituted for the authoritative gateway.
+The first private trial still needs actual matching tokenizer evidence, durable
+one-shot authorization, recovery verification, protected migration and exact scope
+approval. Inspection also found the existing Lane B table inventory omits the new 0005
+meeting/project association tables. RECOVERY.md records the required coverage,
+legacy-restore/live-0004 compatibility and consistent export snapshot checks before
+rollout. No backup code, live state, dump or off-device storage changed here.
+These gates are engineering work and concrete decisions, not replaced
+by a general permission grant or historical source-import goal.
+
+Supersedes: None. Extends D034G; benchmark guard and canonical contracts preserved.
+
 ## D035 - OCE Evaluation Before Custom Production Agent Infrastructure
 
 Date: 2026-10-03
@@ -4296,7 +4354,8 @@ D034D now integrates explicitly selected reviewed project evidence into the
 canonical meeting/draft context, verified with synthetic data. D034E adds the
 read-only canonical refresh foundation. D034F adds exact-draft evaluation and
 canonical audit primitives. D034G now verifies the fresh-snapshot operator host with audit-before-dispatch.
-Next implement and synthetically verify its explicit trusted adapters, prepare
+D034H adds the shared local runtime adapter with mandatory exact token-count
+binding; actual tokenizer/authorization/protection backends remain next. Prepare
 real state recovery evidence and a concrete one-shot trial proposal; protect the
 live state snapshot before migration rollout. Keep genuinely distinct projects separate. D034B's 27B synthetic result is a
 candidate for future bounded local shadow review, with refresh/audit/evaluation

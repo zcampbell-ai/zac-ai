@@ -230,3 +230,18 @@ extends.
   backup, and ingestion-artifact backup architecture rationale
 - ROADMAP.md Phase 1, Phase 3, and Phase 11 - backup/restore, ingestion,
   and recovery testing tasks
+
+## Pending gate before schema 0005 production rollout
+
+D034C's meeting/project associations and retractions are tested in zacai_test;
+live schema remains 0004. Inspection on 2026-10-03 found that the D028 fixed Lane B
+TABLE_ORDER does not yet include those new business tables. Do not claim a full
+0005 state restore or roll out that migration until coverage is implemented and
+drilled. Preserve legacy snapshot restoration and live 0004 export compatibility.
+Appending new tables unconditionally would break export before rollout.
+
+The existing exporter also needs explicit consistent-snapshot isolation verified
+across its table reads before concurrent-write recovery is claimed. Synthetic
+static export/restore tests alone do not prove that property. These are existing
+state recovery prerequisites to complete before the private workflow rollout;
+no production change, dump, upload or restore was performed during this inspection.

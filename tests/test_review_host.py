@@ -370,3 +370,75 @@ def test_change_during_protection_rejects_output(host_setup, change_kind):
     assert stages(host_setup)[-1] == (
         "REFRESH_REJECTED" if change_kind == "label" else "AUTHORIZATION_REJECTED"
     )
+
+
+def test_local_adapter_runs_through_audited_host_with_mocked_transport(host_setup, monkeypatch):
+    from tests.test_local_review_runtime import TokenCounter
+    from tests.test_review_generation import route
+    from zacai.intelligence import local_review_runtime as local
+
+    calls = []
+
+    def transport(method, path, body=None):
+        calls.append(path)
+        if path == "/api/tags":
+            return {"models": [{"name": "synthetic:local", "digest": "a" * 64}]}
+        if path == "/api/show":
+            return {}
+        assert stages(host_setup)[-1] == "DISPATCH_STARTED"
+        return {
+            "model": "synthetic:local",
+            "done": True,
+            "done_reason": "stop",
+            "prompt_eval_count": 100,
+            "eval_count": 100,
+            "message": {
+                "role": "assistant",
+                "content": ReviewDraft(
+                    summary=(DraftClaim(text="Testing continues.", evidence_ids=("e1",)),)
+                ).model_dump_json(),
+            },
+        }
+
+    monkeypatch.setattr(local, "_http", transport)
+    runtime = local.LocalReviewRuntime(
+        route=route(), model_digest="a" * 64, token_counter=TokenCounter()
+    )
+    result = run(host_setup, runtime=runtime)
+    assert result.review.summary[0].text == "Testing continues."
+    assert runtime.usage.input_tokens == 100
+    assert calls.count("/api/chat") == 1
+    assert stages(host_setup)[-1] == "DRAFT_VALIDATED"
+
+
+@pytest.mark.parametrize("scope", ["boundary", "classification"])
+def test_local_adapter_route_scope_denied_by_host_before_metadata(host_setup, monkeypatch, scope):
+    from tests.test_local_review_runtime import TokenCounter
+    from tests.test_review_generation import route
+    from zacai.intelligence import local_review_runtime as local
+
+    calls = []
+
+    def forbidden(*args):
+        calls.append(args)
+        raise ValueError("invented unexpected network call")
+
+    monkeypatch.setattr(local, "_http", forbidden)
+    runtime = local.LocalReviewRuntime(
+        route=route(), model_digest="a" * 64, token_counter=TokenCounter()
+    )
+    registry = ApprovedRouteRegistry(
+        (
+            ApprovedRoute(
+                runtime.route,
+                frozenset({B.PERSONAL}) if scope == "boundary" else BOUNDARIES,
+                frozenset({C.PUBLIC}) if scope == "classification" else frozenset({C.CONFIDENTIAL}),
+            ),
+        )
+    )
+    auth = Authorization()
+    with pytest.raises(ReviewHostError):
+        run(host_setup, runtime=runtime, registry=registry, authorization=auth)
+    assert calls == []
+    assert not auth.claimed
+    assert stages(host_setup)[-1] == "ROUTE_REJECTED"

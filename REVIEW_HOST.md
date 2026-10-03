@@ -1,8 +1,8 @@
 # Bounded review host
 
 D034G implements `execute_review_shadow` as a one-attempt operator library.
-It is not an enabled service or CLI. Real authorization, runtime and protection
-backends remain to be implemented and verified before a private trial.
+It is not an enabled service or CLI. D034H adds an explicit local runtime adapter; actual matching tokenizer,
+authorization and protection backends remain to be verified before a private trial.
 
 ## Operator inputs
 
@@ -64,13 +64,21 @@ protection step can cause an otherwise valid draft to expire.
 
 ## Verification and next slice
 
-935 guarded synthetic tests pass, including real PostgreSQL isolation and
+967 guarded synthetic tests pass, including real PostgreSQL isolation and
 separate committed audit visibility, generation/protection-time label changes
-and revocation, terminal failures and exact input-size boundaries. Ruff and
+and revocation, terminal failures and exact input-size boundaries. D034H adds mocked runtime pin/binding/token
+capacity/usage checks and a runtime-through-host audit integration, and scope denials that stop runtime
+metadata calls before authorization claim. Ruff and
 strict mypy pass. No actual private inference or production migration was run.
 
-Next implement the explicit trusted adapters using the existing gateway,
-benchmark transport and backup/recovery mechanisms. Verify them synthetically,
+The shared local runtime adapter requires an exact local prompt token counter
+bound to its model digest. It checks complete serialized capacity before metadata,
+reserves output within 8,192 tokens, and rejects runtime input usage disagreement.
+No actual matching tokenizer backend is provided; counters in tests are invented.
+Calling the adapter directly grants no permission. It is not an enabled service.
+
+Next verify the actual tokenizer and implement the explicit authorization/protection
+adapters using the existing gateway and backup/recovery mechanisms. Verify them synthetically,
 prepare actual state restore evidence and protected migration procedure, then
 present the exact private trial scope for approval. Do not substitute mock
 recovery/authorization or treat general filesystem access as processing approval.
