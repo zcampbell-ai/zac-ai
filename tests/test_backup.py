@@ -38,6 +38,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from zacai.backup import (
+    _BACKUP_MAGIC,
     TABLE_ORDER,
     _read_exact,
     _read_line,
@@ -101,6 +102,9 @@ def _make_source(session: Session, *, trust_boundary: TrustBoundary) -> uuid.UUI
 def _parse_frames(stream: io.BytesIO) -> dict[str, bytes]:
     stream.seek(0)
     frames: dict[str, bytes] = {}
+    assert _read_line(stream) == _BACKUP_MAGIC
+    assert _read_line(stream) == "0005"
+    TrustBoundary(_read_line(stream))
     for expected_table in TABLE_ORDER:
         table = _read_line(stream)
         assert table == expected_table
@@ -349,6 +353,7 @@ def test_decision_supersession_restores_with_reversed_row_order(
     frames["decision"] = _reverse_decision_rows(frames["decision"], marker_a, marker_b)
 
     rebuilt = io.BytesIO()
+    rebuilt.write(f"{_BACKUP_MAGIC}\n0005\n{boundary.value}\n".encode())
     for table in TABLE_ORDER:
         _write_frame(rebuilt, table, frames[table])
 
@@ -554,6 +559,7 @@ def test_source_lineage_restores_with_reversed_row_order(
     frames["source"] = _reverse_source_rows(frames["source"], marker_a, marker_b)
 
     rebuilt = io.BytesIO()
+    rebuilt.write(f"{_BACKUP_MAGIC}\n0005\n{boundary.value}\n".encode())
     for table in TABLE_ORDER:
         _write_frame(rebuilt, table, frames[table])
 

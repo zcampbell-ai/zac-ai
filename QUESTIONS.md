@@ -5,7 +5,8 @@ Purpose: Keep nonblocking decisions here while engineering continues. This log
 is not approval evidence. Zac resumed and selected continued engineering and
 synthetic checks before a concrete private-trial proposal. D034G adds the host
 foundation and D034H adds the local transport adapter. Actual matching tokenizer,
-one-shot authorization and recovery checks remain to be completed.
+one-shot authorization and actual recovery checks remain to be completed. D034I
+now verifies the schema-aware backup mechanism with synthetic recovery drills.
 No immediate contextual question blocks that engineering work.
 
 ## Decisions needed before a live/private step
@@ -74,12 +75,11 @@ Historical instructions and preferences can inform proposed current standards,
 with source/date/version retained, but do not become authority automatically.
 No immediate question is needed to establish this goal.
 
-## Engineering prerequisite — no user decision needed
+## Recovery prerequisite progress — no user decision needed yet
 
-Before protected schema 0005 rollout, extend and verify Lane B state snapshot
-coverage for meeting_project_association and its retractions. The existing fixed
-backup TABLE_ORDER omits these new business tables. Preserve restoration of old
-snapshots and export compatibility with the actual live 0004 schema; do not simply
-append new tables and break pre-rollout exports. Also verify consistent snapshot
-isolation across all exported tables before claiming concurrent-write recovery.
-This belongs to the existing recovery gate, not a new feature or phase change.
+D034I verifies version-aware backups for the association tables and retractions,
+legacy 0001/0002/0003 stream restoration, live-0004-format compatibility and
+consistent snapshots under concurrent writes, all using invented test state.
+The omission identified during D034H is resolved in the synthetic mechanism.
+Actual private state recovery, key recovery evidence and protected 0005 rollout
+remain separate gates. Prepare them concretely before asking Zac to approve.

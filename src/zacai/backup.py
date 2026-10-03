@@ -1,7 +1,7 @@
 """D028 Zac State Lane B backup/restore pipeline.
 
-Streams a trust boundary's data across all `zacai.state` tables in `TABLE_ORDER`,
-in one fixed FK-safe order, directly through an encryption subprocess
+Streams a trust boundary's business state in its schema's fixed FK-safe inventory,
+from one read-only snapshot, directly through an encryption subprocess
 into the durable artifact - no persistent plaintext export ever touches
 disk in the normal path. Restore reverses this exactly: a decrypt
 subprocess's output is streamed straight into `COPY ... FROM STDIN`, in
@@ -13,7 +13,7 @@ encryption tool this module shells out to, but nothing here is coupled to
 tests exercise the framing/streaming logic with a no-op passthrough
 command, independent of whether `age` is installed.
 
-This module never touches `zacai_dev`: `export_boundary_stream` accepts
+This module never restores or modifies `zacai_dev`: `export_boundary_stream` accepts
 any source URL a caller supplies (typically `zacai_test` for a drill, or
 a future, separately-approved run against `zacai_dev`), but all
 *destructive* operations (`recreate_restore_test_database`,
@@ -25,9 +25,12 @@ redirect them to a different database.
 from __future__ import annotations
 
 import contextlib
+import csv
+import io
 import os
+import re
 import subprocess
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 from typing import IO, Any, BinaryIO
 
@@ -86,6 +89,8 @@ TABLE_ORDER: tuple[str, ...] = (
     "extraction_candidate_review",
     "source_classification_elevation",
     "unresolved_identity",
+    "meeting_project_association",
+    "meeting_project_association_retraction",
 )
 
 _ORDER_BY: dict[str, str] = {
@@ -117,7 +122,24 @@ _ORDER_BY: dict[str, str] = {
     "extraction_candidate_review": "id",
     "source_classification_elevation": "id",
     "unresolved_identity": "id",
+    "meeting_project_association": "id",
+    "meeting_project_association_retraction": "id",
 }
+
+# Historical inventories are fixed allowlists, never stream-supplied SQL names.
+_SCHEMA_TABLES: dict[str, tuple[str, ...]] = {
+    "0001": (
+        "source", "person_head", "commitment_head", "person", "commitment",
+        "person_evidence", "commitment_evidence",
+    ),
+    "0002": TABLE_ORDER[:21],
+    "0003": TABLE_ORDER[:-2],
+    "0004": TABLE_ORDER[:-2],
+    "0005": TABLE_ORDER,
+}
+_BACKUP_MAGIC = "zacai-state-backup-v2"
+_MAX_FRAME_BYTES = 256 * 1024 * 1024
+
 
 # Fixed constants for the one destructive restore target this module is
 # ever permitted to touch. Never accepted as a function parameter.
@@ -143,12 +165,28 @@ def _export_table_csv(raw_conn: Any, table: str, boundary_value: str) -> bytes:
     buf = bytearray()
     with raw_conn.cursor() as cur, cur.copy(query, (boundary_value,)) as copy:
         for data in copy:
+            if len(buf) + len(data) > _MAX_FRAME_BYTES:
+                raise RuntimeError("backup table outside supported size")
             buf.extend(data)
     return bytes(buf)
 
 
 def _restore_table_csv(raw_conn: Any, table: str, data: bytes) -> None:
-    query = f"COPY {table} FROM STDIN WITH (FORMAT csv, HEADER true)"
+    # Historical schemas added nullable Source/Commitment columns. Use validated
+    # CSV column names rather than COPY's positional current-schema assumption.
+    from zacai.state import Base
+
+    columns = next(csv.reader(io.StringIO(data.decode("utf-8"))), [])
+    current = set(Base.metadata.tables[table].columns.keys())
+    allowed = [current]
+    if table == "source":
+        allowed.append(current - {"content_hash", "content_location", "supersedes_source_id"})
+    elif table == "commitment":
+        allowed.append(current - {"project_id"})
+    if not columns or len(set(columns)) != len(columns) or set(columns) not in allowed:
+        raise RuntimeError("backup CSV columns do not match supported schema")
+    names = ", ".join(f'"{name}"' for name in columns)
+    query = f"COPY {table} ({names}) FROM STDIN WITH (FORMAT csv, HEADER true)"
     with raw_conn.cursor() as cur, cur.copy(query) as copy:
         copy.write(data)
 
@@ -167,6 +205,8 @@ def _read_line(stream: IO[bytes]) -> str:
             raise RuntimeError("unexpected end of stream while reading a backup frame header")
         if byte == b"\n":
             return chars.decode("ascii")
+        if len(chars) >= 256:
+            raise RuntimeError("backup frame header outside supported size")
         chars.extend(byte)
 
 
@@ -183,40 +223,98 @@ def _read_exact(stream: IO[bytes], count: int) -> bytes:
 
 
 def export_boundary_stream(engine: Engine, boundary: TrustBoundary, out_stream: IO[bytes]) -> None:
-    """Writes every row belonging to `boundary`, across all tables
-    in `TABLE_ORDER`, as a sequence of length-prefixed frames into
-    `out_stream`. Read-only against `engine` - never writes anything."""
+    """Versioned per-boundary stream from one fresh read-only snapshot.
+
+    Select the fixed inventory for the actual schema; never query 0005-only
+    tables on 0004. Unknown revisions fail rather than omit future state.
+    Operational artifact_backup_run history is deliberately excluded as before.
+    """
+    if not isinstance(boundary, TrustBoundary):
+        raise TypeError("backup requires a trust boundary")
     with engine.connect() as conn:
+        if conn.dialect.name != "postgresql":
+            raise RuntimeError("PostgreSQL backup connection required")
+        conn.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+        revisions = conn.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
+        if len(revisions) != 1 or revisions[0] not in _SCHEMA_TABLES:
+            raise RuntimeError("unsupported state backup schema")
+        revision = revisions[0]
+        out_stream.write(f"{_BACKUP_MAGIC}\n{revision}\n{boundary.value}\n".encode("ascii"))
         raw = _raw_connection(conn)
-        for table in TABLE_ORDER:
+        for table in _SCHEMA_TABLES[revision]:
             data = _export_table_csv(raw, table, boundary.value)
             _write_frame(out_stream, table, data)
 
 
-def restore_boundary_stream(engine: Engine, in_stream: IO[bytes]) -> None:
-    """Reads frames from `in_stream` in the exact `TABLE_ORDER` sequence
-    and restores each via `COPY ... FROM STDIN`. Raises if the frame
-    order doesn't match `TABLE_ORDER` exactly, rather than silently
-    restoring tables in the wrong (FK-unsafe) order."""
+def _optional_line(stream: IO[bytes]) -> str | None:
+    first = stream.read(1)
+    return None if not first else first.decode("ascii") + _read_line(stream)
+
+
+def _restore_frames(raw: Any, stream: IO[bytes]) -> None:
+    first: str | None = _read_line(stream)
+    inventories: tuple[tuple[str, ...], ...]
+    if first == _BACKUP_MAGIC:
+        revision = _read_line(stream)
+        if revision not in _SCHEMA_TABLES:
+            raise RuntimeError("unsupported state backup schema")
+        boundary: str | None = TrustBoundary(_read_line(stream)).value
+        inventories = (_SCHEMA_TABLES[revision],)
+        first = _optional_line(stream)
+    else:
+        boundary = None
+        # D028/D029/D030 legacy streams have no manifest. Accept only complete
+        # exact historical inventories. No arbitrary extra/missing table names.
+        inventories = tuple(dict.fromkeys(_SCHEMA_TABLES[r] for r in ("0001", "0002", "0003")))
+    seen: tuple[str, ...] = ()
+    table = first
+    while table is not None:
+        seen += (table,)
+        if not any(order[:len(seen)] == seen for order in inventories):
+            raise RuntimeError("backup frame order mismatch")
+        value = _read_line(stream)
+        if not re.fullmatch(r"[0-9]{1,10}", value) or int(value) > _MAX_FRAME_BYTES:
+            raise RuntimeError("backup frame length outside supported size")
+        data = _read_exact(stream, int(value))
+        _restore_table_csv(raw, table, data)
+        # Ask PostgreSQL to validate parsed boundary values, avoiding Python CSV
+        # field-size limits on old large excerpts. The disposable restore target
+        # must hold one boundary; mixed existing state also fails closed.
+        with raw.cursor() as cur:
+            cur.execute(f"SELECT DISTINCT trust_boundary FROM {table}")
+            labels = {row[0] for row in cur.fetchall()}
+        if len(labels) > 1 or boundary is not None and labels - {boundary}:
+            raise RuntimeError("backup restore boundary mismatch")
+        if boundary is None and labels:
+            boundary = TrustBoundary(next(iter(labels))).value
+        table = _optional_line(stream)
+    if seen not in inventories:
+        raise RuntimeError("incomplete backup table inventory")
+    # Versioned streams remove legacy EOF ambiguity between historical inventories.
+    # Encryption authenticates legacy stream completeness; CSV isn't an authority.
+
+
+def restore_boundary_stream(
+    engine: Engine,
+    in_stream: IO[bytes],
+    *,
+    before_commit: Callable[[], None] | None = None,
+) -> None:
+    """Restore complete known inventory atomically, including legacy CSV columns.
+
+    The wrapper uses before_commit to verify decryption success after stream EOF
+    and before DB commit. No plaintext file or partial table commit is created.
+    """
     with engine.connect() as conn:
         raw = _raw_connection(conn)
-        for expected_table in TABLE_ORDER:
-            table = _read_line(in_stream)
-            if table != expected_table:
-                raise RuntimeError(
-                    f"backup frame order mismatch: expected {expected_table!r}, got {table!r}"
-                )
-            length = int(_read_line(in_stream))
-            data = _read_exact(in_stream, length)
-            _restore_table_csv(raw, table, data)
-        # The COPY writes above ran on the raw psycopg3 connection/cursor
-        # directly, bypassing SQLAlchemy's own transaction bookkeeping -
-        # SQLAlchemy's Connection.commit() only commits a transaction it
-        # believes it started, so it would be a silent no-op here (and
-        # the rows would be rolled back when the connection is returned
-        # to the pool). Committing the raw DBAPI connection directly is
-        # what actually makes the COPYs durable.
-        raw.commit()
+        try:
+            _restore_frames(raw, in_stream)
+            if before_commit is not None:
+                before_commit()
+            raw.commit()
+        except BaseException:
+            raw.rollback()
+            raise
 
 
 def export_boundary(
@@ -262,7 +360,7 @@ def _run_export_through_subprocess(
     finally:
         with contextlib.suppress(OSError):
             proc.stdin.close()
-    returncode = proc.wait()
+        returncode = proc.wait()
     if returncode != 0:
         raise RuntimeError(f"export encryption command exited with status {returncode}")
 
@@ -286,8 +384,13 @@ def restore_boundary(
         command = [*decrypt_command_prefix, str(artifact_path)]
         proc = subprocess.Popen(command, stdout=subprocess.PIPE)
         assert proc.stdout is not None
+
+        def verify_decryption() -> None:
+            if proc.wait() != 0:
+                raise RuntimeError("restore decryption command failed before commit")
+
         try:
-            restore_boundary_stream(engine, proc.stdout)
+            restore_boundary_stream(engine, proc.stdout, before_commit=verify_decryption)
         finally:
             proc.stdout.close()
             returncode = proc.wait()

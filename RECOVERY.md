@@ -231,17 +231,41 @@ extends.
 - ROADMAP.md Phase 1, Phase 3, and Phase 11 - backup/restore, ingestion,
   and recovery testing tasks
 
-## Pending gate before schema 0005 production rollout
+## State backup compatibility and remaining rollout gate
 
-D034C's meeting/project associations and retractions are tested in zacai_test;
-live schema remains 0004. Inspection on 2026-10-03 found that the D028 fixed Lane B
-TABLE_ORDER does not yet include those new business tables. Do not claim a full
-0005 state restore or roll out that migration until coverage is implemented and
-drilled. Preserve legacy snapshot restoration and live 0004 export compatibility.
-Appending new tables unconditionally would break export before rollout.
+D034I adds versioned state streams and synthetic recovery coverage for schema
+0005's meeting/project associations and retractions. Live schema remains 0004.
+No production migration, real state export/restore or off-device upload occurred.
 
-The existing exporter also needs explicit consistent-snapshot isolation verified
-across its table reads before concurrent-write recovery is claimed. Synthetic
-static export/restore tests alone do not prove that property. These are existing
-state recovery prerequisites to complete before the private workflow rollout;
-no production change, dump, upload or restore was performed during this inspection.
+New exports begin with `zacai-state-backup-v2`, exact Alembic revision and trust
+boundary. One fresh PostgreSQL REPEATABLE READ, READ ONLY transaction supplies
+both revision and every exported table. Fixed schema inventories select 7, 21,
+28, 28 or 30 tables for revisions 0001 through 0005. A 0004 export never queries
+0005-only tables; unknown revisions fail. `artifact_backup_run` is operational
+history excluded as before; independent artifact manifests remain authoritative.
+A schema/table-inventory regression test now guards business-state coverage.
+
+Restore accepts new streams and complete historical D028/D029/D030 unversioned
+7/21/28-table inventories. It uses validated CSV column names so older Source
+and Commitment rows restore after nullable schema additions. Unversioned EOF
+cannot itself distinguish a deliberately shortened stream ending at a valid
+older inventory; encryption authentication and original backup identity matter.
+New version headers fix that structural ambiguity. Missing/trailing/unknown
+frames, invalid headers/lengths/columns and mixed or incorrectly declared trust
+boundaries reject and roll back. The disposable restore target must hold only
+one boundary; this is not a production merge/import API.
+
+Header lines are bounded to 256 bytes and individual table frames to 256 MiB.
+Oversized tables fail; no rows are truncated or omitted. Export retains one table
+in memory at a time, as before. Encryption/decryption remains subprocess-based,
+with no persistent plaintext export in the normal path. Tests use passthrough
+commands and invented data, not proof of actual age key recovery or live storage.
+
+All restored tables commit together only after stream EOF and successful decrypt
+exit. A valid-looking stream followed by a decrypt failure still rolls back.
+Interrupted/malformed restores leave no committed partial state. Destructive
+operations remain hardcoded to zacai_restore_test with existing target guards.
+
+Actual real-state backup/restore evidence, recovered-key verification and the
+protected schema 0005 rollout still require their existing concrete checks and
+approval. Synthetic format and isolation drills do not satisfy those live gates.

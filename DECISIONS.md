@@ -4274,6 +4274,66 @@ by a general permission grant or historical source-import goal.
 
 Supersedes: None. Extends D034G; benchmark guard and canonical contracts preserved.
 
+## D034I - Schema-Aware State Snapshots and Atomic Recovery
+
+Date: 2026-10-03
+Status: Implemented and synthetic recovery drills verified; actual state recovery
+and protected production migration remain pending.
+
+Continue the existing recovery gate after D034H. Inspection found that the fixed
+D028 table inventory omitted D034C's two business tables and did not explicitly
+establish one consistent export snapshot. Resolve these before private workflow
+rollout without moving broader history ingestion ahead of the current gates.
+
+New encrypted plaintext streams carry a v2 format marker, exact schema revision
+and boundary. Fixed historical inventories support 0001..0005; newest inventory
+includes association and retraction tables after their FK dependencies. The actual
+schema selects the inventory, preserving 0004 export compatibility before rollout.
+Unknown revisions reject rather than silently omit new state. Existing operational
+artifact_backup_run exclusion remains; raw artifact manifests are independent.
+Exports set REPEATABLE READ, READ ONLY as the first statement and read both schema
+revision and all tables inside that same snapshot. One table's bytes are held in
+memory at a time, unchanged from D028's subprocess encryption pipeline.
+
+Restore supports versioned streams and exact historical 7/21/28-table legacy
+inventories. Header column names must match known schema column sets; explicit
+COPY columns preserve old Source/Commitment data across nullable additions.
+No untrusted table/column text can become an arbitrary SQL identifier. Header
+lines are capped at 256 bytes and table frames at 256 MiB; unsupported size fails
+without truncation. Rows' parsed boundary values are checked in PostgreSQL after
+COPY, against declared v2 boundary or one inferred legacy boundary, within the
+same uncommitted transaction. Mixed pre-existing restore state also rejects.
+The disposable target remains one-boundary recovery, not a live merge/import API.
+
+All tables roll back on malformed/truncated/trailing/unknown input, wrong boundary,
+failed decryption or interruption. Successful stream EOF is not decryption proof:
+the wrapper now checks subprocess exit before raw DB commit. A decryptor emitting
+a complete valid stream and then exiting nonzero leaves no committed rows. Export
+subprocesses are reaped even when upstream export fails; partial artifact cleanup
+remains D028's existing behavior. Destructive target guards are unchanged.
+Legacy streams have no explicit schema marker, so EOF at a valid older inventory
+is structurally ambiguous; encryption authentication and source backup identity
+remain necessary. V2 removes that ambiguity for new backups. No plain export is
+persisted in the normal encrypted path; passthrough test artifacts are synthetic.
+
+Verification: synthetic integration tests use actual historical Alembic schemas
+only in the fixed disposable drill database, restore populated old Source and
+Commitment records into current schema, verify supplemental association/retraction
+identity and version pins, and preserve immutable original Meeting.project_id.
+A separately committed concurrent write after Source export is excluded from
+later Person reads, and SHOW checks verify both isolation and read-only mode.
+Additional cases cover clean EOF missing exactly the new tables, invalid lengths,
+unknown revisions, trailing data, wrong/mixed boundaries and complete-stream
+decryption failure with rollback. All 987 tests pass, Ruff is clean and strict
+mypy passes across 39 source files. Claude independently reviewed the original
+mechanism and final boundary/missing-table additions and documentation, and found
+no blockers. Its missing-table suggestion was added as a regression test. No real data, model inference, credential recovery, upload or production
+schema change occurred. Actual recovery and approved rollout remain next gates.
+
+Supersedes: D028's new-export framing and snapshot isolation only. Existing legacy
+formats remain readable; canonical state, raw artifact backup backend, boundary
+keys and production rollout permissions are unchanged.
+
 ## D035 - OCE Evaluation Before Custom Production Agent Infrastructure
 
 Date: 2026-10-03
