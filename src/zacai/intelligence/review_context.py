@@ -171,7 +171,7 @@ def _assemble(
             raise ValueError("unsupported artifact format")
         payload = envelope["payload"]
         text = payload["transcript_text"]
-        if not isinstance(text, str) or not text.strip() or len(text) > 16_000:
+        if not isinstance(text, str) or not text.strip() or len(text) > 18_000:
             raise ValueError("unsupported text size")
         if source.external_ref != f"normalized-v1/transcript/{payload['id']}":
             raise ValueError("normalized source identity mismatch")

@@ -72,21 +72,25 @@ def review_evaluation_digests(review: MeetingReview, context: ReviewContext) -> 
     Digests stay local metadata; hashing is not anonymization. The host must
     validate reviewer identity separately and refresh before using old evidence.
     """
-    context = ReviewContext(context.task, context.meeting_source_id, context.related_source_ids)
     review = validate_review(review, context)
+    raw = json.dumps(
+        review.model_dump(mode="json"), sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode()
+    return hashlib.sha256(raw).hexdigest(), review_context_digest(context)
+
+
+def review_context_digest(context: ReviewContext) -> str:
+    """Exact full task/evidence-role digest shared by audit and evaluation."""
+    context = ReviewContext(context.task, context.meeting_source_id, context.related_source_ids)
     task_data = context.task.model_dump(mode="json")
     task_data["required_capabilities"] = sorted(context.task.required_capabilities)
-    context_data = {
+    data = {
         "task": task_data,
         "meeting_source_id": str(context.meeting_source_id),
         "related_source_ids": sorted(str(sid) for sid in context.related_source_ids),
     }
-
-    def digest(data: object) -> str:
-        raw = json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
-        return hashlib.sha256(raw).hexdigest()
-
-    return digest(review.model_dump(mode="json")), digest(context_data)
+    raw = json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    return hashlib.sha256(raw).hexdigest()
 
 
 def check_review_evaluation(

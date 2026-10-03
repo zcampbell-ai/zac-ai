@@ -87,8 +87,13 @@ and provenance verified in synthetic tests. This does not enable a private
 model runtime, automatic retrieval or production schema rollout. D034E adds a
 read-only canonical refresh foundation with request expiration and exact evidence
 comparison. D034F adds exact-draft evaluation bindings and canonical audit
-primitives. The actual fresh-snapshot dispatch host, audit-before-dispatch and
-independent semantic evaluation remain incomplete.
+primitives. D034G now verifies a fresh-snapshot operator host, committed audits
+before dispatch, exact local route checks and freshness/authority rechecks through
+protection. It requires explicit adapters; actual production authorization, runtime
+and recovery adapters remain pending. Synthetic host tests do not establish
+independent semantic quality or authorize private processing. Existing Claude
+proposal/brand assets are being inventoried for later source-verified reuse, not
+recreated or automatically imported.
 
 ## Tracking Rules
 - [ ] means incomplete or not yet verified.
@@ -263,6 +268,15 @@ For each phase:
   D033C's separately approved one-meeting trial subsequently succeeded on
   2026-10-02. Broad account ingestion, recurring sync and complete source ACL
   preservation remain incomplete. See RECOVERY.md and DECISIONS.md D033C.)
+- [ ] Import available historical Claude and ChatGPT conversations, memory and
+  related work through verified read-only/export adapters, retaining original
+  sources, dates, revisions and PERSONAL/BRAINSTORM boundaries. Zac wants broad
+  history coverage; availability and completeness must be measured, not assumed.
+  This follows the bounded review/recovery/private-trial gates and does not
+  promote old drafts, instructions or memory into current policy by default.
+- [ ] Expand Fireflies from the selected trial to available historical meeting
+  coverage after source permission, recovery and incremental ingestion checks.
+  Historical capture and permission to process it with models are separate.
 - [ ] Add ClickUp.
 - [ ] Add Salesforce.
 - [ ] Verify each integration independently before adding the next.
@@ -390,10 +404,10 @@ The selected meeting's client and candidate ClickUp records have been identified
 through read-only inspection. Zac confirmed that the relevant successive SOWs
 represent one continuing project. D034C now verifies a source-backed, reviewed
 association foundation without changing historical Meetings. D034D now verifies
-explicit reviewed project context reaching quote-backed meeting drafts. Next add
-the fresh-snapshot dispatch host with mandatory audit-before-dispatch and the
-bounded local shadow workflow; D034E/D034F verify refresh/evaluation/audit libraries
-only. Protect the
+explicit reviewed project context reaching quote-backed meeting drafts. D034G now verifies
+the fresh-snapshot dispatch host with mandatory audit-before-dispatch; its actual
+trusted authorization/runtime/protection adapters and concrete trial proposal
+remain next. D034E/D034F supply refresh/evaluation/audit libraries. Protect the
 live state snapshot before migration rollout; keep temporal relevance separate from project identity before analysis.
 The existing Meeting.project_id is immutable; do not backfill it by mutation.
 The 27B model is a candidate for a bounded local shadow review, not an approved

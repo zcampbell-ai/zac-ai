@@ -24,7 +24,7 @@ from zacai.state_repository import (
 )
 
 
-def capture(session, store, name="current", day=2):
+def capture(session, store, name="current", day=2, transcript="We are still testing the reporting fix."):
     account = {"user_id": "synthetic-owner", "email": "owner@example.invalid"}
     return capture_selected_transcript(
         session,
@@ -52,7 +52,7 @@ def capture(session, store, name="current", day=2):
                             {
                                 "index": 0,
                                 "speaker_name": "Alex",
-                                "text": "We are still testing the reporting fix.",
+                                "text": transcript,
                             }
                         ],
                     }
@@ -211,3 +211,45 @@ def test_hash_valid_artifact_cannot_forge_dependency_roles_or_meeting_time(setup
     )
     with pytest.raises(ValueError):
         assemble(setup, selected=MeetingEvidence(current.meeting_id, source.id))
+
+
+@pytest.mark.parametrize("size", [18_000, 18_001])
+def test_per_meeting_size_boundary(db_session, tmp_path, size):
+    store = LocalFilesystemArtifactStore(tmp_path)
+    captured = capture(db_session, store, transcript="x" * (size - len("Alex: ")))
+    kwargs = {
+        "artifacts": store,
+        "selected": MeetingEvidence(captured.meeting_id, captured.normalized_source_id),
+        "authorized_boundaries": frozenset({B.BRAINSTORM}),
+        "allowed_classifications": frozenset({C.CONFIDENTIAL}),
+        "observed_at": datetime(2026, 10, 3, tzinfo=UTC),
+    }
+    if size == 18_000:
+        context = assemble_review_context(db_session, **kwargs)
+        assert len(context.task.context[0].untrusted_text) == size
+    else:
+        with pytest.raises(ValueError):
+            assemble_review_context(db_session, **kwargs)
+
+
+@pytest.mark.parametrize("total", [24_000, 24_001])
+def test_combined_size_boundary_unchanged(db_session, tmp_path, total):
+    store = LocalFilesystemArtifactStore(tmp_path)
+    current = capture(db_session, store, transcript="x" * (18_000 - len("Alex: ")))
+    previous = capture(
+        db_session, store, "previous", 1, transcript="y" * (total - 18_000 - len("Alex: "))
+    )
+    kwargs = {
+        "artifacts": store,
+        "selected": MeetingEvidence(current.meeting_id, current.normalized_source_id),
+        "earlier": (MeetingEvidence(previous.meeting_id, previous.normalized_source_id),),
+        "authorized_boundaries": frozenset({B.BRAINSTORM}),
+        "allowed_classifications": frozenset({C.CONFIDENTIAL}),
+        "observed_at": datetime(2026, 10, 3, tzinfo=UTC),
+    }
+    if total == 24_000:
+        context = assemble_review_context(db_session, **kwargs)
+        assert sum(len(item.untrusted_text) for item in context.task.context) == total
+    else:
+        with pytest.raises(ValueError):
+            assemble_review_context(db_session, **kwargs)

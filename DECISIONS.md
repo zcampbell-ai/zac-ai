@@ -4144,6 +4144,78 @@ Zac then requested a stop at a good checkpoint and a summary. Work is paused at
 this verified library checkpoint; no dispatch host or live workflow was started.
 Further implementation waits for Zac to resume.
 
+## D034G - Fresh-Snapshot Review Operator Host Foundation
+
+Date: 2026-10-03
+Status: Implemented and synthetic tests verified; production adapters pending.
+
+Zac resumed and selected continued engineering/synthetic checks before a concrete
+private trial proposal. This extends D034 without changing the roadmap or enabling
+private processing. Claude remains an independent engineering reviewer.
+
+The host requires explicit trusted authorization, runtime and protection adapters;
+none has a permissive default or a production implementation in this slice.
+Authorization preflight precedes artifact reads; the adapter must durably claim
+exact one-shot authority and recheck revocation. The runtime must verify actual
+locality, model pin and complete serialized capacity before its single generation
+attempt. The protection adapter must verify recovery coverage of committed audit
+Sources. Protocols and synthetic fakes are not operational approval evidence.
+
+Canonical reads use fresh PostgreSQL REPEATABLE READ, READ ONLY transactions.
+The operator commits REQUEST_PREPARED and DISPATCH_STARTED audits through the
+existing Source/ArtifactStore seam before generation, checks exact local route
+registration and gateway eligibility, and refreshes selected evidence before
+and after dispatch and after protection. No snapshot stays open across model
+work. Failure, invalid quotes, late output, changed evidence, revocation, failed
+audit or failed protection releases no successful draft. There is no retry or
+fallback. Valid output remains an unevaluated shadow draft, not promoted facts,
+semantic PASS or execution permission. Exact context digest is shared with the
+existing evaluator rather than duplicated.
+
+Read-only structural preflight found the already selected transcript just above
+the original 16,000-character cap. Increase per-meeting text to 18,000 characters,
+retain the combined 24,000-character bound, and never truncate source text.
+This is a bounded capacity adjustment, not source expansion or model approval;
+complete serialized input capacity must still be checked by the runtime adapter.
+Project evidence limits and quote limits are unchanged.
+
+Tests use invented captures and mandatory fake adapters in guarded zacai_test.
+Separate committed transactions prove audit visibility before generation and
+freshness rejection after concurrent label/authority changes during generation
+and during protection. Actual private runtime/authorization/protection adapters,
+real state restore evidence, protected schema 0005 rollout and one-shot private
+processing approval remain pending. Concurrent changes are checked at boundaries;
+no global lock is claimed across dispatch. Recovery failures can leave durable
+failure/audit Sources or D030 orphan artifacts; no automatic deletion occurs.
+
+Zac also requested reuse of existing Claude app assets. A private source inventory
+records Sales Agent templates/builders/brand references, distinguishes observed
+links from Claude-reported status and keeps client material out of Git. Retrieve
+and verify originals before creating replacements; Claude memory never becomes
+canonical Zac State by default. Zac explicitly clarified that this material is
+a starting point, subject to change; reported prior approval does not make it
+current authoritative policy. No full-history import or commercial generation
+was performed.
+
+Verification: 935 synthetic tests pass, Ruff is clean and strict mypy passes
+across 38 source files. Independent Claude review
+found no blockers and identified missing post-protection coverage, now added.
+Claude also independently reviewed the final size-boundary changes, both
+post-protection tests and roadmap/question-log scope, and found no blockers.
+REVIEW_HOST.md records adapter obligations and operational limits.
+
+Zac subsequently clarified the long-term ingestion goal: available Claude and
+ChatGPT conversations, memory and prior work, plus historical Fireflies meetings.
+Record it inside the existing Phase 3 source-ingestion roadmap after the current
+bounded review/recovery/private-trial gates. This does not reorder phases or
+claim access/export completeness. Preserve historical source/date/version and
+personal/business boundaries; old instructions/memory/drafts are evidence for
+review, not automatically current authoritative rules. No broad capture or
+private model processing was performed as part of this clarification.
+
+Supersedes: D034B's per-meeting 16,000-character limit only. Extends D034E/D034F;
+no production deployment, source permission or phase-order change.
+
 ## D035 - OCE Evaluation Before Custom Production Agent Infrastructure
 
 Date: 2026-10-03
@@ -4223,9 +4295,10 @@ Supersedes:
 D034D now integrates explicitly selected reviewed project evidence into the
 canonical meeting/draft context, verified with synthetic data. D034E adds the
 read-only canonical refresh foundation. D034F adds exact-draft evaluation and
-canonical audit primitives. Next build the fresh-snapshot operator dispatch host
-with mandatory audit-before-dispatch and the bounded local shadow workflow;
-protect the live state snapshot before migration rollout. Keep genuinely distinct projects separate. D034B's 27B synthetic result is a
+canonical audit primitives. D034G now verifies the fresh-snapshot operator host with audit-before-dispatch.
+Next implement and synthetically verify its explicit trusted adapters, prepare
+real state recovery evidence and a concrete one-shot trial proposal; protect the
+live state snapshot before migration rollout. Keep genuinely distinct projects separate. D034B's 27B synthetic result is a
 candidate for future bounded local shadow review, with refresh/audit/evaluation
 controls required before private inference. Preserve unresolved
 source ACL, recurring-access, production-routing and full real-state restore gates.

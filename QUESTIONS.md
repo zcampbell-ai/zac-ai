@@ -2,9 +2,10 @@
 
 Updated: 2026-10-03
 Purpose: Keep nonblocking decisions here while engineering continues. This log
-is not approval evidence. Work is paused at Zac's request after the D034F
-checkpoint; further implementation waits for him to resume. No immediate
-question needs an answer to save this checkpoint.
+is not approval evidence. Zac resumed and selected continued engineering and
+synthetic checks before a concrete private-trial proposal. D034G adds the host
+foundation; mandatory live adapters and recovery checks remain to be completed.
+No immediate contextual question blocks that engineering work.
 
 ## Decisions needed before a live/private step
 
@@ -37,3 +38,37 @@ Use the first bounded review to identify gaps; collect only the context needed.
   risks/follow-ups. Owner/date and proposal/agreement distinctions matter.
 - Keep Claude as an independent engineering reviewer.
 - Continue authorized engineering independently and log nonblocking questions.
+
+## Existing material — reuse before authoring
+
+Zac clarified that existing material is a solid starting point and nothing is
+gospel: preserve provenance, permit revisions and do not automatically adopt
+legacy instructions as current policy.
+
+Zac identified the Claude app Sales Agent project and broader Claude history as
+sources for existing proposals, branding and workflow examples. Its inventory
+and source links are recorded privately outside Git. Do not recreate templates
+or treat reported assets as approved canonical standards without inspecting the
+original sources. No full-history import has occurred.
+
+Nonblocking questions for the later commercial workflow:
+- Which latest sent proposal/SOW/deck should serve as the approved exemplar, and
+  where is the original brand guidelines document? First use the existing asset
+  inventory to locate these; do not ask Zac to rebuild them.
+- Which pricing basis is current if the two existing guides actually conflict?
+- What is the approval status of legal language before producing client paper?
+
+These do not block the current meeting-review foundation and should be asked
+only when the relevant source checks or commercial output need the decision.
+
+## Accepted history goal — preserve sequence
+
+Zac wants available Claude and ChatGPT conversation history, memory and details,
+and historical Fireflies conversations, because years of prior work matter.
+This is recorded in the existing Phase 3 roadmap, not a competing project or
+permission to jump past bounded review, recovery and private-trial gates.
+Inventory/export completeness, source permissions and personal/business separation
+must be verified; no export may be called complete merely because files exist.
+Historical instructions and preferences can inform proposed current standards,
+with source/date/version retained, but do not become authority automatically.
+No immediate question is needed to establish this goal.
