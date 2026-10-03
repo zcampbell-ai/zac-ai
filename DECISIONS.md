@@ -4038,6 +4038,93 @@ delivery-quality requirements; D026-D034C canonical state/policy contracts.
 
 Supersedes: None. Extends the existing roadmap without promoting private runtime use.
 
+## D034E - Canonical Meeting Review Refresh Foundation
+
+Date: 2026-10-03
+Status: Implemented, independently reviewed and synthetic tests verified; live host pending.
+
+The next bounded slice of the existing D034 workflow is a read-only refresh check.
+Before a future dispatch, the host reassembles the exact selected meeting,
+earlier meetings and optional reviewed project evidence through D034B/D034D,
+using current host-supplied boundary/classification permissions. A changed or
+unavailable canonical context rejects instead of relabeling an old request.
+A 120-second maximum request age also rejects future/naive clocks; checking
+again cannot renew the original observation time. This conservative development
+limit is not an autonomy reliability threshold or a private-runtime approval.
+
+The comparison binds context text/order, source hashes and effective labels,
+metadata provenance, entity/version pins, evidence roles, event metadata,
+capabilities and task/output limits. Only newly generated task/event/correlation
+IDs and observation time are excluded from comparison. Unordered provenance,
+entity inventories and capabilities are normalized; passage order is retained.
+The quote catalog/instruction must still match the host-derived request.
+
+The host must use a new consistent database read snapshot, without a stale ORM
+identity map, and dispatch immediately after refreshing through separate gateway
+and runtime controls. This library cannot establish that transaction lifecycle
+or prevent a concurrent change after its read. Pending ORM writes are rejected
+before querying to prevent accidental autoflush. Its content-free result is neither
+an authorization token nor a persisted audit receipt. Source ACL preservation,
+private model-route approval, durable audit/evaluator controls, protected schema
+rollout and a full real-state restore drill remain unresolved as previously
+tracked. No private model inference, schema migration or canonical writes occur.
+
+Verification: 882 tests pass, including 20 new synthetic refresh tests covering
+unchanged context, request/catalog changes, expiration/nonrenewal, revoked boundary
+scope, meeting/project/link withdrawal, label elevation even when newly allowed,
+selection/limit changes, project-path downgrade, pending-write rejection before
+autoflush and artifact corruption with
+sanitized errors. Ruff and strict mypy pass across 35 source files. These fixtures
+verify refresh logic within guarded zacai_test; they do not establish a production
+snapshot/dispatch lifecycle or semantic model-output quality. Claude independently
+reviewed D034E and D035 and found no blockers; a separate final review of the
+added autoflush guard also found no blockers. Claude reviewed the OCE ownership/roadmap decision;
+source capability claims were verified through primary-source browsing by Codex,
+not independently web-verified by the restricted Claude reviewer.
+
+## D035 - OCE Evaluation Before Custom Production Agent Infrastructure
+
+Date: 2026-10-03
+Status: Evaluation gate accepted; no adoption or installation.
+
+Zac requested an explicit OpenClaw Enterprise evaluation before building a
+custom production multi-agent control plane. D032 and the first controlled
+Fireflies ingestion already exist; preserve that completed sequence and continue
+D034's bounded meeting workflow. Evaluate OCE when persistent-agent deployment
+infrastructure is needed, before committing to custom production machinery.
+This gate does not replace the Chief of Staff's product/workflow responsibilities.
+
+The September 29 announcement describes a vendor-neutral, self-hosted platform
+in pre-1.0 development. The architecture overview distinguishes implemented
+capabilities from requirements: external access-gateway admission, workload API
+authentication and general credential-free model mediation remain planned.
+Dedicated Kubernetes execution still requires operator-configured node isolation;
+namespace separation alone is insufficient. Native admin pilot commands are not
+individually authorized/audited by OCC. These limits require deployment evidence,
+not acceptance of broad security claims.
+
+Evaluation must compare agent lifecycle, isolated execution, identity/RBAC,
+audit/observability, provider/runtime portability and sandbox/policy boundaries.
+Use synthetic data first. Check denied/revoked access, cross-boundary isolation,
+credential exposure, missing audit evidence, runtime replacement and recovery,
+as well as Mac Studio fit and operational/maintenance cost. Pin the evaluated
+revision and distinguish working, experimental and planned capabilities. Record
+adopt, defer or reject with evidence and an exit/replacement path; adoption is a
+separate human decision, not a consequence of this roadmap item.
+
+Zac State remains canonical business memory/state; OCE may own replaceable
+infrastructure desired state only. Zac Events remain the integration contract.
+Zac's approval/security/credential gateway stays authoritative outside agents;
+OCE platform IAM may add restrictions but cannot bypass or replace that gateway.
+Routing remains privacy/latency/cost/capability aware. No provider, runtime or
+control plane gains ownership of canonical identity or irreplaceable logic.
+No OCE installation, integration, permission expansion or private-data transfer
+is authorized here. Claude remains the independent engineering reviewer.
+
+Verified sources on 2026-10-03:
+- [OpenClaw announcement](https://openclaw.ai/blog/openclaw-enterprise)
+- [OCE architecture and implementation limits](https://github.com/openclaw/openclaw-enterprise/blob/main/docs/design.md)
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)
@@ -4049,7 +4136,7 @@ These choices have not yet been made:
 - Lane B PERSONAL/SHARED state off-device destinations (BRAINSTORM selected in D033C)
 - Text interface implementation
 - Voice provider and API
-- Whether to adopt OpenClaw
+- Whether to adopt OpenClaw/OCE after the D035 evidence-based evaluation
 - Workflow budgets and reliability thresholds for autonomy
 
 Choose these incrementally, using evidence and the current roadmap.
@@ -4072,8 +4159,9 @@ Supersedes:
 
 ## Next Concrete Step
 D034D now integrates explicitly selected reviewed project evidence into the
-canonical meeting/draft context, verified with synthetic data. Next build
-canonical refresh/audit/evaluator controls and the bounded local shadow workflow;
+canonical meeting/draft context, verified with synthetic data. D034E adds the
+read-only canonical refresh foundation. Next build the fresh-snapshot dispatch
+host, durable audit/evaluator controls and the bounded local shadow workflow;
 protect the live state snapshot before migration rollout. Keep genuinely distinct projects separate. D034B's 27B synthetic result is a
 candidate for future bounded local shadow review, with refresh/audit/evaluation
 controls required before private inference. Preserve unresolved

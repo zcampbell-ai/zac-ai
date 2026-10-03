@@ -84,7 +84,10 @@ is verified in zacai_test only; live schema rollout and review integration remai
 incomplete. D034D now integrates explicitly selected reviewed project evidence
 into meeting/draft context, with source hashes, version pins, dependency labels
 and provenance verified in synthetic tests. This does not enable a private
-model runtime, automatic retrieval or production schema rollout.
+model runtime, automatic retrieval or production schema rollout. D034E adds a
+read-only canonical refresh foundation with request expiration and exact evidence
+comparison; the fresh-snapshot dispatch host, durable audit and evaluation remain
+incomplete.
 
 ## Tracking Rules
 - [ ] means incomplete or not yet verified.
@@ -265,6 +268,14 @@ For each phase:
 - [ ] Ensure retrieved content cannot grant permissions or issue commands.
 
 ## Phase 4 - Chief of Staff and First Useful Workflows
+- [ ] Evaluate OpenClaw Enterprise (OCE) before committing to a custom production
+  multi-agent control plane (D035). Run after the first bounded real ingestion,
+  when persistent-agent infrastructure is actually needed; do not delay D034.
+  Compare lifecycle, isolation, identity/RBAC, audit, runtime/provider portability,
+  sandbox/policy drivers, Mac Studio operational fit and replacement/recovery.
+  Distinguish implemented and deployment-tested behavior from planned features.
+  Zac State, Zac Events and the Zac approval/security/credential gateway retain
+  their authority. Evaluation is not adoption or permission to install/deploy.
 - [ ] Implement the Chief of Staff control plane.
 - [ ] Assemble relevant context from canonical state and evidence.
 - [ ] Implement commitment extraction, ownership, dates, and status.
@@ -311,7 +322,8 @@ For each phase:
 - [ ] Generate proposals, SOWs, decks, case studies, and reports.
 - [ ] Evaluate factual support, pricing, brand, scope, and legal language.
 - [ ] Keep specialist coordination behind the Chief of Staff interface.
-- [ ] Evaluate OpenClaw only as an optional, replaceable component.
+- [ ] Revisit the D035 OCE evaluation as specialist coordination expands; keep
+  orchestration optional and replaceable.
 
 ## Phase 8 - Voice and Interface Continuity
 - [ ] Verify current voice-provider availability, quality, and cost.
@@ -378,8 +390,9 @@ through read-only inspection. Zac confirmed that the relevant successive SOWs
 represent one continuing project. D034C now verifies a source-backed, reviewed
 association foundation without changing historical Meetings. D034D now verifies
 explicit reviewed project context reaching quote-backed meeting drafts. Next add
-canonical refresh/audit/evaluator controls and the bounded local shadow workflow. Protect the live state snapshot before migration
-rollout; keep temporal relevance separate from project identity before analysis.
+the fresh-snapshot dispatch host, durable audit/evaluator controls and the bounded
+local shadow workflow; D034E verifies the refresh-check library only. Protect the
+live state snapshot before migration rollout; keep temporal relevance separate from project identity before analysis.
 The existing Meeting.project_id is immutable; do not backfill it by mutation.
 The 27B model is a candidate for a bounded local shadow review, not an approved
 private runtime. It still needs canonical refresh, audit and evaluator controls.
