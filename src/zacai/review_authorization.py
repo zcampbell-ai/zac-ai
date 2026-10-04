@@ -78,7 +78,8 @@ class ReviewRecoveryGate(Protocol):
         """Verify actual current recovery/escrow evidence, not reference equality.
 
         Mandatory trusted adapter. No permissive production backend is shipped.
-        Its implementation must audit denials before a review task exists.
+        The host separately commits pre-context denial metadata before a truthful
+        task exists; this gate must never manufacture a task or permission grant.
         """
         ...
 

@@ -1,12 +1,13 @@
 # Questions for Zac
 
-Updated: 2026-10-03
+Updated: 2026-10-04
 Purpose: Keep nonblocking decisions here while engineering continues. This log
 is not approval evidence. Zac resumed and selected continued engineering and
 synthetic checks before a concrete private-trial proposal. D034G adds the host
 foundation and D034H adds the local transport adapter. D034J implements one-shot
 authorization and D034K verifies the narrow actual local tokenizer with PUBLIC
-synthetic conformance. Actual recovery/protection checks remain to be completed.
+synthetic conformance. Fresh current-state protection and live rollout remain
+pending; prior real recovery and current gate mechanics are recorded below.
 D034I verifies the schema-aware backup mechanism with synthetic recovery drills.
 No immediate contextual question blocks that engineering work.
 
@@ -135,3 +136,17 @@ The rollout preparation and rollback limits are in SCHEMA_ROLLOUT.md. Next finis
 pre-context recovery/denial-audit wiring and the exact live operator procedure,
 then ask Zac for the fresh protected rollout decision. Resume here without
 repeating key recovery or inventing another roadmap.
+
+## D034N progress — no immediate contextual question
+
+The concrete pre-context recovery gate and durable denial journal are now
+implemented and tested. Source/meeting/project dependencies recover independently;
+changed business state requires a new checkpoint. Consent/claim/audit Sources do
+not create a circular gate. A denied attempt has its own metadata record without
+invented task/context or private text.
+
+The next user decision remains the protected live rollout after its exact
+operator procedure and operational-journal recovery are ready. No new backup-key
+exercise is required now, and no private-model consent is implied. After rollout,
+finalize the exact reviewed project evidence and bring Zac the separate bounded
+trial scope; ask for context only if the source-backed association is ambiguous.

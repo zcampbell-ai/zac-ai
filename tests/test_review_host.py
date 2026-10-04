@@ -287,16 +287,33 @@ def test_audit_failure_prevents_generator_and_success(host_setup):
     assert runtime.calls == 0
 
 
-def test_denied_preflight_reads_no_artifacts(host_setup):
-    class NoReads:
-        def get(self, *args):
-            pytest.fail("preflight failure must precede any artifact read")
+def test_denied_preflight_reads_no_selected_artifacts(host_setup):
+    class NoSelectedReads:
+        def __init__(self):
+            self.audit_locations = set()
+
+        def put(self, *args):
+            location = host_setup[1].put(*args)
+            self.audit_locations.add(location)
+            return location
+
+        def get(self, boundary, location):
+            assert location in self.audit_locations, "preflight failure must precede selected reads"
+            return host_setup[1].get(boundary, location)
 
     auth = Authorization()
     auth.revoked = True
     with pytest.raises(ReviewHostError):
-        run(host_setup, authorization=auth, artifacts=NoReads())
+        run(host_setup, authorization=auth, artifacts=NoSelectedReads())
     assert stages(host_setup) == []
+    with host_setup[0]() as session:
+        rows = session.scalars(
+            select(Source).where(
+                Source.external_ref.startswith("meeting-review-pre-context-audit/"),
+                Source.id.not_in(host_setup[3]),
+            )
+        ).all()
+    assert len(rows) == 1
 
 
 def test_audit_commit_failure_stops_before_generation(host_setup):

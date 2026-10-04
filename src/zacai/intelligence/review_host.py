@@ -29,7 +29,13 @@ from zacai.intelligence.project_review_context import (
     ReviewedProjectEvidence,
     assemble_project_review_context,
 )
-from zacai.intelligence.review_audit import ReviewAuditEvent, ReviewAuditStage, append_review_audit
+from zacai.intelligence.review_audit import (
+    ReviewAuditEvent,
+    ReviewAuditStage,
+    ReviewPreContextAudit,
+    append_review_audit,
+    append_review_pre_context_audit,
+)
 from zacai.intelligence.review_context import MeetingEvidence, assemble_review_context
 from zacai.intelligence.review_evaluation import review_context_digest, review_evaluation_digests
 from zacai.intelligence.review_freshness import check_review_freshness
@@ -65,7 +71,8 @@ class ReviewAuthorization(Protocol):
         """Durably consume exact one-shot human authority; not a boolean grant.
 
         Concrete backend must bind selections/evidence, boundary/label, runtime
-        and model digest, expiry and replay. No production backend is shipped.
+        and model digest, expiry and replay. Explicit adapters are operator-wired;
+        no service or issuer is enabled by this protocol.
         """
         ...
 
@@ -92,7 +99,7 @@ class ReviewProtection(Protocol):
     def protect(self, run_id: UUID, audit_source_ids: tuple[UUID, ...]) -> None:
         """Verify committed audit/state/artifact recovery coverage or raise.
 
-        Does not promote/store generated prose. No production backend is shipped.
+        Does not promote/store generated prose or authorize a live invocation.
         """
         ...
 
@@ -156,7 +163,20 @@ def execute_review_shadow(
 
     def audit(stage: ReviewAuditStage, review_digest: str | None = None) -> None:
         if request is None:
-            return  # before context exists there is no truthful task audit
+            # This attempt has a real run UUID, but no truthful task/context yet.
+            # Persist only owned operator metadata, not denied selection details.
+            with factory() as session:
+                source_id = append_review_pre_context_audit(
+                    session,
+                    artifacts=artifacts,
+                    event=ReviewPreContextAudit(
+                        audit_event_id=uuid4(), run_id=run_id, recorded_at=clock()
+                    ),
+                    authorized_boundaries=authorized_boundaries,
+                )
+                session.commit()
+            audit_ids.append(source_id)
+            return
         event = ReviewAuditEvent(
             audit_event_id=uuid4(),
             run_id=run_id,

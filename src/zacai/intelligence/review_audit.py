@@ -48,6 +48,46 @@ class ReviewAuditStage(str, Enum):
     EVALUATION_RECORDED = "EVALUATION_RECORDED"
 
 
+class ReviewPreContextAudit(Contract):
+    """A real failed host attempt, before any task/evidence packet exists.
+
+    BRAINSTORM operator metadata only. No selected Source IDs, exception text,
+    task/context/draft or authority assertion. This record never grants access.
+    """
+
+    format: Literal["zac-review-pre-context-audit-v1"] = "zac-review-pre-context-audit-v1"
+    audit_event_id: UUID
+    run_id: UUID
+    recorded_at: AwareDatetime
+    trust_boundary: Literal[TrustBoundary.BRAINSTORM] = TrustBoundary.BRAINSTORM
+    data_classification: Literal[DataClassification.CONFIDENTIAL] = DataClassification.CONFIDENTIAL
+    stage: Literal["PRE_CONTEXT_REJECTED"] = "PRE_CONTEXT_REJECTED"
+
+
+def append_review_pre_context_audit(
+    session: Session,
+    *,
+    artifacts: ArtifactStore,
+    event: ReviewPreContextAudit,
+    authorized_boundaries: frozenset[TrustBoundary],
+) -> UUID:
+    """Commit through the host's own transaction; no denied artifact is read.
+
+    The fixed journal boundary still requires BRAINSTORM access. Failure to write
+    or commit it stops the attempt with audit-unavailable, never an invented proof.
+    """
+    try:
+        event = ReviewPreContextAudit.model_validate(event)
+        return _persist_review_audit(
+            session,
+            artifacts=artifacts,
+            event=event,
+            authorized_boundaries=authorized_boundaries,
+        )
+    except Exception:  # noqa: BLE001 - private storage diagnostics
+        raise ValueError("pre-context review audit unavailable") from None
+
+
 class ReviewAuditEvent(Contract):
     format: Literal["zac-meeting-review-audit-v1"] = "zac-meeting-review-audit-v1"
     audit_event_id: UUID
@@ -142,7 +182,7 @@ def _persist_review_audit(
     session: Session,
     *,
     artifacts: ArtifactStore,
-    event: ReviewAuditEvent,
+    event: ReviewAuditEvent | ReviewPreContextAudit,
     authorized_boundaries: frozenset[TrustBoundary],
 ) -> UUID:
     try:
@@ -163,7 +203,12 @@ def _persist_review_audit(
         session.execute(
             text("SELECT pg_advisory_xact_lock(:key)"), {"key": event.audit_event_id.int % (2**63)}
         )
-        external_ref = f"meeting-review-audit/{event.audit_event_id}"
+        prefix = (
+            "meeting-review-pre-context-audit"
+            if isinstance(event, ReviewPreContextAudit)
+            else "meeting-review-audit"
+        )
+        external_ref = f"{prefix}/{event.audit_event_id}"
         prior = session.scalar(
             select(Source).where(
                 Source.system == SourceSystem.MANUAL,

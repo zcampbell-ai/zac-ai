@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
@@ -50,6 +51,24 @@ def _unique_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
             raise ValueError("duplicate JSON key")
         result[name] = value
     return result
+
+
+def decode_normalized_review_envelope(raw: bytes) -> dict[str, Any]:
+    """Shared closed Fireflies envelope decoder, not context or permission.
+
+    Recovery may inspect a decrypted copy to identify its dependencies without
+    constructing a task. Caller must separately verify hashes, labels and links.
+    """
+    if len(raw) > 2_000_000:
+        raise ValueError("unsupported artifact size")
+    envelope = json.loads(raw, object_pairs_hook=_unique_pairs)
+    if (
+        not isinstance(envelope, dict)
+        or set(envelope) != {"format", "payload", "raw_source", "account_source"}
+        or envelope["format"] != "zac-fireflies-normalized-v1"
+    ):
+        raise ValueError("unsupported artifact format")
+    return envelope
 
 
 def assemble_review_context(
@@ -162,13 +181,7 @@ def _assemble(
         raw = artifacts.get(ref.trust_boundary, source.content_location)
         if len(raw) > 2_000_000 or content_hash_of(raw) != ref.content_hash:
             raise ValueError("artifact integrity or size failure")
-        envelope = json.loads(raw, object_pairs_hook=_unique_pairs)
-        if (
-            not isinstance(envelope, dict)
-            or set(envelope) != {"format", "payload", "raw_source", "account_source"}
-            or envelope["format"] != "zac-fireflies-normalized-v1"
-        ):
-            raise ValueError("unsupported artifact format")
+        envelope = decode_normalized_review_envelope(raw)
         payload = envelope["payload"]
         text = payload["transcript_text"]
         if not isinstance(text, str) or not text.strip() or len(text) > 18_000:

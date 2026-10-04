@@ -2,7 +2,9 @@
 
 D034G implements `execute_review_shadow` as a one-attempt operator library.
 It is not an enabled service or CLI. D034H adds an explicit local runtime adapter; actual
-pre-context recovery wiring remains to be verified before a private trial.
+pre-context recovery wiring was then still pending. D034N implements and tests
+the read-only recovery gate and host-owned pre-context denial record below;
+approved real-store wiring and fresh protected rollout remain pending.
 D034L supplies the concrete protection adapter described below.
 D034J supplies the canonical authorization ledger described below.
 
@@ -20,7 +22,7 @@ The three mandatory adapters have no permissive defaults:
 - Authorization: verify operator scope and recovery before artifacts are read;
   durably consume one-shot human authority bound to selected evidence, effective
   labels, route, exact model digest and expiry; reject replay and recheck
-  revocation. Its backend must audit pre-context denials because no truthful
+  revocation. The host separately records pre-context denials because no truthful
   canonical review task exists yet at that point.
 - Runtime: verify actual locality and exact model digest, enforce full serialized
   input/output capacity and transport deadline, make one call, return the existing
@@ -80,10 +82,10 @@ D034K supplies the narrow installed-model counter described below; ordinary
 unit-test counters remain invented.
 Calling the adapter directly grants no permission. It is not an enabled service.
 
-Next complete the pre-context recovery/denial-audit host wiring and actual
-recovery checks using the existing gateway and backup/recovery mechanisms. Verify them synthetically,
-prepare actual state restore evidence and protected migration procedure, then
-present the exact private trial scope for approval. Do not substitute mock
+Those pre-context mechanics are now implemented and verified synthetically in
+D034N. Next finish the exact live operator procedure, including excluded
+operational-journal recovery, and present the fresh protected schema rollout
+decision. The exact private trial scope follows separately. Do not substitute mock
 recovery/authorization or treat general filesystem access as processing approval.
 
 ## Canonical authorization ledger (D034J)
@@ -101,7 +103,8 @@ Consent/revocation Sources are USER_INSTRUCTION; consumption is MANUAL. Their
 artifacts are included in the existing BRAINSTORM backup inventory and canonical
 state snapshots. Inventory coverage is not proof of an actual encrypted restore.
 The mandatory recovery adapter must verify current state, artifact and credential
-recovery evidence and audit pre-context denials. No actual backend is included.
+recovery evidence. D034N supplies the explicit recovery adapter and the host-owned
+pre-context denial journal; no service or live scope is enabled.
 Historical imports and agents must never write these reserved review authority
 namespaces or translate old conversational approvals into current permission.
 
@@ -159,5 +162,53 @@ was removed without canonical writes, uploads or model calls. This proves that
 specific snapshot, not current-state protection or whole-machine recovery.
 A freshly recovered 1Password copy also passed decryption and full restore; its
 temporary file was removed and clipboard cleared without displaying secrets.
-Pre-context recovery/denial audit, fresh protected schema rollout and exact
-private trial/context consent still remain.
+At D034L, pre-context recovery/denial audit, fresh protected schema rollout and
+exact private trial/context consent remained; D034N completes the first mechanics.
+
+## Pre-context recovery and denial records (D034N)
+
+BrainstormReviewRecoveryGate requires an operator-pinned current encrypted
+checkpoint, an independent verification client, a functional local backup
+identity, the hash-pinned private receipt of its prior independent recovery and
+the actual disposable restore verifier. It supplies no credential loader, upload,
+issuer or permissive default. Receipt/reference matching alone cannot pass:
+every call retrieves/decrypts the earlier escrow-verification object and the
+separate current checkpoint, verifies the public recipient, independently
+retrieves required selected/dependency artifacts and performs full restoration.
+The shared normalized-envelope decoder identifies raw/account dependencies;
+canonical metadata identifies reviewed project confirmations/supporting Sources.
+It constructs no task/context packet and reads no local selected artifacts.
+Decrypted backup bytes are used locally for recovery only, never sent to a model.
+
+The recovered-key receipt is trusted operator evidence of the prior password-
+manager exercise. Fresh cryptographic checks bind the currently usable local key
+to that object. This verifies backup identity escrow/readiness, not all application
+credentials, B2 key escrow or automated access to 1Password. Real off-device
+durability still requires explicitly configured approved independent remote
+clients; local test objects prove mechanics only.
+
+The current business tables and every original checkpoint Source field must
+match in fresh read-only snapshots. Additional Sources alone are allowed to avoid
+the consent/claim/audit cycle; every required Source must exist in the recovered
+checkpoint. New/changed business rows, labels, retractions or project versions
+require a new checkpoint, even if the change is unrelated to this selection.
+A schema downgrade cannot silently omit recovered association evidence. No
+authority/audit prefix is used to ignore arbitrary business rows. Post-run
+protection captures the review's new consent/claim/audit Sources separately.
+
+This conservative one-attempt implementation fully restores on all five recovery
+checks; remote/admin work can be slow and the existing 120-second request lifetime
+still applies. No caching, retry, renewal or weaker fallback is introduced.
+Snapshots close before restoration. These checks reduce races, not globally lock
+canonical state against concurrent writers or hostile administrators.
+
+Before a context packet exists, the host records ReviewPreContextAudit with its
+real attempt/run UUID, timestamp and fixed rejection stage. It creates no task,
+context digest, selected Source IDs, error text or permission grant. Owned
+BRAINSTORM/CONFIDENTIAL metadata commits in a separate transaction and joins
+existing artifact/state backup inventory. A missing journal permission or failed
+write/commit is terminal audit-unavailable, never a fabricated durable record.
+
+Twenty new guarded tests cover the gate and denial journal. No actual private
+gate invocation, new B2 upload, live migration or model processing occurred in
+D034N. The full regression and independent review results are in DECISIONS.md.

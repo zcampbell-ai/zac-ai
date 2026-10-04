@@ -36,9 +36,10 @@ this rehearsal does not verify restoration of that journal or a whole database.
 
 ## Procedure to finish before requesting the live decision
 
-1. Finish the pre-context recovery verifier and denial-audit wiring. Verify with
-   invented state that recovery/authority failures stop selected-context reads
-   and model dispatch, and produce durable metadata-only denial evidence.
+1. D034N completes the pre-context recovery verifier and denial-audit wiring,
+   verified with invented state: recovery/authority failures stop local selected-
+   context reads and model dispatch and produce durable metadata-only denials.
+   Keep its real-store wiring explicit and within the approved operator scope.
 2. Prepare the exact live operator procedure and independent Claude review.
    Pin the Git revision and migration 0005; do not use a moving `head`. State
    which database and tables change and which recovery evidence is required.

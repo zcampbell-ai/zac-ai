@@ -24,6 +24,10 @@ from zacai.backup_artifacts import (
     backup_object_key_for,
     run_artifact_backup,
 )
+from zacai.backup_safety import (
+    assert_connected_to_safe_restore_database,
+    assert_safe_restore_target_url,
+)
 from zacai.ingestion.artifact_store import ArtifactStore, content_hash_of
 from zacai.intelligence.review_audit import ReviewAuditEvent, ReviewAuditStage
 from zacai.policy import DataClassification as C
@@ -56,7 +60,13 @@ class DisposableStateRestoreVerifier:
     PostgreSQL holds the temporary recovered state during this explicit drill.
     """
 
-    def verify(self, snapshot: bytes, expected_sources: dict[UUID, str]) -> None:
+    def verify(
+        self,
+        snapshot: bytes,
+        expected_sources: dict[UUID, str],
+        *,
+        current_business_state: Engine | None = None,
+    ) -> None:
         try:
             if not snapshot or len(snapshot) > _MAX_STATE_BYTES or not expected_sources:
                 raise ValueError("invalid recovery inventory")
@@ -83,6 +93,8 @@ class DisposableStateRestoreVerifier:
                         backup.verify_restored_boundary_stream(
                             engine, io.BytesIO(snapshot), boundary=B.BRAINSTORM
                         )
+                        if current_business_state is not None:
+                            _verify_current_business_state(engine, current_business_state)
                         with Session(engine) as session:
                             for sid, digest in expected_sources.items():
                                 source = session.get(Source, sid)
@@ -102,6 +114,75 @@ class DisposableStateRestoreVerifier:
                         admin.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": _DRILL_LOCK})
         except Exception:  # noqa: BLE001 - private state/admin diagnostics
             raise ReviewProtectionError("state restore verification failed") from None
+
+
+def assert_local_review_state_engine(engine: Engine) -> None:
+    """Only existing Mac Studio dev state or the guarded synthetic test DB."""
+    url = engine.url
+    if (
+        url.drivername != "postgresql+psycopg"
+        or url.host != "127.0.0.1"
+        or url.port not in (None, 5432)
+        or url.database not in ("zacai_dev", "zacai_test")
+        or url.password
+        or url.query
+    ):
+        raise ReviewProtectionError("local review state target required")
+
+
+def _verify_current_business_state(restored: Engine, current: Engine) -> None:
+    """Conservative checkpoint freshness without the authority/audit cycle.
+
+    Compare every non-Source canonical table in the current revision, and every
+    original checkpoint Source field. Additional Sources alone are permitted;
+    the caller separately requires selected/dependency Sources in the checkpoint.
+    This permits new consent/claim/audit records, never ignores business rows,
+    classifications, retractions, project versions or original Source changes.
+    An unrelated business change can also require a new protected checkpoint.
+    """
+    assert_local_review_state_engine(current)
+    assert_safe_restore_target_url(restored.url.render_as_string(hide_password=False))
+    with current.connect() as live, restored.connect() as recovered:
+        for conn in (live, recovered):
+            conn.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+        if live.scalar(text("SELECT current_database()")) != current.url.database:
+            raise ValueError("current state target mismatch")
+        assert_connected_to_safe_restore_database(
+            recovered.scalar(text("SELECT current_database()"))
+        )
+        revisions = live.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
+        if len(revisions) != 1 or revisions[0] not in ("0004", "0005"):
+            raise ValueError("unsupported current review schema")
+        live_raw, recovered_raw = backup._raw_connection(live), backup._raw_connection(recovered)
+        for table in backup._SCHEMA_TABLES[revisions[0]][1:]:
+            if backup._export_table_csv(live_raw, table, B.BRAINSTORM.value) != (
+                backup._export_table_csv(recovered_raw, table, B.BRAINSTORM.value)
+            ):
+                raise ValueError("business state changed since recovery checkpoint")
+        for table in set(backup.TABLE_ORDER) - set(backup._SCHEMA_TABLES[revisions[0]]):
+            if recovered.scalar(text(f"SELECT EXISTS (SELECT 1 FROM {table})")):
+                raise ValueError("current schema omitted recovered business evidence")
+        ids = (
+            recovered.execute(
+                text("SELECT id FROM source WHERE trust_boundary='BRAINSTORM' ORDER BY id")
+            )
+            .scalars()
+            .all()
+        )
+        query = (
+            "COPY (SELECT * FROM source WHERE trust_boundary = %s AND id = ANY(%s) "
+            "ORDER BY id) TO STDOUT WITH (FORMAT csv, HEADER true)"
+        )
+        with live_raw.cursor() as cur, cur.copy(query, (B.BRAINSTORM.value, ids)) as copy:
+            expected = backup._export_table_csv(recovered_raw, "source", B.BRAINSTORM.value)
+            offset = 0
+            for chunk in copy:
+                data = bytes(chunk)
+                if expected[offset : offset + len(data)] != data:
+                    raise ValueError("checkpoint Source changed")
+                offset += len(data)
+            if offset != len(expected):
+                raise ValueError("checkpoint Source changed")
 
 
 class BrainstormReviewProtector:

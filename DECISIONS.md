@@ -4548,6 +4548,69 @@ Next finish pre-context recovery/denial auditing, prepare the reviewed exact liv
 operator procedure and ask Zac for the fresh protected schema rollout decision.
 No private review consent or production migration authority is issued here.
 
+## D034N - Pre-Context Recovery Gate and Durable Denials
+
+Date: 2026-10-04
+Status: Implemented and independently reviewed with invented state; live wiring pending
+
+Implement the remaining recovery seam in the existing one-shot review host.
+BrainstormReviewRecoveryGate requires an explicitly pinned current encrypted
+checkpoint, a separately constructed verification client, local identity/public
+recipient, the hash-pinned private receipt of prior independent key recovery and
+the actual DisposableStateRestoreVerifier. No credential loader, upload, model
+call, issuer, service or permissive default is introduced.
+
+On every check, verify the prior receipt's permissions/hash and recovered-key
+evidence, independently retrieve/decrypt its original object with the current
+identity and test its recipient. Then independently retrieve the separate current
+versioned checkpoint and required selected/dependency artifacts, check every hash,
+restore the complete checkpoint, compare current business tables and every
+original Source field, and verify required Sources in the recovered state. The
+shared normalized decoder closes raw/account dependencies; canonical project
+lookups close confirmation and supporting evidence. No IntelligenceTask or
+ReviewContext is manufactured inside recovery, and no local selected artifact
+is read before the gate succeeds. Backup plaintext is used only locally for
+recovery and is not sent to a model.
+
+Receipt/reference binding alone cannot establish readiness. The protected receipt
+is trusted operator evidence of the prior independent password-manager exercise;
+fresh cryptographic checks establish that the current key decrypts that same
+object. This verifies backup age identity escrow/readiness, not B2 application-key
+escrow, every application credential or automated password-manager access.
+Local synthetic object clients still do not prove real off-device durability.
+
+Additional Sources alone are allowed because consent/claim/audit records are
+necessarily appended during the review. Required Sources must be restored;
+every business row and original Source field still matches. Unrelated business
+changes conservatively require a new checkpoint. No arbitrary authority prefix
+is used to discard business records. A live 0004 revision cannot silently omit
+association records present in a 0005 checkpoint. Post-run D034L protection
+captures new authority/audit records separately, avoiding a circular precondition.
+
+The host now commits a closed ReviewPreContextAudit when context preparation or
+preflight fails. Its run UUID is the real host attempt allocated at entry; it
+has no task ID, context/draft digest, selected Source IDs, backend text or grant.
+BRAINSTORM/CONFIDENTIAL MANUAL metadata uses a separate committed transaction,
+the existing Source/artifact inventory and gateway. Denied journal permission or
+failed write/commit produces terminal audit-unavailable rather than false proof.
+The canonical Zac Event contract is unchanged.
+
+Verification: 1,055 tests pass, including 20 new guarded tests with actual
+throwaway age encryption, independent local clients, full disposable restoration,
+all five host recovery checks, required project evidence, changed fields with
+equal hashes/UUIDs/counts, stale labels/business state, lost association tables,
+denial visibility, no selected reads/model dispatch on recovery failure, and
+failed journal commits/permissions. Ruff and strict mypy pass across 43 source
+files. Claude found no code blockers. The complete private first-run scope and
+performance remain untested; repeated remote restoration can exhaust the existing
+120-second request lifetime and must not silently relax it.
+
+No actual private recovery-gate invocation, live schema change, new B2 upload,
+connector access or model processing occurred. Finish the exact live operator
+procedure and excluded operational-journal recovery before requesting the fresh
+protected rollout decision. Exact reviewed project evidence and private trial
+scope remain separate. Do not repeat the already completed key recovery exercise.
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)
@@ -4591,8 +4654,10 @@ verification. D034K now verifies the narrow installed-model tokenizer with PUBLI
 conformance. D034L adds the concrete protection adapter and verifies a full restore of the
 existing real off-device snapshot with a key recovered from 1Password. D034M verifies
 the current-state populated-copy upgrade and rollback rehearsal and records the
-protected rollout preparation. Complete
-pre-context recovery wiring, then prepare a concrete one-shot trial proposal; protect the
+protected rollout preparation. D034N implements/tests pre-context recovery and
+durable denials. Finish the exact live operator procedure and operational-journal
+recovery, then request the protected rollout decision. Prepare a concrete one-shot
+trial proposal separately; protect the
 live state snapshot before migration rollout. Keep genuinely distinct projects separate. D034B's 27B synthetic result is a
 candidate for future bounded local shadow review, with refresh/audit/evaluation
 controls required before private inference. Preserve unresolved
