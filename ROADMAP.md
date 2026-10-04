@@ -11,7 +11,7 @@ This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position — reconciled 2026-10-04
 
-Current completed engineering checkpoint: D034AE (building on D034AD / ac4af2f).
+Current completed engineering checkpoint: D034AF (building on D034AE / c7a2172).
 D031B verified real BRAINSTORM encrypted off-device artifact recovery. D032
 intelligence contracts are implemented. D033C verified one explicitly approved
 Fireflies capture. D034O applied live schema 0005 with protected recovery, and
@@ -27,8 +27,9 @@ The real encryption/disposable restore adapter is exercised with throwaway keys
 and local test objects. D034AE adds concrete one-shot contextual consent/claim/
 revocation, actual recovery-gate bridging and canonical locator/encrypted receipt
 records. Their combined path passes with invented model output and throwaway
-keys. Bounded model-runtime/operator wiring and failed-attempt recovery remain
-pending. These do not
+keys. D034AF adds the bounded contextual loopback runtime and explicit offline
+token counter, including the complete guarded chain with mocked provider output.
+One-shot operator wiring and failed-attempt recovery remain pending. These do not
 enable recurring ingestion, an improved
 live generation flow or broad production routing. The app remains health-only.
 
@@ -765,3 +766,56 @@ end-to-end budgets. Then propose exact real source/model scope and evaluate the
 visible result for usefulness before daily briefing/private interface expansion.
 No actual human consent was issued, private source ingested, client-data model
 call made, real upload performed, production operator or mobile service enabled.
+
+
+### D034AF — bounded contextual runtime, invented-data integration verified
+
+The explicit local contextual adapter accepts only the contextual capability and
+exact host-prepared request, pins installed model identity before/after one call,
+binds preflight to full task/context/payload/count and consumes an attempted
+instance even on failure. No tools, thinking output, cloud fallback, retries,
+truncation or automatic budget increases are enabled. Returned raw draft JSON is
+bounded and rejects duplicate/authority fields; incomplete output, token usage
+mismatch and late output are withheld. Latency includes payload preparation and
+local token counting as well as metadata/generation checks. Fixed socket timeouts
+and rejection of late output do not provide a process kill deadline.
+
+The existing verified Qwen/Ollama text renderer is shared with explicit separate
+compact and contextual schema entrypoints. Each counter rejects the other format;
+manifest/blob hashes and exact runtime checks remain required. Invented evidence
+measured with the installed tokenizer: 1,552 input tokens plus 1,600 reserved
+output tokens against the unchanged 8,192-token context limit, 8,802 serialized
+bytes. This is no measure of real client-context capacity or model usefulness.
+No model invocation was used for that offline measurement.
+
+The concrete adapter runs through canonical consent/claim, actual recovery gate,
+protected packet capture and full disposable restore using invented provider
+output, throwaway keys and independent local object readers. This adds no real
+B2 coverage. Verification: 1,370 tests pass, Ruff and strict mypy on 55 source
+files pass; two existing dependency warnings remain.
+
+Next complete the reviewable one-shot operator, failed-attempt recovery and
+reconciliation, then propose exact real source/model/budget scope. Judge the
+visible result for usefulness before daily briefing/private interface expansion.
+No actual contextual approval, private source ingestion, client-data model call,
+real upload, production operator or mobile service was enabled.
+
+
+D034AF independent Opus engineering review (actual claude-opus-5-5) found raw
+chat-template control strings in evidence could affect role boundaries. Both
+local serializers now escape `<` in the JSON evidence string without changing
+canonical transcripts, source hashes or parsed passage text. The pinned offline
+counter additionally rejects registered special-token strings in message
+contents. Regression tests cover the boundary injection, exact capacity edge,
+wrong compact tokenizer pairing and preserved parsed evidence. Counter errors
+now discard private exception chains; contextual draft parsing rejects non-finite
+JSON constants explicitly. Contextual capability checks were added during
+independent implementation review before Opus returned the same finding.
+
+Runtime instances remain synchronous and single-owner; concurrent scheduling
+requires separately governed construction/locking. Error reporters must not
+capture traceback locals. Exact prompt-usage mismatch fails closed and may
+consume an attempt even if runtime reuse/cache behavior caused it; no relaxed
+usage check is added without verifying runtime semantics. These are limitations,
+not evidence of a successful real trial. One-shot operator and failed-attempt
+reconciliation remain the next delivery step.

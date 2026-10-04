@@ -1,4 +1,4 @@
-"""D034H explicit loopback adapter, never an authorization or enabled service.
+"""D034AF explicit contextual loopback adapter, never an authorization or enabled service.
 
 Shares the existing benchmark wire protocol. Trusted host construction only;
 call through the review host with actual authorization/protection adapters.
@@ -7,81 +7,65 @@ No configurable endpoint, proxy, redirects, model pulls, tools or fallback.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
-import http.client
 import json
 import re
 import time
-from collections.abc import Callable
-from typing import Any, Protocol
 
+from zacai.intelligence.contextual_generation import (
+    ContextualDraft,
+    ContextualRequest,
+    parse_contextual_draft,
+    prepare_contextual_request,
+)
 from zacai.intelligence.contracts import ModelRoute, UsageObservation
+from zacai.intelligence.local_review_runtime import (
+    LocalPromptTokenCounter,
+    Transport,
+    _http,
+    verify_model,
+)
 from zacai.intelligence.review_evaluation import review_context_digest
-from zacai.intelligence.review_generation import ReviewDraft, ReviewRequest, prepare_review_request
 from zacai.policy import Destination
 
 _CONTEXT_TOKENS = 8192
-Transport = Callable[[str, str, bytes | None], Any]
 
 
-class LocalReviewRuntimeError(ValueError):
+class LocalContextualRuntimeError(ValueError):
     """Fixed diagnostics; no backend/input/output text."""
 
 
-def _pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    result: dict[str, Any] = {}
-    for key, value in pairs:
-        if key in result:
-            raise LocalReviewRuntimeError("invalid local response")
-        result[key] = value
-    return result
+def _raise_interruption(kind: type[BaseException] | None) -> None:
+    if kind is not None:
+        if issubclass(kind, KeyboardInterrupt):
+            raise KeyboardInterrupt
+        if issubclass(kind, SystemExit):
+            raise SystemExit
+        if issubclass(kind, asyncio.CancelledError):
+            raise asyncio.CancelledError
 
 
-def _constant(value: str) -> None:
-    raise LocalReviewRuntimeError("invalid local response")
-
-
-def _json(raw: bytes | str) -> Any:
-    return json.loads(raw, object_pairs_hook=_pairs, parse_constant=_constant)
-
-
-def _http(method: str, path: str, body: bytes | None = None) -> Any:
-    # Literal loopback bypasses proxy environment; no redirect handling exists.
-    connection = http.client.HTTPConnection("127.0.0.1", 11434, timeout=120)
-    try:
-        connection.request(method, path, body=body, headers={"Content-Type": "application/json"})
-        response = connection.getresponse()
-        if (
-            response.status != 200
-            or response.getheader("Content-Encoding", "identity") != "identity"
-        ):
-            raise LocalReviewRuntimeError("local runtime unavailable")
-        raw = response.read(2_000_001)
-        if len(raw) > 2_000_000:
-            raise LocalReviewRuntimeError("local response too large")
-        return _json(raw)
-    finally:
-        connection.close()
-
-
-def prepare_payload(request: ReviewRequest, route: ModelRoute, digest: str) -> bytes:
+def prepare_payload(request: ContextualRequest, route: ModelRoute, digest: str) -> bytes:
     """Verify host-derived catalog and complete serialized character/byte limits.
 
     The adapter separately checks exact tokenizer capacity before dispatch and
     compares reported usage afterward; this serializer alone does neither.
     """
-    if request != prepare_review_request(request.context):
-        raise LocalReviewRuntimeError("modified review request")
+    if request != prepare_contextual_request(request.context):
+        raise LocalContextualRuntimeError("modified review request")
     name = route.identity.model_id
     if (
-        route.destination != Destination.LOCAL
+        "contextual_meeting_review" not in route.capabilities
+        or "compact_meeting_review" in route.capabilities
+        or route.destination != Destination.LOCAL
         or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,100}", name)
         or name.endswith(":cloud")
         or not re.fullmatch(r"[0-9a-f]{64}", digest)
         or request.context.task.max_output_tokens > route.max_output_tokens
     ):
-        raise LocalReviewRuntimeError("invalid local route or pin")
-    schema = ReviewDraft.model_json_schema()
+        raise LocalContextualRuntimeError("invalid local route or pin")
+    schema = ContextualDraft.model_json_schema()
     body = json.dumps(
         {
             "model": name,
@@ -104,24 +88,13 @@ def prepare_payload(request: ReviewRequest, route: ModelRoute, digest: str) -> b
         ensure_ascii=False,
     ).encode()
     if len(body.decode()) > route.max_input_characters or len(body) > 64_000:
-        raise LocalReviewRuntimeError("serialized request outside capacity")
+        raise LocalContextualRuntimeError("serialized request outside capacity")
     return body
 
 
-def verify_model(name: str, digest: str, transport: Transport) -> None:
-    models = transport("GET", "/api/tags", None)["models"]
-    # Ambiguous same-name registrations reject even if one reports the right hash.
-    matching = [model for model in models if model.get("name") == name]
-    if len(matching) != 1 or matching[0].get("digest") != digest:
-        raise LocalReviewRuntimeError("installed model pin mismatch")
-    metadata = transport("POST", "/api/show", json.dumps({"model": name}).encode())
-    if metadata.get("remote_model") or metadata.get("remote_host"):
-        raise LocalReviewRuntimeError("remote model forbidden")
-
-
 def dispatch_draft(
-    request: ReviewRequest, route: ModelRoute, body: bytes, transport: Transport
-) -> tuple[ReviewDraft, UsageObservation]:
+    request: ContextualRequest, route: ModelRoute, body: bytes, transport: Transport
+) -> tuple[ContextualDraft, UsageObservation]:
     started = time.perf_counter()
     reply = transport("POST", "/api/chat", body)
     elapsed = (time.perf_counter() - started) * 1000
@@ -131,41 +104,31 @@ def dispatch_draft(
         or reply.get("done_reason") != "stop"
         or not 0 <= elapsed <= request.context.task.max_latency_ms
     ):
-        raise LocalReviewRuntimeError("incomplete or late local output")
+        raise LocalContextualRuntimeError("incomplete or late local output")
     message = reply["message"]
     if message.get("role") != "assistant" or message.get("tool_calls") or message.get("thinking"):
-        raise LocalReviewRuntimeError("unexpected model authority or thinking output")
+        raise LocalContextualRuntimeError("unexpected model authority or thinking output")
     counts = (reply["prompt_eval_count"], reply["eval_count"])
     if (
         any(type(count) is not int or count < 0 for count in counts)
         or counts[1] > request.context.task.max_output_tokens
         or counts[0] + counts[1] > _CONTEXT_TOKENS
     ):
-        raise LocalReviewRuntimeError("invalid local usage or context capacity")
-    draft = ReviewDraft.model_validate(_json(message["content"]))
+        raise LocalContextualRuntimeError("invalid local usage or context capacity")
+    content = message["content"]
+    if not isinstance(content, str):
+        raise TypeError("invalid response content")
+    draft = parse_contextual_draft(content.encode())
     return draft, UsageObservation(
         input_tokens=counts[0], output_tokens=counts[1], latency_ms=elapsed, cost_usd=0.0
     )
 
 
-class LocalPromptTokenCounter(Protocol):
-    """Trusted local tokenizer tied to the exact installed model/template.
-
-    Count the complete rendered prompt, including chat template and schema,
-    without sending evidence to a model or remote service. No backend/default is
-    shipped. Reported runtime input usage must match this count after dispatch.
-    """
-
-    @property
-    def model_digest(self) -> str: ...
-    def count_prompt_tokens(self, serialized_body: bytes) -> int: ...
-    def verify_runtime(self) -> None:
-        """Reject runtime/template incompatibility using metadata only."""
-        ...
-
-
-class LocalReviewRuntime:
+class LocalContextualRuntime:
     """One-attempt, host-owned adapter; constructing it grants no permission.
+
+    Synchronous single-owner instance: never share across concurrent callers.
+    Error reporters must disable local-variable capture for private inputs.
 
     Preflight sends only model name metadata, never evidence. It binds the exact
     prepared payload and exact local tokenizer count; generation requires that
@@ -184,9 +147,9 @@ class LocalReviewRuntime:
     ) -> None:
         self._route = ModelRoute.model_validate(route)
         if not re.fullmatch(r"[0-9a-f]{64}", model_digest):
-            raise LocalReviewRuntimeError("invalid local runtime configuration")
+            raise LocalContextualRuntimeError("invalid local runtime configuration")
         if self._route.destination != Destination.LOCAL:
-            raise LocalReviewRuntimeError("invalid local runtime configuration")
+            raise LocalContextualRuntimeError("invalid local runtime configuration")
         self._model_digest = model_digest
         self._token_counter = token_counter
         self._prepared: bytes | None = None
@@ -205,7 +168,7 @@ class LocalReviewRuntime:
     def usage(self) -> UsageObservation | None:
         return self._usage
 
-    def _token_count(self, body: bytes, request: ReviewRequest) -> int:
+    def _token_count(self, body: bytes, request: ContextualRequest) -> int:
         if self._token_counter.model_digest != self.model_digest:
             raise ValueError("tokenizer model pin mismatch")
         count = self._token_counter.count_prompt_tokens(body)
@@ -217,7 +180,8 @@ class LocalReviewRuntime:
             raise ValueError("prompt/output token budget exceeded")
         return count
 
-    def preflight(self, request: ReviewRequest) -> None:
+    def preflight(self, request: ContextualRequest) -> None:
+        interruption = None
         try:
             if self._attempted:
                 raise ValueError("attempt consumed")
@@ -231,11 +195,16 @@ class LocalReviewRuntime:
             self._prepared = hashlib.sha256(
                 body + review_context_digest(request.context).encode() + str(count).encode()
             ).digest()
-        except Exception:  # noqa: BLE001 - model/backend errors may echo data
-            raise LocalReviewRuntimeError("local review preflight failed") from None
+            return
+        except BaseException as error:  # noqa: BLE001 - sanitize interruption diagnostics too
+            interruption = type(error)
+        _raise_interruption(interruption)
+        raise LocalContextualRuntimeError("local contextual preflight failed")
 
-    def generate(self, request: ReviewRequest) -> ReviewDraft:
+    def generate(self, request: ContextualRequest) -> ContextualDraft:
+        interruption = None
         try:
+            started = time.perf_counter()
             self._usage = None
             if self._attempted:
                 raise ValueError("attempt consumed")
@@ -247,7 +216,6 @@ class LocalReviewRuntime:
             ).digest()
             if self._prepared is None or self._prepared != expected:
                 raise ValueError("preflight missing or changed")
-            started = time.perf_counter()
             self._token_counter.verify_runtime()
             verify_model(self.route.identity.model_id, self.model_digest, _http)
             draft, usage = dispatch_draft(request, self.route, body, _http)
@@ -260,5 +228,7 @@ class LocalReviewRuntime:
                 raise ValueError("late adapter output")
             self._usage = usage.model_copy(update={"latency_ms": elapsed})
             return draft
-        except Exception:  # noqa: BLE001 - never expose backend/private text
-            raise LocalReviewRuntimeError("local review generation failed") from None
+        except BaseException as error:  # noqa: BLE001 - sanitize interruption diagnostics too
+            interruption = type(error)
+        _raise_interruption(interruption)
+        raise LocalContextualRuntimeError("local contextual generation failed")

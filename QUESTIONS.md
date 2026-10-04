@@ -427,3 +427,13 @@ in the combined synthetic path. Next finish the model adapter and one-shot
 operator, then present exact source/model/budget scope for a real trial.
 Zac's review of the actual delivered result remains required; test counts do not
 prove useful prose. No manual push is required.
+
+
+## D034AF — no user decision needed for the bounded adapter
+
+The contextual runtime and explicit tokenizer path are verified with invented
+model output, including canonical authority and actual disposable restore. No
+new contextual answer is needed for this engineering checkpoint. Next prepare
+the concrete one-shot operator and failed-attempt handling, then ask for exact
+real source/model/budget scope. A live useful-result trial and later private
+interface remain pending; no inferred blanket model permission is being used.

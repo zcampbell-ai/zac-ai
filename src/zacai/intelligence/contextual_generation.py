@@ -200,11 +200,14 @@ def parse_contextual_draft(payload: bytes) -> ContextualDraft:
             result[key] = value
         return result
 
+    def constant(value: str) -> None:
+        raise ValueError("non-finite provider constant")
+
     try:
         if type(payload) is not bytes or len(payload) > 64_000:
             raise ValueError("bounded immutable output required")
         return ContextualDraft.model_validate(
-            json.loads(payload.decode(), object_pairs_hook=unique)
+            json.loads(payload.decode(), object_pairs_hook=unique, parse_constant=constant)
         )
     except Exception:  # noqa: BLE001, S110 - no private provider diagnostics
         pass

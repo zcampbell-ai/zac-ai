@@ -574,8 +574,9 @@ def test_concurrent_revocation_and_claim_always_prevent_later_release(issued):
         auth.recheck(s, issued[3], contextual_request_digest(issued[3]), NOW)
 
 
+@pytest.mark.parametrize("adapter", ["fixture", "bounded_loopback"])
 def test_canonical_authority_actual_recovery_and_protection_together(
-    test_session_factory, tmp_path, monkeypatch
+    test_session_factory, tmp_path, monkeypatch, adapter
 ):
     from tests import test_review_recovery as legacy
     from zacai import backup_artifacts, contextual_protection
@@ -594,6 +595,9 @@ def test_canonical_authority_actual_recovery_and_protection_together(
     f = old_issued[0]
     factory, store, captured, baseline = f
     runtime = Runtime(f)
+    if adapter == "bounded_loopback":
+        from tests.test_local_contextual_runtime import setup
+        runtime, _, calls = setup(monkeypatch)
     with _snapshot(factory) as session:
         context = assemble_review_context(
             session,
@@ -679,7 +683,12 @@ def test_canonical_authority_actual_recovery_and_protection_together(
         builder_id=consent.builder_id,
         allow_synthetic_protection=False,
     )
-    assert runtime.calls == 1 and result.recovery_receipt is not None
+    assert result.recovery_receipt is not None
+    if adapter == "bounded_loopback":
+        assert sum(c[1] == "/api/chat" for c in calls) == 1
+        assert runtime.usage is not None
+    else:
+        assert runtime.calls == 1
     with _snapshot(factory) as session:
         assert (
             find_contextual_recovery_receipt(

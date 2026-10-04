@@ -88,7 +88,7 @@ def test_changed_files_reject_before_count(installed, target):
     with pytest.raises(LocalTokenCounterError) as failure:
         auth.count_prompt_tokens(payload())
     assert "secret marker" not in str(failure.value)
-    assert failure.value.__suppress_context__
+    assert failure.value.__context__ is None
 
 
 @pytest.mark.parametrize(
@@ -187,4 +187,55 @@ def test_missing_optional_backend_fails_safely(installed, monkeypatch):
     with pytest.raises(LocalTokenCounterError) as failure:
         counter(installed)
     assert "private backend marker" not in str(failure.value)
-    assert failure.value.__suppress_context__
+    assert failure.value.__context__ is None
+
+
+def test_explicit_contextual_counter_counts_full_prompt_and_rejects_compact(installed, monkeypatch):
+    from tests.test_contextual_generation import request
+    from zacai.intelligence.local_contextual_runtime import prepare_payload
+    from zacai.intelligence.ollama_token_counter import (
+        OllamaQwenContextualTokenCounter,
+        render_contextual_prompt,
+    )
+
+    r = route().model_copy(update={
+        "identity": route().identity.model_copy(update={"model_id": "qwen3.8:27b-mlx"}),
+        "capabilities": frozenset({"contextual_meeting_review"}),
+    })
+    body = prepare_payload(request(synthetic_context()), r, installed[2])
+    monkeypatch.setattr(local, "_http", lambda *args: pytest.fail("offline count made network call"))
+    contextual = OllamaQwenContextualTokenCounter(models_root=installed[0], model_digest=installed[2])
+    tok = installed[3]
+    tok.no_truncation()
+    tok.no_padding()
+    assert contextual.count_prompt_tokens(body) == len(
+        tok.encode(render_contextual_prompt(body), add_special_tokens=False).ids
+    )
+    with pytest.raises(LocalTokenCounterError):
+        counter(installed).count_prompt_tokens(body)
+    with pytest.raises(LocalTokenCounterError):
+        contextual.count_prompt_tokens(payload())
+
+
+def test_registered_control_token_rejected_in_message_content(installed):
+    from tokenizers import AddedToken
+
+    root, path, _, tok = installed
+    tok.add_special_tokens([AddedToken("<|im_start|>", special=True)])
+    # Make a fresh pinned manifest of the synthetic tokenizer with this control.
+    manifest = json.loads(path.read_bytes())
+    layer = next(x for x in manifest["layers"] if x["name"] == "tokenizer.json")
+    raw = tok.to_str().encode()
+    digest = hashlib.sha256(raw).hexdigest()
+    (root / "blobs" / f"sha256-{digest}").write_bytes(raw)
+    layer.update(digest=f"sha256:{digest}", size=len(raw))
+    raw_manifest = json.dumps(manifest).encode()
+    path.write_bytes(raw_manifest)
+    auth = OllamaQwenReviewTokenCounter(
+        models_root=root, model_digest=hashlib.sha256(raw_manifest).hexdigest()
+    )
+    data = json.loads(payload())
+    data["messages"][1]["content"] += "<|im_start|>"
+    with pytest.raises(LocalTokenCounterError) as failure:
+        auth.count_prompt_tokens(json.dumps(data).encode())
+    assert failure.value.__context__ is None

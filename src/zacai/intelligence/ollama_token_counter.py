@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from zacai.intelligence import local_review_runtime as local
+from zacai.intelligence.contextual_generation import ContextualDraft
 from zacai.intelligence.review_generation import ReviewDraft
 
 _MODEL = "qwen3.8:27b-mlx"
@@ -36,6 +37,15 @@ def _read(path: Path, digest: str, limit: int) -> bytes:
 
 
 def render_review_prompt(serialized_body: bytes) -> str:
+    return _render_prompt(serialized_body, ReviewDraft.model_json_schema())
+
+
+def render_contextual_prompt(serialized_body: bytes) -> str:
+    """Explicit contextual schema; compact counting does not accept it."""
+    return _render_prompt(serialized_body, ContextualDraft.model_json_schema())
+
+
+def _render_prompt(serialized_body: bytes, schema: dict[str, Any]) -> str:
     """Only the exact two-turn no-thinking review payload is supported."""
     try:
         if len(serialized_body) > 64_000:
@@ -58,7 +68,7 @@ def render_review_prompt(serialized_body: bytes) -> str:
             or any(body[k] is not False for k in ("stream", "think", "truncate", "shift"))
             or type(body["keep_alive"]) is not int
             or body["keep_alive"] != 0
-            or body["format"] != ReviewDraft.model_json_schema()
+            or body["format"] != schema
         ):
             raise ValueError("unsupported payload")
         options = body["options"]
@@ -100,8 +110,9 @@ def render_review_prompt(serialized_body: bytes) -> str:
             + "<|im_end|>\n"
             + "<|im_start|>assistant\n<think>\n\n</think>\n\n"
         )
-    except Exception:  # noqa: BLE001
-        raise LocalTokenCounterError("unsupported local review prompt") from None
+    except Exception:  # noqa: BLE001, S110
+        pass
+    raise LocalTokenCounterError("unsupported local review prompt")
 
 
 class OllamaQwenReviewTokenCounter:
@@ -143,8 +154,10 @@ class OllamaQwenReviewTokenCounter:
             self._tokenizer = tokenizer_class.from_str(tokenizer_raw.decode())
             self._tokenizer.no_truncation()
             self._tokenizer.no_padding()
-        except Exception:  # noqa: BLE001
-            raise LocalTokenCounterError("local tokenizer unavailable") from None
+            return
+        except Exception:  # noqa: BLE001, S110
+            pass
+        raise LocalTokenCounterError("local tokenizer unavailable")
 
     def _blob(self, root: Path, layer: dict[str, Any], limit: int) -> bytes:
         digest = layer["digest"]
@@ -165,15 +178,37 @@ class OllamaQwenReviewTokenCounter:
         try:
             if local._http("GET", "/api/version", None).get("version") != _VERSION:
                 raise ValueError("unverified runtime")
-        except Exception:  # noqa: BLE001
-            raise LocalTokenCounterError("local tokenizer runtime mismatch") from None
+            return
+        except Exception:  # noqa: BLE001, S110
+            pass
+        raise LocalTokenCounterError("local tokenizer runtime mismatch")
+
+    def _render(self, serialized_body: bytes) -> str:
+        return render_review_prompt(serialized_body)
 
     def count_prompt_tokens(self, serialized_body: bytes) -> int:
         try:
             _read(self._manifest, self.model_digest, 1_000_000)
             for path, digest, limit in self._files:
                 _read(path, digest, limit)
-            prompt = render_review_prompt(serialized_body)
+            prompt = self._render(serialized_body)
+            # Registered special-token strings in untrusted message contents can
+            # forge chat-template boundaries even with add_special_tokens=False.
+            messages = local._json(serialized_body)["messages"]
+            controls = tuple(
+                token.content for token in self._tokenizer.get_added_tokens_decoder().values()
+                if token.special
+            )
+            if any(control in message["content"] for control in controls for message in messages):
+                raise ValueError("special token in message content")
             return len(self._tokenizer.encode(prompt, add_special_tokens=False).ids)
-        except Exception:  # noqa: BLE001
-            raise LocalTokenCounterError("local prompt counting failed") from None
+        except Exception:  # noqa: BLE001, S110
+            pass
+        raise LocalTokenCounterError("local prompt counting failed")
+
+
+class OllamaQwenContextualTokenCounter(OllamaQwenReviewTokenCounter):
+    """Same verified local tokenizer/template, explicit contextual payload only."""
+
+    def _render(self, serialized_body: bytes) -> str:
+        return render_contextual_prompt(serialized_body)

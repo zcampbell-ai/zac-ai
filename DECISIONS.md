@@ -5588,3 +5588,51 @@ protector. Provider output and escrow/topology attestations are invented;
 crypto/independent local reads/disposable restores are real. Existing dependency
 warnings remain. No actual approval, model call, B2 upload or production service
 was enabled. The existing roadmap order and first usable release target remain.
+
+
+## D034AF — explicit contextual loopback runtime, no enabled live trial
+
+Use a separate contextual runtime adapter while retaining the existing compact
+adapter and compact authority boundaries. Share only fixed loopback transport,
+model metadata verification and verified offline tokenizer/template mechanics.
+The tokenizer exposes separate exact schema entrypoints; accepting a contextual
+schema never broadens compact counting. Trusted host owns construction and
+approval. Output remains a draft until host quote/role/context validation,
+canonical capture and independently verified protection succeed.
+
+No budget change or evidence clipping is an implementation shortcut. Exact
+payload/token counts bind preflight; the runtime verifies reported input usage,
+complete stopping, output budget and model pin on both sides of one call. The
+attempt remains consumed after failures/interruptions and diagnostics discard
+backend text/chains. This is a synchronous trusted single-owner adapter; no
+concurrent service or runtime scheduler is introduced. Loopback metadata is not
+an attestation against a compromised host, and late rejection is not a process
+kill deadline. Semantic accuracy and usefulness require separate evaluation.
+
+The full canonical authority/recovery/protection integration test uses this
+concrete adapter with mocked provider output. Offline installed-tokenizer
+measurement of invented evidence is 1,552 input + 1,600 reserved output tokens;
+it does not justify changing real trial budgets or assert real data will fit.
+1,370 tests, Ruff and strict mypy on 55 source files pass. One-shot construction,
+failed-attempt recovery/reconciliation, exact real scope and usefulness review
+remain next under the existing roadmap. No live workflow was enabled.
+
+
+D034AF independent Opus engineering review (actual claude-opus-5-5) found raw
+chat-template control strings in evidence could affect role boundaries. Both
+local serializers now escape `<` in the JSON evidence string without changing
+canonical transcripts, source hashes or parsed passage text. The pinned offline
+counter additionally rejects registered special-token strings in message
+contents. Regression tests cover the boundary injection, exact capacity edge,
+wrong compact tokenizer pairing and preserved parsed evidence. Counter errors
+now discard private exception chains; contextual draft parsing rejects non-finite
+JSON constants explicitly. Contextual capability checks were added during
+independent implementation review before Opus returned the same finding.
+
+Runtime instances remain synchronous and single-owner; concurrent scheduling
+requires separately governed construction/locking. Error reporters must not
+capture traceback locals. Exact prompt-usage mismatch fails closed and may
+consume an attempt even if runtime reuse/cache behavior caused it; no relaxed
+usage check is added without verifying runtime semantics. These are limitations,
+not evidence of a successful real trial. One-shot operator and failed-attempt
+reconciliation remain the next delivery step.
