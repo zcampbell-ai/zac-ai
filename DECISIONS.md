@@ -4731,6 +4731,50 @@ reviews/commits/pushes while available remotely. D034O's rollout authority is
 consumed. Next prepare the exact source-backed project proposal, protect any new
 business evidence and request the separate bounded private-trial decision.
 
+## D034Q - Approved Case-Specific Project Context Recorded
+
+Date: 2026-10-04
+Status: Approved bounded metadata addition applied; fresh protection pending.
+
+Zac approved the exact four-record context proposal and clarified that this
+continuation is a rare engagement, not a standard for Brainstorm. One account
+may have many projects; projects may have one or several SOWs or extensions.
+Relationships must be reasoned from evidence and clarified case by case.
+Historical examples help reasoning without becoming automatic authority.
+
+The trusted local operation added one Company, one continuing Project, four
+separate observed source metadata artifacts, one explicitly provisional project
+brief and one scoped human confirmation Source. Five supporting ProjectEvidence
+links and one append-only supplemental association bind only the selected
+already-captured meeting. Every original row/field was compared and preserved;
+historical Meeting.project_id remains unchanged. No contract bodies, commercial
+values, unrelated projects, connector writes, uploads or model calls occurred.
+Creation/update timestamps are source-record dates, not contract effective
+periods. Observed signature fields do not verify signed terms.
+
+The human approval and its case-specific limitation are recorded as provenance,
+not as reusable execution permission. A deterministic operation marker prevents
+blind replay. Private proposal and APPLIED receipt are owner-only and excluded
+from Git. Independent read-only verification confirmed all expected row counts,
+all 11 canonical artifact hashes and no leftover disposable restore database.
+
+Zac also specified the interaction preference: when project ambiguity could
+change the work, ask one quick targeted question before doing it. When a later
+statement conflicts with an earlier decision, surface the conflict and ask
+whether the decision changed. These are design/interaction requirements;
+this operation does not claim an implemented autonomous learning system or
+conflict detector. Specific examples remain scoped to their actual engagements.
+
+Next: the prepared backup-only proposal protects the six new metadata artifacts
+and all existing BRAINSTORM Sources, fresh schema-0005 state and operational
+journal in the existing encrypted B2 destination, with independent full recovery.
+It has not executed and needs distinct approval. Private model consent remains
+separate, after current-state protection and concrete exact-trial scope.
+
+Approval/source: Zac's explicit approval with the case-by-case correction, voice
+clarifications and instruction to continue, all on 2026-10-04. Existing reviewed
+D029/D034C repository write helpers; D034P verified composition foundation.
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)

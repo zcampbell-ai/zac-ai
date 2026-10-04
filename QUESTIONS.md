@@ -193,3 +193,18 @@ signature fields do not establish signed terms. Prior user continuity evidence
 is preserved separately from observed source facts. No canonical write, new
 upload or private model run occurred. Obtain this concrete context-write decision
 before execution; protection and private inference remain separate gates.
+
+## D034Q — case-specific context approved and applied
+
+The four-record addition was approved, with Zac explicitly rejecting a universal
+rule. It is now recorded only for the selected continuing engagement. Preserve
+separate account/project/SOW identities and ask a quick targeted question when
+uncertainty could change the work. Flag conflicting decisions and ask whether
+something changed rather than silently treating the latest statement as authority.
+Historical examples can improve reasoning; exceptions remain case-specific.
+
+The next concrete decision is backup-only protection of the changed BRAINSTORM
+state, six new source artifacts and operational journal using the existing B2
+bucket and independent recovery. The prepared operator binds exact current
+state/source hashes and requires separate expiring, single-attempt authority.
+No new backup-key exercise is needed. No private model approval has been issued.

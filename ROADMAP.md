@@ -465,3 +465,12 @@ do not silently extend it to accommodate repeated recovery.
 
 Next prepare exact reviewed project evidence using the existing sources, then
 the fresh protected checkpoint and separate one-shot private-trial proposal.
+
+### D034Q approved contextual addition — 2026-10-04
+
+Exact reviewed metadata and the selected supplemental meeting association are
+now recorded for one confirmed continuing engagement. This is a scoped exception,
+not an account-wide relationship rule. Old canonical rows and the original
+Meeting.project_id were preserved. Next protect this changed business state with
+the separately approved fresh encrypted checkpoint/recovery, then present the
+exact bounded private-trial scope. History import and later phases retain order.
