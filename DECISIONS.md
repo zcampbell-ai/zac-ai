@@ -5293,3 +5293,42 @@ and later history/control-plane phases remain authoritative.
 Verification: 1,176 tests pass (48 contextual structure tests), with two existing
 dependency warnings. Ruff and strict mypy on 47 source files pass. The existing
 compact review, generation, evaluation and operator files are unchanged.
+
+## D034AA — exact contextual packets and independent evaluation bindings
+
+Date: 2026-10-04
+Status: Offline implemented; protected persistence remains next
+
+The contextual format now has a canonical full-evidence packet with separate
+format/version, host-declared builder/capture time, renderer version, exact
+preview and review/context digests. Immutable bounded bytes and canonical
+re-encoding reject defaulting/coercion or altered stored inputs. Capture cannot
+precede observation; evaluation cannot precede capture or name a different
+builder/task. The host must authenticate both builder and reviewer identities
+and validate its clock separately; these records are not signed identities.
+
+The parallel ten-criterion inventory retains the existing eight criteria plus
+scope/continuity and conflicts/clarifications. Trusted independent reviewers
+supply judgments. FAIL precedes other outcomes; unresolved material questions
+produce NEEDS_CLARIFICATION, distinct from unreviewed criteria's NEEDS_REVIEW.
+Neither PASS nor any packet permits an action or promotes a fact. The exact
+packet digest prevents an edited/rehashed draft reusing earlier evaluation.
+
+Actual independent Opus review found unbound builder identity, ambiguous held
+outcomes and mutable input acceptance. These were fixed. Frozen synthetic
+packet/preview tests require explicit version review on format drift, and
+subprocess tests confirm deterministic reload across hash seeds. Missing nested
+versions, renderer changes and altered previews/context are rejected.
+
+No historical evaluation was reconstructed and no compact/live generation or
+operator was changed. Full packet bytes remain private; disable traceback-local
+capture. Protected canonical persistence must register exact artifacts within
+the original boundary/classification and verify committed encrypted recovery
+before release. This module does not provide durable capture, a storage backend,
+backup proof, source freshness or identity authentication. Future persisted
+evaluations need an exact codec too; packet capture time is host-declared.
+
+Verification: 1,200 tests pass, including 24 contextual packet/evaluation tests;
+Ruff and strict mypy (48 source files) pass. Two existing dependency warnings
+remain. Frozen synthetic packet hash and exact preview plus two subprocess hash
+seeds protect deterministic output. The new module performs no persistence.

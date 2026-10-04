@@ -372,3 +372,11 @@ Structural tests cannot show whether the model will notice a missing question or
 produce useful prose; independent semantic evaluation and a separately scoped
 trial remain required. Exact contextual evaluation packets/protected storage are
 next. No manual push or new source approval is needed for synthetic engineering.
+
+## D034AA — exact evaluation foundation; storage gate next
+
+No contextual input is needed for the synthetic packet/evaluation work. It binds
+judgments to the exact visible draft and full evidence, including held questions.
+Protected canonical capture/restore is the next implementation gate. No live
+source/model operation or backup upload is authorized by this offline change.
+A new real trial will need a concrete scope after protected storage is reviewed.

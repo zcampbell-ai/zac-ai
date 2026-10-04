@@ -549,3 +549,32 @@ Next add exact contextual evaluation/packet support, then protected capture and
 restore wiring before a new reviewed generation adapter/private trial. No live
 source retrieval, new model invocation on business data, database/schema changes
 or broad history ingestion is enabled by this offline structure.
+
+### D034AA — exact contextual evaluation packets, offline only
+
+The richer format now has its own canonical packet retaining the full task/
+evidence roles, structured review, component digests, renderer version and exact
+visible preview. Reload rejects altered/defaulted/noncanonical inputs. The
+parallel evaluation inventory preserves all eight existing criteria and adds
+scope/continuity plus conflicts/clarifications. Concision means useful detail
+without padding, not achieving a word target. Trusted reviewers supply judgments;
+independent IDs and exact packet binding do not authenticate them automatically.
+
+Unresolved material gaps cannot produce REVIEWED_PASS even if supplied judgments
+are all PASS; FAIL still takes precedence. Edits with recomputed packet digests
+cannot reuse an independently retained evaluation. No historical evaluation is
+reconstructed, and no existing compact/live path changes.
+
+Protected persistence remains next: preserve the packet's source boundary and
+classification, recheck current canonical source access before reuse, register
+its exact bytes in canonical artifact inventory, and include committed packet
+state/artifacts in verified encrypted recovery before releasing a new generated
+draft. Orphan artifacts and failed protection must not imply successful capture.
+Provider/runtime provenance belongs to the trusted audited run, not invented
+metadata. Packet construction alone is not durable capture or backup proof.
+
+D034AA review refinement: packets bind host-declared builder/capture provenance.
+Evaluation now distinguishes NEEDS_CLARIFICATION from NEEDS_REVIEW, keeping FAIL
+precedence. Immutable bounded inputs, frozen synthetic bytes/preview and
+cross-process hash-seed checks address independent Opus findings. Authenticate
+both identities and host time externally; no digest is an identity proof.
