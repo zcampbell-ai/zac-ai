@@ -8,7 +8,8 @@ foundation and D034H adds the local transport adapter. D034J implements one-shot
 authorization and D034K verifies the narrow actual local tokenizer with PUBLIC
 synthetic conformance. D034O fresh current-state/journal protection and the
 approved live rollout are complete; exact reviewed project evidence and the private-trial proposal remain
-next. Prior real recovery and gate mechanics are recorded below.
+next. D034P concrete operator composition and invented end-to-end tests are
+complete. Prior real recovery and gate mechanics are recorded below.
 D034I verifies the schema-aware backup mechanism with synthetic recovery drills.
 No immediate contextual question blocks that engineering work.
 
@@ -163,3 +164,18 @@ and original state is preserved. This decision is consumed, not a standing grant
 No immediate contextual answer is required to record this completion. Next
 prepare exact reviewed project evidence; ask only if the source-backed mapping
 is ambiguous. Then bring Zac the distinct bounded private-trial decision.
+
+## D034P — operator complete; next approval boundary
+
+All concrete adapters run together with invented project evidence, actual
+encryption and full disposable restores. Claude's adversarial feedback produced
+stronger proof checks and a thread-safe single-attempt guard. Verification:
+1,091 passing tests, lint and strict typing. No manual push is needed while the
+existing SSH agent remains unlocked.
+
+No contextual answer was needed for this engineering checkpoint. Next reconstruct
+the exact existing ClickUp source references and prepare the bounded project
+evidence proposal. Ask only about genuine mapping ambiguity. Recording production
+evidence and then protecting changed business state precede the separate private
+model approval. Simulated composition does not settle real latency or output
+quality, and no automatic freshness extension is authorized.

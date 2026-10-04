@@ -420,8 +420,9 @@ implements/tests the pre-context recovery gate and durable denial journal.
 D034O now provides the protected operator procedure and excluded journal
 recovery. Its explicitly approved rollout completed on 2026-10-04: fresh
 verified B2 state/journal recovery and live schema 0005 with old state preserved.
-Exact reviewed project evidence and the later private-trial proposal remain
-next. D034L adds full-restore protection and verifies the prior
+D034P now composes all concrete review adapters and verifies the complete
+invented-data workflow. Exact reviewed project evidence and the later
+private-trial proposal remain next. D034L adds full-restore protection and verifies the prior
 real off-device state snapshot. D034M additionally verifies the current-state
 populated-copy 0004 -> 0005 -> 0004 rehearsal and records rollout preparation in
 SCHEMA_ROLLOUT.md; D034O subsequently completed the protected live upgrade to
@@ -451,3 +452,16 @@ Next finish the exact reviewed project evidence and separate one-shot private-
 trial proposal. Newly added business evidence needs a fresh protected checkpoint
 before inference. No private model consent, recurring source access, production
 routing or later control-plane work is implied by this completed rollout.
+
+### D034P concrete operator complete — 2026-10-04
+
+Authorization, recovery, local runtime and post-run protection now run together
+in the trusted operator. Invented complete-flow tests verify committed audits,
+full restoration, source-backed project context and one-attempt/replay controls.
+All 1,091 tests, lint and strict typing pass. No production project evidence or
+private model operation occurred. Simulated model transport does not establish
+live timing or semantic/style quality. Preserve the current request lifetime;
+do not silently extend it to accommodate repeated recovery.
+
+Next prepare exact reviewed project evidence using the existing sources, then
+the fresh protected checkpoint and separate one-shot private-trial proposal.

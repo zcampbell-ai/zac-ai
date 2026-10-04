@@ -4690,6 +4690,47 @@ complete and its authority consumed. Next prepare exact reviewed project evidenc
 and then the distinct one-shot private-trial proposal under the existing D034
 roadmap; newly added business evidence needs a fresh protected checkpoint.
 
+## D034P - Concrete Review Operator Composition
+
+Date: 2026-10-04
+Status: Implemented and verified with invented state; private execution remains gated.
+
+The trusted operator now composes canonical one-shot authorization, pre-context
+recovery, the fixed-loopback runtime and post-run artifact/state protection.
+Construction grants no authority and performs no I/O. An atomic single-attempt
+guard prevents concurrent reuse; canonical claims also prevent replay through
+new instances. Actual database identity and schema 0005 are checked before host
+actions. Configuration remains trusted Python, not an isolation boundary against
+a malicious caller modifying adapters.
+
+The combined tests use actual age encryption, independent local object clients,
+canonical consent/claims/audits and full disposable database restores. Invented
+project evidence reaches the draft with its provenance intact. Tests verify
+recovery before generation, audit commit before dispatch, post-run restoration,
+replay denial, corrupted backups, wrong route/model/tokenizer, changed tokenizer,
+bad usage, wrong actual target/schema, expiry and concurrent reuse.
+
+Verification: 1,091 tests pass; Ruff and strict mypy pass across 45 source files.
+Claude performed two fresh code-only adversarial reviews. The first identified
+weak proof assertions and a thread-safety gap, now corrected. The second found
+no blockers and further proof gaps; canonical binding-before-runtime, changed
+tokenizer, wrong schema and consumed-claim checks were added. Wording was
+corrected about trusted configuration. Test interception of transport/inventory
+and the concurrency scheduling limit are explicit; tests do not claim hostile
+Python isolation, production inventory coverage or real end-to-end latency.
+
+No actual private inference, project write, consent issuer, enabled command or
+service is added. Model/tokenizer transports are simulated in these composition
+tests; D034K's PUBLIC real-tokenizer conformance is separate evidence. Six full
+recovery stages may exhaust the existing 120-second request lifetime; expiry
+fails closed without automatically widening consent or freshness. Live timing
+and semantic/style evaluation require a separately scoped approved trial.
+
+Approval/source: Zac authorized continued foundational engineering and routine
+reviews/commits/pushes while available remotely. D034O's rollout authority is
+consumed. Next prepare the exact source-backed project proposal, protect any new
+business evidence and request the separate bounded private-trial decision.
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)
