@@ -416,14 +416,16 @@ represent one continuing project. D034C now verifies a source-backed, reviewed
 association foundation without changing historical Meetings. D034D now verifies
 explicit reviewed project context reaching quote-backed meeting drafts. D034G now verifies
 the fresh-snapshot dispatch host with mandatory audit-before-dispatch. D034N now
-implements/tests the pre-context recovery gate and durable denial journal; exact
+implements/tests the pre-context recovery gate and durable denial journal.
 D034O now provides the protected operator procedure and excluded journal
-recovery. Its actual fresh protected rollout awaits a concrete human decision;
-the later private-trial proposal remains separate. D034L adds full-restore protection and verifies the prior
+recovery. Its explicitly approved rollout completed on 2026-10-04: fresh
+verified B2 state/journal recovery and live schema 0005 with old state preserved.
+Exact reviewed project evidence and the later private-trial proposal remain
+next. D034L adds full-restore protection and verifies the prior
 real off-device state snapshot. D034M additionally verifies the current-state
 populated-copy 0004 -> 0005 -> 0004 rehearsal and records rollout preparation in
-SCHEMA_ROLLOUT.md; the live schema remains 0004 and fresh protection/approval are
-pending. D034K verifies a narrow installed-model tokenizer with
+SCHEMA_ROLLOUT.md; D034O subsequently completed the protected live upgrade to
+0005 after explicit approval. D034K verifies a narrow installed-model tokenizer with
 PUBLIC synthetic conformance. D034J supplies the canonical one-shot authorization
 ledger; D034N supplies its mandatory recovery verifier. D034H adds the explicit shared local runtime adapter and D034I
 verifies the state-backup compatibility/isolation mechanism with invented data. D034E/D034F supply refresh/evaluation/audit libraries. Protect the
@@ -436,12 +438,16 @@ own design and approval. D032 extends this roadmap without completing production
 routing or execution, or changing the later phase order.
 No live connection, credential or transcript is authorized by D031B or D032.
 
-### D034O rollout preparation
+### D034O protected rollout completed — 2026-10-04
 
-The protected operator command and full excluded operational-journal recovery
-are implemented with invented-data validation. Off-device recovery precedes the
-brief final write pause; stale state cancels the upgrade. Follow SCHEMA_ROLLOUT.md
-and obtain the fresh rollout approval before uploads or live migration. After
-that protected upgrade, finish the exact reviewed project evidence and separate
-one-shot private-trial proposal. This advances D034 without promoting broader
-source access, production routing or later control-plane work.
+The reviewed operator procedure executed once after Zac's explicit approval,
+using clean pushed checkpoint 6c831d1. Fresh encrypted BRAINSTORM state and
+operational-journal backups were retrieved and fully restored/compared before
+the final live transaction upgraded 0004 -> 0005. Every old field was preserved;
+both new association tables are empty. Independent read-only checks confirmed
+health, constraints, private APPLIED receipt and disposable cleanup.
+
+Next finish the exact reviewed project evidence and separate one-shot private-
+trial proposal. Newly added business evidence needs a fresh protected checkpoint
+before inference. No private model consent, recurring source access, production
+routing or later control-plane work is implied by this completed rollout.

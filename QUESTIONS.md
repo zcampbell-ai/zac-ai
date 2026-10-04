@@ -6,8 +6,9 @@ is not approval evidence. Zac resumed and selected continued engineering and
 synthetic checks before a concrete private-trial proposal. D034G adds the host
 foundation and D034H adds the local transport adapter. D034J implements one-shot
 authorization and D034K verifies the narrow actual local tokenizer with PUBLIC
-synthetic conformance. Fresh current-state protection and live rollout remain
-pending; prior real recovery and current gate mechanics are recorded below.
+synthetic conformance. D034O fresh current-state/journal protection and the
+approved live rollout are complete; exact reviewed project evidence and the private-trial proposal remain
+next. Prior real recovery and gate mechanics are recorded below.
 D034I verifies the schema-aware backup mechanism with synthetic recovery drills.
 No immediate contextual question blocks that engineering work.
 
@@ -18,12 +19,10 @@ No immediate contextual question blocks that engineering work.
   digest, selected context and scope. Existing Fireflies capture approval does
   not approve model processing. No approval is requested until that proposal is
   concrete and reviewable.
-- **Production schema 0005 rollout:** approve the now-concrete protected
-  operation: fresh real encrypted state/journal backup and verified recovery,
-  followed only on success by the exact upgrade. The
-  D034M already rehearsed current state in a disposable populated copy; D034O
-  now supplies the exact protected operator procedure and journal recovery.
-  Actual live schema remains 0004.
+- **Production schema 0005 rollout:** approved and completed on 2026-10-04.
+  Fresh encrypted B2 state/journal recovery passed before the live upgrade; both
+  new tables are empty and old state is preserved. No further rollout decision
+  or repeat key-recovery exercise is needed for this completed operation.
 
 ## Feedback needed once there is a draft to judge
 
@@ -154,17 +153,13 @@ exercise is required now, and no private-model consent is implied. After rollout
 finalize the exact reviewed project evidence and bring Zac the separate bounded
 trial scope; ask for context only if the source-backed association is ambiguous.
 
-## D034O — concrete rollout decision ready after final review
+## D034O — rollout decision answered and operation completed
 
-Approve or decline one fresh encrypted BRAINSTORM state **and operational
-backup-run journal** backup to the existing Brainstorm B2 bucket, independent
-readback/full disposable restoration, then pinned schema 0004 -> 0005 on the
-Mac Studio. The final transaction briefly pauses table writes; it adds two empty
-association/retraction tables and preserves every original row. Recovery runs
-before that pause. No automatic retry/downgrade, private model processing,
-new connector access or reviewed association writes are included.
+Zac approved the exact protected scope in chat. The reviewed pushed checkpoint
+6c831d1 executed once, with APPLIED receipt and independent post-run metadata
+verification. Fresh encrypted state/journal recovery passed; live schema is 0005
+and original state is preserved. This decision is consumed, not a standing grant.
 
-SCHEMA_ROLLOUT.md contains the concrete scope and failure handling. Request this
-approval only after final validation and Claude review; this question log itself
-is not approval. Later clarify project evidence only if genuinely ambiguous,
-then present the distinct bounded private-trial decision.
+No immediate contextual answer is required to record this completion. Next
+prepare exact reviewed project evidence; ask only if the source-backed mapping
+is ambiguous. Then bring Zac the distinct bounded private-trial decision.

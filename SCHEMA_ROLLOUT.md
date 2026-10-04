@@ -1,15 +1,17 @@
 # Protected schema 0005 rollout
 
-Status: preparation only. No live schema migration, fresh B2 upload or private
-model processing is authorized by this document. Continue the existing D034
-roadmap; schema 0005 supplies reviewed meeting/project associations and their
-retractions. It does not rewrite immutable Meeting.project_id values.
+Status: completed with explicit human approval on 2026-10-04. Reviewed commit
+6c831d1 executed one fresh encrypted BRAINSTORM state/journal backup and fully
+verified recovery, then upgraded zacai_dev to exactly 0005. The private receipt
+is APPLIED. Continue the existing D034 roadmap; no private-model approval was
+issued. The new tables are empty and immutable Meeting.project_id is unchanged.
 
 ## Scope and rehearsal
 
-The live Mac Studio database is `zacai_dev`, currently at 0004. A read-only
-inventory check on 2026-10-03 found canonical state only in BRAINSTORM. Recheck
-before rollout; a new PERSONAL/SHARED inventory requires its own recovery coverage.
+The live Mac Studio database is `zacai_dev`, now at 0005. Before this rollout,
+read-only checks and the protected transaction verified schema 0004 and
+BRAINSTORM-only canonical/journal inventory. A future PERSONAL/SHARED inventory
+requires its own recovery coverage. The earlier rehearsal below is historical.
 
 `scripts/rehearse_schema_rollout.py` is an explicit operator rehearsal. It reads
 one current BRAINSTORM snapshot into bounded memory, restores it into guarded
@@ -34,7 +36,7 @@ occurs. PostgreSQL temporarily holds the recovered private state. Operational
 artifact_backup_run history is outside the canonical boundary export inventory;
 this rehearsal does not verify restoration of that journal or a whole database.
 
-## Procedure to finish before requesting the live decision
+## Reviewed procedure — executed once on 2026-10-04
 
 1. D034N completes the pre-context recovery verifier and denial-audit wiring,
    verified with invented state: recovery/authority failures stop local selected-
@@ -73,13 +75,15 @@ procedure. A successful rollout still does not approve a private meeting review.
 
 ## D034O concrete operator scope
 
-Preparation only. `src/zacai/schema_rollout.py` and
+Implemented and executed once after explicit human approval.
+`src/zacai/schema_rollout.py` and
 `scripts/protected_schema_rollout.py` implement the proposed operation. The
 command defaults to proposal output and does not load credentials or touch a
 database. Its explicit execute mode requires a private human-approved JSON scope
 supplied by the trusted operator; it does not issue approval itself. Approval
 pins the clean Git commit, exact migration-file SHA-256, `zacai_dev`, human
-reference and an active lifetime of at most 15 minutes. A digest of the stripped unique human approval reference is consumed before
+reference and an active lifetime of at most 15 minutes. A digest of the stripped
+unique human approval reference is consumed before
 credential loading. Re-encoding timestamps, whitespace or changing pins cannot
 reuse that human consent. Every newly approved attempt requires its own reference.
 
@@ -140,15 +144,16 @@ approval file in `private-data` with `target_database`, `code_revision`,
 .venv/bin/python scripts/protected_schema_rollout.py --execute --approval /Users/brainstormzac/zac-ai/private-data/schema-rollout-approval.json
 ```
 
-No approval file has been issued for this operation. Success adds two empty
-tables; reviewed project evidence and the bounded private meeting trial remain
-separate subsequent steps. The existing D034M rehearsal and recovered-key proof
-remain useful evidence, but neither authorizes this fresh upload or migration.
+The approved private scope and consumed claim were recorded outside Git. The
+successful operation added two empty tables. Reviewed project evidence and the
+bounded private meeting trial remain separate subsequent steps. The approval
+is consumed and does not authorize another upload, migration or model run.
 
 D034O validation: 1,077 tests pass with two existing dependency deprecation
 warnings. Ruff and strict mypy pass across 44 source files. Claude's independent
 review found no blockers. The rehearsal/test evidence establishes the mechanism;
-the proposed fresh real off-device backup and live upgrade remain unexecuted.
+the separately approved real operation subsequently passed all protection and
+upgrade checks.
 
 Fresh failure-focused Claude review additionally found three low-severity
 hardening issues: re-encoded approval replay, incomplete initial receipt logging
@@ -163,3 +168,28 @@ no unexpected public CREATE grants in either local dev or test database. The
 exclusive operator window assumes schema administration stays paused; the claim
 ledger is local to this controlled Mac and human references are issued uniquely
 by the trusted operator. It does not authenticate arbitrary agent-supplied text.
+
+## Completed operation — 2026-10-04
+
+Zac explicitly approved the exact proposed operation in chat after checkpoint
+6c831d1 was pushed. The trusted operator pinned that clean commit and migration
+digest, issued one private scope with a 15-minute expiry and invoked the reviewed
+command once. It completed at 2026-10-04T11:21:04Z (07:21 America/New_York).
+
+Both encrypted objects reached the existing Brainstorm B2 state prefix. A
+separate client retrieved them and verified ciphertext/plaintext hashes; actual
+disposable recovery compared every canonical field and the operational journal.
+The live transaction rechecked freshness under locks, applied exactly 0005 and
+verified the additive schema and unchanged old rows/journal before commit.
+
+Independent post-run read-only checks confirmed: APPLIED mode-0600 receipt bound
+to the approved code/migration; exact schema 0005; both new tables empty with
+expected constraints/triggers; one preserved operational journal row; database
+health; and removed zacai_restore_test. No project associations, model inference,
+new connector access, key changes or plaintext exports occurred. The private
+receipt contains recovery references and hashes; private state and credential
+values are not copied into Git or Claude review.
+
+Next: prepare exact reviewed project evidence, then the distinct bounded private
+trial scope. The recovered 0004 checkpoint covers all pre-upgrade state/journal;
+new business evidence will require a fresh protected checkpoint before inference.

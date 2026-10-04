@@ -4614,7 +4614,7 @@ scope remain separate. Do not repeat the already completed key recovery exercise
 ## D034O - Protected Operator Rollout and Journal Recovery
 
 Date: 2026-10-04
-Status: Implemented and tested with invented state; actual operation awaits approval
+Status: Implemented, independently reviewed, explicitly approved and executed on 2026-10-04
 
 Finish the exact operator procedure required by D034M/D034N. Preserve the
 existing migration 0005 unchanged and target only the controlled Mac Studio
@@ -4664,7 +4664,31 @@ two searches and zero tool errors. Claude rechecked the corrections and found
 no blockers. Actual read-only local metadata confirmed no unexpected public
 CREATE grants in zacai_dev or zacai_test. Tests also caught and corrected
 PostgreSQL inet text formatting in the new address guard.
-No real B2 upload, live schema migration or private-model operation has occurred.
+The later explicitly approved one-shot operation completed successfully; see
+the execution record below. No private-model operation has occurred.
+
+### D034O approved execution — 2026-10-04
+
+Approval/source: Zac's explicit chat response, "Yes please continue and approved,"
+after the concrete scope and manual push request. The clean approved commit
+6c831d1 was confirmed pushed before the trusted operator consumed one private
+15-minute scope. No scope renewal or retry occurred.
+
+Outcome: APPLIED at 2026-10-04T11:21:04Z. Two fresh age-encrypted BRAINSTORM
+state/journal objects were uploaded to the existing B2 state prefix, independently
+retrieved and fully restored/compared in the guarded disposable database. The
+live database upgraded from 0004 to exactly 0005 in the protected transaction.
+Every original canonical field and operational journal remained unchanged. Both
+new association/retraction tables are empty. Independent read-only checks
+confirmed receipt permissions/bindings, new constraints/triggers, health and
+disposable cleanup. The operational journal still has one preserved row.
+
+Private approval, consumed claim and APPLIED receipt remain Git-excluded and
+owner-only; no private payload or key was exposed. No project evidence write,
+private inference or new integration access occurred. The approved operation is
+complete and its authority consumed. Next prepare exact reviewed project evidence
+and then the distinct one-shot private-trial proposal under the existing D034
+roadmap; newly added business evidence needs a fresh protected checkpoint.
 
 ## Open Decisions
 These choices have not yet been made:
@@ -4711,10 +4735,11 @@ existing real off-device snapshot with a key recovered from 1Password. D034M ver
 the current-state populated-copy upgrade and rollback rehearsal and records the
 protected rollout preparation. D034N implements/tests pre-context recovery and
 durable denials. D034O now provides the reviewed exact operator procedure and
-operational-journal recovery. Request its concrete protected rollout decision
-before the actual upload and live upgrade. Prepare a concrete one-shot
-trial proposal separately; protect the
-live state snapshot before migration rollout. Keep genuinely distinct projects separate. D034B's 27B synthetic result is a
+operational-journal recovery. Its explicitly approved real operation completed
+on 2026-10-04: fresh verified B2 recovery and live schema 0005 with old state
+preserved. Next prepare exact reviewed project evidence and the separate concrete
+one-shot private-trial proposal. Protect any new business evidence before
+inference. Keep genuinely distinct projects separate. D034B's 27B synthetic result is a
 candidate for future bounded local shadow review, with refresh/audit/evaluation
 controls required before private inference. Preserve unresolved
 source ACL, recurring-access and production-routing gates; recovery evidence
