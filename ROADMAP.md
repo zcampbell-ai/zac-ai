@@ -475,24 +475,29 @@ Meeting.project_id were preserved. Next protect this changed business state with
 the separately approved fresh encrypted checkpoint/recovery, then present the
 exact bounded private-trial scope. History import and later phases retain order.
 
-### Current next step — D034V real draft returned; human assessment pending
+### Current next step — D034W human feedback requires meaningful revision
 
-The explicitly approved revised-budget attempt returned the first structurally
-validated private local review. One model call; 128 displayed words / 866
-characters; 62.76 seconds total operator time. Canonical consent/claim/audits,
-post-run encrypted recovery and all seven full-restore checks passed. Independent
-checks confirm 31 Sources, six SUCCEEDED backup runs, schema 0005 and no remaining
-disposable databases. The private local draft hash/permissions are verified.
-No generated prose was published, exported to external AI or promoted to State.
+The first local draft returned successfully but Zac found an entity error,
+insufficient detail and inadequate project understanding. It is not accepted as
+useful. Its original execution/recovery evidence remains valid; do not equate
+structural validation with delivery acceptance. Exact human correction/feedback
+are preserved privately, with an acronym-only corrected preview labelled incomplete.
 
-Next obtain Zac's assessment of factual accuracy, missing context and concise
-wording on the local draft, then record its exact-draft evaluation and choose a
-bounded refinement. Structural pass does not establish semantic/style quality.
-Do not invent feedback, enable another private call or widen source scope from
-this success. The authority is consumed; new private operations remain separately
-scoped. The local draft is queued for native viewing and excluded from Git;
-canonical backup coverage is not a claim that this local prose file was uploaded.
+Next establish a context-sufficiency and usefulness review, retrieve relevant
+project history under approved scope, ask a targeted question when gaps matter,
+then prepare a better context-aware draft with high-capability model assistance.
+Preserve exact structured review/context packets for genuine later evaluation;
+rendered text plus digests alone cannot reconstruct the missing evaluation input.
+No retrospective canonical evaluation, source mutation or automatic promotion.
 
-The existing selected meeting and confirmed case-specific project brief remain
-the scope. Broader Claude/ChatGPT/Fireflies history ingestion, recurring access,
-production routing and OCE control-plane evaluation retain their existing order.
+A generic Claude Opus design review and primary-source research are proceeding
+without confidential content. Specific questions about top-cloud-model review
+of the selected private materials and read-only engagement source research are
+pending. Existing local-only constraints apply until answered. Current runtime
+limits remain, while the revised useful presentation is evaluated; no quiet cap
+increase or production cloud adapter is introduced.
+
+This stays within the current contextual intelligence/evaluation foundation.
+Broad Claude/ChatGPT/Fireflies history imports, recurring access, production
+routing and OCE evaluation retain their existing roadmap order. Do not advance
+those phases to compensate for an unhelpful draft.

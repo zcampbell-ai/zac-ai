@@ -5056,6 +5056,72 @@ D034U's 1,106-test/lint/strict-typing checks remain the code baseline.
 Approval/source: Zac's latest explicit Yes approved for the revised-budget local
 attempt, including approved canonical audit/state recovery protection.
 
+## D034W - Human Feedback Requires Context and Usefulness Revision
+
+Date: 2026-10-04
+Status: Feedback preserved; quality/context design under independent review; private scope decisions pending.
+
+Zac identified an entity shorthand error, insufficient detail and a lack of
+project context in the first structurally validated draft. He wants relevant
+research, a targeted question when missing context affects usefulness, and a
+high-capability model to assess the presentation and produce a better draft.
+The draft is not accepted as useful or semantically correct. Structural success
+in D034V remains an execution/validation result, not delivery acceptance.
+
+Exact correction and feedback are saved in an owner-only excluded note bound to
+the original local file hash. A separate local acronym-corrected preview preserves
+the original and remains NEEDS_REVISION. No immutable transcript or existing
+canonical row was edited. The note is not a ReviewEvaluation: full task/context/
+review bindings and independent reviewer identity have not been reconstructed.
+Do not record invented criterion grades or an EVALUATION_RECORDED audit.
+
+Inspection found that the real operator retained rendered prose and closed audit
+digests but not the complete structured review/context packet. Hashes cannot
+recover omitted fields. Before the next evaluable live draft, preserve its exact
+validated structured packet under the approved boundary and retention controls,
+so future evaluation can bind to the actual reviewed result. Do not retrospectively
+rebuild missing task/event identities or claim a canonical evaluation from text.
+
+Required delivery behavior, from Zac's feedback: establish project purpose,
+relevant prior status and what changed before drafting. Confirm source-to-project
+relevance; one account may have multiple projects and SOW continuity is case-
+specific. Distinguish observed history, current meeting changes, human corrections,
+and unresolved links. If an unknown project relationship, term or earlier decision
+could change the review, ask one concrete discriminating question first. More
+sources alone do not establish completeness, and inferred associations remain
+candidates until reviewed. Do not substitute an irrelevant short draft for missing
+context. Preserve source facts and corrections separately with provenance.
+
+The existing concise contextual summary, decisions/commitments, risks/follow-ups
+structure remains. Brevity is a presentation objective, not a universal word
+count that establishes usefulness. Current runtime caps remain unchanged pending
+an exact revised scope/design; no silent parameter increase, new cloud adapter,
+bulk history ingestion or competing roadmap is introduced. Acceptance must cover
+project understanding, material coverage, factual/temporal support, genuine
+agreements/promises, accurate terms, unresolved questions and actual usefulness
+for Zac, in addition to quote/length checks. Independently assessed semantics and
+Zac's feedback remain necessary; model judgments do not grant authority.
+
+Public research: Anthropic's Contextual Retrieval article explains why isolated
+passages lose entity/time/background meaning and recommends evaluating contextual
+retrieval choices (https://www.anthropic.com/engineering/contextual-retrieval).
+QAFactEval studies question-answering-based factual-consistency assessment
+(https://aclanthology.org/2022.naacl-main.187/). These support investigating relevant
+context and meaning checks; neither establishes correctness for this private case
+or requires immediate embedding/vector-database adoption.
+
+Claude Opus was explicitly selected for a generic code/design review only, with
+no private meeting, draft or project content supplied. Separate questions ask
+whether selected confidential materials may be reviewed by a top cloud model,
+and whether relevant prior Fireflies/ClickUp engagement sources may be inspected.
+Both responses remain pending; elapsed time is not approval. The prior local-only
+private authority is consumed and does not authorize another generation or source
+expansion. Standalone design review cannot be represented as private redrafting.
+
+Approval/source: Zac's actual correction, delivery requirements and request for
+high-capability design/redrafting. Generic research/design work is authorized;
+the specific confidential cloud/source expansion questions remain open.
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)

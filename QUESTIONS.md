@@ -309,3 +309,23 @@ does not sound like Zac? Do not treat lack of feedback as acceptance. Record
 exact-draft evaluation only after actual assessment. The private local path is
 kept outside repository documentation; use the native editor or direct local
 file link delivered in chat. Broader history ingestion still follows the roadmap.
+
+## D034W — actual user feedback and two pending scope decisions
+
+Zac found an acronym error, inadequate project context and insufficient useful
+detail. He wants relevant research and a targeted clarification when context is
+missing, with high-capability model help before a better draft. The current draft
+is NEEDS_REVISION, not accepted. The exact correction/feedback are in a private
+note bound to the original file hash; the original is preserved.
+
+Pending questions already asked in chat:
+- May the selected confidential meeting, draft and confirmed project brief be
+  sent to a top cloud model for this review, expanding the earlier local-only scope?
+- May relevant prior Fireflies meetings and ClickUp engagement records be inspected
+  read-only, keeping uncertain project links as candidates and asking when needed?
+
+Do not re-ask or treat silence as approval. Generic research/Opus code-only design
+review can proceed without either answer. Private source expansion/redrafting
+cannot proceed under a consumed single-attempt authority. A proper exact-draft
+evaluation also needs the missing structured review/context packet retained by
+future operators; do not fabricate it from text/digests. Keep the existing roadmap.
