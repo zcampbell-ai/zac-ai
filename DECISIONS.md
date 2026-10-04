@@ -4509,6 +4509,45 @@ Fresh protected migration, pre-context recovery/denial-audit host
 wiring, exact reviewed project evidence and private trial consent remain separate
 steps. No trial approval is requested from this checkpoint.
 
+## D034M - Current-State Schema Upgrade and Rollback Rehearsal
+
+Date: 2026-10-03
+Status: Verified local preparation; live rollout remains pending
+
+Continue D034 and the existing roadmap. Rehearse the exact populated 0004 ->
+0005 transition before presenting a live decision, rather than relying only on
+fresh-head schema tests or recovery of an older snapshot.
+
+The explicit operator script scripts/rehearse_schema_rollout.py uses fixed
+loopback database targets, read-only canonical transactions, a bounded in-memory
+BRAINSTORM snapshot, the existing guarded disposable target and the same recovery
+lease as D034L. It pins Alembic head to 0005 and applies the real migrations to
+the disposable copy. No model, source connector, credential loading or remote
+storage call is added. No plaintext export file is written; the recovered state
+temporarily exists in PostgreSQL until cleanup.
+
+Actual verification passed: restoration at 0004 produced an identical export;
+upgrade to 0005 preserved every original field with both new association tables
+empty; downgrade to 0004 produced an identical export again. The disposable
+database was removed. Live schema remained 0004, with no canonical writes,
+uploads or inference. A separate read-only inventory check found no canonical
+PERSONAL/SHARED rows. Private receipt metadata is ignored by Git and mode 0600.
+
+This verifies the current BRAINSTORM canonical inventory in the local rehearsal,
+not fresh off-device protection, the excluded operational backup journal,
+whole-Mac recovery or safe downgrade after new association evidence exists.
+SCHEMA_ROLLOUT.md records those limits and the remaining procedure. The prior
+1,035-test application baseline is unchanged; the new operator procedure was
+validated by the actual disposable rehearsal and Ruff. Claude independently
+reviewed the final procedure with no blockers. Two minor findings were resolved:
+receipts now have unique locally dated filenames, and empty new tables are also
+checked explicitly before rollback. The revised rehearsal passed again.
+No approval decision is needed at tonight's stopping point.
+
+Next finish pre-context recovery/denial auditing, prepare the reviewed exact live
+operator procedure and ask Zac for the fresh protected schema rollout decision.
+No private review consent or production migration authority is issued here.
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)
@@ -4550,7 +4589,9 @@ D034H adds the shared local runtime adapter with mandatory exact token-count
 binding; D034J adds canonical one-shot authorization with mandatory recovery
 verification. D034K now verifies the narrow installed-model tokenizer with PUBLIC synthetic
 conformance. D034L adds the concrete protection adapter and verifies a full restore of the
-existing real off-device snapshot with a key recovered from 1Password. Complete
+existing real off-device snapshot with a key recovered from 1Password. D034M verifies
+the current-state populated-copy upgrade and rollback rehearsal and records the
+protected rollout preparation. Complete
 pre-context recovery wiring, then prepare a concrete one-shot trial proposal; protect the
 live state snapshot before migration rollout. Keep genuinely distinct projects separate. D034B's 27B synthetic result is a
 candidate for future bounded local shadow review, with refresh/audit/evaluation

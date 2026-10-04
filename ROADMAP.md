@@ -418,7 +418,10 @@ explicit reviewed project context reaching quote-backed meeting drafts. D034G no
 the fresh-snapshot dispatch host with mandatory audit-before-dispatch; actual
 pre-context recovery wiring and the concrete trial
 proposal remain next; D034L adds full-restore protection and verifies the prior
-real off-device state snapshot. D034K verifies a narrow installed-model tokenizer with
+real off-device state snapshot. D034M additionally verifies the current-state
+populated-copy 0004 -> 0005 -> 0004 rehearsal and records rollout preparation in
+SCHEMA_ROLLOUT.md; the live schema remains 0004 and fresh protection/approval are
+pending. D034K verifies a narrow installed-model tokenizer with
 PUBLIC synthetic conformance. D034J supplies the canonical one-shot authorization ledger
 with a mandatory recovery verifier still pending. D034H adds the explicit shared local runtime adapter and D034I
 verifies the state-backup compatibility/isolation mechanism with invented data. D034E/D034F supply refresh/evaluation/audit libraries. Protect the

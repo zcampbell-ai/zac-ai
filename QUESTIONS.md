@@ -123,3 +123,15 @@ Pre-context recovery/denial-audit wiring, fresh protected schema rollout and
 exact reviewed project/private-trial scope remain next. Prepare the concrete
 rollout before requesting that decision; no model processing or production
 migration approval has been issued.
+
+## D034M stopping point — no decision needed tonight
+
+The current real BRAINSTORM inventory passed a local-only populated-copy
+0004 -> 0005 -> 0004 rehearsal. Baseline restoration and rollback exports were
+identical; every original field matched after upgrade. The disposable database
+was removed. No live migration, upload or inference occurred.
+
+The rollout preparation and rollback limits are in SCHEMA_ROLLOUT.md. Next finish
+pre-context recovery/denial-audit wiring and the exact live operator procedure,
+then ask Zac for the fresh protected rollout decision. Resume here without
+repeating key recovery or inventing another roadmap.

@@ -8,6 +8,12 @@ whole-Mac rebuild, credential escrow completion or private processing approval.
 PERSONAL/SHARED have not run equivalent real drills. The Fireflies credential has
 its separate human escrow attestation. See the dated verification details below.
 
+D034M additionally rehearsed a populated-copy schema 0004 -> 0005 upgrade and
+rollback to 0004 using current BRAINSTORM state, with full comparison and cleanup.
+This was local-only; it does not supply a fresh off-device backup or authorize
+the live rollout. See [SCHEMA_ROLLOUT.md](SCHEMA_ROLLOUT.md) for preparation and
+the empty-new-table rollback boundary.
+
 ## The three lanes
 
 Each lane is independently restorable. Recovering one lane never
