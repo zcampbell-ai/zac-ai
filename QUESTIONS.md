@@ -241,3 +241,20 @@ recovery are included. No external models, publishing, automatic retries or
 recurring access. Output stays local and unevaluated until Zac judges it. The
 existing 120-second request lifetime is not automatically extended. The excluded
 private proposal binds exact source selections, route, model and prepared digest.
+
+## D034S — one local attempt rejected; fresh decision needed
+
+The approved trial made one local model call, then evidence/compactness validation
+refused the result. No draft was released or raw failed response retained. Exact
+original rejection reason is unknown. The consumed authority cannot be retried.
+The failed consent/claim/audit state and all 16 Sources are now encrypted and
+fully recovery-verified; temporary databases are removed. No manual push is
+needed while the SSH agent remains available.
+
+The next concrete decision: one additional local attempt with safe rejection
+codes, the same selected meeting and confirmed project brief, same installed
+model, no earlier meetings or added sources, no external AI or publishing, no
+automatic retries. Canonical audits and encrypted recovery of the resulting
+state are included. Only deterministic proposal preparation has run. If a valid
+draft returns, Zac evaluates meaning, missing context and concise phrasing next.
+This remains ahead of broader Claude/ChatGPT/Fireflies history ingestion.

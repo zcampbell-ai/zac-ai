@@ -20,7 +20,9 @@ from zacai.intelligence.review_context import MeetingEvidence
 from zacai.intelligence.review_generation import DraftClaim, ReviewDraft
 from zacai.intelligence.review_host import (
     ReviewHostError,
+    ReviewRejectionCode,
     ReviewSelection,
+    _safe_draft_rejection,
     _snapshot,
     execute_review_shadow,
 )
@@ -229,6 +231,9 @@ def test_terminal_failures_never_retry_or_release_draft(host_setup, failure):
             **options,
         )
     assert "PRIVATE" not in str(error.value)
+    assert error.value.rejection_code == (
+        ReviewRejectionCode.UNKNOWN_EVIDENCE_ID if failure == "invalid" else None
+    )
     assert runtime.calls == (0 if failure in {"route", "authority"} else 1)
     expected = {
         "route": "ROUTE_REJECTED",
@@ -459,3 +464,38 @@ def test_local_adapter_route_scope_denied_by_host_before_metadata(host_setup, mo
     assert calls == []
     assert not auth.claimed
     assert stages(host_setup)[-1] == "ROUTE_REJECTED"
+
+
+@pytest.mark.parametrize("payload", ["PRIVATE invented model text", {"private": "invented"}])
+def test_rejection_diagnostics_never_export_arbitrary_exception_payload(payload):
+    code = _safe_draft_rejection(ValueError(payload))
+    assert code is ReviewRejectionCode.UNCLASSIFIED_VALIDATION
+    assert "PRIVATE" not in code.value
+
+
+def test_rejection_diagnostics_do_not_stringify_exception_subclasses():
+    class PrivateError(ValueError):
+        def __str__(self):
+            raise AssertionError("must not stringify private exception")
+
+    assert (
+        _safe_draft_rejection(PrivateError("unknown evidence ID"))
+        is ReviewRejectionCode.UNCLASSIFIED_VALIDATION
+    )
+
+
+def test_real_validator_compactness_failure_has_closed_code(host_setup):
+    runtime = Runtime(*host_setup[:2])
+    original = runtime.generate
+
+    def longer(request):
+        result = original(request)
+        return result.model_copy(
+            update={"summary": (DraftClaim(text="word " * 40, evidence_ids=("e1",)),)}
+        )
+
+    runtime.generate = longer
+    with pytest.raises(ReviewHostError) as error:
+        run(host_setup, runtime=runtime)
+    assert error.value.rejection_code is ReviewRejectionCode.CLAIM_TOO_LONG
+    assert stages(host_setup)[-1] == "DRAFT_REJECTED" and runtime.calls == 1

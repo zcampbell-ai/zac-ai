@@ -4831,6 +4831,62 @@ Approval/source: Zac's continued foundational engineering authorization; the
 separately approved contextual addition and verified fresh recovery. No private
 model approval has been granted by this engineering step.
 
+## D034S - Real Local Attempt Rejected; Safe Diagnostics Added
+
+Date: 2026-10-04
+Status: One approved real attempt completed without a released draft; diagnostic retry not approved.
+
+Zac approved one local shadow review using the selected meeting and the confirmed
+case-specific project brief. The concrete operator made exactly one generation
+call at pushed checkpoint 9710ea6. Runtime/model/token/completion checks returned
+successfully, then evidence/compactness validation rejected the result. The
+operator recorded REQUEST_PREPARED, DISPATCH_STARTED and DRAFT_REJECTED. The
+50.06-second attempt released no draft and retained no raw failed response. Its
+original exact validation reason cannot be reconstructed from the retained
+metadata. The canonical consent/claim and private authority are consumed.
+
+The necessary failed-attempt protection completed within that original approved
+scope: all 16 Source artifacts and fresh encrypted BRAINSTORM state/journal were
+retrieved, decrypted, fully restored and compared using a separate storage
+client. Three backup runs now show SUCCEEDED; schema remains 0005, one project
+and supplemental association remain, and disposable database count is zero.
+No second generation, new business evidence or external AI transfer occurred.
+
+ReviewHostError now carries an optional closed rejection-code enum only during
+draft validation. Classification accepts exact built-in ValueError strings from
+fixed public validator messages; unknown/schema/backend errors yield a fixed
+unclassified code. Exception payloads and original source text are never
+serialized by the operator. Existing fixed messages, canonical audit stages,
+Zac Event contracts, authorization, freshness and compactness gates are unchanged.
+Future codes do not retroactively identify the first attempt's cause.
+
+Verification: all 1,101 tests pass, Ruff passes, and strict mypy passes across 45
+source files. Invented-data checks exercise actual unknown-evidence and
+compactness rejections, arbitrary/private error arguments, hostile exception
+subclasses, and non-validation phases. Claude independently reviewed only the
+host and tests and found no confirmed defects. It noted message-drift coverage
+and Python exception-context caveats; the operator serializes only closed codes,
+never exception chains. Fixed mappings were checked against current validators.
+
+A new excluded diagnostic proposal is prepared from the protected 16-Source
+checkpoint. Inputs/model/limits remain identical: two prose sources, no earlier
+meetings, 13 exact quote spans, 5,792 input tokens, at most 1,600 output tokens,
+120-second request freshness, and one attempt. Fresh filenames preserve the
+first authority/receipt and prevent their reuse. Claude found an unpinned
+recovered-key verification receipt and a double-read backup-proof gap in the
+prepared launcher. The proposal now pins that receipt, uses one immutable backup
+read, requires exactly one state object and checks private-file permissions.
+Claude rechecked and confirmed the recovery-proof fixes, then identified a
+dangling-symlink precheck gap. The output guard now uses lexists, verified with
+an invented broken symlink, before authority consumption. The proposal includes
+canonical consent/claim/audits and encrypted protection of either success or failed audits.
+A successful local draft remains unevaluated until Zac assesses meaning/style.
+Fresh specific human approval is required before that additional generation.
+No broader ingestion, recurring access or later roadmap phase is advanced.
+
+Approval/source: Zac's explicit local-review Yes; standing engineering authority
+for safe diagnostics and invented tests. No automatic retry is authorized.
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)

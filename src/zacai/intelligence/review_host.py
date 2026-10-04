@@ -13,6 +13,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from enum import Enum
 from typing import Protocol
 from uuid import UUID, uuid4
 
@@ -113,8 +114,52 @@ class ShadowReviewResult:
     # No approval/semantic PASS field: delivered output still needs evaluation.
 
 
+class ReviewRejectionCode(str, Enum):
+    UNKNOWN_EVIDENCE_ID = "UNKNOWN_EVIDENCE_ID"
+    DUPLICATE_EVIDENCE_ID = "DUPLICATE_EVIDENCE_ID"
+    REQUEST_CHANGED = "REQUEST_CHANGED"
+    CONTEXT_MISMATCH = "CONTEXT_MISMATCH"
+    QUOTE_MISMATCH = "QUOTE_MISMATCH"
+    MISSING_MEETING_EVIDENCE = "MISSING_MEETING_EVIDENCE"
+    MISSING_RELATED_EVIDENCE = "MISSING_RELATED_EVIDENCE"
+    CLAIM_TOO_LONG = "CLAIM_TOO_LONG"
+    SUMMARY_TOO_LONG = "SUMMARY_TOO_LONG"
+    DISPLAY_TOO_MANY_WORDS = "DISPLAY_TOO_MANY_WORDS"
+    DISPLAY_TOO_MANY_CHARACTERS = "DISPLAY_TOO_MANY_CHARACTERS"
+    UNCLASSIFIED_VALIDATION = "UNCLASSIFIED_VALIDATION"
+
+
+_REJECTION_CODES = {
+    "unknown evidence ID": ReviewRejectionCode.UNKNOWN_EVIDENCE_ID,
+    "duplicate evidence IDs": ReviewRejectionCode.DUPLICATE_EVIDENCE_ID,
+    "review request differs from host-derived evidence": ReviewRejectionCode.REQUEST_CHANGED,
+    "review task or classification does not match": ReviewRejectionCode.CONTEXT_MISMATCH,
+    "quote does not match supplied evidence": ReviewRejectionCode.QUOTE_MISMATCH,
+    "every review claim must cite the selected meeting": ReviewRejectionCode.MISSING_MEETING_EVIDENCE,
+    "continuity requires related-context evidence": ReviewRejectionCode.MISSING_RELATED_EVIDENCE,
+    "review claim exceeds compact display limit": ReviewRejectionCode.CLAIM_TOO_LONG,
+    "summary and contextual connection exceed 60 words": ReviewRejectionCode.SUMMARY_TOO_LONG,
+    "review preview exceeds 180 words; revise without silent omission": ReviewRejectionCode.DISPLAY_TOO_MANY_WORDS,
+    "review preview exceeds 1400 characters; revise without silent omission": ReviewRejectionCode.DISPLAY_TOO_MANY_CHARACTERS,
+}
+
+
+def _safe_draft_rejection(error: Exception) -> ReviewRejectionCode:
+    # Never stringify a backend/schema exception or export its payload. Only
+    # exact built-in ValueError with a fixed known string gets a specific code.
+    if type(error) is ValueError and len(error.args) == 1 and type(error.args[0]) is str:
+        return _REJECTION_CODES.get(error.args[0], ReviewRejectionCode.UNCLASSIFIED_VALIDATION)
+    return ReviewRejectionCode.UNCLASSIFIED_VALIDATION
+
+
 class ReviewHostError(RuntimeError):
-    """Fixed failure, no private exception/transcript/model text."""
+    """Fixed failure; optional closed code contains no private exception text."""
+
+    def __init__(self, message: str, *, rejection_code: ReviewRejectionCode | None = None) -> None:
+        if rejection_code is not None and not isinstance(rejection_code, ReviewRejectionCode):
+            raise TypeError("invalid review rejection code")
+        super().__init__(message)
+        self.rejection_code = rejection_code
 
 
 @contextmanager
@@ -311,9 +356,14 @@ def execute_review_shadow(
         phase = ReviewAuditStage.AUTHORIZATION_REJECTED
         authorization.recheck(run_id, request, clock())
         return ShadowReviewResult(run_id, request.context, review, tuple(audit_ids))
-    except Exception:  # noqa: BLE001 - never expose private/backend errors
+    except Exception as error:  # noqa: BLE001 - never expose private/backend errors
+        rejection = (
+            _safe_draft_rejection(error) if phase == ReviewAuditStage.DRAFT_REJECTED else None
+        )
         try:
             audit(phase)
         except Exception:  # noqa: BLE001 - audit failure must also stay fail-closed
             raise ReviewHostError("meeting-review shadow failed; audit unavailable") from None
-        raise ReviewHostError("meeting-review shadow failed; no draft released") from None
+        raise ReviewHostError(
+            "meeting-review shadow failed; no draft released", rejection_code=rejection
+        ) from None

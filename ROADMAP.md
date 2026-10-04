@@ -475,11 +475,20 @@ Meeting.project_id were preserved. Next protect this changed business state with
 the separately approved fresh encrypted checkpoint/recovery, then present the
 exact bounded private-trial scope. History import and later phases retain order.
 
-### Current next step — D034R verified, private trial decision pending
+### Current next step — D034S diagnostic retry decision pending
 
-The case-specific project evidence is recorded, and the approved fresh encrypted
-B2 artifact/state/journal backup passed full recovery on 2026-10-04. The actual
-input's passage-cap issue is resolved by exact-source packing with original
-limits preserved. Next is the concrete single local shadow-review approval,
-followed by semantic/style feedback on its local draft. Wider history import,
-recurring source access and later roadmap phases retain their existing order.
+The approved real local shadow attempt ran once and was rejected by evidence/
+compactness validation. No draft was released, and the raw rejected response was
+not retained. Its exact original validation reason is unknown. Consent/claim and
+rejection audits are protected by fresh encrypted B2 artifact/state/journal
+recovery covering 16 Sources. Live schema remains 0005; disposable cleanup passed.
+
+Safe closed rejection diagnostics are now implemented and verified with all
+1,101 tests, lint and strict typing. The independent Claude code-only review
+found no confirmed host defects. No private source was exported to the reviewer.
+A separate concrete one-attempt diagnostic proposal preserves the selected
+meeting, case-specific project brief, pinned installed local model and existing
+limits. It needs a fresh human decision before generation; the first authority
+is consumed. After a valid draft, obtain Zac's semantic/style feedback before
+widening context. History imports, recurring access, production routing and the
+later OCE evaluation retain their existing roadmap order.
