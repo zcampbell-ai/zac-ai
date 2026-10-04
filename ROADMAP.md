@@ -11,7 +11,7 @@ This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position — reconciled 2026-10-04
 
-Current completed engineering checkpoint: D034AD (building on D034AC / bf76a3c).
+Current completed engineering checkpoint: D034AE (building on D034AD / ac4af2f).
 D031B verified real BRAINSTORM encrypted off-device artifact recovery. D032
 intelligence contracts are implemented. D033C verified one explicitly approved
 Fireflies capture. D034O applied live schema 0005 with protected recovery, and
@@ -24,7 +24,10 @@ draft resolution to exact capture/reload using invented output. D034AD composes
 assembly, exact-scope adapter checks, canonical audits, one synthetic generation,
 atomic packet/capture audit, recovery and final refresh into a guarded host path.
 The real encryption/disposable restore adapter is exercised with throwaway keys
-and local test objects; concrete consent/runtime/recovery-receipt wiring remains
+and local test objects. D034AE adds concrete one-shot contextual consent/claim/
+revocation, actual recovery-gate bridging and canonical locator/encrypted receipt
+records. Their combined path passes with invented model output and throwaway
+keys. Bounded model-runtime/operator wiring and failed-attempt recovery remain
 pending. These do not
 enable recurring ingestion, an improved
 live generation flow or broad production routing. The app remains health-only.
@@ -728,3 +731,37 @@ also need operator recovery/reconciliation. Then prepare a concrete real trial
 scope and assess useful delivery before briefing/interface expansion. No new
 private source capture, client-data model call, real B2 upload, production route,
 service, scheduler or mobile interface is enabled by this checkpoint.
+
+### D034AE — concrete contextual authority and discoverable recovery records
+
+Canonical USER_INSTRUCTION contextual consents bind selected evidence, builder,
+permissions, route/pin, prepared-content digest and a bounded human approval.
+Fresh task/event IDs can change without changing reviewed content; the consumed
+claim binds the actual run/scope and exact request digest. Claims serialize under
+the existing advisory lock and require READ COMMITTED authority sessions.
+Read-only evidence snapshots remain REPEATABLE READ. Revocation stays immediate
+and idempotent; slow recovery occurs outside the claim lock, followed by a fresh
+activity check. Compact approval formats/prefixes remain separate.
+
+The existing actual read-only checkpoint/key verifier is reused through a
+recovery-only view, never a compact authority record. The protector commits a
+packet-indexed canonical locator before artifact backup/state snapshot, then
+stores an encrypted receipt after independent recovery/full disposable restore.
+The protected snapshot contains its receipt locator. Receipt lookup verifies
+canonical metadata, exact state/journal ciphertext and permission; orphan plans
+are skipped only when their receipt is absent, and ambiguity/corruption rejects.
+Default host delivery requires a bound durable receipt; only explicit invented
+fixtures permit receipt-less protection. Returned metadata labels are refreshed.
+
+Actual Opus engineering review found isolation assumptions, stale dispatch after
+a slow authority recheck, receipt discovery and consent-record timing problems.
+These are addressed and regression-tested. The full canonical authorization +
+actual recovery gate + actual protector chain runs with invented provider output,
+throwaway keys and independent local readers. This is not new real B2 coverage.
+
+Next implement the bounded contextual model adapter and reviewable one-shot
+operator, including failed-attempt protection/reconciliation and measured
+end-to-end budgets. Then propose exact real source/model scope and evaluate the
+visible result for usefulness before daily briefing/private interface expansion.
+No actual human consent was issued, private source ingested, client-data model
+call made, real upload performed, production operator or mobile service enabled.

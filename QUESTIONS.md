@@ -418,3 +418,12 @@ answer is needed for concrete backend/runtime/recovery-receipt engineering.
 Before a real richer trial, present the exact source/model scope for approval
 and then ask Zac whether the delivered draft is useful. Existing generic
 approvals do not expand client-data transmission. No manual push is required.
+
+## D034AE — authority/recovery foundation complete in testing
+
+No user answer is needed for this engineering checkpoint. Concrete contextual
+consent/claim/revocation and discoverable protected recovery records are verified
+in the combined synthetic path. Next finish the model adapter and one-shot
+operator, then present exact source/model/budget scope for a real trial.
+Zac's review of the actual delivered result remains required; test counts do not
+prove useful prose. No manual push is required.

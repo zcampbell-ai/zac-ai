@@ -21,6 +21,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.orm import Session, sessionmaker
 
+from zacai.contextual_recovery_record import ContextualRecoveryReceipt
 from zacai.gateway import ActionRequest, ActionType, GatewayOutcome, evaluate_gateway
 from zacai.ingestion.artifact_store import ArtifactStore, content_hash_of
 from zacai.intelligence.contextual_evaluation import ContextualPacket, encode_contextual_packet
@@ -47,6 +48,8 @@ from zacai.intelligence.review_evaluation import review_context_digest
 from zacai.intelligence.review_freshness import review_evidence_digest
 from zacai.intelligence.review_host import ReviewSelection, _snapshot
 from zacai.policy import AccessRequest, DataClassification, Destination, TrustBoundary
+from zacai.state import Source, SourceSystem
+from zacai.state_repository import get_effective_source_classification
 
 
 def contextual_request_digest(request: ContextualRequest) -> str:
@@ -124,12 +127,17 @@ class ContextualRuntime(Protocol):
 
 
 class ContextualProtection(Protocol):
-    def protect(self, source_id: UUID, expected_digest: str) -> None:
+    def protect(
+        self,
+        source_id: UUID,
+        expected_digest: str,
+        audit_source_ids: tuple[UUID, ...],
+    ) -> ContextualRecoveryReceipt | None:
         """Verify committed packet, evidence, all audits and snapshot recovery.
 
         Explicit BrainstormContextualProtector fits this interface. A concrete
-        operator must retain recovery object metadata before its live release;
-        this host does not supply an operator or durable recovery receipt.
+        operator must retain/recover receipt metadata before live release.
+        None is reserved for explicit synthetic fixtures, never a real trial.
         """
         ...
 
@@ -141,6 +149,7 @@ class ContextualHostResult:
     packet_digest: str
     packet: ContextualPacket
     audit_source_ids: tuple[UUID, ...]
+    recovery_receipt: ContextualRecoveryReceipt | None
     # No semantic PASS, action permission or reusable recovery authority.
 
 
@@ -161,6 +170,7 @@ def execute_contextual_shadow(
     authorization: ContextualAuthorization,
     protection: ContextualProtection,
     max_release_latency_ms: int = 300_000,
+    allow_synthetic_protection: bool = False,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     monotonic: Callable[[], float] = time.monotonic,
 ) -> ContextualHostResult:
@@ -175,7 +185,9 @@ def execute_contextual_shadow(
     user delivery: an actual interface must record its own delivery receipt.
     Post-claim failures consume authority. No draft/question returns on any
     failure. Failed-attempt recovery remains an explicit operator responsibility.
-    No live CLI/service, concrete contextual consent backend or route is enabled.
+    Durable recovery receipts are mandatory by default; only invented fixtures
+    may explicitly allow receipt-less protection. No live CLI/service or route
+    is enabled; concrete consent storage exists outside this host.
     """
     run_id = uuid4()
     request: ContextualRequest | None = None
@@ -312,6 +324,8 @@ def execute_contextual_shadow(
             raise ValueError("gateway denied")
 
     try:
+        if type(allow_synthetic_protection) is not bool:
+            raise TypeError("explicit synthetic flag required")
         if type(max_release_latency_ms) is not int or not 1 <= max_release_latency_ms <= 600_000:
             raise ValueError("bounded release deadline required")
         if not isinstance(builder_id, UUID):
@@ -340,6 +354,9 @@ def execute_contextual_shadow(
         refresh()
         route_check()
         authorization.recheck(scope, request, contextual_request_digest(request), clock())
+        # Recovery rechecks can be slow: refresh again immediately before dispatch.
+        refresh()
+        route_check()
         start = monotonic()
         dispatched = True
         draft = runtime.generate(request)
@@ -374,7 +391,19 @@ def execute_contextual_shadow(
             session.commit()
         packet_id, packet_hash = captured, captured_hash
         audit_ids.append(captured_audit)
-        protection.protect(packet_id, packet_hash)
+        receipt = protection.protect(packet_id, packet_hash, tuple(audit_ids))
+        if receipt is None and not allow_synthetic_protection:
+            raise ValueError("durable recovery receipt required")
+        if receipt is not None:
+            receipt = ContextualRecoveryReceipt.model_validate(receipt)
+            if (
+                receipt.locator.packet_source_id != packet_id
+                or receipt.locator.packet_digest != packet_hash
+                or receipt.locator.task_id != request.context.task.task_id
+                or receipt.locator.builder_id != builder_id
+                or receipt.audit_source_ids != tuple(audit_ids)
+            ):
+                raise ValueError("recovery receipt differs from this run")
         refresh()
         route_check()
         authorization.recheck(scope, request, contextual_request_digest(request), clock())
@@ -393,10 +422,33 @@ def execute_contextual_shadow(
         refresh()
         route_check()
         authorization.recheck(scope, request, contextual_request_digest(request), clock())
+        # Returned audit/receipt metadata retains its own current source labels.
+        with _snapshot(factory) as session:
+            metadata_ids = tuple(audit_ids) + (
+                () if receipt is None else (receipt.locator_source_id,)
+            )
+            for sid in metadata_ids:
+                source = session.get(Source, sid)
+                if (
+                    source is None
+                    or source.system != SourceSystem.MANUAL
+                    or source.trust_boundary != request.context.task.event.trust_boundary
+                    or get_effective_source_classification(session, source_id=sid)
+                    not in allowed_classifications
+                    or (
+                        receipt is not None
+                        and sid == receipt.locator_source_id
+                        and source.content_hash != receipt.locator_digest
+                    )
+                ):
+                    raise ValueError("returned metadata access changed")
+        authorization.recheck(scope, request, contextual_request_digest(request), clock())
         release_elapsed = monotonic() - release_start
         if not 0 <= release_elapsed * 1000 <= max_release_latency_ms:
             raise ValueError("release deadline exceeded")
-        result = ContextualHostResult(run_id, packet_id, packet_hash, packet, tuple(audit_ids))
+        result = ContextualHostResult(
+            run_id, packet_id, packet_hash, packet, tuple(audit_ids), receipt
+        )
     except BaseException as error:  # noqa: BLE001 - sanitized cancellation audit
         if isinstance(error, KeyboardInterrupt):
             interruption = "keyboard"

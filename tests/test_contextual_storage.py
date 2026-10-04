@@ -264,7 +264,7 @@ def test_throwaway_crypto_and_full_state_recovery(stored, tmp_path, monkeypatch,
     else:
         protector.protect(sid, content_hash_of(payload))
         encrypted = list((tmp_path / "objects" / "BRAINSTORM" / "state").rglob("*.age"))
-        assert len(encrypted) == 2
+        assert len(encrypted) == 3
         assert b"Reporting validation" not in encrypted[0].read_bytes()
         assert not list(tmp_path.rglob("*.csv"))
 

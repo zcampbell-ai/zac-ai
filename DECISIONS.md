@@ -5509,3 +5509,82 @@ in test fixtures. This is not new live off-device backup evidence.
 Verification: 1,274 tests pass, including 31 contextual-host tests; Ruff and
 strict mypy on 52 source files pass. Two existing dependency warnings remain.
 No manual push is needed.
+
+## D034AE — contextual authority ledger and durable recovery lookup
+Date: 2026-10-04
+Status: Implemented and synthetic integration verified; live operator pending
+
+Reuse existing canonical Source ledger helpers and advisory locking. Contextual
+consent/revocation/claim have distinct closed formats and external-ref prefixes;
+compact approval cannot authorize a contextual run. A consent binds builder,
+selection, exact allowed boundary/classification sets, local route/pin and
+prepared-content digest. TTL is at most 15 minutes and recording requires an
+active decision now, with actual record time retained. Serializations are bounded
+to the existing 32 KB authority envelope. Host adapters remain outside agents.
+
+The prepared digest normalizes only host evidence-ID namespaces and fresh task/
+event identities; passage text, roles, instructions, schema, source metadata and
+budgets remain bound. Actual claims bind actual run/builder/scope/request/context
+and canonical consent digests. Scope mismatch, expiry, replay, wrong requests,
+revocation or lost recovery reject. Recovery work occurs before taking the claim
+lock; locked re-read checks current authority and consumption before commit.
+Rechecks repeat activity checks after recovery. Repeated revocation confirms the
+existing denial, including after expiry.
+
+Independent Opus review highlighted snapshot-isolation races in the shared lock
+helper. Authority reads/mutations now require READ COMMITTED, with tests that
+reject REPEATABLE READ ledger sessions; evidence snapshot transactions remain
+unchanged. PostgreSQL documents that repeated-read snapshots can predate a
+waiting lock, while READ COMMITTED commands receive fresh snapshots:
+https://www.postgresql.org/docs/16/transaction-iso.html
+This is a library guard, not a database configuration or schema rollout. No
+unique-ref schema migration or protection against arbitrary admin writes is
+claimed; trusted ledger mutations use the serialized helper.
+
+The existing Brainstorm read-only recovery verifier receives a recovery-only
+legacy-shaped view. This view is never persisted as a compact consent or used
+for approval/dispatch. It preserves actual checkpoint/key evidence checks and
+canonical selected-source/relationship verification without duplicating logic.
+
+Recovery avoids self-referential hashes: commit a canonical MANUAL locator
+Source before artifact backup/state snapshot. Its ref indexes packet plus nonce:
+contextual-recovery-locator/{packet_source_id}/{locator_id}. The locator is a
+planned pointer, never a success assertion. After independent artifact reads and
+full disposable state/journal restore, write/read/decrypt an encrypted immutable
+receipt binding locator/source/hash, task/builder/packet, exact audit IDs, backup
+run and state/journal object/hash pairs. The snapshot includes the locator Source
+so receipt discovery survives restore. Fresh lookup uses that verified canonical
+index; its digest is consistency evidence, not an independent authentication
+anchor. Full restored-state trust must still come from independently verified
+checkpoint/key evidence. Lookup skips only missing receipt objects, rejects
+corruption and requires exactly one completed candidate.
+
+All protection reads are bounded and verify returned size; state/journal cipher
+hashes are rechecked during receipt loading. Host audits must bind the same
+context/request/route/pin and complete stages. The default host requires a
+durable receipt bound to its actual packet/task/builder/audits. Only explicit
+invented fixtures may allow missing receipts. Current labels on returned audit/
+locator metadata are checked before release. A slow authority recheck is followed
+by fresh evidence/route checks immediately before dispatch. Receipt records
+recovery, never human delivery or semantic correctness.
+
+Opus reviewed engineering code only (actual model claude-opus-5-5). Findings on
+isolation, age at dispatch, packet-indexed receipt discovery, current consent
+time, lock duration, repeated revocation and bounded reads were addressed.
+Standalone packet protection may omit host audits; a real host always supplies
+and verifies its full audit set. Future operator construction must use actual
+recovery/protection adapters and forbid synthetic bypasses. Single-writer UUID
+receipt objects are checked for pre-existence; object-store conditional writes,
+retention/manifest concurrency, failed-attempt recovery and interface delivery
+receipts remain explicit operator/hardening work. No mutable success flag is
+substituted for independent recovery.
+
+Verification: 1,325 tests pass; Ruff and strict mypy on 54 source files pass.
+Tests include real canonical concurrent claims/revocation, expiry during
+recovery, isolation rejection, exact prepared/actual digest binding, default
+receipt enforcement, damaged/mismatched receipts, packet lookup/orphan/ambiguity
+and combined canonical authorization + actual read-only recovery verifier +
+protector. Provider output and escrow/topology attestations are invented;
+crypto/independent local reads/disposable restores are real. Existing dependency
+warnings remain. No actual approval, model call, B2 upload or production service
+was enabled. The existing roadmap order and first usable release target remain.

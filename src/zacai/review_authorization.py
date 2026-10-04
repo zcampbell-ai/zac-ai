@@ -106,7 +106,15 @@ def prepared_review_digest(request: ReviewRequest) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+def _assert_ledger_isolation(session: Session) -> None:
+    # Under snapshot isolation a waiting lock can retain a pre-winner snapshot.
+    # Enforce READ COMMITTED for both compact/contextual ledger mutations.
+    if session.scalar(text("SHOW transaction_isolation")) != "read committed":
+        raise ReviewAuthorizationError("authority ledger requires read committed isolation")
+
+
 def _lock(session: Session, approval_id: UUID) -> None:
+    _assert_ledger_isolation(session)
     session.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": approval_id.int % 2**63})
 
 
@@ -181,6 +189,7 @@ def record_review_consent(
 def _load(
     session: Session, store: ArtifactStore, approval_id: UUID, now: datetime
 ) -> ReviewConsent:
+    _assert_ledger_isolation(session)
     source = session.get(Source, approval_id)
     if (
         source is None

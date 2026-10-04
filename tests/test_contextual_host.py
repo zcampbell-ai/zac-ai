@@ -110,7 +110,7 @@ class Protection:
         self.called = self.fail = False
         self.callback = None
 
-    def protect(self, source_id, expected_digest):
+    def protect(self, source_id, expected_digest, audit_source_ids):
         self.called = True
         factory, store = self.f[:2]
         with factory() as session:
@@ -136,6 +136,7 @@ def run(f, **changes):
         "artifacts": f[1],
         "selection": ReviewSelection(MeetingEvidence(f[2].meeting_id, f[2].normalized_source_id)),
         "builder_id": uuid4(),
+        "allow_synthetic_protection": True,
         "authorized_boundaries": BOUNDARIES,
         "allowed_classifications": frozenset({C.CONFIDENTIAL}),
         "registry": ApprovedRouteRegistry(
@@ -330,7 +331,7 @@ def test_project_relationships_are_refreshed_and_included(
     )
 
 
-@pytest.mark.parametrize("corrupt", [False, True])
+@pytest.mark.parametrize("corrupt", [None, "state", "receipt"])
 def test_host_composes_real_crypto_restore_before_release(
     host_setup,  # noqa: F811 - shared fixture
     tmp_path,
@@ -388,7 +389,9 @@ def test_host_composes_real_crypto_restore_before_release(
         original = reader.get_object
 
         def broken(key):
-            if "/state/" in key:
+            if (corrupt == "receipt" and "/receipt-" in key) or (
+                corrupt == "state" and "/state/" in key and "/receipt-" not in key
+            ):
                 return b"corrupt synthetic ciphertext"
             return original(key)
 
@@ -397,7 +400,24 @@ def test_host_composes_real_crypto_restore_before_release(
             run(host_setup, protection=protector)
         assert events(host_setup)[-1]["stage"] == "RUN_FAILED"
     else:
-        result = run(host_setup, protection=protector)
+        result = run(host_setup, protection=protector, allow_synthetic_protection=False)
+        assert result.recovery_receipt is not None
+        receipt = result.recovery_receipt
+        from zacai.contextual_recovery_record import load_contextual_recovery_receipt
+
+        with factory() as session:
+            recovered = load_contextual_recovery_receipt(
+                session,
+                locator_source_id=receipt.locator_source_id,
+                expected_locator_digest=receipt.locator_digest,
+                authorized_boundaries=BOUNDARIES,
+                allowed_classifications=frozenset({C.CONFIDENTIAL}),
+                verification_objects=reader,
+                identity_path=identity,
+            )
+            assert recovered == receipt
+        state = age_decrypt(reader.get_object(receipt.state_object), identity)
+        assert str(receipt.locator_source_id).encode() in state
         for sid in (*result.audit_source_ids, result.packet_source_id):
             with factory() as session:
                 source = session.get(Source, sid)
@@ -405,7 +425,7 @@ def test_host_composes_real_crypto_restore_before_release(
                     backup_object_key_for(B.BRAINSTORM, source.content_hash)
                 )
                 assert content_hash_of(age_decrypt(ciphertext, identity)) == source.content_hash
-        assert len(list((tmp_path / "objects" / "BRAINSTORM" / "state").rglob("*.age"))) == 2
+        assert len(list((tmp_path / "objects" / "BRAINSTORM" / "state").rglob("*.age"))) == 3
         assert not list(tmp_path.rglob("*.csv"))
 
 
@@ -546,3 +566,51 @@ def test_authority_expiry_is_not_renewed_during_recovery(host_setup):  # noqa: F
             clock=lambda: now,
         )
     assert second_protection.called
+
+
+def test_real_host_default_requires_durable_recovery_receipt(host_setup):  # noqa: F811
+    protection = Protection(host_setup)
+    with pytest.raises(ContextualHostError):
+        run(host_setup, protection=protection, allow_synthetic_protection=False)
+    assert protection.called and events(host_setup)[-1]["stage"] == "RUN_FAILED"
+
+
+def test_slow_authority_recheck_cannot_dispatch_stale_request(host_setup):  # noqa: F811
+    now = NOW
+    runtime = Runtime(host_setup)
+
+    class SlowAuthorization(Authorization):
+        def recheck(self, *args):
+            nonlocal now
+            now += timedelta(seconds=121)
+
+    with pytest.raises(ContextualHostError):
+        run(host_setup, runtime=runtime, authorization=SlowAuthorization(), clock=lambda: now)
+    assert runtime.calls == 0 and events(host_setup)[-1]["stage"] == "RUN_FAILED"
+
+
+def test_elevated_returned_audit_metadata_is_not_released(host_setup):  # noqa: F811
+    protection = Protection(host_setup)
+
+    def elevate():
+        with host_setup[0]() as session:
+            sid = session.scalar(
+                select(Source.id).where(
+                    Source.external_ref.startswith("contextual-run-audit/"),
+                    Source.id.not_in(host_setup[3]),
+                )
+            )
+            elevate_source_classification(
+                session,
+                source_id=sid,
+                trust_boundary=B.BRAINSTORM,
+                new_classification=C.HIGHLY_RESTRICTED,
+                reason="invented metadata correction",
+                elevated_by="fixture",
+            )
+            session.commit()
+
+    protection.callback = elevate
+    with pytest.raises(ContextualHostError):
+        run(host_setup, protection=protection)
+    assert protection.called
