@@ -412,7 +412,8 @@ association foundation without changing historical Meetings. D034D now verifies
 explicit reviewed project context reaching quote-backed meeting drafts. D034G now verifies
 the fresh-snapshot dispatch host with mandatory audit-before-dispatch; its actual
 trusted authorization/protection adapters, verified tokenizer and concrete trial
-proposal remain next; D034H adds the explicit shared local runtime adapter and D034I
+proposal remain next; D034J supplies the canonical one-shot authorization ledger
+with a mandatory recovery verifier still pending. D034H adds the explicit shared local runtime adapter and D034I
 verifies the state-backup compatibility/isolation mechanism with invented data. D034E/D034F supply refresh/evaluation/audit libraries. Protect the
 live state snapshot before migration rollout; keep temporal relevance separate from project identity before analysis.
 The existing Meeting.project_id is immutable; do not backfill it by mutation.

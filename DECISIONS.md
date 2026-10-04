@@ -4377,6 +4377,44 @@ Verified sources on 2026-10-03:
 - [OpenClaw announcement](https://openclaw.ai/blog/openclaw-enterprise)
 - [OCE architecture and implementation limits](https://github.com/openclaw/openclaw-enterprise/blob/main/docs/design.md)
 
+
+## D034J - Canonical One-Shot Review Authority
+
+Date: 2026-10-03
+Status: Implemented and independently reviewed with synthetic evidence only
+
+Continue D034's bounded review host by implementing its required authorization
+adapter outside agents. Reuse canonical Source artifacts rather than adding a
+second approval database or an enabled service.
+
+Trusted operators can record a genuine human decision as a BRAINSTORM /
+CONFIDENTIAL USER_INSTRUCTION Source. Consent binds exact selected evidence,
+generation instructions and schema, local route, exact model digest and a window
+of at most 15 minutes. Reassembled task/event IDs do not invalidate the evidence
+binding; a durable MANUAL claim separately binds the actual run and full context.
+Consent selection metadata must also match the prepared request.
+
+PostgreSQL transaction locks serialize claims and revocations. Exactly one claim
+commits before model dispatch; failed pre-claim checks do not consume authority.
+Later failures consume the attempt. Human revocation is append-only and checked
+again before releasing a draft. Corrupt evidence, expiry, replay, altered scope or
+loss of recovery readiness fails closed with fixed diagnostics.
+
+The recovery gate is mandatory and has no shipped production implementation.
+Reference strings attest operator evidence; they do not establish actual recovery
+or credential escrow. Registry eligibility, privacy permissions and the existing
+gateway remain independent host checks. No historical conversation, imported
+instruction, transcript or agent may issue current consent: review-consent,
+review-claim and review-revocation namespaces are reserved for the trusted host.
+
+Verification: 15 guarded authorization tests include two concurrent real database
+claims, revocation during generation, changed evidence/selection, replay, expiry,
+recovery loss, malformed artifacts and boundary backup inventory. Claude's
+independent terminal review found no blockers. No actual consent, private model
+call, production migration or expanded source access occurred. Actual tokenizer,
+state/key recovery verification and audit protection remain prerequisites for a
+concrete private trial proposal.
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)
@@ -4415,7 +4453,8 @@ canonical meeting/draft context, verified with synthetic data. D034E adds the
 read-only canonical refresh foundation. D034F adds exact-draft evaluation and
 canonical audit primitives. D034G now verifies the fresh-snapshot operator host with audit-before-dispatch.
 D034H adds the shared local runtime adapter with mandatory exact token-count
-binding; actual tokenizer/authorization/protection backends remain next. Prepare
+binding; D034J adds canonical one-shot authorization with mandatory recovery
+verification. Actual tokenizer/recovery/protection backends remain next. Prepare
 real state recovery evidence and a concrete one-shot trial proposal; protect the
 live state snapshot before migration rollout. Keep genuinely distinct projects separate. D034B's 27B synthetic result is a
 candidate for future bounded local shadow review, with refresh/audit/evaluation

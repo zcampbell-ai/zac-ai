@@ -83,3 +83,16 @@ consistent snapshots under concurrent writes, all using invented test state.
 The omission identified during D034H is resolved in the synthetic mechanism.
 Actual private state recovery, key recovery evidence and protected 0005 rollout
 remain separate gates. Prepare them concretely before asking Zac to approve.
+
+## D034J progress and project clarification
+
+The one-shot authorization ledger is implemented and tested. Actual recovery
+verification, protected audit backup and exact tokenizer backend remain next;
+no private trial approval is requested yet.
+
+Zac clarified that one client account can have many distinct projects (for
+example Sales Audit and Icon Park). Do not infer one project per account or force
+one universal display name. The earlier confirmed successive Build-A-Bear SOWs
+remain one continuing project; other projects stay separate. Use source-backed
+meeting/SOW evidence, and ask Zac if the association remains ambiguous. No naming
+question blocks the current engineering work.

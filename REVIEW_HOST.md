@@ -2,7 +2,8 @@
 
 D034G implements `execute_review_shadow` as a one-attempt operator library.
 It is not an enabled service or CLI. D034H adds an explicit local runtime adapter; actual matching tokenizer,
-authorization and protection backends remain to be verified before a private trial.
+recovery and protection backends remain to be verified before a private trial.
+D034J supplies the canonical authorization ledger described below.
 
 ## Operator inputs
 
@@ -77,8 +78,31 @@ reserves output within 8,192 tokens, and rejects runtime input usage disagreemen
 No actual matching tokenizer backend is provided; counters in tests are invented.
 Calling the adapter directly grants no permission. It is not an enabled service.
 
-Next verify the actual tokenizer and implement the explicit authorization/protection
+Next verify the actual tokenizer and implement the recovery/protection
 adapters using the existing gateway and backup/recovery mechanisms. Verify them synthetically,
 prepare actual state restore evidence and protected migration procedure, then
 present the exact private trial scope for approval. Do not substitute mock
 recovery/authorization or treat general filesystem access as processing approval.
+
+## Canonical authorization ledger (D034J)
+
+`CanonicalReviewAuthorization` implements the authorization seam with canonical
+Source artifacts. A trusted operator records actual human consent through
+`record_review_consent`; the library cannot authenticate a chat approval and
+ships no issuer endpoint. Consent binds exact evidence and generation request,
+selection metadata, local route/model pin and an expiry of at most 15 minutes.
+The host commits one durable claim before dispatch. Concurrent claims serialize;
+revocations share that lock and remain append-only. Rechecks bind the same run
+and reject current revocation, expiry, corrupt artifacts or recovery loss.
+
+Consent/revocation Sources are USER_INSTRUCTION; consumption is MANUAL. Their
+artifacts are included in the existing BRAINSTORM backup inventory and canonical
+state snapshots. Inventory coverage is not proof of an actual encrypted restore.
+The mandatory recovery adapter must verify current state, artifact and credential
+recovery evidence and audit pre-context denials. No actual backend is included.
+Historical imports and agents must never write these reserved review authority
+namespaces or translate old conversational approvals into current permission.
+
+Fifteen guarded synthetic authorization tests verify the ledger and host seam,
+including actual concurrent database claims and backup boundary coverage. Claude
+review found no blockers. No live approval or private inference has occurred.

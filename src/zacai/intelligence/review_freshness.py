@@ -35,7 +35,7 @@ class ReviewFreshness:
     context_digest: str
 
 
-def _digest(context: ReviewContext) -> str:
+def review_evidence_digest(context: ReviewContext) -> str:
     # Fresh assembly creates new task/event/correlation IDs and observation time.
     # Everything else, including text/order, labels, versions and limits, is bound.
     data = context.task.model_dump(mode="json")
@@ -120,8 +120,8 @@ def check_review_freshness(
                 allowed_classifications=allowed_classifications,
                 observed_at=checked_at,
             )
-        digest = _digest(fresh)
-        if _digest(context) != digest:
+        digest = review_evidence_digest(fresh)
+        if review_evidence_digest(context) != digest:
             raise ValueError("canonical context changed")
         return ReviewFreshness(context.task.task_id, checked_at.astimezone(UTC), digest)
     except Exception:  # noqa: BLE001 - source/DB/artifact errors may contain private data
