@@ -380,3 +380,15 @@ judgments to the exact visible draft and full evidence, including held questions
 Protected canonical capture/restore is the next implementation gate. No live
 source/model operation or backup upload is authorized by this offline change.
 A new real trial will need a concrete scope after protected storage is reviewed.
+
+## D034AB — synthetic storage/recovery verified; no user input needed yet
+
+Protected-storage adapters are under independent Opus review. Synthetic canonical
+capture and crypto/full-restore tests do not authorize production calls or prove
+new real B2 coverage. The next step is trusted host composition and durable audit
+before proposing a concrete richer private trial. Current contextual approvals
+are not replayed or expanded automatically. No manual push is needed.
+
+D034AB Opus review completed and findings addressed. No contextual answer is
+needed for this synthetic checkpoint; real protected capture/trial remains
+separately scoped after host integration.

@@ -578,3 +578,24 @@ Evaluation now distinguishes NEEDS_CLARIFICATION from NEEDS_REVIEW, keeping FAIL
 precedence. Immutable bounded inputs, frozen synthetic bytes/preview and
 cross-process hash-seed checks address independent Opus findings. Authenticate
 both identities and host time externally; no digest is an identity proof.
+
+### D034AB — canonical packet storage and recovery adapters, synthetic verified
+
+Exact contextual packets can now be captured as canonical MANUAL Sources using
+the existing boundary-partitioned artifact inventory. Capture checks current
+canonical evidence metadata; load checks permissions, effective classifications,
+independently retained hashes and copied source labels. Exact retries reuse the
+Source, while rollback may leave an orphan artifact under the existing policy.
+Capture alone is not verified backup or dispatch authority.
+
+An explicit BRAINSTORM adapter verifies encrypted packet/evidence recovery plus
+a state snapshot and separate operational journal from one read-only snapshot.
+It verifies the actual target/schema, independent object reads, throwaway-key
+crypto and full disposable restore mechanics. The synthetic tests use local
+object stores, not actual off-device B2. No private capture or real upload occurs.
+
+Next compose the richer generation/evaluation/capture flow through trusted host
+authorization, fresh source/relationship checks, durable audit and a fail-closed
+release gate. No existing compact operator is switched or its approvals reused.
+A real richer trial requires a concrete new scope after this integration review.
+Preserve later history import, production routing and OCE evaluation order.

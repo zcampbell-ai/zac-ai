@@ -5332,3 +5332,60 @@ Verification: 1,200 tests pass, including 24 contextual packet/evaluation tests;
 Ruff and strict mypy (48 source files) pass. Two existing dependency warnings
 remain. Frozen synthetic packet hash and exact preview plus two subprocess hash
 seeds protect deterministic output. The new module performs no persistence.
+
+## D034AB — canonical contextual capture and explicit recovery wiring
+
+Date: 2026-10-04
+Status: Synthetic implementation verified; no live operation enabled
+
+Packets are registered as immutable MANUAL Sources in the existing boundary-
+partitioned artifact inventory. Capture verifies canonical reference hashes,
+current effective labels, caller boundaries and allowed classifications before
+writing. It uses a savepoint so failed registration cannot leave a canonical row
+that a caller accidentally commits. Artifact orphans remain possible on rollback
+under the existing policy and are never automatically removed. Exact retries
+reuse the Source; elevated packet/evidence labels reject stale packet reuse.
+
+Load checks canonical permissions, independently retained digest and effective
+label before packet I/O, then verifies bytes and all copied reference metadata.
+This does not establish correct relationship selection, current source revisions
+or semantic truth: the future trusted generation host still owns refresh and
+truthful builder/runtime provenance. Helpers do not issue approval or commit.
+Hosts must use a clean isolated transaction; earlier flushed unrelated writes
+are not detectable solely from the ORM pending-object inventory.
+
+The separate explicit BRAINSTORM recovery adapter checks controlled configuration
+and live database/schema, rejecting redirected Session bindings. It verifies
+recipient/identity readiness, encrypted packet/evidence reads, every artifact
+referenced by the consistent state snapshot, encrypted state/journal recovery
+and full disposable-state comparison. The operational journal and state export
+share one read-only snapshot. Current labels are checked again after recovery.
+No draft is returned by the adapter; future release must be gated by successful
+protection and durable trusted audit. Real use still needs concrete host approval.
+
+Independent Opus review found rollback, routed-session and snapshot coverage
+issues; these were addressed. Its journal/target findings referred to the earlier
+code and were already fixed during review. Conditional classification checks are
+now also explicit. Inspection confirmed the existing backup/upgrade helpers
+already guard restore URL and actual database before writes; no shared restore
+code change was needed. A direct selector test confirms MANUAL packets enter
+backup inventory. Production inventory has no synthetic baseline filters.
+
+Tests use guarded zacai_test, invented sources, owner-only temporary artifacts,
+throwaway age identities and local object clients. Existing synthetic fixtures
+with unrelated artifact roots are excluded only by test monkeypatches; these
+tests prove adapter mechanics, not real off-device B2 coverage. Failures cover
+corrupt artifact/state/journal, wrong identity, restore failure and a Source
+committed between artifact backup and snapshot. No real data/model call/upload
+or production operator change occurred.
+
+Next integrate exact contextual generation/evaluation/capture through trusted
+authorization, current canonical relationship checks, durable audit and release
+ordering before proposing a real richer trial. Persist recovery object metadata
+and exact evaluation codecs in that host path; adapter success is not a durable
+consent token or reusable backup checkpoint. Preserve the roadmap's later phases.
+
+Verification: 1,215 tests pass, including 15 synthetic contextual storage/
+recovery tests; Ruff and strict mypy (50 source files) pass. Two existing
+dependency warnings remain. Existing compact operator and shared restore
+components are unchanged; only the new explicit adapters are wired in tests.
