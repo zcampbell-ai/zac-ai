@@ -276,3 +276,20 @@ protection. Input scope is now 5,956 tokens due to clarified instructions; outpu
 cap remains 1,600. Its new private proposal and one-shot launcher are prepared.
 If a valid draft returns, Zac reviews accuracy, context and wording before wider
 history ingestion. No manual push is needed while the authorized SSH agent works.
+
+## D034U — private length rejection protected; revised scope prepared
+
+The approved attempt passed citation checks but exceeded the 180-word display
+cap. No draft was released. Its authority is consumed, and all 26 Sources plus
+state/journal/audits are encrypted and recovery-verified. No temporary databases
+remain. Prose guidance now targets 100 words with room for display annotations,
+while preserving material facts and separate owners/dates. It does not loosen
+validators or enable automatic revisions. Invented tests inform the change;
+private-case success and semantic quality remain unproven.
+
+Next decision, when ready: one revised-budget local attempt on the same selected
+meeting and confirmed project brief, 6,121 input tokens and 1,600 output-token
+cap, no new sources, no external AI or publishing, encrypted audit/state
+protection included. New private scope/launcher paths preserve the consumed
+attempts. After a valid draft, ask Zac about its accuracy, context and wording
+before broader historical context ingestion. No manual push is needed.

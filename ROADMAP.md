@@ -475,25 +475,26 @@ Meeting.project_id were preserved. Next protect this changed business state with
 the separately approved fresh encrypted checkpoint/recovery, then present the
 exact bounded private-trial scope. History import and later phases retain order.
 
-### Current next step — D034T corrected private trial decision pending
+### Current next step — D034U bounded display proposal pending
 
-The separately approved diagnostic attempt ran once and returned the safe reason
-MISSING_MEETING_EVIDENCE. No draft was released or raw response retained. Its
-consent/claim/rejection audits and all 21 Sources are now protected by fresh
-verified encrypted B2 state/journal/artifact recovery. Schema remains 0005 and
-disposable cleanup passed. Both individual private authorities are consumed.
+The approved citation-corrected attempt passed quote/role and per-claim/summary
+checks, then rejected the over-180-word display. No draft was released, no raw
+response retained, and no additional private call was made. Its audit/state and
+all 26 Sources are protected by fresh encrypted artifact/state/journal recovery;
+schema remains 0005 and disposable cleanup passed. Individual authorities are
+consumed; no automatic retry is enabled.
 
-Host-derived citation-role guidance is now explicit for every output section.
-Existing validation/gateway/quote/compactness limits remain unchanged. All 1,106
-tests, lint and strict typing pass; the independent Claude code-only review found
-no confirmed defects. Three real local-model PUBLIC invented-data benchmarks
-passed, including reordered sources and a packed 248+11 catalog. Those passes
-do not prove private-case success or final meaning/style quality.
+A conservative prose target and explicit faithful-compression guidance are now
+implemented. Existing compactness/quote/schema/gateway limits remain. Preserve
+separate owners/dates/kinds/inferred status; never trade facts for brevity. Fixed
+schema and source quotes cannot alone guarantee semantic completeness. Independent
+Claude review and dense invented-data tests informed these corrections. A valid
+private draft still needs Zac's accuracy/context/style assessment.
 
-The new concrete proposal retains the selected meeting, case-specific project
-brief and pinned local model, with 5,956 exact input tokens and 1,600 output-token
-cap. It includes one private attempt and encrypted protection of resulting audits/
-state, needs fresh human approval, and enables no automatic retries. Following a
-valid draft, obtain Zac's accuracy/context/style feedback before widening context.
-Claude/ChatGPT/Fireflies history imports, recurring access, production routing and
-the later OCE evaluation retain their existing roadmap order.
+The next prepared scope uses the same meeting and confirmed project brief, pinned
+local model and protected checkpoint. It has 6,121 exact input tokens, 1,600
+output-token cap and 120-second request freshness, and includes one attempt plus
+encrypted audit/state protection. It requires fresh human approval. No new
+sources, earlier meetings, external AI, publishing or recurring access. Wider
+Claude/ChatGPT/Fireflies history work, production routing and later OCE evaluation
+retain their existing phase order.

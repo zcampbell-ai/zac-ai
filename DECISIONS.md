@@ -4945,6 +4945,71 @@ Approval/source: Zac's You’re approved for one diagnostic attempt; standing
 engineering authority for clarified instructions, invented tests and PUBLIC
 benchmarks. No third private generation has been authorized or executed.
 
+## D034U - Citation Checks Passed; Display Budget Rejection Protected
+
+Date: 2026-10-04
+Status: Approved attempt completed without a draft; revised-budget private attempt pending.
+
+Zac approved one corrected citation attempt at pushed checkpoint 66ae923. It
+made one private local call and failed closed after 46.87 seconds with the safe
+code DISPLAY_TOO_MANY_WORDS. Validation reached the overall display-word check:
+quote identity, meeting/related roles, individual claim and summary/continuity
+checks had passed. The displayed result exceeded the existing 180-word cap; the
+later character-cap check was not reached. Passing citations does not prove
+semantic accuracy. No raw failed response was retained or draft released, and
+no extra private call was made under that consumed authority.
+
+The approved protection remainder succeeded for all 26 Source artifacts and
+fresh encrypted BRAINSTORM state/journal through separate-client readback,
+decryption, full disposable restoration and current-state comparison. Independent
+metadata checks confirm schema 0005, five SUCCEEDED backup runs and zero
+remaining disposable databases. No new business evidence was ingested.
+
+Generation instructions now aim for 100 words of claim prose, leaving room for
+labels, owner/date annotations and uncertainty notices inside the unchanged
+180-word/1400-character display caps. This is guidance, not a new validator or
+a guarantee of completeness. Preserve material decisions, commitments, risks,
+unresolved issues and uncertainty. Faithful facts take priority over prompt
+length targets; oversize remains a host rejection. Combining items requires the
+same kind, owner, due date and inferred status plus room for all supporting
+citations. No truncation, citation insertion, cap relaxation, automatic revision
+call, new runtime or gateway/Event/State change is introduced.
+
+Claude's generic-code review identified combination and wording ambiguities,
+which were corrected. Invented model testing additionally exposed an unsupported
+release condition and a no-owner inference from no promise; explicit guidance
+now forbids both. Further Claude review highlighted that fixed schema caps and
+quote validation do not prove semantic completeness. Those caps remain unchanged;
+semantic/style evaluation and Zac's feedback are still required. This work does
+not claim that prompts can guarantee absence of omissions or distortions.
+
+Verification: Ruff, strict mypy (45 source files), 85 affected validation tests
+and the full 1,106-test suite pass. Final actual PUBLIC benchmarks both passed
+structural validation at 96 displayed words / 684 characters, with approximately
+15.5 and 30.1 seconds latency; each fixture made one call without retry.
+Manual review of their invented text preserved distinct owners/dates and original
+release conditions, but is not a general semantic-quality guarantee.
+Dense PUBLIC invented-model fixtures include three distinct
+agreements, two commitments with separate owners/dates, duplicate exports and
+blocked permissions. Benchmark observations and superseded wording are preserved
+in the local work directory. No private text was supplied to the cloud assistant
+or independent reviewer. PRIVATE-case success remains untested after this change.
+
+A fresh excluded proposal binds the same two prose sources, selected installed
+local model, clarified prompt, latest protected 26-Source checkpoint and pinned
+recovery receipts. It measures 26,354 serialized characters, 6,121 exact input
+tokens and 13 quote spans; output cap remains 1,600 and request freshness 120
+seconds. New proposal/authority/claim/draft/receipt paths preserve prior attempts.
+The prepared one-attempt launcher includes canonical audits and encrypted
+protection. Fresh specific approval is required for this additional private run.
+A valid draft's accuracy, context and concise wording must be assessed before
+wider history imports. Existing roadmap order and case-specific SOW reasoning
+remain intact.
+
+Approval/source: Zac's Yes approved for the corrected citation attempt; standing
+engineering authority for wording fixes and invented-data tests. No fourth
+private call is authorized or performed.
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)
