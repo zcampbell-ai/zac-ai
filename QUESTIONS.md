@@ -293,3 +293,19 @@ cap, no new sources, no external AI or publishing, encrypted audit/state
 protection included. New private scope/launcher paths preserve the consumed
 attempts. After a valid draft, ask Zac about its accuracy, context and wording
 before broader historical context ingestion. No manual push is needed.
+
+## D034V — first real local draft ready for Zac's assessment
+
+The approved word-budget attempt succeeded with one private local model call.
+The rendered draft is 128 words / 866 characters. Its canonical audit/state and
+source artifacts passed encrypted recovery; seven full restores completed and
+no disposable database remains. The owner-only excluded draft file/hash are
+verified, and native viewing is queued. No prose was sent to cloud AI, published
+or promoted to canonical knowledge. No manual push is needed.
+
+The next input is contextual/editorial, not another model permission: after
+reading the local draft, what is factually wrong or missing, and which wording
+does not sound like Zac? Do not treat lack of feedback as acceptance. Record
+exact-draft evaluation only after actual assessment. The private local path is
+kept outside repository documentation; use the native editor or direct local
+file link delivered in chat. Broader history ingestion still follows the roadmap.

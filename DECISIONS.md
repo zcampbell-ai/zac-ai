@@ -5010,6 +5010,52 @@ Approval/source: Zac's Yes approved for the corrected citation attempt; standing
 engineering authority for wording fixes and invented-data tests. No fourth
 private call is authorized or performed.
 
+## D034V - First Validated Private Local Shadow Draft Returned
+
+Date: 2026-10-04
+Status: Real bounded draft returned and protected; human semantic/style assessment pending.
+
+Zac's explicit Yes approved authorized the prepared word-budget attempt at clean
+pushed checkpoint 2d6f23c. The exact proposal, launcher hash and code revision
+were bound to fresh owner-only expiring authority, then consumed once. The
+trusted concrete operator made exactly one real private local generation call,
+with no fallback or automatic retry. It returned a draft after 62.76 seconds
+total operator time. The rendered review is 128 words and 866 characters, within
+unchanged 180-word/1400-character limits. Quote/role, per-claim, summary/continuity,
+runtime pin/token/completion, freshness and canonical authorization checks passed.
+
+REQUEST_PREPARED, DISPATCH_STARTED and DRAFT_VALIDATED audits were committed.
+Concrete post-run protection passed and all seven actual full-restore checks
+completed. Independent metadata checks confirm 31 Sources, six SUCCEEDED
+artifact backup runs, unchanged schema 0005 and zero disposable databases.
+This covers canonical audit/state and source artifacts with approved encrypted
+recovery, not promotion of generated prose into canonical knowledge.
+
+The generated review is an owner-only Git-excluded local Markdown draft. Its
+hash matches the private receipt, its display count is independently verified,
+and it remains PENDING_HUMAN_REVIEW. The local file was queued for the native
+Codex editor; its prose was neither printed into cloud tool results nor supplied
+to the independent Claude engineering reviewer. The local draft/receipt remain
+outside Git and are not claimed to be part of canonical artifact backup coverage.
+No external AI, publishing, new sources or broader source/model authority were
+used. The successful attempt's authority is consumed as well.
+
+This is the first structurally validated real draft, not semantic/style acceptance
+or completion of production intelligence. A quote's existence does not prove
+entailment, completeness, ownership or correct contextual interpretation. Zac
+must assess what is factually wrong/missing and what does not sound like him.
+Only then record exact-draft evaluation and decide the next bounded refinement.
+Do not fabricate feedback, auto-promote prose or widen history/source access.
+The confirmed continuing engagement remains a case-specific exception. State,
+Events, gateway, provider neutrality and later roadmap phases remain unchanged.
+
+Verification: actual one-shot operator plus independent metadata/hash/permission/
+word-count checks. No implementation changed in this completion checkpoint;
+D034U's 1,106-test/lint/strict-typing checks remain the code baseline.
+
+Approval/source: Zac's latest explicit Yes approved for the revised-budget local
+attempt, including approved canonical audit/state recovery protection.
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)

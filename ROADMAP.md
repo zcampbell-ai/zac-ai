@@ -475,26 +475,24 @@ Meeting.project_id were preserved. Next protect this changed business state with
 the separately approved fresh encrypted checkpoint/recovery, then present the
 exact bounded private-trial scope. History import and later phases retain order.
 
-### Current next step — D034U bounded display proposal pending
+### Current next step — D034V real draft returned; human assessment pending
 
-The approved citation-corrected attempt passed quote/role and per-claim/summary
-checks, then rejected the over-180-word display. No draft was released, no raw
-response retained, and no additional private call was made. Its audit/state and
-all 26 Sources are protected by fresh encrypted artifact/state/journal recovery;
-schema remains 0005 and disposable cleanup passed. Individual authorities are
-consumed; no automatic retry is enabled.
+The explicitly approved revised-budget attempt returned the first structurally
+validated private local review. One model call; 128 displayed words / 866
+characters; 62.76 seconds total operator time. Canonical consent/claim/audits,
+post-run encrypted recovery and all seven full-restore checks passed. Independent
+checks confirm 31 Sources, six SUCCEEDED backup runs, schema 0005 and no remaining
+disposable databases. The private local draft hash/permissions are verified.
+No generated prose was published, exported to external AI or promoted to State.
 
-A conservative prose target and explicit faithful-compression guidance are now
-implemented. Existing compactness/quote/schema/gateway limits remain. Preserve
-separate owners/dates/kinds/inferred status; never trade facts for brevity. Fixed
-schema and source quotes cannot alone guarantee semantic completeness. Independent
-Claude review and dense invented-data tests informed these corrections. A valid
-private draft still needs Zac's accuracy/context/style assessment.
+Next obtain Zac's assessment of factual accuracy, missing context and concise
+wording on the local draft, then record its exact-draft evaluation and choose a
+bounded refinement. Structural pass does not establish semantic/style quality.
+Do not invent feedback, enable another private call or widen source scope from
+this success. The authority is consumed; new private operations remain separately
+scoped. The local draft is queued for native viewing and excluded from Git;
+canonical backup coverage is not a claim that this local prose file was uploaded.
 
-The next prepared scope uses the same meeting and confirmed project brief, pinned
-local model and protected checkpoint. It has 6,121 exact input tokens, 1,600
-output-token cap and 120-second request freshness, and includes one attempt plus
-encrypted audit/state protection. It requires fresh human approval. No new
-sources, earlier meetings, external AI, publishing or recurring access. Wider
-Claude/ChatGPT/Fireflies history work, production routing and later OCE evaluation
-retain their existing phase order.
+The existing selected meeting and confirmed case-specific project brief remain
+the scope. Broader Claude/ChatGPT/Fireflies history ingestion, recurring access,
+production routing and OCE control-plane evaluation retain their existing order.
