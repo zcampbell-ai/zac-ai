@@ -417,8 +417,9 @@ association foundation without changing historical Meetings. D034D now verifies
 explicit reviewed project context reaching quote-backed meeting drafts. D034G now verifies
 the fresh-snapshot dispatch host with mandatory audit-before-dispatch. D034N now
 implements/tests the pre-context recovery gate and durable denial journal; exact
-live operator wiring, fresh protected rollout and the later private-trial
-proposal remain next. D034L adds full-restore protection and verifies the prior
+D034O now provides the protected operator procedure and excluded journal
+recovery. Its actual fresh protected rollout awaits a concrete human decision;
+the later private-trial proposal remains separate. D034L adds full-restore protection and verifies the prior
 real off-device state snapshot. D034M additionally verifies the current-state
 populated-copy 0004 -> 0005 -> 0004 rehearsal and records rollout preparation in
 SCHEMA_ROLLOUT.md; the live schema remains 0004 and fresh protection/approval are
@@ -434,3 +435,13 @@ Recurring access and wider source permissions require their
 own design and approval. D032 extends this roadmap without completing production
 routing or execution, or changing the later phase order.
 No live connection, credential or transcript is authorized by D031B or D032.
+
+### D034O rollout preparation
+
+The protected operator command and full excluded operational-journal recovery
+are implemented with invented-data validation. Off-device recovery precedes the
+brief final write pause; stale state cancels the upgrade. Follow SCHEMA_ROLLOUT.md
+and obtain the fresh rollout approval before uploads or live migration. After
+that protected upgrade, finish the exact reviewed project evidence and separate
+one-shot private-trial proposal. This advances D034 without promoting broader
+source access, production routing or later control-plane work.

@@ -4611,6 +4611,61 @@ procedure and excluded operational-journal recovery before requesting the fresh
 protected rollout decision. Exact reviewed project evidence and private trial
 scope remain separate. Do not repeat the already completed key recovery exercise.
 
+## D034O - Protected Operator Rollout and Journal Recovery
+
+Date: 2026-10-04
+Status: Implemented and tested with invented state; actual operation awaits approval
+
+Finish the exact operator procedure required by D034M/D034N. Preserve the
+existing migration 0005 unchanged and target only the controlled Mac Studio
+zacai_dev database. The proposed scope is one fresh encrypted BRAINSTORM state
+and operational-journal backup to the existing B2 state prefix, independent
+retrieval/full disposable restoration, then the exact additive 0004 -> 0005
+upgrade. Two empty association/retraction tables are added; no reviewed project
+records, new integrations, broader history or private inference are authorized.
+
+Capture state and excluded artifact_backup_run journal in the same read-only
+repeatable-read snapshot. Recover and compare every field before any live write
+lock. Brief SHARE NOWAIT table locks then protect a READ COMMITTED freshness
+check and the externally owned Alembic transaction. Any intervening canonical
+or journal change, another boundary, active writer, expired approval or changed
+code cancels the upgrade. Validation failures before commit roll back DDL;
+ambiguous commits/receipt failures require investigation, not a downgrade.
+
+The explicit Mac operator command defaults to proposal output only. Actual
+execution requires an owner-only human-approved scope pinning clean code,
+migration digest, exact database and at most 15 minutes. A durable private claim keyed to the stripped unique human approval reference
+consumes that consent before credentials; the library creates an exclusive
+STARTED receipt before remote actions, PREPARED only after recovery and APPLIED
+only after commit. Failure is FAILED_OR_UNCONFIRMED. Keys stay in the existing
+Mac Keychain/age identity path; no secrets are committed or printed. The host
+disables SDK request retries. Remote orphan encrypted objects may remain.
+
+Claude's design review corrected a material availability issue: write locks
+must not span network recovery or disposable restoration. The revised design
+performs those operations first and verifies freshness again under short locks.
+The table pause still affects all writers, even with BRAINSTORM-only inventory.
+The existing recovered-key proof is retained; no repeat key exercise is needed.
+The exact procedure and proposed user scope are in SCHEMA_ROLLOUT.md.
+
+Verification: actual throwaway age encryption, independent local object clients,
+full disposable state/journal restoration, successful exact upgrade, transactional
+post-DDL rollback, concurrent changes during lock-free retrieval, active writer
+refusal, expired authority, corrupt retrieval, failed restoration, duplicate
+attempt refusal, unknown final receipt status and default operator guards.
+Final verification: 1,077 tests pass (two existing dependency deprecation
+warnings); Ruff and strict mypy pass across 44 source files. Claude independently
+reviewed the initial implementation with no blockers. A fresh failure-focused
+review subsequently found three low-severity issues: equivalent approval replay,
+initial receipt failure logging and ambient default-port redirection. All were
+fixed with meaningful regression tests; explicit server/schema/inventory checks
+address its two remaining assumptions. The fresh CLI trace confirmed 11 reads,
+two searches and zero tool errors. Claude rechecked the corrections and found
+no blockers. Actual read-only local metadata confirmed no unexpected public
+CREATE grants in zacai_dev or zacai_test. Tests also caught and corrected
+PostgreSQL inet text formatting in the new address guard.
+No real B2 upload, live schema migration or private-model operation has occurred.
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)
@@ -4655,8 +4710,9 @@ conformance. D034L adds the concrete protection adapter and verifies a full rest
 existing real off-device snapshot with a key recovered from 1Password. D034M verifies
 the current-state populated-copy upgrade and rollback rehearsal and records the
 protected rollout preparation. D034N implements/tests pre-context recovery and
-durable denials. Finish the exact live operator procedure and operational-journal
-recovery, then request the protected rollout decision. Prepare a concrete one-shot
+durable denials. D034O now provides the reviewed exact operator procedure and
+operational-journal recovery. Request its concrete protected rollout decision
+before the actual upload and live upgrade. Prepare a concrete one-shot
 trial proposal separately; protect the
 live state snapshot before migration rollout. Keep genuinely distinct projects separate. D034B's 27B synthetic result is a
 candidate for future bounded local shadow review, with refresh/audit/evaluation

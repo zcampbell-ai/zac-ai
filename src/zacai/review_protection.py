@@ -66,6 +66,7 @@ class DisposableStateRestoreVerifier:
         expected_sources: dict[UUID, str],
         *,
         current_business_state: Engine | None = None,
+        operational_journal: bytes | None = None,
     ) -> None:
         try:
             if not snapshot or len(snapshot) > _MAX_STATE_BYTES or not expected_sources:
@@ -93,6 +94,25 @@ class DisposableStateRestoreVerifier:
                         backup.verify_restored_boundary_stream(
                             engine, io.BytesIO(snapshot), boundary=B.BRAINSTORM
                         )
+                        if operational_journal is not None:
+                            if not 0 < len(operational_journal) <= 4_000_000:
+                                raise ValueError("operational journal outside capacity")
+                            with engine.begin() as conn:
+                                raw = backup._raw_connection(conn)
+                                backup._restore_table_csv(
+                                    raw, "artifact_backup_run", operational_journal
+                                )
+                                backup._verify_table_csv(
+                                    raw, "artifact_backup_run", operational_journal
+                                )
+                                if set(
+                                    conn.execute(
+                                        text(
+                                            "SELECT DISTINCT trust_boundary FROM artifact_backup_run"
+                                        )
+                                    ).scalars()
+                                ) - {B.BRAINSTORM.value}:
+                                    raise ValueError("operational journal boundary mismatch")
                         if current_business_state is not None:
                             _verify_current_business_state(engine, current_business_state)
                         with Session(engine) as session:

@@ -68,6 +68,15 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    supplied = config.attributes.get("connection")
+    if supplied is not None:
+        # Protected operator rollout owns table locks and the transaction.
+        # Alembic recognizes the external transaction and does not commit it.
+        context.configure(connection=supplied, target_metadata=target_metadata)
+        with context.begin_transaction():
+            context.run_migrations()
+        return
+
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

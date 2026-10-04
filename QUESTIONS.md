@@ -18,9 +18,12 @@ No immediate contextual question blocks that engineering work.
   digest, selected context and scope. Existing Fireflies capture approval does
   not approve model processing. No approval is requested until that proposal is
   concrete and reviewable.
-- **Production schema 0005 rollout:** approve the protected rollout after the
-  actual state backup/restore evidence and rollback procedure are ready. The
-  migration remains tested only in zacai_test.
+- **Production schema 0005 rollout:** approve the now-concrete protected
+  operation: fresh real encrypted state/journal backup and verified recovery,
+  followed only on success by the exact upgrade. The
+  D034M already rehearsed current state in a disposable populated copy; D034O
+  now supplies the exact protected operator procedure and journal recovery.
+  Actual live schema remains 0004.
 
 ## Feedback needed once there is a draft to judge
 
@@ -150,3 +153,18 @@ operator procedure and operational-journal recovery are ready. No new backup-key
 exercise is required now, and no private-model consent is implied. After rollout,
 finalize the exact reviewed project evidence and bring Zac the separate bounded
 trial scope; ask for context only if the source-backed association is ambiguous.
+
+## D034O — concrete rollout decision ready after final review
+
+Approve or decline one fresh encrypted BRAINSTORM state **and operational
+backup-run journal** backup to the existing Brainstorm B2 bucket, independent
+readback/full disposable restoration, then pinned schema 0004 -> 0005 on the
+Mac Studio. The final transaction briefly pauses table writes; it adds two empty
+association/retraction tables and preserves every original row. Recovery runs
+before that pause. No automatic retry/downgrade, private model processing,
+new connector access or reviewed association writes are included.
+
+SCHEMA_ROLLOUT.md contains the concrete scope and failure handling. Request this
+approval only after final validation and Claude review; this question log itself
+is not approval. Later clarify project evidence only if genuinely ambiguous,
+then present the distinct bounded private-trial decision.

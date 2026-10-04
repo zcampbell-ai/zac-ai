@@ -94,6 +94,8 @@ TABLE_ORDER: tuple[str, ...] = (
 )
 
 _ORDER_BY: dict[str, str] = {
+    # Explicit separate rollout journal verification only; not TABLE_ORDER.
+    "artifact_backup_run": "id",
     "source": "id",
     "company_head": "entity_id",
     "project_head": "entity_id",
@@ -260,15 +262,30 @@ def export_boundary_stream(engine: Engine, boundary: TrustBoundary, out_stream: 
         if conn.dialect.name != "postgresql":
             raise RuntimeError("PostgreSQL backup connection required")
         conn.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
-        revisions = conn.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
-        if len(revisions) != 1 or revisions[0] not in _SCHEMA_TABLES:
-            raise RuntimeError("unsupported state backup schema")
-        revision = revisions[0]
-        out_stream.write(f"{_BACKUP_MAGIC}\n{revision}\n{boundary.value}\n".encode("ascii"))
-        raw = _raw_connection(conn)
-        for table in _SCHEMA_TABLES[revision]:
-            data = _export_table_csv(raw, table, boundary.value)
-            _write_frame(out_stream, table, data)
+        _export_boundary_connection(conn, boundary, out_stream)
+
+
+def _export_boundary_connection(
+    conn: Connection, boundary: TrustBoundary, out_stream: IO[bytes]
+) -> None:
+    """Shared framing on an operator-owned consistent transaction.
+
+    The normal public export owns a read-only RR snapshot. The protected operator
+    shares its read-only RR snapshot with the separate operational-journal export.
+    The caller owns consistency; this helper never starts/commits a transaction
+    or changes its isolation.
+    """
+    if conn.dialect.name != "postgresql" or not conn.in_transaction():
+        raise RuntimeError("owned PostgreSQL backup transaction required")
+    revisions = conn.execute(text("SELECT version_num FROM alembic_version")).scalars().all()
+    if len(revisions) != 1 or revisions[0] not in _SCHEMA_TABLES:
+        raise RuntimeError("unsupported state backup schema")
+    revision = revisions[0]
+    out_stream.write(f"{_BACKUP_MAGIC}\n{revision}\n{boundary.value}\n".encode("ascii"))
+    raw = _raw_connection(conn)
+    for table in _SCHEMA_TABLES[revision]:
+        data = _export_table_csv(raw, table, boundary.value)
+        _write_frame(out_stream, table, data)
 
 
 def _optional_line(stream: IO[bytes]) -> str | None:
