@@ -90,9 +90,11 @@ comparison. D034F adds exact-draft evaluation bindings and canonical audit
 primitives. D034G now verifies a fresh-snapshot operator host, committed audits
 before dispatch, exact local route checks and freshness/authority rechecks through
 protection. It requires explicit adapters; actual production authorization, runtime
-and recovery adapters remain pending. D034H adds the shared loopback runtime
-adapter with exact token-budget binding; its actual matching local tokenizer
-backend remains unverified. D034I verifies schema-aware state backups, historical
+and recovery adapters remain pending. D034J adds the canonical one-shot
+authorization ledger. D034H adds the shared loopback runtime adapter with exact
+token-budget binding; D034K verifies the narrow installed-model tokenizer backend
+against actual PUBLIC synthetic probes. Real recovery/protection remain pending. D034I verifies schema-aware state
+backups, historical
 stream restoration and consistent snapshots with synthetic test/drill databases.
 Actual private state recovery and protected migration remain pending. Synthetic
 host tests do not establish
@@ -410,9 +412,10 @@ through read-only inspection. Zac confirmed that the relevant successive SOWs
 represent one continuing project. D034C now verifies a source-backed, reviewed
 association foundation without changing historical Meetings. D034D now verifies
 explicit reviewed project context reaching quote-backed meeting drafts. D034G now verifies
-the fresh-snapshot dispatch host with mandatory audit-before-dispatch; its actual
-trusted authorization/protection adapters, verified tokenizer and concrete trial
-proposal remain next; D034J supplies the canonical one-shot authorization ledger
+the fresh-snapshot dispatch host with mandatory audit-before-dispatch; actual
+recovery/protection adapters and the concrete trial
+proposal remain next; D034K verifies a narrow installed-model tokenizer with
+PUBLIC synthetic conformance. D034J supplies the canonical one-shot authorization ledger
 with a mandatory recovery verifier still pending. D034H adds the explicit shared local runtime adapter and D034I
 verifies the state-backup compatibility/isolation mechanism with invented data. D034E/D034F supply refresh/evaluation/audit libraries. Protect the
 live state snapshot before migration rollout; keep temporal relevance separate from project identity before analysis.

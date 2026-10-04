@@ -4415,6 +4415,49 @@ call, production migration or expanded source access occurred. Actual tokenizer,
 state/key recovery verification and audit protection remain prerequisites for a
 concrete private trial proposal.
 
+
+## D034K - Verified Offline Local Prompt Counting
+
+Date: 2026-10-03
+Status: Implemented and independently reviewed; PUBLIC-only conformance verified
+
+Replace the invented D034H token counter with a narrow, explicit installed-model
+adapter. The installed candidate manifest still matches the previously recorded
+27B hash. Ollama is now 0.35.1; official versioned source establishes that this
+safetensors model uses the built-in qwen3.8 renderer, rather than the generic
+/api/show template alone.
+
+OllamaQwenReviewTokenCounter hash-verifies the exact manifest and tokenizer/config
+blobs, loads the local tokenizer in memory without model weights or downloads,
+and reproduces only the supported system/user no-thinking review prompt. It
+includes schema, message markers and assistant prefix, uses Go-compatible Unicode
+whitespace rules and disables tokenizer padding/truncation. Unsupported payloads,
+changed/missing files, model pins or renderer metadata reject. The optional
+local-review dependency pins tokenizers 0.22.2; the lockfile preserves resolution.
+
+The runtime calls the mandatory counter compatibility check before and after
+generation. This backend permits only verified Ollama 0.35.1; an update requires
+new source/conformance verification. Payloads explicitly disable server truncation
+and context shifting. Existing complete input/output budgets, one-attempt dispatch,
+usage equality, model pin, gateway and human consent remain unchanged.
+
+Verification: 1,027 guarded tests pass; Ruff and strict mypy pass. A preliminary
+PUBLIC invented probe matched 1,026 prompt tokens. The reproducible three-case
+benchmark matched offline/runtime input counts exactly: continuing-project 1,211,
+Unicode 1,076 and longer-input 2,706 tokens (approximately 13.3 / 11.7 / 19.0 seconds).
+These prove observed compatibility for those cases, not universal tokenizer parity
+or semantic review quality. Exact usage equality remains enforced per attempt.
+No private source data, credentials, live consent or production migration was used.
+Claude independently verified the narrow prompt bytes against the official
+renderer source, confirmed the synthetic fixture and found no engineering blockers.
+Real recovery/protection verification remains next before a private trial proposal.
+
+Sources inspected:
+- https://github.com/ollama/ollama/blob/v0.35.1/model/renderers/qwen35.go
+- https://github.com/ollama/ollama/blob/v0.35.1/server/prompt.go
+- https://github.com/ollama/ollama/blob/v0.35.1/mlxrunner/tokenizer/tokenizer_encode.go
+- https://huggingface.co/docs/tokenizers
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)
@@ -4454,7 +4497,8 @@ read-only canonical refresh foundation. D034F adds exact-draft evaluation and
 canonical audit primitives. D034G now verifies the fresh-snapshot operator host with audit-before-dispatch.
 D034H adds the shared local runtime adapter with mandatory exact token-count
 binding; D034J adds canonical one-shot authorization with mandatory recovery
-verification. Actual tokenizer/recovery/protection backends remain next. Prepare
+verification. D034K now verifies the narrow installed-model tokenizer with PUBLIC synthetic
+conformance. Actual recovery/protection backends remain next. Prepare
 real state recovery evidence and a concrete one-shot trial proposal; protect the
 live state snapshot before migration rollout. Keep genuinely distinct projects separate. D034B's 27B synthetic result is a
 candidate for future bounded local shadow review, with refresh/audit/evaluation

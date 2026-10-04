@@ -1,7 +1,7 @@
 # Bounded review host
 
 D034G implements `execute_review_shadow` as a one-attempt operator library.
-It is not an enabled service or CLI. D034H adds an explicit local runtime adapter; actual matching tokenizer,
+It is not an enabled service or CLI. D034H adds an explicit local runtime adapter; actual
 recovery and protection backends remain to be verified before a private trial.
 D034J supplies the canonical authorization ledger described below.
 
@@ -75,10 +75,11 @@ strict mypy pass. No actual private inference or production migration was run.
 The shared local runtime adapter requires an exact local prompt token counter
 bound to its model digest. It checks complete serialized capacity before metadata,
 reserves output within 8,192 tokens, and rejects runtime input usage disagreement.
-No actual matching tokenizer backend is provided; counters in tests are invented.
+D034K supplies the narrow installed-model counter described below; ordinary
+unit-test counters remain invented.
 Calling the adapter directly grants no permission. It is not an enabled service.
 
-Next verify the actual tokenizer and implement the recovery/protection
+Next implement and verify the recovery/protection
 adapters using the existing gateway and backup/recovery mechanisms. Verify them synthetically,
 prepare actual state restore evidence and protected migration procedure, then
 present the exact private trial scope for approval. Do not substitute mock
@@ -106,3 +107,31 @@ namespaces or translate old conversational approvals into current permission.
 Fifteen guarded synthetic authorization tests verify the ledger and host seam,
 including actual concurrent database claims and backup boundary coverage. Claude
 review found no blockers. No live approval or private inference has occurred.
+
+## Verified tokenizer backend (D034K)
+
+`OllamaQwenReviewTokenCounter` loads the hash-verified tokenizer/config blobs from
+an explicitly pinned installed qwen3.8:27b-mlx manifest. Counting stays offline;
+it includes the exact schema-bearing messages and the supported built-in
+no-thinking renderer's markers/prefix. It supports only two text turns, no tools,
+images or alternate modes. Padding/truncation are disabled. Original files are
+reverified on each count; changed files fail closed.
+
+The mandatory `LocalPromptTokenCounter.verify_runtime` compatibility method uses
+metadata only. This backend accepts only the source-verified Ollama 0.35.1 version;
+the runtime invokes it before and after generation. Runtime upgrades require
+conformance re-verification. Requests explicitly set truncate=false and shift=false.
+Per-attempt reported input usage must still equal the offline count exactly.
+
+Install the optional backend with `uv sync --extra local-review`. Reproduce the
+PUBLIC invented conformance check with:
+
+```sh
+.venv/bin/python benchmarks/tokenizer_conformance.py --models-root /Users/brainstormzac/.ollama/models
+```
+
+All three cases passed with exact counts (1,211 / 1,076 / 2,706 tokens). This is
+observed compatibility for the tested cases, not proof of semantic quality or
+permission for private inference. No enabled service or model download is added.
+1,027 synthetic tests, Ruff and strict mypy pass with the local-review extra.
+Real recovery/protection verification and concrete private scope approval remain.

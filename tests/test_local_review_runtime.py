@@ -18,6 +18,9 @@ class TokenCounter:
     model_digest = "a" * 64
     count = 100
 
+    def verify_runtime(self):
+        pass
+
     def count_prompt_tokens(self, body):
         return self.count
 
@@ -161,9 +164,7 @@ def test_invalid_or_overflowing_token_count_rejected_before_network(monkeypatch,
     monkeypatch.setattr(local, "_http", benchmark._http)
     counter = TokenCounter()
     counter.count = count
-    runtime = local.LocalReviewRuntime(
-        route=route(), model_digest="a" * 64, token_counter=counter
-    )
+    runtime = local.LocalReviewRuntime(route=route(), model_digest="a" * 64, token_counter=counter)
     with pytest.raises(local.LocalReviewRuntimeError):
         runtime.preflight(prepare_review_request(synthetic_context()))
     assert calls == []
@@ -183,9 +184,7 @@ def test_tokenizer_pin_mismatch_before_network(monkeypatch):
     monkeypatch.setattr(local, "_http", benchmark._http)
     counter = TokenCounter()
     counter.model_digest = "b" * 64
-    runtime = local.LocalReviewRuntime(
-        route=route(), model_digest="a" * 64, token_counter=counter
-    )
+    runtime = local.LocalReviewRuntime(route=route(), model_digest="a" * 64, token_counter=counter)
     with pytest.raises(local.LocalReviewRuntimeError):
         runtime.preflight(prepare_review_request(synthetic_context()))
     assert calls == []
@@ -255,3 +254,23 @@ def test_route_output_capacity_rejected_before_network(monkeypatch):
     with pytest.raises(local.LocalReviewRuntimeError):
         runtime.preflight(prepare_review_request(synthetic_context()))
     assert calls == []
+
+
+@pytest.mark.parametrize("phase", ["before", "after"])
+def test_tokenizer_runtime_incompatibility_blocks_release(monkeypatch, phase):
+    runtime, request, calls = setup(monkeypatch)
+    runtime.preflight(request)
+    checks = 0
+
+    def verify():
+        nonlocal checks
+        checks += 1
+        if checks == (1 if phase == "before" else 2):
+            raise ValueError("invented backend private marker")
+
+    monkeypatch.setattr(runtime._token_counter, "verify_runtime", verify)
+    with pytest.raises(local.LocalReviewRuntimeError) as failure:
+        runtime.generate(request)
+    assert "private marker" not in str(failure.value)
+    assert sum(c[1] == "/api/chat" for c in calls) == (0 if phase == "before" else 1)
+    assert runtime.usage is None

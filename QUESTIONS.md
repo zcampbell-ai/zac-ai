@@ -4,9 +4,10 @@ Updated: 2026-10-03
 Purpose: Keep nonblocking decisions here while engineering continues. This log
 is not approval evidence. Zac resumed and selected continued engineering and
 synthetic checks before a concrete private-trial proposal. D034G adds the host
-foundation and D034H adds the local transport adapter. Actual matching tokenizer,
-one-shot authorization and actual recovery checks remain to be completed. D034I
-now verifies the schema-aware backup mechanism with synthetic recovery drills.
+foundation and D034H adds the local transport adapter. D034J implements one-shot
+authorization and D034K verifies the narrow actual local tokenizer with PUBLIC
+synthetic conformance. Actual recovery/protection checks remain to be completed.
+D034I verifies the schema-aware backup mechanism with synthetic recovery drills.
 No immediate contextual question blocks that engineering work.
 
 ## Decisions needed before a live/private step
@@ -96,3 +97,11 @@ one universal display name. The earlier confirmed successive Build-A-Bear SOWs
 remain one continuing project; other projects stay separate. Use source-backed
 meeting/SOW evidence, and ask Zac if the association remains ambiguous. No naming
 question blocks the current engineering work.
+
+## D034K progress — no user decision needed
+
+The installed 27B model pin and tokenizer blobs are verified. Exact prompt counts
+match the actual local runtime for continuing-project, Unicode and longer PUBLIC
+invented examples. The adapter fails on unverified runtime updates or altered
+files; it does not enable private processing. Next complete actual recovery and
+audit protection before presenting the specific private-trial decision.

@@ -67,8 +67,8 @@ def _http(method: str, path: str, body: bytes | None = None) -> Any:
 def prepare_payload(request: ReviewRequest, route: ModelRoute, digest: str) -> bytes:
     """Verify host-derived catalog and complete serialized character/byte limits.
 
-    Token capacity is checked from runtime usage after generation; this does not
-    claim tokenizer-based preflight or prove a server honored num_ctx.
+    The adapter separately checks exact tokenizer capacity before dispatch and
+    compares reported usage afterward; this serializer alone does neither.
     """
     if request != prepare_review_request(request.context):
         raise LocalReviewRuntimeError("modified review request")
@@ -87,6 +87,8 @@ def prepare_payload(request: ReviewRequest, route: ModelRoute, digest: str) -> b
             "model": name,
             "stream": False,
             "think": False,
+            "truncate": False,
+            "shift": False,
             "keep_alive": 0,
             "format": schema,
             "messages": [
@@ -157,6 +159,9 @@ class LocalPromptTokenCounter(Protocol):
     @property
     def model_digest(self) -> str: ...
     def count_prompt_tokens(self, serialized_body: bytes) -> int: ...
+    def verify_runtime(self) -> None:
+        """Reject runtime/template incompatibility using metadata only."""
+        ...
 
 
 class LocalReviewRuntime:
@@ -204,8 +209,10 @@ class LocalReviewRuntime:
         if self._token_counter.model_digest != self.model_digest:
             raise ValueError("tokenizer model pin mismatch")
         count = self._token_counter.count_prompt_tokens(body)
-        if type(count) is not int or count <= 0 or (
-            count + request.context.task.max_output_tokens > _CONTEXT_TOKENS
+        if (
+            type(count) is not int
+            or count <= 0
+            or (count + request.context.task.max_output_tokens > _CONTEXT_TOKENS)
         ):
             raise ValueError("prompt/output token budget exceeded")
         return count
@@ -218,6 +225,7 @@ class LocalReviewRuntime:
             self._prepared = None
             body = prepare_payload(request, self.route, self.model_digest)
             count = self._token_count(body, request)
+            self._token_counter.verify_runtime()
             verify_model(self.route.identity.model_id, self.model_digest, _http)
             # Include exact context/task identity as well as serialized messages.
             self._prepared = hashlib.sha256(
@@ -234,12 +242,16 @@ class LocalReviewRuntime:
             self._attempted = True
             body = prepare_payload(request, self.route, self.model_digest)
             count = self._token_count(body, request)
-            expected = hashlib.sha256(body + review_context_digest(request.context).encode() + str(count).encode()).digest()
+            expected = hashlib.sha256(
+                body + review_context_digest(request.context).encode() + str(count).encode()
+            ).digest()
             if self._prepared is None or self._prepared != expected:
                 raise ValueError("preflight missing or changed")
             started = time.perf_counter()
+            self._token_counter.verify_runtime()
             verify_model(self.route.identity.model_id, self.model_digest, _http)
             draft, usage = dispatch_draft(request, self.route, body, _http)
+            self._token_counter.verify_runtime()
             verify_model(self.route.identity.model_id, self.model_digest, _http)
             if usage.input_tokens != count:
                 raise ValueError("runtime prompt usage disagrees with tokenizer")
