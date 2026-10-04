@@ -12,7 +12,7 @@ from enum import Enum
 from typing import Literal, Self
 from uuid import UUID
 
-from pydantic import AwareDatetime, model_validator
+from pydantic import AwareDatetime, ConfigDict, model_validator
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
@@ -46,6 +46,73 @@ class ReviewAuditStage(str, Enum):
     DRAFT_REJECTED = "DRAFT_REJECTED"
     DRAFT_VALIDATED = "DRAFT_VALIDATED"
     EVALUATION_RECORDED = "EVALUATION_RECORDED"
+
+
+class ContextualAuditStage(str, Enum):
+    REQUEST_PREPARED = "REQUEST_PREPARED"
+    DISPATCH_PREPARED = "DISPATCH_PREPARED"
+    PACKET_CAPTURED = "PACKET_CAPTURED"
+    RUN_FAILED = "RUN_FAILED"
+
+
+class ContextualAuditEvent(Contract):
+    """Host metadata for the distinct contextual path; never dispatch authority."""
+
+    model_config = ConfigDict(hide_input_in_errors=True)
+    format: Literal["zac-contextual-run-audit-v1"] = "zac-contextual-run-audit-v1"
+    audit_event_id: UUID
+    run_id: UUID
+    task_id: UUID
+    builder_id: UUID
+    recorded_at: AwareDatetime
+    trust_boundary: TrustBoundary
+    data_classification: DataClassification
+    stage: ContextualAuditStage
+    request_digest: Digest
+    context_digest: Digest
+    route: RouteIdentity
+    model_digest: Digest
+    packet_source_id: UUID | None = None
+    packet_digest: Digest | None = None
+
+    @model_validator(mode="after")
+    def consistent_packet(self) -> Self:
+        if (self.packet_source_id is None) != (self.packet_digest is None):
+            raise ValueError("packet metadata must be paired")
+        if self.stage == ContextualAuditStage.PACKET_CAPTURED and self.packet_digest is None:
+            raise ValueError("captured stage requires packet binding")
+        if (
+            self.stage
+            not in {ContextualAuditStage.PACKET_CAPTURED, ContextualAuditStage.RUN_FAILED}
+            and self.packet_digest is not None
+        ):
+            raise ValueError("packet metadata precedes capture")
+        return self
+
+
+def append_contextual_audit(
+    session: Session,
+    *,
+    artifacts: ArtifactStore,
+    event: ContextualAuditEvent,
+    authorized_boundaries: frozenset[TrustBoundary],
+) -> UUID:
+    """Append closed host metadata; caller commits and verifies recovery."""
+    failed = False
+    result: UUID | None = None
+    try:
+        event = ContextualAuditEvent.model_validate(event)
+        result = _persist_review_audit(
+            session,
+            artifacts=artifacts,
+            event=event,
+            authorized_boundaries=authorized_boundaries,
+        )
+    except Exception:  # noqa: BLE001 - no backend or validation diagnostics
+        failed = True
+    if failed or result is None:
+        raise ValueError("contextual audit unavailable or mismatched")
+    return result
 
 
 class ReviewPreContextAudit(Contract):
@@ -182,7 +249,7 @@ def _persist_review_audit(
     session: Session,
     *,
     artifacts: ArtifactStore,
-    event: ReviewAuditEvent | ReviewPreContextAudit,
+    event: ReviewAuditEvent | ReviewPreContextAudit | ContextualAuditEvent,
     authorized_boundaries: frozenset[TrustBoundary],
 ) -> UUID:
     try:
@@ -204,7 +271,9 @@ def _persist_review_audit(
             text("SELECT pg_advisory_xact_lock(:key)"), {"key": event.audit_event_id.int % (2**63)}
         )
         prefix = (
-            "meeting-review-pre-context-audit"
+            "contextual-run-audit"
+            if isinstance(event, ContextualAuditEvent)
+            else "meeting-review-pre-context-audit"
             if isinstance(event, ReviewPreContextAudit)
             else "meeting-review-audit"
         )

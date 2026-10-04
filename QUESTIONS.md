@@ -409,3 +409,12 @@ full-product acceptance goal within the existing architecture and roadmap. The
 confirmed first usable release remains intact. No new contextual answer is
 needed to record this direction; request concrete examples or choices when a
 reviewable implementation actually depends on them.
+
+## D034AD — no contextual answer needed for host integration
+
+The one-attempt host is verified with invented data, including real throwaway-key
+crypto/disposable restore and failures that hold output. No additional user
+answer is needed for concrete backend/runtime/recovery-receipt engineering.
+Before a real richer trial, present the exact source/model scope for approval
+and then ask Zac whether the delivered draft is useful. Existing generic
+approvals do not expand client-data transmission. No manual push is required.

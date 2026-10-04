@@ -5455,3 +5455,57 @@ question when missing context would materially change the result. Feedback can
 revise retained standards with provenance and case-specific scope rather than
 turning every prior example into a universal rule. This clarification grants no
 new source access, client-data model transmission or external action authority.
+
+## D034AD — contextual host composition under explicit adapters
+Date: 2026-10-04
+Status: Implemented and verified with invented data; live operator pending
+
+Keep the contextual path distinct from the compact operator and its authority.
+Use existing canonical assemblers/Event contracts and gateway/route eligibility,
+then replace only the task's compact capability/instruction with the contextual
+workflow. Selection/relevance stays a trusted host choice, not model inference.
+The host accepts no permissive authorization/protection defaults, discovers no
+sources and enables only declared local routes in this library slice.
+
+Canonical closed audit metadata binds run/task/builder, complete request digest,
+context digest, route/pin and captured packet Source/hash. One immutable run scope
+includes selection, boundaries/classifications, builder and route/pin; the same
+scope/digest enters preflight, claim and rechecks. Runtime preflight receives
+evidence only after claim. A concrete backend must authenticate this scope and
+durably enforce expiry, revocation and replay; the protocol is not authority.
+
+The host commits dispatch-prepared metadata before one bounded generation,
+refreshes evidence/associations, commits packet plus capture audit atomically,
+verifies protection, reloads the exact canonical packet and rechecks after that
+read. No draft or material question returns if any gate fails. Persisted output
+is still a proposal needing independent factual/usefulness evaluation. A saved
+packet/audit or absence of failure never proves the user actually received it.
+
+Opus reviewed seven engineering files only (actual model claude-opus-5-5). Its
+concrete findings led to complete scope/digest binding, separate dispatch-age
+and monotonic release budgets, audited sanitized cancellation, atomic capture
+and truthful DISPATCH_PREPARED naming. The 120-second dispatch-age rule remains;
+recovery may take longer within an explicit release budget, and authority expiry
+still rejects. Final-load revocation and project-link withdrawal are tested.
+
+Review disposition: user delivery confirmation belongs to the future interface,
+with PACKET_CAPTURED explicitly documented as possibly returned. The actual
+protector recovers all snapshot Source hashes, including audits, and the host
+integration additionally decrypts/checks each audit in tests. The shared legacy
+compact audit/freshness exception internals were not broadly rewritten here;
+new host failures/cancellations retain no diagnostic exception chains. Contract
+revalidation is already configured in the base Contract; a concrete runtime must
+use the bounded duplicate-key raw-output parser before returning a draft. Shared
+pre-context audit format remains accurate minimal metadata, not a success claim.
+
+Required operator work: concrete contextual one-shot authority and runtime,
+durable recovery receipt/object keys bound to run/packet, and failed-attempt
+protection/reconciliation. These remain gates before a scoped private trial;
+no real client-data call, source import, B2 upload or production activation took
+place. Synthetic crypto/restore uses throwaway keys and independent local object
+readers in guarded zacai_test; unrelated prior test inventory is filtered only
+in test fixtures. This is not new live off-device backup evidence.
+
+Verification: 1,274 tests pass, including 31 contextual-host tests; Ruff and
+strict mypy on 52 source files pass. Two existing dependency warnings remain.
+No manual push is needed.

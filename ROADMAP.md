@@ -11,7 +11,7 @@ This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position — reconciled 2026-10-04
 
-Current completed engineering checkpoint: D034AC (building on D034AB / a555349).
+Current completed engineering checkpoint: D034AD (building on D034AC / bf76a3c).
 D031B verified real BRAINSTORM encrypted off-device artifact recovery. D032
 intelligence contracts are implemented. D033C verified one explicitly approved
 Fireflies capture. D034O applied live schema 0005 with protected recovery, and
@@ -20,7 +20,12 @@ but was rejected for usefulness; the researched manual Opus prototype was
 explicitly confirmed as much better. D034Y through D034AB implement offline
 exact packets, richer contextual structures/evaluation and synthetic canonical
 storage/recovery adapters. D034AC connects contextual request preparation and
-draft resolution to exact capture/reload using invented output. These do not
+draft resolution to exact capture/reload using invented output. D034AD composes
+assembly, exact-scope adapter checks, canonical audits, one synthetic generation,
+atomic packet/capture audit, recovery and final refresh into a guarded host path.
+The real encryption/disposable restore adapter is exercised with throwaway keys
+and local test objects; concrete consent/runtime/recovery-receipt wiring remains
+pending. These do not
 enable recurring ingestion, an improved
 live generation flow or broad production routing. The app remains health-only.
 
@@ -695,3 +700,31 @@ and case-specific exceptions. Historical examples remain revisable evidence.
 Broad history coverage, production task routing, delegated execution and artifact
 delivery are still future capabilities under their existing gates. Completing
 the bounded meeting/briefing/interface release does not complete this goal.
+
+### D034AD — connected contextual host, synthetic recovery verified
+
+The explicit one-attempt host connects existing canonical meeting/project
+assembly to contextual generation, exact packet capture and recovery-before-
+release. Selected sources and associations are refreshed from consistent
+read-only snapshots, including after the final packet read. Complete run scope
+and the same exact request digest enter authorization and canonical audits.
+Compact consent/capability declarations do not enable this contextual path.
+
+Dispatch freshness remains bounded to 120 seconds. Release/recovery has a
+separate bounded monotonic budget, with current evidence and unexpired authority
+rechecked; approval is never renewed. Capture and its audit commit atomically.
+Cancellation/interrupts record failure and rethrow sanitized interruption types.
+Questions receive the same capture/protection gates as drafts. No retry occurs.
+
+Independent Opus review identified scope-binding, recovery timing, cancellation
+and atomicity issues; these were addressed with regression coverage. A pre-call
+audit is named DISPATCH_PREPARED rather than claiming completed dispatch.
+PACKET_CAPTURED is not proof of user delivery; absent RUN_FAILED means possibly
+returned, and a real interface still needs its own delivery receipt.
+
+Next finish concrete one-shot contextual consent/claim storage, a bounded model
+adapter and durable recovery object metadata tied to the run. Failed attempts
+also need operator recovery/reconciliation. Then prepare a concrete real trial
+scope and assess useful delivery before briefing/interface expansion. No new
+private source capture, client-data model call, real B2 upload, production route,
+service, scheduler or mobile interface is enabled by this checkpoint.
