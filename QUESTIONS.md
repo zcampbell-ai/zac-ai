@@ -208,3 +208,19 @@ state, six new source artifacts and operational journal using the existing B2
 bucket and independent recovery. The prepared operator binds exact current
 state/source hashes and requires separate expiring, single-attempt authority.
 No new backup-key exercise is needed. No private model approval has been issued.
+
+### Fresh protection proposal ready — distinct approval still pending
+
+The backup-only launcher is prepared and bound to the exact current state and
+11 Source hashes. It selects the existing Brainstorm B2 bucket, six newly added
+metadata artifacts plus prior canonical artifacts, fresh state and operational
+journal, separate-client readback and full disposable restoration. No upload
+or credential read occurred during preparation. Unsupported/missing arguments,
+missing approval and optimized Python fail closed. Claude's exact-file review
+found scope and proof gaps; corrections were independently rechecked with no
+confirmed remaining defects. Explicit guards survive optimized Python; scope,
+owner-only files, source subset, original journal rows and cleanup are checked.
+The admission/check window is 15 minutes, not a hard cancellation deadline for
+in-flight stages. No subsequent guarded stage/final receipt proceeds after a
+failed freshness/expiry check. No automatic retry or model call is included.
+Private exact proposal and any future receipt remain excluded from Git.
