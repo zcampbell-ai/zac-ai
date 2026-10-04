@@ -363,3 +363,12 @@ until a richer parallel contract is implemented and reviewed.
 The earlier additional confidential revision scope is still unapproved and is
 not needed for offline engineering. Any future real data/model operation needs
 its concrete scope and protection. No manual push is needed.
+
+## D034Z — no contextual decision needed for offline structures
+
+The richer offline format follows the confirmed delivery direction. It preserves
+project-link uncertainty and holds output for material questions/conflicts.
+Structural tests cannot show whether the model will notice a missing question or
+produce useful prose; independent semantic evaluation and a separately scoped
+trial remain required. Exact contextual evaluation packets/protected storage are
+next. No manual push or new source approval is needed for synthetic engineering.

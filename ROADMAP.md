@@ -530,3 +530,22 @@ Do not reconstruct lost historical packets from prose/digests. The pending secon
 confidential editorial transmission is unnecessary for this engineering-only
 work. Broad history imports, recurring access, production routing and OCE retain
 their existing roadmap order.
+
+### D034Z — richer contextual structure, offline only
+
+A separate contextual proposal contract now supports selected-meeting overview,
+related-record background, provisional continuity, evidence-backed decisions/
+commitments, risks/follow-ups and material conflicts/clarifications. Its renderer
+uses the three requested sections. Material gaps hold the full draft and return
+questions with reasons rather than silently choosing a project or decision.
+
+This is an independent format with its own initial contract version, not a
+replacement of MeetingReview or a change to the reviewed runtime. Defensive
+ceilings do not become brevity targets. Exact citation presence is not semantic
+truth, correct chronology, current permission or human acceptance. Missing
+background never means a project has no history.
+
+Next add exact contextual evaluation/packet support, then protected capture and
+restore wiring before a new reviewed generation adapter/private trial. No live
+source retrieval, new model invocation on business data, database/schema changes
+or broad history ingestion is enabled by this offline structure.

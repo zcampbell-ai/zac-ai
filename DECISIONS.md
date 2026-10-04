@@ -5254,3 +5254,42 @@ strict mypy (46 source files) pass. Synthetic packet tests cover exact reload,
 changed instructions/digests, omitted nested versions, duplicate JSON keys,
 noncanonical encoding and edits with recomputed digests. No live model/data
 operation was used by these tests.
+
+## D034Z — offline contextual review structure
+
+Date: 2026-10-04
+Status: Implemented offline; generation/evaluation/storage wiring pending
+
+A standalone initial-version contextual format follows Zac's confirmed research
+draft direction and the real Opus engineering consultation. It does not replace
+MeetingReview or modify any compact/live validator. Current overview and items
+require meeting-only evidence; background uses related records labelled as
+candidates; continuity stays provisional and cites both roles. Role-less sources
+are rejected. Exact quotes cannot establish semantic truth or project identity.
+
+Material conflicts/questions hold the full draft. The first targeted question
+includes its context and reason; remaining questions stay in the structured
+proposal with an explicit queue count. An empty overview is allowed only while
+material clarification is required, avoiding forced speculative summaries.
+Visible normal output uses three sections and labels item kinds, proposed owners
+and dates. Its defensive 650-word/6000-character ceiling is not a length target
+or a change to current model/runtime limits.
+
+Independent Opus review found display-control injection, ambiguous candidate
+background, unassigned evidence acceptance and insufficient conflict-question
+context. These are fixed with display control rejection, explicit candidate
+labels, stricter role checks and context-bearing questions. Minimum substantive
+quotes and word-boundary checks reject tiny/mid-word citation tricks, but still
+do not establish entailment. Regression tests cover injection, evidence roles,
+conflict passages, held drafts, queue preservation and both display ceilings.
+
+Remaining gates: exact contextual evaluation/packet support, protected capture/
+restore, host-selected generation scope and semantic/human review. No source
+retrieval, private model trial, database/schema mutation or production routing
+was performed. Hosts must escape display content and disable exception-local
+capture; the offline wrapper exposes only fixed errors. The existing roadmap
+and later history/control-plane phases remain authoritative.
+
+Verification: 1,176 tests pass (48 contextual structure tests), with two existing
+dependency warnings. Ruff and strict mypy on 47 source files pass. The existing
+compact review, generation, evaluation and operator files are unchanged.
