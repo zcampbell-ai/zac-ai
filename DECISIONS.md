@@ -5213,3 +5213,44 @@ routing, runtime validator, publishing or broader history-import change occurred
 The private research files are not claimed to be covered by the existing canonical
 encrypted-backup checkpoint. This checkpoint documents research, not semantic
 acceptance, a canonical evaluation, or an architectural implementation.
+
+## D034Y — confirmed contextual delivery and exact evaluation packet codec
+
+Date: 2026-10-04
+Status: Offline foundation implemented; protected storage not wired
+
+Zac confirmed the researched prototype as much better and explicitly requested
+Opus consultation on structures going forward. Exact feedback is preserved
+privately against the draft hash. This confirms delivery direction, not each
+canonical criterion or a further confidential transmission. The earlier local
+compact draft remains rejected.
+
+A real engineering-only Claude Opus consultation recommends richer evidence
+roles, provisional continuity, conflict/clarification handling and parallel
+contracts that preserve the existing operator. Primary judgment keeps the user
+presentation to three sections and avoids duplicating the existing canonical
+project/account model with unverified model-owned identities. The first narrow
+implementation is a pure versioned codec retaining the full validated review
+and context for exact later evaluation. This is deliberately smaller than
+Opus's combined v2 proposal; richer output and protected persistence are separate
+reviewed steps, preserving the roadmap and current runtime limits.
+
+Independent Opus code review found missing nested-version acceptance, noncanonical
+JSON acceptance and private exception retention. These were addressed through
+canonical re-encoding checks, safe exceptions raised outside handlers, hidden
+model error inputs and regression tests. Hosts must still disable traceback-local
+capture and protect these full-evidence packets as private data. Digests prove
+consistency, not authentication, freshness, approval or factual entailment. An
+independently retained evaluation must reject edited/rehashed context.
+
+No database/schema, source access, runtime, production route, validator limits
+or canonical evaluation changed. The codec performs no storage or inference;
+protected packet capture/restore and richer synthetic contracts remain next.
+The automatic reviewer rejected replacement of the roadmap tail as potentially
+destructive; an additive update preserved all existing sections instead.
+
+Verification: 1,128 tests pass with two existing dependency warnings; Ruff and
+strict mypy (46 source files) pass. Synthetic packet tests cover exact reload,
+changed instructions/digests, omitted nested versions, duplicate JSON keys,
+noncanonical encoding and edits with recomputed digests. No live model/data
+operation was used by these tests.

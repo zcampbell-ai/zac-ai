@@ -346,3 +346,20 @@ rejected the additional transmission despite a general affirmative reply. Do not
 retry it or print the confidential result without the specific scope answer.
 Human usefulness assessment follows a checked draft; do not fabricate a canonical
 evaluation from the research prototype or the earlier rendered-only local output.
+
+## D034Y — delivery direction confirmed; engineering continuation
+
+Zac confirmed the researched prototype and requested Opus consultation for future
+structures. No contextual answer is needed for the offline packet foundation.
+Positive feedback is privately bound to the exact draft hash; the original
+compact draft remains rejected. Do not fabricate a canonical evaluation.
+
+Engineering-only Opus consultation completed using code and general preferences.
+Keep three visible sections; use relevant prior context and provisional links;
+ask a targeted question when uncertain project attribution or conflicting
+decisions would materially change the answer. Existing runtime limits remain
+until a richer parallel contract is implemented and reviewed.
+
+The earlier additional confidential revision scope is still unapproved and is
+not needed for offline engineering. Any future real data/model operation needs
+its concrete scope and protection. No manual push is needed.

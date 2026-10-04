@@ -503,3 +503,30 @@ This stays within the current contextual intelligence/evaluation foundation.
 Broad Claude/ChatGPT/Fireflies history imports, recurring access, production
 routing and OCE evaluation retain their existing roadmap order. Do not advance
 those phases to compensate for an unhelpful draft.
+
+### D034Y — confirmed delivery direction; exact packet foundation
+
+This update supersedes D034W/D034X's pending human usefulness status above. Zac
+explicitly confirmed the researched manual Opus prototype as much better and
+requested Opus consultation on future structures. Exact feedback is bound
+privately to the research draft hash. The original compact draft remains rejected;
+this is delivery confirmation, not a reconstructed canonical criterion evaluation
+or permission for another confidential transmission.
+
+The engineering-only Opus consultation recommends richer contextual evidence,
+provisional continuity, conflicts and material clarification questions alongside
+existing contracts. Keep three visible sections: contextual overview, decisions/
+commitments and risks/follow-ups. Do not expose every internal field as a section.
+
+D034Y implements the first narrow foundation: an offline versioned exact review/
+context packet codec with digest validation and private-safe errors. Existing
+compact validators, evaluation criteria and operator are unchanged. Protected
+packet storage and richer output contracts remain separate implementation/review
+steps; the codec alone does not durably save outputs or authorize inference.
+
+Next build the richer offline structure using synthetic evidence, then review
+protected packet capture/restore wiring before any new private generation flow.
+Do not reconstruct lost historical packets from prose/digests. The pending second
+confidential editorial transmission is unnecessary for this engineering-only
+work. Broad history imports, recurring access, production routing and OCE retain
+their existing roadmap order.
