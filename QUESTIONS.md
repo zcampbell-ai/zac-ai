@@ -329,3 +329,20 @@ review can proceed without either answer. Private source expansion/redrafting
 cannot proceed under a consumed single-attempt authority. A proper exact-draft
 evaluation also needs the missing structured review/context packet retained by
 future operators; do not fabricate it from text/digests. Keep the existing roadmap.
+
+## D034X — scoped research complete; final editorial scope pending
+
+The two D034W scope questions were answered affirmatively. Read-only research
+covered the selected meeting, three earlier meeting transcripts and eight scoped
+engagement/report task records. One actual Claude Opus review produced a private
+research draft. It is not accepted or promoted; combined citation identifiers
+and excessive length still need attention. The exact first response and a marked
+local draft are preserved. No additional sources were ingested into Zac State.
+
+One question is pending in chat: explicitly authorize a second transmission of
+the approved research plus the generated assessment to Opus, and displaying the
+revised draft here, or keep the first draft local. Automatic approval review
+rejected the additional transmission despite a general affirmative reply. Do not
+retry it or print the confidential result without the specific scope answer.
+Human usefulness assessment follows a checked draft; do not fabricate a canonical
+evaluation from the research prototype or the earlier rendered-only local output.

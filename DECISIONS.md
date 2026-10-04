@@ -5189,3 +5189,27 @@ candidate for future bounded local shadow review, with refresh/audit/evaluation
 controls required before private inference. Preserve unresolved
 source ACL, recurring-access and production-routing gates; recovery evidence
 remains specific to the verified BRAINSTORM snapshot.
+
+## D034X — bounded context research and manual Opus prototype
+
+Date: 2026-10-04
+Status: Research completed; draft review and additional editorial scope pending
+
+Zac approved relevant read-only engagement research and one confidential cloud
+review of the selected material. Four meeting transcripts and eight scoped task
+records were prepared as an owner-only private research packet, excluding media
+URLs and unnecessary identifiers. A confirmed project brief copy was hash-checked.
+One actual Claude Opus response is preserved with private input authority and
+research receipt. The prototype has not passed human usefulness review; source
+identifier formatting and presentation length require refinement. Historical
+task status is not evidence of current acceptance, and expectations must not be
+reported as formal decisions. Keep research-source links provisional.
+
+Automatic approval review rejected a second transmission containing the generated
+assessment and confidential result printing. A precise scope question is pending;
+no second cloud request occurred. The first draft is saved locally and clearly
+marked as an unaccepted research prototype. No canonical source, schema, production
+routing, runtime validator, publishing or broader history-import change occurred.
+The private research files are not claimed to be covered by the existing canonical
+encrypted-backup checkpoint. This checkpoint documents research, not semantic
+acceptance, a canonical evaluation, or an architectural implementation.
