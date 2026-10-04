@@ -36,12 +36,12 @@ class LocalContextualRuntimeError(ValueError):
     """Fixed diagnostics; no backend/input/output text."""
 
 
-def _raise_interruption(kind: type[BaseException] | None) -> None:
+def _raise_interruption(kind: type[BaseException] | None, exit_code: int) -> None:
     if kind is not None:
         if issubclass(kind, KeyboardInterrupt):
             raise KeyboardInterrupt
         if issubclass(kind, SystemExit):
-            raise SystemExit
+            raise SystemExit(exit_code)
         if issubclass(kind, asyncio.CancelledError):
             raise asyncio.CancelledError
 
@@ -182,6 +182,7 @@ class LocalContextualRuntime:
 
     def preflight(self, request: ContextualRequest) -> None:
         interruption = None
+        exit_code = 1
         try:
             if self._attempted:
                 raise ValueError("attempt consumed")
@@ -198,11 +199,14 @@ class LocalContextualRuntime:
             return
         except BaseException as error:  # noqa: BLE001 - sanitize interruption diagnostics too
             interruption = type(error)
-        _raise_interruption(interruption)
+            if isinstance(error, SystemExit):
+                exit_code = error.code if type(error.code) is int else 1
+        _raise_interruption(interruption, exit_code)
         raise LocalContextualRuntimeError("local contextual preflight failed")
 
     def generate(self, request: ContextualRequest) -> ContextualDraft:
         interruption = None
+        exit_code = 1
         try:
             started = time.perf_counter()
             self._usage = None
@@ -230,5 +234,7 @@ class LocalContextualRuntime:
             return draft
         except BaseException as error:  # noqa: BLE001 - sanitize interruption diagnostics too
             interruption = type(error)
-        _raise_interruption(interruption)
+            if isinstance(error, SystemExit):
+                exit_code = error.code if type(error.code) is int else 1
+        _raise_interruption(interruption, exit_code)
         raise LocalContextualRuntimeError("local contextual generation failed")

@@ -11,7 +11,7 @@ This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position — reconciled 2026-10-04
 
-Current completed engineering checkpoint: D034AF (building on D034AE / c7a2172).
+Current completed engineering checkpoint: D034AG (building on D034AF / 6f30d0d).
 D031B verified real BRAINSTORM encrypted off-device artifact recovery. D032
 intelligence contracts are implemented. D033C verified one explicitly approved
 Fireflies capture. D034O applied live schema 0005 with protected recovery, and
@@ -29,7 +29,13 @@ revocation, actual recovery-gate bridging and canonical locator/encrypted receip
 records. Their combined path passes with invented model output and throwaway
 keys. D034AF adds the bounded contextual loopback runtime and explicit offline
 token counter, including the complete guarded chain with mocked provider output.
-One-shot operator wiring and failed-attempt recovery remain pending. These do not
+D034AG wires the concrete one-shot operator, failed-attempt recovery, read-only
+proposal preparation and conservative crash reconciliation. A real read-only
+measurement/recovery check of the existing meeting/project scope found 6,890
+input + 1,600 reserved output tokens exceed the unchanged 8,192 limit. Three
+prior meeting research exhibits and eight ClickUp exhibits remain outside
+canonical context; their hash-bound scoped import/backup proposal needs a human
+source-scope decision. No trial approval or historical import is implied. These do not
 enable recurring ingestion, an improved
 live generation flow or broad production routing. The app remains health-only.
 
@@ -819,3 +825,63 @@ consume an attempt even if runtime reuse/cache behavior caused it; no relaxed
 usage check is added without verifying runtime semantics. These are limitations,
 not evidence of a successful real trial. One-shot operator and failed-attempt
 reconciliation remain the next delivery step.
+
+
+### D034AG — concrete operator and failure recovery, real scope measured
+
+The trusted one-shot operator constructs actual canonical authorization, the
+read-only recovery gate, pinned contextual runtime and actual packet protector.
+A per-instance lock and transaction-scoped operator lease prevent competing
+operator attempts. Local idle timeout is disabled; PostgreSQL 17+ transaction
+timeout is also disabled for this transaction. Lease checks precede critical
+checkpoint work/writes and follow protection. Cleanup uncertainty withholds the
+packet while retaining verified recovery metadata. This is not distributed
+fencing against a connection loss during an in-flight object request, unrelated
+backup clients or administrators; an exclusive recovery window remains required.
+
+Success protection explicitly includes exact canonical approval/claim hashes
+alongside packet/context/audits. Failed runs obtain distinct canonical planned
+locators and independently encrypted receipts after full state + journal restore.
+Failure after capture explicitly names and verifies the withheld packet. The
+snapshot contains the locator; orphan locators remain incomplete work. Failure
+receipts never authorize retry, packet delivery or fact/project promotion.
+Recovery verifies historical consent without requiring it to remain active.
+Interruption during recovery/audit/observer cleanup is preserved with sanitized
+arguments; failed SystemExit paths preserve safe nonzero integer status.
+
+Read-only trial preparation adapts the existing actual recovery verifier using
+an unrecorded recovery-only view; it creates no consent and makes metadata-only
+model checks. It returns private source/route/digest/budget metadata, no copied
+transcript. Reconciliation verifies canonical claim bytes and a bounded complete
+audit inventory, distinguishes no claim/incomplete attempt/protected failure/
+captured packet needing review, and never infers delivery or automatically
+retries. NO_CLAIM means no durable claim; earlier unclaimed failures may exist.
+The audit scan currently rejects more than 2,000 rows; later indexed run metadata
+is required for scale. Receipt lookup is indexed by exact run and rejects
+corruption/ambiguity. Existing effective-classification checks run before content
+I/O; base labels and independently required receipt inventory are also checked.
+
+Two actual Opus engineering reviews (claude-opus-5-5; code/invented tests only)
+found lease lifecycle/status, cleanup cancellation, captured-packet recovery and
+exact receipt coverage issues. These are addressed with integration regressions.
+Tests exercise real crypto, independent local readers, canonical claims/audits
+and disposable full restores. No new real upload or client-data model call was
+made. Verification: 1,394 tests, Ruff and strict mypy on 59 source files pass;
+two existing dependency warnings remain.
+
+Authorized real read-only preparation independently recovered the pre-existing
+B2 checkpoint/key evidence and locally measured the existing selected meeting +
+case-specific project brief: 2 context Sources, 13 passages, 6,890 input tokens,
+1,600 reserved output, 8,192 context limit, 28,134 serialized bytes. It does not
+fit. No cap was changed, evidence dropped, source imported, approval recorded,
+generation called or backup uploaded. This scope also has no earlier meeting
+context, so it does not reproduce the researched draft Zac preferred.
+
+Next: the specific proposed canonical intake of the already retrieved three
+prior meeting and eight ClickUp research exhibits, as CONFIDENTIAL BRAINSTORM
+candidate source evidence with encrypted recovery, requires human scope approval.
+Their existing input and each exhibit are hash-bound in an ignored private
+proposal; no native provider capture, automatic project links, account-wide sync
+or cloud-model processing is authorized by it. After protected intake, prepare
+faithful relevant evidence and explicit model/budget scope for a usefulness trial;
+then extend to briefing/private access. The app remains health-only, not Zac v1.

@@ -320,7 +320,8 @@ def test_interruption_is_sanitized_and_attempt_not_reused(monkeypatch, kind, pha
     monkeypatch.setattr(local, "_http", interrupted)
     with pytest.raises(kind) as failure:
         getattr(runtime, phase)(req)
-    assert failure.value.args == () and failure.value.__context__ is None
+    assert failure.value.args == ((1,) if kind is SystemExit else ())
+    assert failure.value.__context__ is None
     monkeypatch.setattr(local, "_http", original)
     with pytest.raises(local.LocalContextualRuntimeError):
         runtime.generate(req)

@@ -46,7 +46,12 @@ def events(f):
             )
             .order_by(Source.captured_at)
         ).all()
-        return [json.loads(store.get(s.trust_boundary, s.content_location)) for s in rows]
+        found = [json.loads(store.get(s.trust_boundary, s.content_location)) for s in rows]
+        # Constant synthetic clocks produce tied timestamps; SQL has no stable
+        # order for ties. This fixture presents stages in their logical order.
+        order = {"REQUEST_PREPARED": 0, "DISPATCH_PREPARED": 1,
+                 "PACKET_CAPTURED": 2, "RUN_FAILED": 3}
+        return sorted(found, key=lambda e: (e["recorded_at"], order[e["stage"]]))
 
 
 class Runtime:
@@ -486,7 +491,8 @@ def test_interruptions_are_audited_and_rethrown_without_private_context(host_set
     runtime.callback = interrupt
     with pytest.raises(interruption) as error:
         run(host_setup, runtime=runtime)
-    assert not error.value.args and error.value.__context__ is None
+    assert error.value.args == ((1,) if kind == "exit" else ())
+    assert error.value.__context__ is None
     assert events(host_setup)[-1]["stage"] == "RUN_FAILED"
     assert runtime.calls == 1
 

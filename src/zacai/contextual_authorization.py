@@ -297,6 +297,29 @@ def _request_matches(consent: ContextualConsent, request: ContextualRequest) -> 
     )
 
 
+def contextual_claim_bytes(
+    consent: ContextualConsent,
+    approval_id: UUID,
+    scope: ContextualRunScope,
+    request_digest: str,
+    context_digest: str,
+) -> bytes:
+    """Exact existing claim serialization; no authority or state writes."""
+    return canonical_bytes(
+        {
+            "format": "zac-contextual-claim-v1",
+            "approval_id": str(approval_id),
+            "run_id": str(scope.run_id),
+            "builder_id": str(scope.builder_id),
+            "scope_digest": _scope_digest(scope),
+            "request_digest": request_digest,
+            "context_digest": context_digest,
+            "prepared_digest": consent.prepared_digest,
+            "consent_digest": content_hash_of(_consent_bytes(consent)),
+        }
+    )
+
+
 class CanonicalContextualAuthorization:
     """Concrete one-shot Source ledger; wire only through the contextual host.
 
@@ -350,18 +373,8 @@ class CanonicalContextualAuthorization:
             or digest != contextual_request_digest(request)
         ):
             raise ValueError("claim scope mismatch")
-        return canonical_bytes(
-            {
-                "format": "zac-contextual-claim-v1",
-                "approval_id": str(self._approval),
-                "run_id": str(scope.run_id),
-                "builder_id": str(scope.builder_id),
-                "scope_digest": _scope_digest(scope),
-                "request_digest": digest,
-                "context_digest": review_context_digest(request.context),
-                "prepared_digest": consent.prepared_digest,
-                "consent_digest": content_hash_of(_consent_bytes(consent)),
-            }
+        return contextual_claim_bytes(
+            consent, self._approval, scope, digest, review_context_digest(request.context)
         )
 
     def claim(

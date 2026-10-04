@@ -7,6 +7,9 @@ returned. The host must gate release on verified receipts and fresh access.
 
 from __future__ import annotations
 
+import re
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -53,6 +56,17 @@ class ContextualProtectionError(RuntimeError):
     """Fixed diagnostics; hosts must disable traceback-local capture."""
 
 
+@dataclass(frozen=True)
+class ProtectedState:
+    artifact_backup_run_id: UUID
+    state_object: str
+    state_ciphertext_hash: str
+    state_plaintext_hash: str
+    journal_object: str
+    journal_ciphertext_hash: str
+    journal_plaintext_hash: str
+
+
 class BrainstormContextualProtector:
     def __init__(
         self,
@@ -66,6 +80,7 @@ class BrainstormContextualProtector:
         identity_path: Path,
         manifest_cache: Path,
         restoration: DisposableStateRestoreVerifier,
+        approval_id: UUID | None = None,
     ) -> None:
         try:
             url = engine.url
@@ -87,6 +102,8 @@ class BrainstormContextualProtector:
             self._objects, self._reader = objects, verification_objects
             self._recipient, self._identity, self._cache = recipient, identity_path, manifest_cache
             self._restoration = restoration
+            self._approval_id = approval_id
+            self._lease_guard: Callable[[], None] | None = None
             return
         except Exception:  # noqa: BLE001, S110 - no private configuration diagnostics
             pass
@@ -113,19 +130,7 @@ class BrainstormContextualProtector:
         the caller. No ephemeral caller-supplied scope can override source checks.
         """
         try:
-            with self._engine.connect() as conn:
-                conn.execute(text("SET TRANSACTION READ ONLY"))
-                actual = conn.execute(
-                    text(
-                        "SELECT current_database(), inet_server_port(), host(inet_server_addr()), current_schema()"
-                    )
-                ).one()
-                if tuple(actual) != (self._engine.url.database, 5432, "127.0.0.1", "public"):
-                    raise ValueError("connected target mismatch")
-                if conn.execute(
-                    text("SELECT version_num FROM alembic_version")
-                ).scalars().all() != ["0005"]:
-                    raise ValueError("protected schema required")
+            self._assert_target()
             hashes = {source_id: expected_digest}
             with self._factory() as session:
                 if session.scalar(text("SELECT current_database()")) != self._engine.url.database:
@@ -163,6 +168,7 @@ class BrainstormContextualProtector:
                             source is None
                             or source.trust_boundary != B.BRAINSTORM
                             or source.system != SourceSystem.MANUAL
+                            or source.data_classification != C.CONFIDENTIAL
                         ):
                             raise ValueError("audit outside scope")
                         raw = _bytes(session, self._artifacts, source)
@@ -192,12 +198,65 @@ class BrainstormContextualProtector:
                         if source.content_hash is None:
                             raise ValueError("audit hash unavailable")
                         hashes[sid] = source.content_hash
-                    if len(run_ids) != 1 or stages != {
-                        ContextualAuditStage.REQUEST_PREPARED,
-                        ContextualAuditStage.DISPATCH_PREPARED,
-                        ContextualAuditStage.PACKET_CAPTURED,
-                    }:
+                    if (
+                        len(run_ids) != 1
+                        or len(route_pins) != 1
+                        or len(audit_source_ids) != 3
+                        or stages
+                        != {
+                            ContextualAuditStage.REQUEST_PREPARED,
+                            ContextualAuditStage.DISPATCH_PREPARED,
+                            ContextualAuditStage.PACKET_CAPTURED,
+                        }
+                    ):
                         raise ValueError("incomplete host audit")
+            if self._approval_id is not None:
+                from zacai.contextual_authorization import (
+                    _load,
+                    _request_matches,
+                    contextual_claim_bytes,
+                )
+                from zacai.intelligence.contextual_host import ContextualRunScope
+                from zacai.review_authorization import _find
+
+                if len(audit_source_ids) != 3:
+                    raise ValueError("operator packet requires complete authority audit")
+                with self._factory() as session:
+                    consent = _load(session, self._artifacts, self._approval_id)
+                    if next(iter(route_pins)) != (consent.route.identity, consent.model_digest):
+                        raise ValueError("packet audit route differs from approval")
+                    if not _request_matches(consent, prepare_contextual_request(packet.context())):
+                        raise ValueError("captured content differs from approval")
+                    claim = _find(
+                        session, f"contextual-claim/{self._approval_id}", SourceSystem.MANUAL
+                    )
+                    if claim is None:
+                        raise ValueError("operator claim unavailable")
+                    run_id = next(iter(run_ids))
+                    scope = ContextualRunScope(
+                        run_id,
+                        packet.builder_id,
+                        consent.selection,
+                        consent.authorized_boundaries,
+                        consent.allowed_classifications,
+                        consent.route,
+                        consent.model_digest,
+                    )
+                    if _bytes(session, self._artifacts, claim) != contextual_claim_bytes(
+                        consent,
+                        self._approval_id,
+                        scope,
+                        expected_request_hash,
+                        packet.context_digest,
+                    ):
+                        raise ValueError("operator packet claim differs")
+                    approval = session.get(Source, self._approval_id)
+                    if approval is None or approval.content_hash is None:
+                        raise ValueError("approval inventory unavailable")
+                    if claim.content_hash is None:
+                        raise ValueError("claim hash unavailable")
+                    hashes[self._approval_id] = approval.content_hash
+                    hashes[claim.id] = claim.content_hash
             locator = RecoveryLocator(
                 locator_id=uuid4(),
                 packet_source_id=source_id,
@@ -219,67 +278,8 @@ class BrainstormContextualProtector:
                 )
                 session.commit()
             hashes[locator_sid] = locator_hash
-            challenge = b"zacai contextual packet recovery identity readiness"
-            if age_decrypt(age_encrypt(challenge, self._recipient), self._identity) != challenge:
-                raise ValueError("identity mismatch")
-            result = run_artifact_backup(
-                self._factory,
-                trust_boundary=B.BRAINSTORM,
-                artifact_store=self._artifacts,
-                backup_store=self._objects,
-                recipient=self._recipient,
-                local_manifest_cache_path=self._cache,
-            )
-            if result.status != ArtifactBackupRunStatus.SUCCEEDED:
-                raise ValueError("artifact protection incomplete")
-            for digest in hashes.values():
-                returned = self._read(backup_object_key_for(B.BRAINSTORM, digest), 8_500_000)
-                if content_hash_of(age_decrypt(returned, self._identity)) != digest:
-                    raise ValueError("artifact recovery mismatch")
-            with BoundedStateBuffer() as buffer, self._engine.connect() as conn:
-                conn.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
-                if conn.scalar(text("SELECT current_database()")) != self._engine.url.database:
-                    raise ValueError("snapshot target mismatch")
-                backup._export_boundary_connection(conn, B.BRAINSTORM, buffer)
-                snapshot_hashes = _snapshot_artifact_hashes(conn)
-                journal = backup._export_table_csv(
-                    backup._raw_connection(conn), "artifact_backup_run", B.BRAINSTORM.value
-                )
-                if not 0 < len(journal) <= 4_000_000:
-                    raise ValueError("operational journal outside capacity")
-                snapshot = buffer.getvalue()
-            # Catch Sources committed after artifact backup but before the snapshot.
-            for artifact_hash in snapshot_hashes:
-                returned = self._read(backup_object_key_for(B.BRAINSTORM, artifact_hash), 8_500_000)
-                if content_hash_of(age_decrypt(returned, self._identity)) != artifact_hash:
-                    raise ValueError("snapshot artifact coverage incomplete")
-            ciphertext = age_encrypt(snapshot, self._recipient)
-            digest = content_hash_of(ciphertext)
-            key = f"BRAINSTORM/state/contextual-packet-{source_id}/{digest}.age"
-            self._objects.put_object(key, ciphertext)
-            returned = self._read(key, 65_000_000)
-            if content_hash_of(returned) != digest:
-                raise ValueError("state ciphertext mismatch")
-            recovered = age_decrypt(returned, self._identity)
-            if content_hash_of(recovered) != content_hash_of(snapshot):
-                raise ValueError("state recovery mismatch")
-            journal_ciphertext = age_encrypt(journal, self._recipient)
-            journal_digest = content_hash_of(journal_ciphertext)
-            journal_key = (
-                f"BRAINSTORM/state/contextual-packet-{source_id}/journal-{journal_digest}.age"
-            )
-            self._objects.put_object(journal_key, journal_ciphertext)
-            returned_journal = self._read(journal_key, 4_100_000)
-            if content_hash_of(returned_journal) != journal_digest:
-                raise ValueError("journal ciphertext mismatch")
-            recovered_journal = age_decrypt(returned_journal, self._identity)
-            if recovered_journal != journal:
-                raise ValueError("journal recovery mismatch")
-            self._restoration.verify(
-                recovered,
-                hashes,
-                current_business_state=self._engine,
-                operational_journal=recovered_journal,
+            protected = self._protect_state(
+                hashes, f"BRAINSTORM/state/contextual-packet-{source_id}"
             )
             with self._factory() as session:
                 load_contextual_packet(
@@ -295,21 +295,21 @@ class BrainstormContextualProtector:
                 locator_source_id=locator_sid,
                 locator_digest=locator_hash,
                 verified_at=datetime.now(UTC),
-                artifact_backup_run_id=result.id,
+                artifact_backup_run_id=protected.artifact_backup_run_id,
                 audit_source_ids=audit_source_ids,
-                state_object=key,
-                state_ciphertext_hash=digest,
-                state_plaintext_hash=content_hash_of(snapshot),
-                journal_object=journal_key,
-                journal_ciphertext_hash=journal_digest,
-                journal_plaintext_hash=content_hash_of(journal),
+                state_object=protected.state_object,
+                state_ciphertext_hash=protected.state_ciphertext_hash,
+                state_plaintext_hash=protected.state_plaintext_hash,
+                journal_object=protected.journal_object,
+                journal_ciphertext_hash=protected.journal_ciphertext_hash,
+                journal_plaintext_hash=protected.journal_plaintext_hash,
             )
             receipt_raw = encode_recovery_receipt(receipt)
             receipt_ciphertext = age_encrypt(receipt_raw, self._recipient)
             # New UUID locator is append-only; existing objects must never be overwritten.
             if self._objects.exists(locator.receipt_object):
                 raise ValueError("receipt object already exists")
-            self._objects.put_object(locator.receipt_object, receipt_ciphertext)
+            self._put(locator.receipt_object, receipt_ciphertext)
             recovered_receipt = self._read(locator.receipt_object, 64_000)
             if (
                 recovered_receipt != receipt_ciphertext
@@ -332,3 +332,103 @@ class BrainstormContextualProtector:
         except Exception:  # noqa: BLE001, S110 - no private backend diagnostics
             pass
         raise ContextualProtectionError("contextual recovery verification failed")
+
+    def _put(self, key: str, ciphertext: bytes) -> None:
+        if self._lease_guard is not None:
+            self._lease_guard()
+        self._objects.put_object(key, ciphertext)
+
+    def _assert_target(self) -> None:
+        if self._lease_guard is not None:
+            self._lease_guard()
+        with self._engine.connect() as conn:
+            conn.execute(text("SET TRANSACTION READ ONLY"))
+            actual = conn.execute(
+                text(
+                    "SELECT current_database(), inet_server_port(), host(inet_server_addr()), current_schema()"
+                )
+            ).one()
+            if tuple(actual) != (self._engine.url.database, 5432, "127.0.0.1", "public"):
+                raise ValueError("connected target mismatch")
+            if conn.execute(text("SELECT version_num FROM alembic_version")).scalars().all() != [
+                "0005"
+            ]:
+                raise ValueError("protected schema required")
+
+    def _protect_state(self, hashes: dict[UUID, str], prefix: str) -> ProtectedState:
+        """Shared verified checkpoint mechanics; callers bind their own record."""
+        if (
+            not re.fullmatch(r"BRAINSTORM/state/contextual-(packet|attempt)-[0-9a-f-]{36}", prefix)
+            or not hashes
+        ):
+            raise ValueError("invalid protected checkpoint scope")
+        self._assert_target()
+        challenge = b"zacai contextual packet recovery identity readiness"
+        if age_decrypt(age_encrypt(challenge, self._recipient), self._identity) != challenge:
+            raise ValueError("identity mismatch")
+        result = run_artifact_backup(
+            self._factory,
+            trust_boundary=B.BRAINSTORM,
+            artifact_store=self._artifacts,
+            backup_store=self._objects,
+            recipient=self._recipient,
+            local_manifest_cache_path=self._cache,
+        )
+        if result.status != ArtifactBackupRunStatus.SUCCEEDED:
+            raise ValueError("artifact protection incomplete")
+        for digest in hashes.values():
+            returned = self._read(backup_object_key_for(B.BRAINSTORM, digest), 8_500_000)
+            if content_hash_of(age_decrypt(returned, self._identity)) != digest:
+                raise ValueError("artifact recovery mismatch")
+        with BoundedStateBuffer() as buffer, self._engine.connect() as conn:
+            conn.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+            if conn.scalar(text("SELECT current_database()")) != self._engine.url.database:
+                raise ValueError("snapshot target mismatch")
+            backup._export_boundary_connection(conn, B.BRAINSTORM, buffer)
+            snapshot_hashes = _snapshot_artifact_hashes(conn)
+            journal = backup._export_table_csv(
+                backup._raw_connection(conn), "artifact_backup_run", B.BRAINSTORM.value
+            )
+            if not 0 < len(journal) <= 4_000_000:
+                raise ValueError("operational journal outside capacity")
+            snapshot = buffer.getvalue()
+        # Catch Sources committed after artifact backup but before the snapshot.
+        for artifact_hash in snapshot_hashes:
+            returned = self._read(backup_object_key_for(B.BRAINSTORM, artifact_hash), 8_500_000)
+            if content_hash_of(age_decrypt(returned, self._identity)) != artifact_hash:
+                raise ValueError("snapshot artifact coverage incomplete")
+        ciphertext = age_encrypt(snapshot, self._recipient)
+        digest = content_hash_of(ciphertext)
+        key = f"{prefix}/{digest}.age"
+        self._put(key, ciphertext)
+        returned = self._read(key, 65_000_000)
+        if content_hash_of(returned) != digest:
+            raise ValueError("state ciphertext mismatch")
+        recovered = age_decrypt(returned, self._identity)
+        if content_hash_of(recovered) != content_hash_of(snapshot):
+            raise ValueError("state recovery mismatch")
+        journal_ciphertext = age_encrypt(journal, self._recipient)
+        journal_digest = content_hash_of(journal_ciphertext)
+        journal_key = f"{prefix}/journal-{journal_digest}.age"
+        self._put(journal_key, journal_ciphertext)
+        returned_journal = self._read(journal_key, 4_100_000)
+        if content_hash_of(returned_journal) != journal_digest:
+            raise ValueError("journal ciphertext mismatch")
+        recovered_journal = age_decrypt(returned_journal, self._identity)
+        if recovered_journal != journal:
+            raise ValueError("journal recovery mismatch")
+        self._restoration.verify(
+            recovered,
+            hashes,
+            current_business_state=self._engine,
+            operational_journal=recovered_journal,
+        )
+        return ProtectedState(
+            result.id,
+            key,
+            digest,
+            content_hash_of(snapshot),
+            journal_key,
+            journal_digest,
+            content_hash_of(journal),
+        )

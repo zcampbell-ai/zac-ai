@@ -437,3 +437,23 @@ new contextual answer is needed for this engineering checkpoint. Next prepare
 the concrete one-shot operator and failed-attempt handling, then ask for exact
 real source/model/budget scope. A live useful-result trial and later private
 interface remain pending; no inferred blanket model permission is being used.
+
+
+## D034AG — bounded historical research intake approval requested
+
+The concrete operator, failure recovery, read-only proposal preparation and
+conservative reconciliation are verified. Existing real scope: one selected
+meeting plus its confirmed case-specific brief; no earlier meetings. Real
+recovery/token measurement found 6,890 + 1,600 tokens exceeds 8,192, with no
+processing/upload/import or automatic budget change.
+
+Requested in chat: approve importing only the already researched three earlier
+Fireflies meeting snapshots and eight ClickUp records into canonical BRAINSTORM
+CONFIDENTIAL source evidence and existing encrypted backup. Treat project links
+as candidates and preserve derived interpretations separately. No new provider
+reads, broad sync or cloud-model processing. Private proposal:
+private-data/bounded-research-context-import-proposal-2026-10-04.json; source
+packet and each exhibit are hash-bound. Permission remains pending; do not infer
+it from prior research reads or the request to keep engineering work moving.
+After that decision: protected intake, faithful relevant evidence selection and
+exact model/budget scope, a useful real result, then briefing/private interface.

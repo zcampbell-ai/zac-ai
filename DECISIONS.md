@@ -5636,3 +5636,52 @@ consume an attempt even if runtime reuse/cache behavior caused it; no relaxed
 usage check is added without verifying runtime semantics. These are limitations,
 not evidence of a successful real trial. One-shot operator and failed-attempt
 reconciliation remain the next delivery step.
+
+
+## D034AG — one-shot operator, failed-attempt recovery and read-only preparation
+
+Use concrete contextual authority/runtime/recovery/protection wiring with no
+synthetic bypass in the operator. Serialize this operator's attempts and shared
+manifest work using an existing-database transaction advisory lease, disable
+applicable idle/transaction timeout for that lease, check it before critical
+writes and release, and withhold output on uncertainty. Preserve verified receipt
+metadata when lease cleanup fails. This is not remote-object fencing or a lock
+shared by unrelated operators/databases; exclusive recovery windows remain.
+
+Share existing bounded encrypted snapshot/journal/full restore mechanics for
+successful packets and failed-attempt evidence. Success explicitly binds the
+approval and consumed claim. A failure locator is a planned canonical Source
+written before its snapshot; its independently encrypted receipt is written
+only after real restore. Check canonical audit sequence/route/request/task,
+exact claim serialization and any captured-but-withheld packet hash. No failure
+receipt grants dispatch, retry or delivery. Preserve cancellation during cleanup;
+sanitize exception chains and nonzero integer exit status. Error reporting must
+omit traceback locals.
+
+Preparation verifies actual recovery and exact source evidence before metadata
+preflight; its internal consent-shaped recovery view is never an authority
+record. Proposal source/route/digests/capacity remain private metadata. Later
+operator use requires independently authenticated human consent and all fresh
+canonical checks. Reconciliation is read-only, independently checks required
+approval/claim/packet receipt inventory and explicitly treats captured packets
+as needing review, never delivered. A claimed incomplete run requires operator
+review/new approval; it is never retried automatically. Its 2,000-row audit bound
+is conservative and must be replaced with indexed metadata before larger scale.
+
+Actual Opus code-only reviews found and informed fixes for lease cleanup/loss,
+interruption handling, withheld packet protection and receipt coverage. Shared
+_bytes already checks effective CONFIDENTIAL classification before content reads;
+explicit base-label checks and regression guards clarify that invariant.
+1,394 tests pass; Ruff and strict mypy on 59 source files pass. Invented provider/
+escrow/topology fixtures do not establish real off-device coverage.
+
+A separate authorized real read-only B2 recovery/local-tokenizer measurement
+found the previously approved meeting + project brief requires 6,890 input plus
+1,600 output reservation, beyond 8,192. No generation/upload/import or cap change
+occurred. The three earlier meeting and eight ClickUp research exhibits that
+supported the preferred researched draft are not canonical Source context yet.
+Prepare a hash-bound bounded import proposal, retaining them as candidate
+research exhibits with original provider IDs and separate unconfirmed
+interpretations. Do not imply a native provider capture or promote project links.
+Human intake/backup scope, protected recovery and exact faithful model/budget
+trial follow in that order under the existing roadmap.

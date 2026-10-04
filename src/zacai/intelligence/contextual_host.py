@@ -153,8 +153,59 @@ class ContextualHostResult:
     # No semantic PASS, action permission or reusable recovery authority.
 
 
+@dataclass(frozen=True)
+class ContextualHostFailure:
+    run_id: UUID
+    audit_source_ids: tuple[UUID, ...]
+    audit_unavailable: bool
+
+
 class ContextualHostError(RuntimeError):
     """Fixed errors only; never expose model/storage diagnostics or chains."""
+
+
+def assemble_contextual_context(
+    factory: sessionmaker[Session],
+    *,
+    artifacts: ArtifactStore,
+    selection: ReviewSelection,
+    authorized_boundaries: frozenset[TrustBoundary],
+    allowed_classifications: frozenset[DataClassification],
+    now: datetime,
+) -> ReviewContext:
+    """Exact existing read-only contextual assembly; caller owns read permission."""
+    with _snapshot(factory) as session:
+        # Keep existing assembly/relationship and canonical Event contracts.
+        if selection.projects:
+            context = assemble_project_review_context(
+                session,
+                artifacts=artifacts,
+                selected=selection.selected,
+                earlier=selection.earlier,
+                projects=selection.projects,
+                authorized_boundaries=authorized_boundaries,
+                allowed_classifications=allowed_classifications,
+                observed_at=now,
+            )
+        else:
+            context = assemble_review_context(
+                session,
+                artifacts=artifacts,
+                selected=selection.selected,
+                earlier=selection.earlier,
+                authorized_boundaries=authorized_boundaries,
+                allowed_classifications=allowed_classifications,
+                observed_at=now,
+            )
+        data = context.task.model_dump()
+        data["required_capabilities"] = (
+            context.task.required_capabilities - {"compact_meeting_review"}
+        ) | {"contextual_meeting_review"}
+        data["instruction"] = (
+            "Prepare a source-backed contextual meeting review or material question."
+        )
+        task = IntelligenceTask.model_validate(data)
+        return ReviewContext(task, context.meeting_source_id, context.related_source_ids)
 
 
 def execute_contextual_shadow(
@@ -169,6 +220,8 @@ def execute_contextual_shadow(
     runtime: ContextualRuntime,
     authorization: ContextualAuthorization,
     protection: ContextualProtection,
+    run_id: UUID | None = None,
+    failure_observer: Callable[[ContextualHostFailure], None] | None = None,
     max_release_latency_ms: int = 300_000,
     allow_synthetic_protection: bool = False,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
@@ -189,7 +242,7 @@ def execute_contextual_shadow(
     may explicitly allow receipt-less protection. No live CLI/service or route
     is enabled; concrete consent storage exists outside this host.
     """
-    run_id = uuid4()
+    run_id = run_id if run_id is not None else uuid4()
     request: ContextualRequest | None = None
     route: ModelRoute | None = None
     pin = ""
@@ -200,6 +253,7 @@ def execute_contextual_shadow(
     audit_failed = False
     dispatched = False
     interruption: str | None = None
+    exit_code = 1
 
     def audit(
         stage: ContextualAuditStage,
@@ -249,38 +303,14 @@ def execute_contextual_shadow(
         return sid
 
     def assemble(now: datetime) -> ReviewContext:
-        with _snapshot(factory) as session:
-            # Keep existing assembly/relationship and canonical Event contracts.
-            if selection.projects:
-                context = assemble_project_review_context(
-                    session,
-                    artifacts=artifacts,
-                    selected=selection.selected,
-                    earlier=selection.earlier,
-                    projects=selection.projects,
-                    authorized_boundaries=authorized_boundaries,
-                    allowed_classifications=allowed_classifications,
-                    observed_at=now,
-                )
-            else:
-                context = assemble_review_context(
-                    session,
-                    artifacts=artifacts,
-                    selected=selection.selected,
-                    earlier=selection.earlier,
-                    authorized_boundaries=authorized_boundaries,
-                    allowed_classifications=allowed_classifications,
-                    observed_at=now,
-                )
-            data = context.task.model_dump()
-            data["required_capabilities"] = (
-                context.task.required_capabilities - {"compact_meeting_review"}
-            ) | {"contextual_meeting_review"}
-            data["instruction"] = (
-                "Prepare a source-backed contextual meeting review or material question."
-            )
-            task = IntelligenceTask.model_validate(data)
-            return ReviewContext(task, context.meeting_source_id, context.related_source_ids)
+        return assemble_contextual_context(
+            factory,
+            artifacts=artifacts,
+            selection=selection,
+            authorized_boundaries=authorized_boundaries,
+            allowed_classifications=allowed_classifications,
+            now=now,
+        )
 
     def refresh() -> None:
         assert request is not None
@@ -328,6 +358,8 @@ def execute_contextual_shadow(
             raise TypeError("explicit synthetic flag required")
         if type(max_release_latency_ms) is not int or not 1 <= max_release_latency_ms <= 600_000:
             raise ValueError("bounded release deadline required")
+        if not isinstance(run_id, UUID):
+            raise TypeError("host run identity required")
         if not isinstance(builder_id, UUID):
             raise TypeError("host builder identity required")
         route = ModelRoute.model_validate(runtime.route)
@@ -454,16 +486,38 @@ def execute_contextual_shadow(
             interruption = "keyboard"
         elif isinstance(error, SystemExit):
             interruption = "exit"
+            exit_code = error.code if type(error.code) is int else 1
         elif isinstance(error, asyncio.CancelledError):
             interruption = "cancel"
         try:
             audit(ContextualAuditStage.RUN_FAILED)
-        except BaseException:  # noqa: BLE001 - sanitize secondary interruption
+        except BaseException as secondary:  # noqa: BLE001 - preserve sanitized cancellation
             audit_failed = True
+            if interruption is None:
+                if isinstance(secondary, KeyboardInterrupt):
+                    interruption = "keyboard"
+                elif isinstance(secondary, SystemExit):
+                    interruption = "exit"
+                    exit_code = secondary.code if type(secondary.code) is int else 1
+                elif isinstance(secondary, asyncio.CancelledError):
+                    interruption = "cancel"
+    if result is None and failure_observer is not None:
+        try:
+            failure_observer(ContextualHostFailure(run_id, tuple(audit_ids), audit_failed))
+        except BaseException as secondary:  # noqa: BLE001 - observer never grants authority
+            audit_failed = True
+            if interruption is None:
+                if isinstance(secondary, KeyboardInterrupt):
+                    interruption = "keyboard"
+                elif isinstance(secondary, SystemExit):
+                    interruption = "exit"
+                    exit_code = secondary.code if type(secondary.code) is int else 1
+                elif isinstance(secondary, asyncio.CancelledError):
+                    interruption = "cancel"
     if interruption == "keyboard":
         raise KeyboardInterrupt
     if interruption == "exit":
-        raise SystemExit
+        raise SystemExit(exit_code)
     if interruption == "cancel":
         raise asyncio.CancelledError
     if result is None:
