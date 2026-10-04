@@ -5438,3 +5438,20 @@ data, production route, scheduler or private mobile service was enabled here.
 Verification: 1,243 tests pass, including 28 contextual generation/linkage tests;
 Ruff and strict mypy on 51 source files pass, with two existing dependency
 warnings. Frozen contextual packet/preview tests remain unchanged and pass.
+
+### D034AC scope clarification — contextual execution remains the full goal
+
+On 2026-10-04 Zac clarified that the desired full product should understand how
+he wants requested work completed from accumulated context and then plan, build
+and delegate to suitable models/agents efficiently across accuracy, speed and
+cost. The previously confirmed meeting review/daily briefing/private interface
+release remains the first useful slice of that larger architecture.
+
+Use the existing roadmap rather than creating another plan. Delivery acceptance
+for later execution/artifact phases must test contextual fit, useful completed
+work, appropriate routing and independent verification, not only valid schemas
+or summaries. Reuse relevant examples and confirmed preferences; ask a short
+question when missing context would materially change the result. Feedback can
+revise retained standards with provenance and case-specific scope rather than
+turning every prior example into a universal rule. This clarification grants no
+new source access, client-data model transmission or external action authority.

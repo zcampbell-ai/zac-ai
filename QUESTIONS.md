@@ -400,3 +400,12 @@ text/mobile access as the first usable release. No additional contextual answer
 is needed for request/resolver integration. Broader history remains desired
 after existing gates. Next user involvement is a concrete richer private trial
 scope and usefulness review, after trusted host integration is reviewable.
+
+### D034AC broader goal clarified — no new answer required
+
+Zac wants contextual task/build execution with suitable model/agent delegation,
+not a finished product limited to reviews and briefings. This is recorded as the
+full-product acceptance goal within the existing architecture and roadmap. The
+confirmed first usable release remains intact. No new contextual answer is
+needed to record this direction; request concrete examples or choices when a
+reviewable implementation actually depends on them.

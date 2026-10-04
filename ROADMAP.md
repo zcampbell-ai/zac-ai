@@ -674,3 +674,24 @@ These are delivery gates inside the existing phases, not another architecture
 or permission for broader data/model access. Do not add speculative abstractions
 instead of completing the connected workflow. OCE evaluation remains before
 custom persistent-agent control-plane work, with no current adoption.
+
+### Full-product acceptance goal — clarified 2026-10-04
+
+The bounded first usable release is a step toward Zac's larger goal: ask Zac AI
+to do or build something, and have it use relevant history, confirmed preferences
+and existing examples to understand the desired result, plan the work, route
+tasks to appropriate models/agents, produce the deliverable and verify its
+quality. This restates the existing architecture's context, standards/exemplars,
+delegation, routing, artifact and evaluation scope; it does not change phase
+order or make meeting summaries the final product.
+
+Representative end-to-end acceptance must demonstrate that relevant context
+changes the plan and delivered work, material uncertainty produces a targeted
+question, routing balances accuracy/capability with privacy, speed and cost, and
+independent review catches defects before delivery. Confirmed feedback should
+improve retained preferences and future evaluations while preserving provenance
+and case-specific exceptions. Historical examples remain revisable evidence.
+
+Broad history coverage, production task routing, delegated execution and artifact
+delivery are still future capabilities under their existing gates. Completing
+the bounded meeting/briefing/interface release does not complete this goal.
