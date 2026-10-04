@@ -179,3 +179,17 @@ evidence proposal. Ask only about genuine mapping ambiguity. Recording productio
 evidence and then protecting changed business state precede the separate private
 model approval. Simulated composition does not settle real latency or output
 quality, and no automatic freshness extension is authorized.
+
+### D034P next scope prepared — awaiting distinct context-write approval
+
+Read-only ClickUp metadata inspection reconstructed four identified continuing
+engagement records and their explicit delivery-board links. Exact source IDs,
+dates and the selected meeting reference are in the owner-only Git-excluded
+private-data/project-context-proposal-2026-10-04.json. The proposal adds one
+stable project, separate source metadata records and one supplemental meeting
+association. No contract bodies, commercial values or unrelated projects are
+selected. Creation/update timestamps are not effective contract dates; source
+signature fields do not establish signed terms. Prior user continuity evidence
+is preserved separately from observed source facts. No canonical write, new
+upload or private model run occurred. Obtain this concrete context-write decision
+before execution; protection and private inference remain separate gates.
