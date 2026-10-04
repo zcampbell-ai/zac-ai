@@ -140,6 +140,19 @@ def prepare_review_request(context: ReviewContext) -> ReviewRequest:
         "commitments, risks and follow-ups without duplicate bullets. Return only the JSON schema. "
         "Use the evidence IDs exactly; do not produce offsets, source UUIDs or approval fields. "
     )
+    citation_roles = {
+        role: [passage["id"] for passage in passages if passage["role"] == role]
+        for role in ("meeting", "related_context")
+    }
+    instruction += (
+        "\nCitation roles (host-assigned IDs): " + json.dumps(citation_roles) + "\n"
+        "Every entry in summary, continuity and items must include at least one ID from the "
+        "meeting list in evidence_ids. Related_context IDs supplement meeting IDs; they cannot "
+        "replace them. Each continuity entry must additionally cite a related_context ID. "
+        "Project context alone does not establish what happened in this meeting. If the meeting "
+        "does not support a connection, leave continuity empty. Cite only passages that support "
+        "the text; never add an unrelated citation merely to satisfy these requirements."
+    )
     return ReviewRequest(
         context, tuple(catalog), instruction, json.dumps(passages, ensure_ascii=False)
     )

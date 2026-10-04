@@ -401,3 +401,48 @@ def test_packed_span_can_reach_exact_limit_and_retains_role_id_mapping():
         assert passage["role"] == (
             "meeting" if quote.source_id == context.meeting_source_id else "related_context"
         )
+
+
+@pytest.mark.parametrize("reverse,packed", [(False, False), (True, False), (True, True)])
+def test_citation_guide_uses_canonical_roles_despite_order_and_packing(reverse, packed):
+    context = synthetic_context()
+    items = context.task.context
+    if packed:
+        items = (
+            items[0].model_copy(update={"untrusted_text": "\n".join(["Meeting fact"] * 248)}),
+            items[1].model_copy(update={"untrusted_text": "\n".join(["Project fact"] * 11)}),
+        )
+    if reverse:
+        items = tuple(reversed(items))
+    context = replace(context, task=context.task.model_copy(update={"context": items}))
+    request = prepare_review_request(context)
+    guide = json.loads(
+        request.instruction.split("Citation roles (host-assigned IDs): ")[1].split("\n")[0]
+    )
+    expected_meeting = [
+        eid for eid, quote in request.quotes if quote.source_id == context.meeting_source_id
+    ]
+    expected_related = [
+        eid for eid, quote in request.quotes if quote.source_id in context.related_source_ids
+    ]
+    assert guide == {"meeting": expected_meeting, "related_context": expected_related}
+    assert expected_meeting and expected_related
+    assert set(expected_meeting).isdisjoint(expected_related)
+
+
+@pytest.mark.parametrize("section", ["continuity", "items"])
+def test_related_context_cannot_replace_meeting_citation_in_any_section(section):
+    request = prepare_review_request(synthetic_context())
+    fields = {"summary": draft().summary}
+    if section == "items":
+        fields[section] = (
+            DraftItem(
+                text="Check the result.", evidence_ids=("e3",), kind="FOLLOW_UP", inferred=True
+            ),
+        )
+    else:
+        fields[section] = (
+            DraftClaim(text="This continues the earlier investigation.", evidence_ids=("e3",)),
+        )
+    with pytest.raises(ValueError, match="every review claim must cite the selected meeting"):
+        resolve_review_draft(ReviewDraft(**fields), request)

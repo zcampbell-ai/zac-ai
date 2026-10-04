@@ -4887,6 +4887,64 @@ No broader ingestion, recurring access or later roadmap phase is advanced.
 Approval/source: Zac's explicit local-review Yes; standing engineering authority
 for safe diagnostics and invented tests. No automatic retry is authorized.
 
+## D034T - Diagnosed Citation Failure; Host Role Guidance Clarified
+
+Date: 2026-10-04
+Status: Implemented, independently reviewed and verified; corrected private attempt pending.
+
+Zac explicitly approved the one diagnostic retry at pushed checkpoint 091cb0d.
+It made exactly one private local generation call and failed closed after 47.49
+seconds with MISSING_MEETING_EVIDENCE. At least one output claim lacked a quote
+from the selected meeting. The retained closed code does not identify which
+claim/section failed. No private failed response was retained or draft released;
+do not infer its wording or why the model chose those citations. That authority
+is consumed, with no automatic private retry.
+
+The approved protection remainder succeeded. All 21 Source artifacts plus fresh
+encrypted BRAINSTORM state/journal were decrypted, fully restored and compared
+through a separate storage client. Independent metadata checks confirm schema
+0005, four SUCCEEDED backup runs and zero disposable databases. No new business
+context, earlier meetings, source expansion or external AI transfer occurred.
+
+The provider-neutral review request now explicitly lists host-assigned meeting
+and related-context evidence IDs in its instruction. Every summary, continuity
+and item must cite meeting evidence; continuity additionally cites related
+context. The instruction explains that project context cannot replace meeting
+support and forbids padding with unrelated citations. Only host-derived IDs and
+fixed wording enter this guide; source text stays in the untrusted evidence
+payload. Role lists remain accurate with reordered sources and exact-source
+packing. Validators still enforce every existing quote/role/compactness rule;
+no citation is injected or corrected after generation. Meaning is still evaluated
+separately; a structurally valid quote is not proof of entailment.
+
+Verification: all 1,106 tests pass, Ruff and strict mypy (45 source files) pass.
+Five new invented regressions cover source ordering/packing and rejection of
+related-only continuity/items; summary related-only rejection was already covered.
+Claude reviewed only generic generation code and tests and found no confirmed
+defects. It noted increased prompt size; existing capacity gates remain intact.
+Three actual installed-model SHARED/PUBLIC invented-data cases passed structural
+validation: project brief, reversed source order and packed 248+11 catalog.
+These required one call each, with no retries or private inputs. Observed latencies
+were approximately 11.7, 11.8 and 22.6 seconds. These passes do not establish
+private-case success or final semantic/style quality; invented previews still
+contain some repeated summary/item phrasing.
+
+The new excluded proposal is prepared against the latest protected 21-Source
+checkpoint and clarified instruction. Same selected meeting/project brief and
+pinned local model; no earlier meetings or additional sources. It now measures
+25,480 serialized characters and 5,956 exact input tokens, with 13 quote spans,
+1,600 output-token cap and unchanged 32,000-character route / runtime capacity
+caps. New proposal, authority, claim, draft and receipt paths preserve both prior
+attempts. Existing pinned recovery receipts, clean pushed code revision and
+launcher hash must match. One corrected private attempt including canonical
+audit/state protection requires a fresh specific human decision before execution.
+After a valid local draft, obtain Zac's accuracy/context/style feedback before
+wider history work. Canonical Zac State, Events, gateway and roadmap order remain.
+
+Approval/source: Zac's You’re approved for one diagnostic attempt; standing
+engineering authority for clarified instructions, invented tests and PUBLIC
+benchmarks. No third private generation has been authorized or executed.
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)

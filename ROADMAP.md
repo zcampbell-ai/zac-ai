@@ -475,20 +475,25 @@ Meeting.project_id were preserved. Next protect this changed business state with
 the separately approved fresh encrypted checkpoint/recovery, then present the
 exact bounded private-trial scope. History import and later phases retain order.
 
-### Current next step — D034S diagnostic retry decision pending
+### Current next step — D034T corrected private trial decision pending
 
-The approved real local shadow attempt ran once and was rejected by evidence/
-compactness validation. No draft was released, and the raw rejected response was
-not retained. Its exact original validation reason is unknown. Consent/claim and
-rejection audits are protected by fresh encrypted B2 artifact/state/journal
-recovery covering 16 Sources. Live schema remains 0005; disposable cleanup passed.
+The separately approved diagnostic attempt ran once and returned the safe reason
+MISSING_MEETING_EVIDENCE. No draft was released or raw response retained. Its
+consent/claim/rejection audits and all 21 Sources are now protected by fresh
+verified encrypted B2 state/journal/artifact recovery. Schema remains 0005 and
+disposable cleanup passed. Both individual private authorities are consumed.
 
-Safe closed rejection diagnostics are now implemented and verified with all
-1,101 tests, lint and strict typing. The independent Claude code-only review
-found no confirmed host defects. No private source was exported to the reviewer.
-A separate concrete one-attempt diagnostic proposal preserves the selected
-meeting, case-specific project brief, pinned installed local model and existing
-limits. It needs a fresh human decision before generation; the first authority
-is consumed. After a valid draft, obtain Zac's semantic/style feedback before
-widening context. History imports, recurring access, production routing and the
-later OCE evaluation retain their existing roadmap order.
+Host-derived citation-role guidance is now explicit for every output section.
+Existing validation/gateway/quote/compactness limits remain unchanged. All 1,106
+tests, lint and strict typing pass; the independent Claude code-only review found
+no confirmed defects. Three real local-model PUBLIC invented-data benchmarks
+passed, including reordered sources and a packed 248+11 catalog. Those passes
+do not prove private-case success or final meaning/style quality.
+
+The new concrete proposal retains the selected meeting, case-specific project
+brief and pinned local model, with 5,956 exact input tokens and 1,600 output-token
+cap. It includes one private attempt and encrypted protection of resulting audits/
+state, needs fresh human approval, and enables no automatic retries. Following a
+valid draft, obtain Zac's accuracy/context/style feedback before widening context.
+Claude/ChatGPT/Fireflies history imports, recurring access, production routing and
+the later OCE evaluation retain their existing roadmap order.

@@ -258,3 +258,21 @@ automatic retries. Canonical audits and encrypted recovery of the resulting
 state are included. Only deterministic proposal preparation has run. If a valid
 draft returns, Zac evaluates meaning, missing context and concise phrasing next.
 This remains ahead of broader Claude/ChatGPT/Fireflies history ingestion.
+
+## D034T — corrected citation guidance ready for one private trial decision
+
+The approved diagnostic retry identified MISSING_MEETING_EVIDENCE: a claim failed
+to cite the selected meeting. No draft was released. That attempt's audit/state
+and all 21 Sources are protected and fully restored/verified. Its authority is
+consumed. Host instructions now explicitly distinguish meeting IDs from project
+context IDs and require meeting evidence in every output section; validators
+remain unchanged. All 1,106 tests and three local-model invented benchmarks pass.
+The real private meeting has not been rerun after the correction.
+
+Next concrete decision: one corrected local attempt, same selected meeting and
+confirmed project brief, no added sources or earlier meetings, no external AI,
+publishing or automatic retries, with canonical audit and encrypted state/artifact
+protection. Input scope is now 5,956 tokens due to clarified instructions; output
+cap remains 1,600. Its new private proposal and one-shot launcher are prepared.
+If a valid draft returns, Zac reviews accuracy, context and wording before wider
+history ingestion. No manual push is needed while the authorized SSH agent works.
