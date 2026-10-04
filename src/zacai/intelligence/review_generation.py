@@ -68,32 +68,51 @@ class ReviewGenerator(Protocol):
 
 def prepare_review_request(context: ReviewContext) -> ReviewRequest:
     context = ReviewContext(context.task, context.meeting_source_id, context.related_source_ids)
-    catalog: list[tuple[str, Quote]] = []
-    passages = []
+    # Preserve short catalogs exactly. For larger catalogs, combine consecutive
+    # passages within each source into bounded exact slices, never truncate text.
+    source_spans = []
     permitted = context.related_source_ids | {context.meeting_source_id}
     for item in context.task.context:
-        sid = item.reference.source_id
-        if sid not in permitted:
+        if item.reference.source_id not in permitted:
             continue
+        spans = []
         offset = 0
         for line in item.untrusted_text.splitlines(keepends=True):
             passage = line.rstrip("\r\n")
             if passage.strip():
                 if len(passage) > 1500:
                     raise ValueError("passage too long; explicit host segmentation required")
-                quote = Quote(source_id=sid, start=offset, end=offset + len(passage), text=passage)
-                eid = f"e{len(catalog) + 1}"
-                catalog.append((eid, quote))
-                passages.append(
-                    {
-                        "id": eid,
-                        "role": "meeting"
-                        if sid == context.meeting_source_id
-                        else "related_context",
-                        "text": passage,
-                    }
-                )
+                spans.append((offset, offset + len(passage)))
             offset += len(line)
+        source_spans.append((item, spans))
+    pack = sum(len(spans) for _, spans in source_spans) > 250
+    catalog: list[tuple[str, Quote]] = []
+    passages = []
+    for item, spans in source_spans:
+        if pack and spans:
+            combined = []
+            start, end = spans[0]
+            for next_start, next_end in spans[1:]:
+                if next_end - start <= 1500:
+                    end = next_end
+                else:
+                    combined.append((start, end))
+                    start, end = next_start, next_end
+            combined.append((start, end))
+            spans = combined
+        sid = item.reference.source_id
+        for start, end in spans:
+            passage = item.untrusted_text[start:end]
+            quote = Quote(source_id=sid, start=start, end=end, text=passage)
+            eid = f"e{len(catalog) + 1}"
+            catalog.append((eid, quote))
+            passages.append(
+                {
+                    "id": eid,
+                    "role": "meeting" if sid == context.meeting_source_id else "related_context",
+                    "text": passage,
+                }
+            )
     if not catalog or len(catalog) > 250:
         raise ValueError("review passage inventory outside supported limits")
     instruction = (
@@ -143,7 +162,9 @@ def resolve_review_draft(draft: ReviewDraft, request: ReviewRequest) -> MeetingR
         except KeyError:
             raise ValueError("unknown evidence ID") from None
         # Mark generated next steps conservatively regardless of the model's flag.
-        inferred = value.inferred or isinstance(value, DraftItem) and value.kind == ItemKind.FOLLOW_UP
+        inferred = (
+            value.inferred or isinstance(value, DraftItem) and value.kind == ItemKind.FOLLOW_UP
+        )
         return Claim(text=value.text, quotes=quotes, inferred=inferred)
 
     result = MeetingReview(

@@ -4775,6 +4775,62 @@ Approval/source: Zac's explicit approval with the case-by-case correction, voice
 clarifications and instruction to continue, all on 2026-10-04. Existing reviewed
 D029/D034C repository write helpers; D034P verified composition foundation.
 
+### D034Q approved fresh protection — 2026-10-04
+
+Zac explicitly approved the recommended encrypted backup/recovery scope after
+its concrete question. The bound single attempt completed at
+2026-10-04T12:26:46Z: all 11 canonical BRAINSTORM Source artifacts were encrypted
+and independently retrieved/hash-verified; fresh schema-0005 state and the
+operational journal were encrypted into the existing B2 state prefix, retrieved
+through a separate client and fully restored/compared. Original journal rows
+were preserved plus the expected successful backup audit. Disposable cleanup
+and the owner-only VERIFIED receipt were independently checked. The current
+Project/association remain unchanged; both backup audit records are SUCCEEDED.
+No model call, migration or source expansion occurred. This backup authority
+is consumed and does not authorize the next private shadow review.
+
+## D034R - Exact Quote Packing for Bounded Review Inputs
+
+Date: 2026-10-04
+Status: Implemented, reviewed and verified; private model consent pending.
+
+Read-only local proposal preparation found a real integration limit: the selected
+meeting has 248 nonblank passages and the approved project brief adds 11, beyond
+the existing 250-entry catalog cap. Neither source content nor canonical state
+was changed to force a fit. Host preparation now deterministically combines
+successive passages within each source into exact original slices only when the
+unpacked catalog exceeds 250. The 1500-character quote and 250-entry caps remain;
+short catalogs retain their identities. No source boundary/role is merged, no
+nonblank passage is dropped, and an irreducibly oversized catalog still rejects.
+The request validator rebuilds the catalog and rejects forged quote tuples.
+
+Verification: 1,097 tests pass; Ruff and strict mypy pass across 45 source files.
+New invented-data regressions cover the actual 248+11 shape, Unicode/CRLF/blank
+lines, exact offsets, complete passage coverage, 250/251 threshold, a span at
+exactly 1500 characters, source-role/ID alignment, forged catalog rejection and
+preserved oversized-input failure. Claude's fresh code-only review found no
+confirmed packing defects; meaningful proof gaps were closed with regressions.
+Canonical assemblers already reject duplicate/overlapping evidence roles; no
+private source was exported to the independent engineering reviewer.
+
+The concrete local proposal now contains 13 quote spans, 24,791 serialized
+characters and 5,792 exact input tokens. The selected installed 27B model pin is
+unchanged; its proposal permits at most 1,600 output tokens and 32,000 serialized
+characters under the existing 64,000-byte/16,384-token runtime caps. This is the
+proposed individual route scope, not a global runtime-limit increase. The
+selected meeting and case-specific manual project brief are the only prose
+inputs; nine canonical provenance Sources include metadata dependencies. There
+are no earlier-meeting inputs. Deterministic preparation invoked no model and
+made no canonical writes. Exact hashes/IDs are kept in the excluded private
+meeting-review-proposal-2026-10-04.json. The request retains its 120-second
+freshness lifetime and one-attempt semantics. Consent, audit records, encrypted
+post-run state/artifact protection and a local unevaluated draft require the
+separate concrete human decision before execution.
+
+Approval/source: Zac's continued foundational engineering authorization; the
+separately approved contextual addition and verified fresh recovery. No private
+model approval has been granted by this engineering step.
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)

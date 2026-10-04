@@ -224,3 +224,20 @@ The admission/check window is 15 minutes, not a hard cancellation deadline for
 in-flight stages. No subsequent guarded stage/final receipt proceeds after a
 failed freshness/expiry check. No automatic retry or model call is included.
 Private exact proposal and any future receipt remain excluded from Git.
+
+## D034Q recovery passed; D034R bounded input ready
+
+The approved fresh backup and full disposable recovery completed successfully;
+11 canonical Sources, updated state and operational journal are protected.
+No repeat backup-key exercise or manual push is needed now. Its authority is
+consumed. D034R fixed the discovered 248+11 passage-cap failure by exact-source
+packing without truncation or increased quote/catalog caps. All 1,097 tests pass.
+
+The distinct private-trial decision is now concrete: one installed/pinned local
+27B shadow draft, selected meeting plus the approved case-specific project brief,
+no earlier meetings or new sources. Input is 5,792 exact tokens; output cap 1,600.
+Canonical one-shot consent/claim/audits and encrypted post-run artifact/state
+recovery are included. No external models, publishing, automatic retries or
+recurring access. Output stays local and unevaluated until Zac judges it. The
+existing 120-second request lifetime is not automatically extended. The excluded
+private proposal binds exact source selections, route, model and prepared digest.

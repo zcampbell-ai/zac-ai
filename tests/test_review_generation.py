@@ -313,3 +313,91 @@ def test_fixed_loopback_transport_does_not_follow_redirects(monkeypatch):
 def test_ambiguous_json_rejected(raw):
     with pytest.raises(ValueError):
         benchmark._json(raw)
+
+
+def test_large_catalog_packs_exact_slices_without_losing_any_passage():
+    context = synthetic_context()
+    texts = [
+        "\r\n".join(f"Speaker: invented update {i} 🐻" for i in range(248)),
+        "\n\n".join(f"Earlier project fact {i}" for i in range(11)),
+    ]
+    items = tuple(
+        item.model_copy(update={"untrusted_text": body})
+        for item, body in zip(context.task.context, texts, strict=True)
+    )
+    context = replace(context, task=context.task.model_copy(update={"context": items}))
+    request = prepare_review_request(context)
+    assert len(request.quotes) <= 250
+    assert request == prepare_review_request(context)
+    for item in items:
+        quotes = [q for _, q in request.quotes if q.source_id == item.reference.source_id]
+        assert quotes
+        for q in quotes:
+            assert q.text == item.untrusted_text[q.start : q.end]
+            assert len(q.text) <= 1500
+        offset = 0
+        for line in item.untrusted_text.splitlines(keepends=True):
+            end = offset + len(line.rstrip("\r\n"))
+            if line.strip():
+                assert sum(q.start <= offset and q.end >= end for q in quotes) == 1
+            offset += len(line)
+    assert {p["role"] for p in json.loads(request.evidence_json)} == {"meeting", "related_context"}
+
+
+def test_packing_does_not_split_oversized_single_passage():
+    context = synthetic_context(False)
+    item = context.task.context[0].model_copy(update={"untrusted_text": "x" * 1501})
+    context = replace(context, task=context.task.model_copy(update={"context": (item,)}))
+    with pytest.raises(ValueError, match="passage too long"):
+        prepare_review_request(context)
+
+
+@pytest.mark.parametrize("count", [250, 251])
+def test_catalog_packing_threshold_keeps_short_catalog_identity(count):
+    context = synthetic_context(False)
+    item = context.task.context[0].model_copy(
+        update={"untrusted_text": "\n".join(f"Update {i}" for i in range(count))}
+    )
+    context = replace(context, task=context.task.model_copy(update={"context": (item,)}))
+    request = prepare_review_request(context)
+    assert len(request.quotes) == 250 if count == 250 else len(request.quotes) < 250
+    if count == 250:
+        assert request.quotes[1][1].text == "Update 1"
+    first_id, first_quote = request.quotes[0]
+    forged = replace(
+        request,
+        quotes=((first_id, first_quote.model_copy(update={"text": "forged"})), *request.quotes[1:]),
+    )
+    with pytest.raises(ValueError):
+        resolve_review_draft(draft(), forged)
+
+
+def test_catalog_still_over_limit_after_packing_is_rejected():
+    context = synthetic_context()
+    items = tuple(
+        item.model_copy(update={"untrusted_text": "\n".join(["x" * 780] * count)})
+        for item, count in zip(context.task.context, (125, 126), strict=True)
+    )
+    context = replace(context, task=context.task.model_copy(update={"context": items}))
+    with pytest.raises(ValueError, match="inventory outside supported limits"):
+        prepare_review_request(context)
+
+
+def test_packed_span_can_reach_exact_limit_and_retains_role_id_mapping():
+    context = synthetic_context()
+    items = (
+        context.task.context[0].model_copy(update={"untrusted_text": "x" * 748 + "\n" + "y" * 751}),
+        context.task.context[1].model_copy(
+            update={"untrusted_text": "\n".join(["Old fact"] * 249)}
+        ),
+    )
+    context = replace(context, task=context.task.model_copy(update={"context": items}))
+    request = prepare_review_request(context)
+    assert len(request.quotes[0][1].text) == 1500
+    for passage, (eid, quote) in zip(
+        json.loads(request.evidence_json), request.quotes, strict=True
+    ):
+        assert passage["id"] == eid and passage["text"] == quote.text
+        assert passage["role"] == (
+            "meeting" if quote.source_id == context.meeting_source_id else "related_context"
+        )

@@ -474,3 +474,12 @@ not an account-wide relationship rule. Old canonical rows and the original
 Meeting.project_id were preserved. Next protect this changed business state with
 the separately approved fresh encrypted checkpoint/recovery, then present the
 exact bounded private-trial scope. History import and later phases retain order.
+
+### Current next step — D034R verified, private trial decision pending
+
+The case-specific project evidence is recorded, and the approved fresh encrypted
+B2 artifact/state/journal backup passed full recovery on 2026-10-04. The actual
+input's passage-cap issue is resolved by exact-source packing with original
+limits preserved. Next is the concrete single local shadow-review approval,
+followed by semantic/style feedback on its local draft. Wider history import,
+recurring source access and later roadmap phases retain their existing order.
