@@ -392,3 +392,11 @@ are not replayed or expanded automatically. No manual push is needed.
 D034AB Opus review completed and findings addressed. No contextual answer is
 needed for this synthetic checkpoint; real protected capture/trial remains
 separately scoped after host integration.
+
+## D034AC — v1 scope answered
+
+Zac confirmed meeting reviews + daily briefing/open loops/questions + private
+text/mobile access as the first usable release. No additional contextual answer
+is needed for request/resolver integration. Broader history remains desired
+after existing gates. Next user involvement is a concrete richer private trial
+scope and usefulness review, after trusted host integration is reviewable.

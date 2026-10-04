@@ -5389,3 +5389,52 @@ Verification: 1,215 tests pass, including 15 synthetic contextual storage/
 recovery tests; Ruff and strict mypy (50 source files) pass. Two existing
 dependency warnings remain. Existing compact operator and shared restore
 components are unchanged; only the new explicit adapters are wired in tests.
+
+## D034AC — confirmed usable v1 target and contextual generation linkage
+
+Date: 2026-10-04
+Status: Offline delivery-path integration implemented; runtime host pending
+
+Zac explicitly confirmed source-backed contextual meeting reviews, concise
+daily briefing with decisions/commitments/open loops/questions and private
+text/mobile access as the first usable version. This is a release target within
+the existing Phase 4/5 workflow/interface scope, not a competing architecture.
+Broad history and specialist agents remain desired after existing gates.
+ROADMAP Current Position is reconciled against actual completed checkpoints;
+stale summaries are retained and explicitly labelled historical. Full phase
+checkboxes do not imply every future capability precedes the bounded v1 release.
+
+The next integration slice prepares a provider-neutral contextual request using
+existing exact passage packing, a bound output schema and request-specific
+evidence IDs. It resolves model draft text into host identities/classification
+and exact quotes, then the invented-data integration test registers/reloads the
+exact packet through canonical storage. It never dispatches or grants approval.
+Distinct contextual capability is required; compact/contextual mixed declarations
+are rejected here without changing the existing compact runtime or its consent.
+
+Independent Opus review found evidence-ID reuse could attach one meeting's draft
+to another request. IDs are now namespaced by the full context digest (128-bit
+prefix), including task identity. Catalog/schema/instructions are rebuilt and
+compared; mismatches reject. Fixed error categories distinguish host REQUEST
+failures, DRAFT_SCHEMA, CITATION and VALIDATION without private diagnostics; no
+automatic model retry is enabled. Bounded immutable provider JSON parsing rejects
+duplicate keys and extra authority fields. Role instructions now include material
+questions/conflicts and explicitly ground owners in supporting passages.
+
+Opus also identified renderer-structure spoofing despite single-line controls.
+The contextual validator now rejects model-written renderer labels and leading
+list/heading markers. Normal rendering and existing frozen synthetic preview/
+packet hashes are unchanged. Conflicts need current meeting/distinct passage
+support; inferred FOLLOW_UP remains strict rather than silently rewritten.
+
+Next compose the authorized runtime, current relationship/source refresh, exact
+request/audit binding, canonical capture, durable recovery metadata and fail-
+closed release into a demonstrable selected-meeting workflow. Prepare a concrete
+new private-trial scope only after reviewed integration. Then implement briefing
+and private interface delivery inside the existing roadmap, measuring usefulness
+and coverage gaps. No live source/model access, new cloud transmission of client
+data, production route, scheduler or private mobile service was enabled here.
+
+Verification: 1,243 tests pass, including 28 contextual generation/linkage tests;
+Ruff and strict mypy on 51 source files pass, with two existing dependency
+warnings. Frozen contextual packet/preview tests remain unchanged and pass.

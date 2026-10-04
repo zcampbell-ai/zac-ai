@@ -9,6 +9,7 @@ Hosts must not capture exception frame locals containing private inputs.
 
 from __future__ import annotations
 
+import re
 import unicodedata
 from itertools import combinations
 from typing import Literal
@@ -94,6 +95,18 @@ def validate_contextual_review(
                 for c in value
             ):
                 raise ValueError("display controls rejected")
+            reserved = {
+                "contextual overview",
+                "decisions and commitments",
+                "risks and follow-ups",
+                "context clarification needed",
+            }
+            if any(
+                value.casefold() in reserved
+                or re.match(r"^(?:[-*+•‣]\s|\d+[.)]\s|#{1,6}\s)", value)
+                for value in display_fields
+            ):
+                raise ValueError("model text cannot forge renderer structure")
             ids = {quote.source_id for quote in claim.quotes}
             if not ids <= allowed:
                 raise ValueError("unassigned evidence role")

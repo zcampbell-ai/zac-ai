@@ -9,7 +9,48 @@ SECURITY.md governs permissions and data handling.
 DECISIONS.md records meaningful architectural decisions.
 This roadmap defines implementation order, not a reduction in scope.
 
-## Current Position
+## Current Position — reconciled 2026-10-04
+
+Current completed engineering checkpoint: D034AC (building on D034AB / a555349).
+D031B verified real BRAINSTORM encrypted off-device artifact recovery. D032
+intelligence contracts are implemented. D033C verified one explicitly approved
+Fireflies capture. D034O applied live schema 0005 with protected recovery, and
+D034Q recorded scoped reviewed project evidence. The compact local review ran
+but was rejected for usefulness; the researched manual Opus prototype was
+explicitly confirmed as much better. D034Y through D034AB implement offline
+exact packets, richer contextual structures/evaluation and synthetic canonical
+storage/recovery adapters. D034AC connects contextual request preparation and
+draft resolution to exact capture/reload using invented output. These do not
+enable recurring ingestion, an improved
+live generation flow or broad production routing. The app remains health-only.
+
+Zac confirmed the first usable version's delivery target in chat on 2026-10-04:
+source-backed contextual meeting reviews and a concise daily briefing covering
+decisions, commitments, open loops and questions, available through private
+text/mobile access. This is a release target within Phases 4 and 5, not a
+competing roadmap or a declaration that broader architecture is complete. Broad
+historical context and specialist agents build on the verified bounded workflow
+and retain their source-permission/recovery/processing gates.
+
+Immediate delivery milestone: one selected meeting -> canonical project context
+-> source-backed review OR one material question -> exact saved packet and
+verified recovery -> independently assessed useful output. Connect these pieces
+through host authorization, freshness, durable audit and release ordering before
+a new concrete private trial. Then extend the same verified path to briefing/open
+loops and the private interface under the existing phase order. Measure usable
+behavior and output quality; more contracts/tests alone do not complete v1.
+
+Pending release capabilities: connected richer meeting workflow; bounded source
+coverage/permissions for daily briefing; commitment/open-loop handling; useful
+briefing evaluation; shared text/private mobile access. OCE evaluation remains
+required before custom persistent-agent control-plane work; no adoption now.
+
+## Foundation history through D034L
+
+The following historical progress notes are retained for traceability. The
+reconciled Current Position above and later completion records supersede their
+older pending rollout/operator statements. Phase checkboxes below still describe
+the full architecture; they are not all prerequisites for the bounded v1 target.
 Phase 0 is complete. Phase 1's audited v1 runtime/safety scope is complete
 (DECISIONS.md D016-D025); broader secrets/recovery items remain tracked below.
 Phase 2 (Canonical State, Memory, and Evidence) has a verified storage
@@ -393,7 +434,10 @@ Backups and operational checks begin in Phase 1 and continue throughout.
 - [ ] Explore Sales, Delivery, Engineering, and Leadership intelligence.
 - [ ] Verify Zac's personal data never becomes company-wide by default.
 
-## Next Concrete Step
+## Historical Next Step (through D034O)
+
+Retained for traceability; see Current Position and the latest completion entries
+for the active next milestone.
 D031A/D031B - Encrypted Raw Artifact Backup + Restore: **complete for
 the BRAINSTORM boundary.** Backup/recovery for the raw ingestion
 artifacts D030's `ArtifactStore` writes is encrypted before any
@@ -599,3 +643,34 @@ authorization, fresh source/relationship checks, durable audit and a fail-closed
 release gate. No existing compact operator is switched or its approvals reused.
 A real richer trial requires a concrete new scope after this integration review.
 Preserve later history import, production routing and OCE evaluation order.
+
+### D034AC — v1 target confirmed; contextual generation linkage
+
+Zac explicitly confirmed the first usable release target: contextual meeting
+reviews, concise source-backed daily briefing with decisions/commitments/open
+loops/questions, and private text/mobile access. This fits the existing Phase 4
+workflow and Phase 5 interface work. Full history and specialist agents follow
+their existing gates; no phase is declared complete by this confirmation.
+
+Provider-neutral contextual request preparation/resolution now connects host
+evidence IDs to the richer review and exact canonical packet capture/reload
+using invented provider output. It requires a distinct contextual capability,
+rebuilds the catalog, rejects altered requests/unknown or duplicate citations,
+and holds material questions without a speculative overview. No live dispatch,
+new approval, production route or autonomous retrieval is enabled.
+
+Active delivery gates toward v1:
+1. Compose approved-source refresh, exact contextual dispatch authorization,
+   durable audit, packet capture and verified recovery before draft/question
+   release; demonstrate one scoped real review and get usefulness feedback.
+2. Extend the verified workflow to briefing and commitment/open-loop handling
+   with bounded, permission-verified source coverage and visible coverage gaps.
+3. Provide shared text/private mobile access to the same canonical state and
+   approval/question flows; verify identity, continuity and recovery.
+4. Validate useful behavior on representative cases, factual support, uncertainty
+   handling and operational budgets before calling the bounded release usable.
+
+These are delivery gates inside the existing phases, not another architecture
+or permission for broader data/model access. Do not add speculative abstractions
+instead of completing the connected workflow. OCE evaluation remains before
+custom persistent-agent control-plane work, with no current adoption.
