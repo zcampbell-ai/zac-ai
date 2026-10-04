@@ -4458,6 +4458,57 @@ Sources inspected:
 - https://github.com/ollama/ollama/blob/v0.35.1/mlxrunner/tokenizer/tokenizer_encode.go
 - https://huggingface.co/docs/tokenizers
 
+
+## D034L - Review Protection and Full Real-State Recovery
+
+Date: 2026-10-03
+Status: Implemented and independently reviewed; existing off-device state restore verified
+
+Continue D034 by implementing its mandatory protection seam. The trusted
+BrainstormReviewProtector validates exactly three committed canonical audit
+stages plus the consent and durable claim. Source roles, hashes, current labels,
+run/context/task bindings, route and prepared request digest must agree. It uses
+the existing artifact backup mechanism, independently retrieves/decrypts required
+artifacts, exports one boundary snapshot, encrypts it before upload to the existing
+state prefix, independently reads it back and requires full database restoration.
+No credential loader, infrastructure creation, service or automatic approval is added.
+
+DisposableStateRestoreVerifier touches only zacai_restore_test. It refuses a
+connected target, leases its own drill calls, restores the exact schema inventory,
+verifies every row/field by deterministic CSV re-export and checks required Source
+hashes. The shared backup parser validates original CSV columns, supported legacy
+inventories and boundary purity; additional rows or omitted-table content reject.
+The temporary database is dropped before success, including mid-restore failures.
+Use an exclusive operator window; arbitrary administrative SQL and old independent
+drill entrypoints do not participate in this new verifier's advisory lease.
+
+Verification: 1,035 guarded tests pass; Ruff and strict mypy pass. Throwaway age
+keys and independent local object clients exercise the actual protector through
+the review host and full disposable restore. Corrupted artifact/state readback,
+restore failure, unrelated runs and incomplete audits release no draft. An
+identical-count/UUID field tamper is detected. Claude found no engineering blockers.
+Synthetic stores do not establish off-device durability or production permission.
+
+An existing approved D033C Brainstorm encrypted state snapshot was then retrieved
+from real B2 with a newly constructed client, checked against its prior ciphertext
+hash, authenticated-decrypted using the existing local identity, fully restored,
+compared row/field-for-row/field, and removed. Four required committed Source hashes
+also matched current read-only canonical metadata. Private proof and object/run
+references remain outside Git. No canonical writes, uploads, connector calls,
+private model processing or production migration occurred during this recovery.
+This verifies that specific prior snapshot, not a current full-state backup,
+credential escrow, whole-Mac recovery or all boundaries.
+
+Zac then copied the Brainstorm backup key from 1Password and explicitly authorized
+private recovery verification. The protected temporary outside-Git copy decrypted
+the same real B2 snapshot; full row/field restore and required Source checks passed
+again. The clipboard was cleared and the temporary key removed without displaying
+key material or changing the original identity. This establishes recovery of that
+backup identity, not recovery of every application credential.
+Fresh protected migration, pre-context recovery/denial-audit host
+wiring, exact reviewed project evidence and private trial consent remain separate
+steps. No trial approval is requested from this checkpoint.
+
 ## Open Decisions
 These choices have not yet been made:
 - Search/retrieval technologies (PostgreSQL canonical storage chosen in D026)
@@ -4498,9 +4549,11 @@ canonical audit primitives. D034G now verifies the fresh-snapshot operator host 
 D034H adds the shared local runtime adapter with mandatory exact token-count
 binding; D034J adds canonical one-shot authorization with mandatory recovery
 verification. D034K now verifies the narrow installed-model tokenizer with PUBLIC synthetic
-conformance. Actual recovery/protection backends remain next. Prepare
-real state recovery evidence and a concrete one-shot trial proposal; protect the
+conformance. D034L adds the concrete protection adapter and verifies a full restore of the
+existing real off-device snapshot with a key recovered from 1Password. Complete
+pre-context recovery wiring, then prepare a concrete one-shot trial proposal; protect the
 live state snapshot before migration rollout. Keep genuinely distinct projects separate. D034B's 27B synthetic result is a
 candidate for future bounded local shadow review, with refresh/audit/evaluation
 controls required before private inference. Preserve unresolved
-source ACL, recurring-access, production-routing and full real-state restore gates.
+source ACL, recurring-access and production-routing gates; recovery evidence
+remains specific to the verified BRAINSTORM snapshot.

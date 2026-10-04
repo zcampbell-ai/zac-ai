@@ -2,7 +2,8 @@
 
 D034G implements `execute_review_shadow` as a one-attempt operator library.
 It is not an enabled service or CLI. D034H adds an explicit local runtime adapter; actual
-recovery and protection backends remain to be verified before a private trial.
+pre-context recovery wiring remains to be verified before a private trial.
+D034L supplies the concrete protection adapter described below.
 D034J supplies the canonical authorization ledger described below.
 
 ## Operator inputs
@@ -79,8 +80,8 @@ D034K supplies the narrow installed-model counter described below; ordinary
 unit-test counters remain invented.
 Calling the adapter directly grants no permission. It is not an enabled service.
 
-Next implement and verify the recovery/protection
-adapters using the existing gateway and backup/recovery mechanisms. Verify them synthetically,
+Next complete the pre-context recovery/denial-audit host wiring and actual
+recovery checks using the existing gateway and backup/recovery mechanisms. Verify them synthetically,
 prepare actual state restore evidence and protected migration procedure, then
 present the exact private trial scope for approval. Do not substitute mock
 recovery/authorization or treat general filesystem access as processing approval.
@@ -135,3 +136,28 @@ observed compatibility for the tested cases, not proof of semantic quality or
 permission for private inference. No enabled service or model download is added.
 1,027 synthetic tests, Ruff and strict mypy pass with the local-review extra.
 Real recovery/protection verification and concrete private scope approval remain.
+
+## Full recovery protection (D034L)
+
+BrainstormReviewProtector checks the three committed audit stages in host order,
+canonical consent/claim bindings and current Source hashes/labels. It backs up
+artifacts with the existing mechanism, independently retrieves/decrypts required
+records, encrypts one consistent boundary state export under the existing state
+prefix and verifies its remote ciphertext/plaintext hashes. Full disposable DB
+restoration and every-field comparison must also succeed before draft release.
+The host still refreshes source permissions/freshness and authority afterward.
+
+The actual DisposableStateRestoreVerifier is mandatory. It refuses a connected
+disposable target, leases its own calls and cleans up before success. Operate in
+an exclusive recovery window relative to old drill tools. No plaintext export
+file is written; the temporary PostgreSQL database does contain recovered state
+until cleanup. Real stores/keys require approved host wiring and trial scope.
+
+1,035 guarded synthetic tests pass with the local-review extra. Claude found no
+blockers. Separately, the prior real D033C B2 snapshot passed full restoration and
+was removed without canonical writes, uploads or model calls. This proves that
+specific snapshot, not current-state protection or whole-machine recovery.
+A freshly recovered 1Password copy also passed decryption and full restore; its
+temporary file was removed and clipboard cleared without displaying secrets.
+Pre-context recovery/denial audit, fresh protected schema rollout and exact
+private trial/context consent still remain.

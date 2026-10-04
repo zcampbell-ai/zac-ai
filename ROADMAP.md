@@ -93,10 +93,13 @@ protection. It requires explicit adapters; actual production authorization, runt
 and recovery adapters remain pending. D034J adds the canonical one-shot
 authorization ledger. D034H adds the shared loopback runtime adapter with exact
 token-budget binding; D034K verifies the narrow installed-model tokenizer backend
-against actual PUBLIC synthetic probes. Real recovery/protection remain pending. D034I verifies schema-aware state
+against actual PUBLIC synthetic probes. D034L implements full restore protection and verifies the existing real
+off-device state snapshot with a key recovered from 1Password. Pre-context
+recovery host wiring remains pending. D034I verifies schema-aware state
 backups, historical
 stream restoration and consistent snapshots with synthetic test/drill databases.
-Actual private state recovery and protected migration remain pending. Synthetic
+Recovery of the specific prior BRAINSTORM snapshot is verified; fresh protected
+migration remains pending. Synthetic
 host tests do not establish
 independent semantic quality or authorize private processing. Existing Claude
 proposal/brand assets are being inventoried for later source-verified reuse, not
@@ -413,8 +416,9 @@ represent one continuing project. D034C now verifies a source-backed, reviewed
 association foundation without changing historical Meetings. D034D now verifies
 explicit reviewed project context reaching quote-backed meeting drafts. D034G now verifies
 the fresh-snapshot dispatch host with mandatory audit-before-dispatch; actual
-recovery/protection adapters and the concrete trial
-proposal remain next; D034K verifies a narrow installed-model tokenizer with
+pre-context recovery wiring and the concrete trial
+proposal remain next; D034L adds full-restore protection and verifies the prior
+real off-device state snapshot. D034K verifies a narrow installed-model tokenizer with
 PUBLIC synthetic conformance. D034J supplies the canonical one-shot authorization ledger
 with a mandatory recovery verifier still pending. D034H adds the explicit shared local runtime adapter and D034I
 verifies the state-backup compatibility/isolation mechanism with invented data. D034E/D034F supply refresh/evaluation/audit libraries. Protect the

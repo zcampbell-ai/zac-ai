@@ -1,17 +1,12 @@
 # Zac AI Recovery Architecture
 
-Status: Lane B's database mechanism is built and drill-tested against
-synthetic data (D028), but not yet exercised against `zacai_dev` for
-real - see Lane B below. Lane B's raw-artifact extension is designed,
-implemented, and **real-off-device-drill-verified for the BRAINSTORM
-boundary (D031B)** - a real drill against a real Backblaze B2 bucket
-succeeded end-to-end, satisfying the artifact-backup/recovery
-precondition of the real-ingestion hard gate for BRAINSTORM. This does
-**not** itself approve any live connector - see Lane B below. PERSONAL/
-SHARED boundaries have not yet run their own equivalent real drill.
-Lane C holds no real Zac AI credential yet. See DECISIONS.md
-D018/D028/D030/D031A/D031B for the full architecture decisions and
-rationale.
+Status: BRAINSTORM raw artifact recovery is real-off-device verified (D031B).
+The approved D033C encrypted state snapshot has now also been retrieved from B2,
+fully restored into a disposable database, compared on every row/field and removed
+(D034L). This is specific-snapshot recovery evidence, not a fresh-state backup,
+whole-Mac rebuild, credential escrow completion or private processing approval.
+PERSONAL/SHARED have not run equivalent real drills. The Fireflies credential has
+its separate human escrow attestation. See the dated verification details below.
 
 ## The three lanes
 
@@ -73,7 +68,7 @@ depends on recovering another.
   was separately approved and exercised for D033C on 2026-10-02. That
   snapshot includes one real meeting and its evidence. Independent B2 retrieval,
   ciphertext hash, authenticated decryption and plaintext hash equality passed;
-  a full database restore of this real snapshot has not yet been performed.
+  D034L subsequently verified a full database restore of this exact prior snapshot.
 
 #### Lane B extension: raw ingestion artifacts (D030) - REAL-INGESTION HARD GATE
 
@@ -235,7 +230,8 @@ extends.
 
 D034I adds versioned state streams and synthetic recovery coverage for schema
 0005's meeting/project associations and retractions. Live schema remains 0004.
-No production migration, real state export/restore or off-device upload occurred.
+During D034I, no production migration, real state export/restore or off-device
+upload occurred; the subsequent D034L real restore is recorded below.
 
 New exports begin with `zacai-state-backup-v2`, exact Alembic revision and trust
 boundary. One fresh PostgreSQL REPEATABLE READ, READ ONLY transaction supplies
@@ -266,6 +262,33 @@ exit. A valid-looking stream followed by a decrypt failure still rolls back.
 Interrupted/malformed restores leave no committed partial state. Destructive
 operations remain hardcoded to zacai_restore_test with existing target guards.
 
-Actual real-state backup/restore evidence, recovered-key verification and the
-protected schema 0005 rollout still require their existing concrete checks and
-approval. Synthetic format and isolation drills do not satisfy those live gates.
+D034L now supplies full restoration evidence for the specific existing D033C
+snapshot. Fresh current-state protection and schema 0005 rollout retain their concrete
+checks and approval; D034L subsequently verified the recovered Brainstorm key. Synthetic format and
+isolation drills do not satisfy those live gates.
+
+## D034L full state restore — 2026-10-03
+
+The existing real BRAINSTORM snapshot was retrieved from B2 without any upload,
+verified against its recorded ciphertext hash and decrypted with the existing
+local identity. Full restoration into zacai_restore_test passed deterministic
+row/field comparison for every exported table and four required canonical Source
+hashes. The temporary database was dropped. No plaintext export file was written;
+PostgreSQL temporarily held the recovered private state during the explicit drill.
+No canonical state, live schema, connector or model processing changed.
+
+The new trusted review protector similarly requires actual encrypted artifact
+readback, state readback/decryption equality and full restore before releasing a
+successful review. Its integration was exercised with invented state, throwaway
+keys and local object clients only; no real review backup was uploaded. It does
+not grant processing permission. Its recovery verifier requires an exclusive
+operator window relative to legacy drill tools.
+
+Zac subsequently copied the Brainstorm key from 1Password and authorized private
+verification. That freshly recovered copy successfully decrypted the same B2
+snapshot, which again passed full restore and required Source checks. The clipboard
+was cleared and the temporary key removed; the original local identity was not
+modified and no key material was displayed. Other application credentials and
+boundaries are not covered by this specific key recovery.
+Private object references, timestamps and digests are stored in the ignored
+private-data recovery receipt, never in repository documentation.

@@ -129,8 +129,13 @@ _ORDER_BY: dict[str, str] = {
 # Historical inventories are fixed allowlists, never stream-supplied SQL names.
 _SCHEMA_TABLES: dict[str, tuple[str, ...]] = {
     "0001": (
-        "source", "person_head", "commitment_head", "person", "commitment",
-        "person_evidence", "commitment_evidence",
+        "source",
+        "person_head",
+        "commitment_head",
+        "person",
+        "commitment",
+        "person_evidence",
+        "commitment_evidence",
     ),
     "0002": TABLE_ORDER[:21],
     "0003": TABLE_ORDER[:-2],
@@ -171,7 +176,7 @@ def _export_table_csv(raw_conn: Any, table: str, boundary_value: str) -> bytes:
     return bytes(buf)
 
 
-def _restore_table_csv(raw_conn: Any, table: str, data: bytes) -> None:
+def _csv_columns(table: str, data: bytes) -> list[str]:
     # Historical schemas added nullable Source/Commitment columns. Use validated
     # CSV column names rather than COPY's positional current-schema assumption.
     from zacai.state import Base
@@ -185,10 +190,30 @@ def _restore_table_csv(raw_conn: Any, table: str, data: bytes) -> None:
         allowed.append(current - {"project_id"})
     if not columns or len(set(columns)) != len(columns) or set(columns) not in allowed:
         raise RuntimeError("backup CSV columns do not match supported schema")
-    names = ", ".join(f'"{name}"' for name in columns)
+    return columns
+
+
+def _restore_table_csv(raw_conn: Any, table: str, data: bytes) -> None:
+    names = ", ".join(f'"{name}"' for name in _csv_columns(table, data))
     query = f"COPY {table} ({names}) FROM STDIN WITH (FORMAT csv, HEADER true)"
     with raw_conn.cursor() as cur, cur.copy(query) as copy:
         copy.write(data)
+
+
+def _verify_table_csv(raw_conn: Any, table: str, data: bytes) -> None:
+    # Select original validated columns: legacy nullable additions do not change
+    # the exported snapshot. Compare every row/field, not counts or selected IDs.
+    names = ", ".join(f'"{name}"' for name in _csv_columns(table, data))
+    query = f"COPY (SELECT {names} FROM {table} ORDER BY {_ORDER_BY[table]}) TO STDOUT WITH (FORMAT csv, HEADER true)"
+    offset = 0
+    with raw_conn.cursor() as cur, cur.copy(query) as copy:
+        for chunk in copy:
+            value = bytes(chunk)
+            if data[offset : offset + len(value)] != value:
+                raise RuntimeError("restored state differs from backup")
+            offset += len(value)
+    if offset != len(data):
+        raise RuntimeError("restored state differs from backup")
 
 
 def _write_frame(stream: IO[bytes], table: str, data: bytes) -> None:
@@ -251,7 +276,9 @@ def _optional_line(stream: IO[bytes]) -> str | None:
     return None if not first else first.decode("ascii") + _read_line(stream)
 
 
-def _restore_frames(raw: Any, stream: IO[bytes]) -> None:
+def _restore_frames(
+    raw: Any, stream: IO[bytes], *, verify_only: bool = False, expected_boundary: str | None = None
+) -> None:
     first: str | None = _read_line(stream)
     inventories: tuple[tuple[str, ...], ...]
     if first == _BACKUP_MAGIC:
@@ -270,26 +297,43 @@ def _restore_frames(raw: Any, stream: IO[bytes]) -> None:
     table = first
     while table is not None:
         seen += (table,)
-        if not any(order[:len(seen)] == seen for order in inventories):
+        if not any(order[: len(seen)] == seen for order in inventories):
             raise RuntimeError("backup frame order mismatch")
         value = _read_line(stream)
         if not re.fullmatch(r"[0-9]{1,10}", value) or int(value) > _MAX_FRAME_BYTES:
             raise RuntimeError("backup frame length outside supported size")
         data = _read_exact(stream, int(value))
-        _restore_table_csv(raw, table, data)
+        if verify_only:
+            _verify_table_csv(raw, table, data)
+        else:
+            _restore_table_csv(raw, table, data)
         # Ask PostgreSQL to validate parsed boundary values, avoiding Python CSV
         # field-size limits on old large excerpts. The disposable restore target
         # must hold one boundary; mixed existing state also fails closed.
         with raw.cursor() as cur:
             cur.execute(f"SELECT DISTINCT trust_boundary FROM {table}")
             labels = {row[0] for row in cur.fetchall()}
-        if len(labels) > 1 or boundary is not None and labels - {boundary}:
+        if (
+            len(labels) > 1
+            or boundary is not None
+            and labels - {boundary}
+            or expected_boundary is not None
+            and labels - {expected_boundary}
+        ):
             raise RuntimeError("backup restore boundary mismatch")
         if boundary is None and labels:
             boundary = TrustBoundary(next(iter(labels))).value
         table = _optional_line(stream)
     if seen not in inventories:
         raise RuntimeError("incomplete backup table inventory")
+    if expected_boundary is not None and boundary not in (None, expected_boundary):
+        raise RuntimeError("backup restore boundary mismatch")
+    if verify_only:
+        for extra in set(TABLE_ORDER) - set(seen):
+            with raw.cursor() as cur:
+                cur.execute(f"SELECT EXISTS (SELECT 1 FROM {extra})")
+                if cur.fetchone()[0]:
+                    raise RuntimeError("restored state contains additional rows")
     # Versioned streams remove legacy EOF ambiguity between historical inventories.
     # Encryption authenticates legacy stream completeness; CSV isn't an authority.
 
@@ -315,6 +359,25 @@ def restore_boundary_stream(
         except BaseException:
             raw.rollback()
             raise
+
+
+def verify_restored_boundary_stream(
+    engine: Engine, in_stream: IO[bytes], *, boundary: TrustBoundary
+) -> None:
+    """Read-only full row/field verification on the guarded disposable target.
+
+    Reuses the restore parser and original columns/order, including legacy
+    inventories. No count-only shortcut; additional rows/tables also reject.
+    This verifies DB contents, not encryption, escrow or off-device provenance.
+    """
+    assert_safe_restore_target_url(engine.url.render_as_string(hide_password=False))
+    with engine.connect() as conn:
+        conn.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+        reported = conn.execute(text("SELECT current_database()")).scalar_one()
+        assert_connected_to_safe_restore_database(reported)
+        _restore_frames(
+            _raw_connection(conn), in_stream, verify_only=True, expected_boundary=boundary.value
+        )
 
 
 def export_boundary(
@@ -456,20 +519,32 @@ def main() -> None:
     parses arguments and calls them."""
     import argparse
 
-    parser = argparse.ArgumentParser(prog="zacai-backup", description="Zac State Lane B backup/restore (D028)")
+    parser = argparse.ArgumentParser(
+        prog="zacai-backup", description="Zac State Lane B backup/restore (D028)"
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    export_parser = sub.add_parser("export", help="Export one trust boundary to an age-encrypted artifact")
-    export_parser.add_argument("--source-url", required=True, help="e.g. Settings.database_url for zacai_dev")
-    export_parser.add_argument("--boundary", required=True, choices=[b.value for b in TrustBoundary])
+    export_parser = sub.add_parser(
+        "export", help="Export one trust boundary to an age-encrypted artifact"
+    )
+    export_parser.add_argument(
+        "--source-url", required=True, help="e.g. Settings.database_url for zacai_dev"
+    )
+    export_parser.add_argument(
+        "--boundary", required=True, choices=[b.value for b in TrustBoundary]
+    )
     export_parser.add_argument("--output", required=True, type=Path)
-    export_parser.add_argument("--recipient", required=True, help="age public recipient key for this boundary")
+    export_parser.add_argument(
+        "--recipient", required=True, help="age public recipient key for this boundary"
+    )
 
     drill_parser = sub.add_parser(
         "drill", help="Recreate zacai_restore_test and restore one decrypted artifact into it"
     )
     drill_parser.add_argument("--artifact", required=True, type=Path)
-    drill_parser.add_argument("--identity", required=True, type=Path, help="age private identity file")
+    drill_parser.add_argument(
+        "--identity", required=True, type=Path, help="age private identity file"
+    )
 
     args = parser.parse_args()
 

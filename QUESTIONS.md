@@ -82,8 +82,9 @@ D034I verifies version-aware backups for the association tables and retractions,
 legacy 0001/0002/0003 stream restoration, live-0004-format compatibility and
 consistent snapshots under concurrent writes, all using invented test state.
 The omission identified during D034H is resolved in the synthetic mechanism.
-Actual private state recovery, key recovery evidence and protected 0005 rollout
-remain separate gates. Prepare them concretely before asking Zac to approve.
+D034L subsequently verifies the prior real state snapshot and recovered backup
+key. Fresh current-state protection and 0005 rollout remain separate gates;
+prepare them concretely before asking Zac to approve.
 
 ## D034J progress and project clarification
 
@@ -105,3 +106,20 @@ match the actual local runtime for continuing-project, Unicode and longer PUBLIC
 invented examples. The adapter fails on unverified runtime updates or altered
 files; it does not enable private processing. Next complete actual recovery and
 audit protection before presenting the specific private-trial decision.
+
+## D034L progress and immediate recovery input
+
+Full state restoration from the existing real B2 snapshot passed, with every
+row/field compared and disposable cleanup verified. The concrete review protector
+is now implemented and tested. Canonical state remains unchanged at schema 0004.
+
+Zac copied the Brainstorm backup key from 1Password and explicitly authorized
+private verification. The recovered copy successfully decrypted the real B2
+snapshot and passed full restore and required Source checks. The protected
+temporary key was removed, the clipboard cleared and the original key preserved;
+no secret material was displayed. No further key-handling action is needed now.
+
+Pre-context recovery/denial-audit wiring, fresh protected schema rollout and
+exact reviewed project/private-trial scope remain next. Prepare the concrete
+rollout before requesting that decision; no model processing or production
+migration approval has been issued.
