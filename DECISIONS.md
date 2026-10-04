@@ -5110,8 +5110,21 @@ QAFactEval studies question-answering-based factual-consistency assessment
 context and meaning checks; neither establishes correctness for this private case
 or requires immediate embedding/vector-database adoption.
 
-Claude Opus was explicitly selected for a generic code/design review only, with
-no private meeting, draft or project content supplied. Separate questions ask
+Claude Opus completed the generic code/design review successfully; CLI metadata
+reports claude-opus-5-5. It read only the three authorized generic intelligence
+modules, with no private meeting, draft, project material or repository docs.
+It recommended explicit host-owned source roles and relevance/history labels, a
+pre-draft context decision, clearer decision/commitment labels, relief from a
+universal display word budget, and versioned exact review/evaluation packets.
+Its proposal is review input, not an adopted architecture change. In particular,
+its no-related-sources/no-question recommendation conflicts with Zac's instruction
+when missing context affects usefulness, and will not be adopted. A confirmed
+link also does not settle all competing workstream questions. Existing canonical
+project assemblers already enforce reviewed association evidence; the narrow
+three-file review did not inspect those and must not imply they are absent.
+Current caps/contracts/digests remain unchanged until a scoped reviewed revision;
+no blanket source relabelling, digest-v2 migration or link inference is adopted.
+Separate questions ask
 whether selected confidential materials may be reviewed by a top cloud model,
 and whether relevant prior Fireflies/ClickUp engagement sources may be inspected.
 Both responses remain pending; elapsed time is not approval. The prior local-only
