@@ -11,11 +11,13 @@ This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position — reconciled 2026-10-05
 
-Current completed engineering checkpoint: D034AP. Zac confirmed the protected
+Current completed engineering checkpoint: D034AQ. Zac confirmed the protected
 real D034AN review is a useful starting point, requested readable formatting,
 and authorized continuing. The first offline selected-review briefing view is
 implemented and now includes an offline proposed-work view with exact plan-bound
-preferences and explicit completion checks; broader daily source coverage, verified
+preferences and explicit completion checks. Durable reported-work snapshots,
+host-only protected release composition and offline history selection inspection
+are now implemented; broader daily source coverage, verified
 work status, execution and private interface remain pending. The bounded research intake
 and its original encrypted remote checkpoint are now fully verified.
 D031B verified real BRAINSTORM encrypted off-device artifact recovery. D032
@@ -1443,3 +1445,42 @@ Final D034AP validation: 1,630 tests pass, Ruff passes and strict mypy passes
 for 65 source files. Independent Opus blocker fixed and follow-up reports no
 remaining blockers. No actual private work plan or new source/model run was
 produced; this checkpoint is the offline proposed-work interface foundation.
+
+
+## D034AQ — coordinated parallel foundation checkpoint
+
+Zac authorized three parallel engineering tracks while supplying context homework.
+Integrated immutable reported-work journals and canonical append-only snapshots,
+host-only protected briefing release composition, and bounded history-selection
+inspection. Existing state/artifacts/ACLs/classifications/provenance are reused;
+no schema rollout, authenticated session, production specialist or new canonical
+Event/Review/Packet format. Work history retains reopening and exact prior
+snapshots, but reported completion is not independent verification and journal
+status is not yet wired into the briefing.
+
+The release seam derives exact packet identity from a host-retained independently
+verified receipt and refreshes source access. It is not a live endpoint or actual
+phone access. History inspection checks original byte selections and candidate
+version identity, not vendor-export completeness/account ownership/permission/
+recovery/current truth. No actual archive was imported; numeric timestamp guessing
+is rejected. Mixed archives need a separately reviewed boundary partition design.
+
+Opus found classification, mutable-readiness and temporal gaps; fixed with focused
+invented regressions. Its follow-up found no blockers. The existing packet-first/
+locator-later time contract and renderer exact work-plan/preference binding were
+retained after checking actual code rather than adopting incompatible suggestions.
+
+Next concrete delivery steps remain in existing Phases 4/5/6: protect and release
+exact work snapshots, connect reported status and trustworthy completion checks
+to the briefing, implement authenticated private text/mobile sessions, and define
+bounded current-source coverage. Real source/model/capture/serving decisions must
+be concrete and reviewable before live approvals. Company-wide meeting lenses,
+proposal reuse, design exemplars and solution-architect workflows feed Phase 7;
+X/Grok and additional public sources retain Phase 10 sequencing. No automatic
+schedule or provider/tool installation enabled.
+
+Final D034AQ validation: 1,727 tests pass; Ruff and strict mypy (69 source
+files) pass. Independent Opus follow-up reports no concrete blockers; final
+explicit history datetime hardening and host/provenance wording were checked
+with focused regressions and the serial full suite. No production data, live
+source/model run, session, migration or deployment was performed.

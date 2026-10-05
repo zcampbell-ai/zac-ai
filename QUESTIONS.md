@@ -670,3 +670,81 @@ Next implementation work: durable open-loop tracking with reliable completion
 observations, then authenticated private text/mobile interaction and exact-action
 approval under the existing roadmap. Concrete source expansion/external action
 scopes still need separate review/authorization. No universal SOW rule is needed.
+
+
+## 2026-10-05 — delegation homework: desired content and meeting workflows
+
+Direct user examples clarify the destination while engineering proceeds:
+- Content: curate worthwhile ideas from the user's X feed or selected public
+  accounts, connect to his own established perspectives/history, and prepare
+  distinctive drafts for his sign-off. Ask briefly when his position is not
+  established. Existing Claude/ChatGPT material is useful but provisional, not
+  gospel. Avoid generic AI prose. Original source context and user opinion must
+  remain distinct and traceable in Zac State. Grok is an optional integration
+  candidate to evaluate, not assumed feed access or canonical memory.
+- Company meeting intelligence: eventual authorized company-wide Fireflies
+  coverage, beyond only the user's meetings, to surface delivery/client risks,
+  missed commitments and new-work opportunities with evidence and proposed
+  actionable owner decisions. Visibility and source permissions must be verified;
+  account ownership alone does not establish every employee meeting's coverage.
+
+These are workflow goals and preferences. They do not authorize new live source
+reads, recurring monitoring, external model processing, provider installation
+or publication. Preserve roadmap ordering; X remains the future-source path.
+No immediate new context decision blocks independent engineering.
+
+
+### Delegation homework — specialist lenses, proposals and design
+
+Zac wants all important meeting signals covered with complementary specialist
+views (business development, client success, delivery/commitments), coordinated
+into concise actionable owner recommendations. These are future production
+workforce requirements, distinct from today's parallel engineering helpers.
+
+Proposal workflows must reuse existing examples, structure and detail levels,
+while learning what he likes/dislikes and allowing improvement; current examples
+are not fixed standards. Strong visual design and ambitious motion for websites
+and interactive proposals are first-class goals. Retain design exemplars and
+feedback so each assignment can reuse established preferences without starting
+from scratch. Preserve appropriate accessible/mobile/print deliverables; no
+universal animation style inferred yet. Model routing should consider quality,
+privacy, latency and cost; lower model/token prices are not assumed or promised.
+
+No new specialist runtime, website, publication, provider or production deployment
+is enabled by these goals. Continue roadmap foundations and capture concrete
+examples/feedback before treating a visual style or commercial template as approved.
+
+
+### Design reference and tool choice clarified
+
+User named https://gocdg.com as an older Brainstorm-built design reference.
+Direct read-only browser inspection of its How It Works section shows connected
+isometric generation/utility/subscriber/credit scenes and animated flow links.
+The user particularly values premium movement, memorable explanation and wow
+factor. His remembered bucket-filling effect is user-described context, not an
+independently identified exact asset.
+
+Blender was confirmed as the example tool name, then explicitly clarified as
+optional: the user has not used it and does not require it to be installed or
+integrated. Choose suitable high-quality tools for the desired result; maintain
+provider/tool portability, measure cost/quality, and retain reusable visual
+examples and feedback. No installation or new runtime permission follows.
+
+Content workflow preference also resolved in voice: bring multiple worthwhile
+options and build a backlog. Adapt content independently for LinkedIn and X.
+Time-sensitive commentary may have a roughly two-to-three-day window in the
+user's examples; assess timeliness per item, not a universal deadline.
+
+
+### Specialist role clarified — Brainstorm chief solution architect
+
+User wants an AI specialist equivalent to a Brainstorm chief solution architect,
+with relevant existing proposals, project history, technical constraints,
+architecture standards, decisions and delivery outcomes available as evidence.
+It should design/review solutions, articulate tradeoffs and identify missing
+context/assumptions, coordinated through Zac's chief-of-staff interface.
+User identifies context gaps as a major usefulness problem. Track context coverage
+and ask targeted material questions; imported history is not automatically complete
+or current truth. Context richness does not confer action permissions or prove
+correctness. This clarifies Phase 7 role goals, not permission to launch persistent
+production agents before the existing control-plane/evaluation/security gates.

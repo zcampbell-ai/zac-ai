@@ -6162,3 +6162,97 @@ Final D034AP validation: 1,630 tests pass, Ruff passes and strict mypy passes
 for 65 source files. Independent Opus blocker fixed and follow-up reports no
 remaining blockers. No actual private work plan or new source/model run was
 produced; this checkpoint is the offline proposed-work interface foundation.
+
+
+## D034AQ — parallel foundation integration: work history, release and intake
+
+Zac explicitly authorized coordinated parallel engineering while discussing
+context homework. Three bounded tracks implement work observations, protected
+briefing release composition and history-import preparation. They use the same
+canonical state/provenance and existing roadmap; no persistent business-agent
+workforce or competing memory/control plane is created. Root owns integration,
+full serial tests, docs and Git; Claude Opus remains independent reviewer.
+
+WorkJournal binds an exact WorkProposal and packet. Immutable ordered observations
+retain reasons, source references, times, identifiers and a digest chain; reported
+completion requires explicit reopening before later reports. Status is reported,
+never VERIFIED_COMPLETE. WorkPreference is not authenticated approval. Append-only
+snapshots reuse existing MANUAL Source/artifact storage with current ACL/hash/
+classification checks. Prior snapshots remain available after reopening. Host
+serialization and retained exact digests are required; there is no global latest
+pointer, multi-writer reconciliation or trusted business-outcome verifier. Capture
+does not commit, run recovery, issue execution authority or release private data.
+
+Capture takes an aware trusted host clock, rejects future creation/report times
+and evidence captured after its owning observation (or packet after journal
+creation), and records actual host capture time separately from reported times.
+Load rejects reports later than canonical capture. Digest/sequence/tip mismatches,
+wrong boundaries, stale classification and material packet questions fail closed.
+Exact-source provenance establishes observation lineage, not truth of its reason.
+Observed time describes the host observation; original event time remains in
+source context and is not inferred from journal capture time.
+
+render_retained_briefing composes the existing ACL-refreshed exact packet loader
+and renderer from an independently retained verified recovery receipt/digest.
+Only BRAINSTORM/CONFIDENTIAL packets fit this existing receipt family. Packet
+creation <= locator creation <= verification is intentional: the existing
+protector mints the locator after packet capture/commit. Equality would reject
+valid receipts. Exact packet bytes and renderer-owned work-plan/preference binding
+remain enforced. Receipt shape/hash prove consistency only; authenticated identity,
+current scope and independently established receipt origin are outer-host duties.
+This is not an HTTP endpoint, session provider or enabled phone access. Existing
+D025 loopback/Tailscale direction is retained; serving/session/privacy/log-rotation/
+mobile visual release checks remain pending. No Serve/Funnel configuration changed.
+
+History inspection validates a bounded trusted-host selection against original
+opaque export bytes, exact hashes and nonoverlapping record spans. Original role/
+time/order and account/provider IDs stay host declarations; previous matching
+byte versions and changed IDs have separate candidate dispositions. No latest
+version/complete-export claim, vendor parsing or source prose is returned. Required
+boundary and classification scope plus LOCAL policy gate metadata release. Strict
+UTF-8 manifests, unambiguous JSON, hash shapes and known chronology are checked.
+Ownership/visibility/completeness/capture/recovery/fact-promotion properties are
+fixed false. Whole-export mixed boundaries require a separately reviewed partition/
+retention design; no silent split or attachment-path traversal. Imported historical
+assistant suggestions/preferences remain candidates, not current user instructions.
+
+Initial Opus audit found actual classification, mutable-readiness and time-control
+gaps. Agent fixes cover those with invented regression cases. Its conditional
+proposal-binding concern is already enforced by the existing renderer and tested
+at release; its packet/locator timestamp equality suggestion conflicts with the
+existing protection contract and is deliberately not adopted. Final review follows
+with actual code and existing timestamp construction supplied. No private prose
+was sent to cloud/Opus; agents accessed code and invented fixtures only.
+
+Voice homework is retained in QUESTIONS.md: content options/backlog adapted to X
+and LinkedIn, complementary company meeting lenses, proposal reuse with feedback,
+premium design/motion reference GoCDG, optional tool-neutral 3D capability and a
+future Brainstorm chief solution architect. These are project notes, not a claim
+that all historical context is already imported into canonical Zac State. No live
+company-wide Fireflies/X/Grok access, publishing, tool installation or agent
+permission expansion is inferred from those desired workflows.
+
+Final independent Opus follow-up found no concrete blockers. Nonblocking
+limitations remain explicit: observation reasons/reporter identity require
+trusted-host provenance and later outcome checking; hash-matched sources do not
+prove semantic relevance. Reports currently persist/replay but are not yet wired
+to the briefing status display. Source captured_at is the first host capture on
+idempotent repeats. Failed canonical registration can leave an unreferenced
+content-addressed artifact, governed by existing retention/recovery cleanup; a
+savepoint does not roll back the artifact store. Source/classification revisions
+need deliberate re-snapshot; branches need host reconciliation. As-of is a trusted
+host display clock, not a client/model value. Receipt verifies historical recovery,
+not today's completion or independently current remote object availability.
+
+The existing receipt validator enforces locator.created_at <= verified_at; the
+release seam additionally checks packet creation and host display ordering. The
+renderer independently binds plan/preference digests before display. Canonical
+roundtrip and retained earlier snapshots are tested. No auxiliary preference is
+substituted for journal status. Explicit numeric-time hardening for the history
+manifest is the final focused refinement before release.
+
+Final D034AQ validation: 1,727 tests pass; Ruff and strict mypy (69 source
+files) pass. Independent Opus follow-up reports no concrete blockers; final
+explicit history datetime hardening and host/provenance wording were checked
+with focused regressions and the serial full suite. No production data, live
+source/model run, session, migration or deployment was performed.
