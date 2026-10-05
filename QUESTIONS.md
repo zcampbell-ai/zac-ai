@@ -519,3 +519,11 @@ measured local-model route/context/output budget. The previous scope exceeds
 8,192 tokens. Never trim relevant history or enlarge runtime limits silently.
 Candidate meeting/project/SOW interpretations remain unconfirmed; ask a quick
 material question when project uncertainty would change the work.
+
+
+The initial all-candidate offline projection exceeds the serialized input cap
+(97,959 bytes); its token count is unavailable under the current bounded counter.
+Do not request a speculative context-limit increase yet. First finish relevant
+source selection/projection and exact measurement, then present the concrete
+trial and any material contextual questions. No new question blocks this
+engineering preparation.

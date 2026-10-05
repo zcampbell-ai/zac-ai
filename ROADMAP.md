@@ -1022,3 +1022,22 @@ still does not fit. No recurring ingestion or usable mobile interface is enabled
 
 D034AI validation: 1,411 tests pass (two existing dependency warnings); Ruff
 and strict mypy on 60 source files pass.
+
+
+### Next-trial offline preparation — 2026-10-04
+
+A read-only, local candidate-context projection combines the selected meeting,
+its reviewed brief and the eleven approved research exhibits (13 content Sources).
+It explicitly marks research snapshots/candidate project connections and excludes
+the separate derived-interpretation field. Its proposed serialized request is
+97,959 bytes / 97,924 characters, exceeding the unchanged 64,000-byte and route
+character limits. The current bounded tokenizer correctly cannot count that
+payload; input_tokens is unavailable, not an estimate or a fit claim. This
+projection is a preparation artifact, not an executable/approved production
+selection. Canonical state is unchanged; no model call or upload occurred.
+
+Next resolve relevance and candidate-evidence projection/refresh in the host,
+consult Opus on the structure using code/invented examples, and measure a
+concrete complete payload. Prefer faithful relevant evidence over dumping all
+records or quietly trimming them. Present any necessary model/context-budget
+change with measured scope and runtime validation before a private generation.
