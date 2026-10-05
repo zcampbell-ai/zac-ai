@@ -548,3 +548,10 @@ def test_nested_copied_quote_constraints_are_revalidated_before_release(span):
     with pytest.raises(TextFollowupError):
         release_text_followup(context, draft, gate=gate)
     assert gate.calls == []
+
+
+def test_direct_draft_surrogate_cannot_bypass_parser_into_release():
+    context, draft = setup()
+    bad = draft.model_copy(update={'answers': (draft.answers[0].model_copy(update={'text': '\ud800'}),)})
+    with pytest.raises(TextFollowupError):
+        release_text_followup(context, bad, gate=Gate())

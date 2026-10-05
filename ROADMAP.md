@@ -1662,3 +1662,52 @@ existing dependency deprecation warnings remain.
 No new live source intake/private-source model call, production migration,
 credential read or deployment
 was performed by this engineering checkpoint.
+
+## D034AT — canonical text turns and foreground private host
+
+This continues the existing text-first delivery sequence. Bounded questions are
+retained as canonical USER_INSTRUCTION Sources with exact original UTF-8 text,
+owner/conversation/request identity, selected packet and explicit direct-parent
+references. Identical retries preserve the original Source and timestamp;
+conflicting retries hold. A failed checkpoint leaves a pending canonical record
+for the same-request recovery retry, without a successful acknowledgement.
+
+The concrete turn protector restores the child, direct parent envelopes, packet
+and original packet evidence, together with the full state snapshot and journal.
+Its immutable encrypted receipt uses the separate text-turn recovery namespace;
+ancestor bodies are not replayed by implication. Current access is checked again
+before acknowledgement. Guarded SQL/age rehearsals use invented fixtures and
+local object clients; this is not a production/B2 drill or source intake claim.
+
+Canonical follow-up assembly reloads the protected turn before and after
+composition. The unchanged intelligence contracts use a declared trimmed text
+projection; original envelopes remain unchanged, and offsets map that projection
+back to the stored original. Provider-neutral preparation binds the question,
+original evidence, historical review/parents, exact output identities and budgets.
+Strict bounded JSON rejects duplicate fields, non-finite literals, scalar type
+coercion and malformed Unicode. This prepares a request, not processing consent
+or a released answer. Canonical processing authorization, a real local runtime,
+semantic/current-context release checks and conversation routes remain required.
+
+The explicit foreground operator seam separates enrollment from owner serving
+under a retained private mode lease. Credential escrow is an operator attestation,
+not independent recovery proof. Native serving remains a separate explicit action;
+no listener, TLS or source connection is started by construction. Interrupted
+serving must retain its lease and suppress private diagnostics until outstanding
+worker threads stop. Unexpected persistent workers hold shutdown; process crash
+or SIGKILL is outside that drain guarantee. Production credentials, host serving,
+owner enrollment and a physical iPhone trial remain live acceptance gates.
+
+Independent helper and Opus review found real output-parsing, shutdown and
+reused-receipt clock issues. Corrections and the tested integration are complete; actual runtime and live
+release gates remain open. This is an engineering checkpoint, not an iPhone
+readiness verdict.
+
+Final D034AT engineering validation: 2,611 serial tests passed in 105.44 seconds,
+with the same three dependency deprecation warnings. Final Ruff and strict mypy
+(97 source files) passed; the annotation/offset-documentation precision changes
+also passed all 14 assembly tests. Independent helper and Opus findings were
+reconciled against real canonical contracts: duplicate Source context/provenance
+remains invalid rather than silently deduplicated. Exact staged Gitleaks scanning
+found no leaks; commit/push status is tracked against actual Git state. No live source/model call,
+production migration, credential read, serving or iPhone acceptance occurred.

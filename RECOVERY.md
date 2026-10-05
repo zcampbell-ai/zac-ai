@@ -409,6 +409,44 @@ The controlled local PostgreSQL and host timestamp checks share the same Mac
 clock, with no cross-host skew allowance. Rollback or inconsistent chronology
 holds release. Python >=3.12 parses actual PostgreSQL CSV timezone offsets.
 Repeated full restores are not a measured interactive mobile performance result.
-FINAL VALIDATION PENDING; no deployed interface, actual iPhone access, full history
+D034AS engineering validation passed; no deployed interface, actual iPhone access, full history
 import, Caz runtime Gmail/Slack connection or financial intake follows from this
 checkpoint. Separate bounded connected research is not canonical runtime intake.
+
+## D034AT text-turn recovery and foreground operation
+
+Canonical question envelopes use the existing BRAINSTORM artifact backup path.
+Their exact source digest identifies immutable stored JSON, including original
+text and owner/conversation/packet lineage. A distinct encrypted turn receipt is
+retained at `BRAINSTORM/state/text-turn-{SourceUUID}/receipt-{turnDigest}.age`.
+Its state and journal objects remain ciphertext-addressed beneath the same turn
+prefix. The existing scoped uploader/independent reader and Brainstorm encryption
+identity are reused; no new credential or location was installed in this checkpoint.
+These receipts do not cover PERSONAL data or authorize model processing.
+
+Recover the child, selected direct parents, packet and original packet evidence
+with the full state snapshot and journal. A failed checkpoint leaves the same
+canonical turn pending; retry the exact request/text rather than create or
+acknowledge a replacement. Corrupt retained receipts require local reconciliation,
+never overwrite. Original artifact plaintext hash remains authoritative across
+legitimate age re-encryption; state/journal ciphertext pins and receipt bytes stay
+exact. Current owner/access and chronology are checked after recovery as well.
+
+The foreground operator module prepares mutually exclusive enrollment/owner
+windows; it has not been registered as a CLI or started against real credentials.
+Its reviewed operational directory must be explicit and private; no installed
+location is claimed here. Keep the retained `private-mode.lock` file in place.
+Workers, including unjoinable native threads, must stop before the mode lease and
+private-log suppression are released. A persistent worker holds shutdown; forced
+process termination requires operator reconciliation before starting another mode.
+Google client/escrow, real private serving and physical iPhone validation remain
+open as documented above. D034AT engineering checks passed as below.
+
+Final D034AT engineering validation: 2,611 serial tests passed in 105.44 seconds,
+with the same three dependency deprecation warnings. Final Ruff and strict mypy
+(97 source files) passed; the annotation/offset-documentation precision changes
+also passed all 14 assembly tests. Independent helper and Opus findings were
+reconciled against real canonical contracts: duplicate Source context/provenance
+remains invalid rather than silently deduplicated. Exact staged Gitleaks scanning
+found no leaks; commit/push status is tracked against actual Git state. No live source/model call,
+production migration, credential read, serving or iPhone acceptance occurred.

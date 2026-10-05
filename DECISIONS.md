@@ -6465,3 +6465,46 @@ synthetic artifact inventory is not proof of production/B2 coverage. Three
 existing dependency deprecation warnings remain.
 This engineering checkpoint is not live authentication, usable conversation,
 mobile acceptance or completion of the active Goal.
+
+## D034AT — bounded conversation capture and host lifecycle
+
+Continue the existing delivery sequence with canonical bounded packet questions,
+not a separate chat memory or generic action agent. Preserve original text in a
+USER_INSTRUCTION envelope; use the unchanged intelligence contract's explicitly
+trimmed projection for inference and map citation offsets to the original.
+Parent text is limited to selected direct turns for the same owner, conversation,
+packet revision and receipt. It is historical context, not business evidence or
+permission to replay ancestors. Recover pending parent bytes in the child's exact
+dependency inventory; do not invent a parent recovery receipt.
+
+Captured/protected questions and prepared requests grant neither model processing
+nor execution. One-shot processing consent, actual local runtime dispatch, final
+canonical/current-context and semantic release checks, and authenticated chat
+routes remain separate integration gates. Do not repurpose a meeting-review
+consent to authorize packet_followup. No external provider/private-source model
+call is authorized by these code contracts.
+
+Foreground enrollment and serving share one retained private lease file. On
+shutdown, outstanding synchronous workers must finish before logging suppression
+or the lease is released; unjoinable foreign threads remain a hold. Dedicated
+foreground execution excludes pre-existing background threads. No timeout can
+turn an incomplete recovery into a safe acknowledgement. Startup interruption
+must cancel prepared enrollment and close the acquired lease. Forced process
+termination is outside that lifecycle guarantee and requires reconciliation.
+
+Each capture/protection adapter checks every observed clock against its local
+watermark, and assembly uses the capture clock guard. Actual production composition
+must share one trusted checked host-clock callable across components, rather than
+wire one component's lock-owning method into another and risk lock inversion.
+Component tests alone do not prove that future cross-component composition.
+Final D034AT engineering checks passed; no live setup or iPhone acceptance
+is asserted here.
+
+Final D034AT engineering validation: 2,611 serial tests passed in 105.44 seconds,
+with the same three dependency deprecation warnings. Final Ruff and strict mypy
+(97 source files) passed; the annotation/offset-documentation precision changes
+also passed all 14 assembly tests. Independent helper and Opus findings were
+reconciled against real canonical contracts: duplicate Source context/provenance
+remains invalid rather than silently deduplicated. Exact staged Gitleaks scanning
+found no leaks; commit/push status is tracked against actual Git state. No live source/model call,
+production migration, credential read, serving or iPhone acceptance occurred.

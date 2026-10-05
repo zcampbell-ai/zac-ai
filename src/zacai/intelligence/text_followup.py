@@ -190,7 +190,7 @@ _UNSUPPORTED = {
 
 
 def _display_text(text: str) -> None:
-    if any(unicodedata.category(c) in {"Cc", "Cf", "Zl", "Zp"} for c in text):
+    if any(unicodedata.category(c) in {"Cc", "Cf", "Cs", "Zl", "Zp"} for c in text):
         raise ValueError("display controls rejected")
 
 
@@ -229,6 +229,7 @@ def _checked(
         ):
             raise ValueError("claim exceeds bounds or repeats citations")
         for quote in quotes:
+            quote.text.encode("utf-8", errors="strict")
             item = texts.get(quote.source_id)
             allowed = (
                 original_ids if draft.answers else original_ids | {context.user_reference.source_id}

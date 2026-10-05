@@ -1,0 +1,420 @@
+"""Trusted foreground private-host orchestration; no CLI or automatic runtime.
+
+Opening a window is an explicit LOCAL operator action, never an agent/API call.
+Escrow confirmation is an operator attestation, not proof of independently
+recovered credentials or readiness. Default startup reads only existing fixed
+Keychain entries; tests inject invented configuration. serve() is a separate
+explicit action and does not configure Tailscale/TLS or publish an endpoint.
+
+Use a dedicated foreground process. Enrollment and owner mode share a retained
+0600 flock file in the same reviewed 0700 directory. Never unlink the lease.
+Locks coordinate cooperating operators, not malicious same-UID code, alternate
+storage roots, filesystem rollback or a direct factory that bypasses this runner.
+Trusted parents/storage and exclusion of agents remain deployment requirements.
+
+Stop foreground enrollment serving before local pairing/identity confirmation;
+then close the setup window before opening owner mode. Only fixed explicit
+BRAINSTORM/CONFIDENTIAL enrollment is available here. No inferred email/domain,
+admin, PERSONAL permission, source release, model or execution authority.
+
+Python logging is globally suppressed while this dedicated foreground server
+runs, including third-party OAuth/HTTP logs. Canonical audit/state writes remain
+separate. External traceback-local capture/telemetry/native proxy logging must
+also be disabled before real release; Python suppression cannot control them.
+Forced ASGI shutdown can abandon AnyIO worker jobs. The foreground runner keeps
+signal/log suppression and the mode lease until every newly created thread exits,
+without a timeout; persistent or unjoinable native/dummy threads hold shutdown rather than
+releasing early. Pre-existing background threads are rejected. This does not
+protect against SIGKILL/process crashes (which terminate the process/threads);
+interrupted canonical writes require normal recovery/reconciliation afterward.
+No raw diagnostics/credentials are printed, logged or placed in argv/environment.
+"""
+
+from __future__ import annotations
+
+import fcntl
+import logging
+import os
+import secrets
+import signal
+import stat
+import sys
+import threading
+import time
+from collections.abc import Awaitable, Callable, Iterator
+from contextlib import contextmanager
+from datetime import UTC, datetime
+from enum import Enum
+from pathlib import Path
+from typing import TYPE_CHECKING, Literal, Protocol
+
+from fastapi import FastAPI
+
+from zacai.interfaces.oidc_identity import IdentityProvider
+from zacai.interfaces.owner_enrollment import PendingOwner
+from zacai.interfaces.private_host import (
+    PreparedEnrollmentHost,
+    PreparedOwnerHost,
+    prepare_enrollment_host,
+    prepare_owner_host,
+)
+from zacai.interfaces.private_startup import (
+    OwnerStartupConfiguration,
+    _configuration,
+    load_owner_startup,
+)
+from zacai.interfaces.private_web import BoundaryScope, InterfacePrincipal, OwnerGrant
+from zacai.interfaces.session_store import Identity
+from zacai.policy import DataClassification as C
+from zacai.policy import TrustBoundary as B
+
+if TYPE_CHECKING:
+    from zacai.interfaces.work_choice_web import WorkChoiceWeb
+
+_HOST = "127.0.0.1"
+_PORT = 8766  # Separate from the D025 health service on 8000.
+_CONFIRMATION = "CONFIRM BRAINSTORM / CONFIDENTIAL"
+_SCOPE = (BoundaryScope(B.BRAINSTORM, frozenset({C.CONFIDENTIAL})),)
+
+
+class PrivateOperatorError(RuntimeError):
+    """Closed local diagnostic; never include secret/path/identity/backend values."""
+
+
+class PrivateOperatorMode(str, Enum):
+    ENROLLMENT = "enrollment"
+    OWNER = "owner"
+
+
+class StartupLoader(Protocol):
+    def __call__(self, *, client_id: str, origin: str) -> OwnerStartupConfiguration: ...
+
+
+def _serve(app: FastAPI) -> None:
+    import uvicorn
+
+    uvicorn.run(
+        app,
+        host=_HOST,
+        port=_PORT,
+        workers=1,
+        reload=False,
+        access_log=False,
+        log_config=None,
+        log_level="critical",
+        proxy_headers=False,
+        forwarded_allow_ips="",
+        server_header=False,
+        ws="none",
+        timeout_graceful_shutdown=None,
+    )
+
+
+def _drain_threads(baseline: set[threading.Thread]) -> None:
+    """Dedicated process: join all new threads, including abandoned AnyIO work.
+
+    Thread objects avoid reused identifier ambiguity. Loop closure normally queues
+    AnyIO stop after the running job; no private AnyIO API/hook is required. A
+    persistent unexpected thread holds indefinitely. Signals remain suppressed.
+    """
+
+    def pause() -> None:
+        try:
+            time.sleep(0.1)
+        except BaseException:  # noqa: BLE001,S110 - never escape a fail-closed drain.
+            pass
+
+    while True:
+        try:
+            active = [t for t in threading.enumerate() if t not in baseline and t.is_alive()]
+            if not active:
+                return
+            for worker in active:
+                try:
+                    worker.join(timeout=0.1)
+                except BaseException:  # noqa: BLE001 - dummy/native join failures remain holds.
+                    pause()
+        except BaseException:  # noqa: BLE001 - unavailable inventory is not proof of stopped work.
+            pause()
+
+
+def _lease(directory: Path) -> int:
+    directory.mkdir(mode=0o700, exist_ok=True)
+    info = directory.lstat()
+    if (
+        not stat.S_ISDIR(info.st_mode)
+        or stat.S_IMODE(info.st_mode) != 0o700
+        or info.st_uid != os.getuid()
+    ):
+        raise ValueError("unsafe operator directory")
+    path = directory / "private-mode.lock"
+    fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600)
+    try:
+        opened, current = os.fstat(fd), path.lstat()
+        if (
+            not stat.S_ISREG(opened.st_mode)
+            or stat.S_IMODE(opened.st_mode) != 0o600
+            or opened.st_uid != os.getuid()
+            or opened.st_nlink != 1
+            or (opened.st_dev, opened.st_ino) != (current.st_dev, current.st_ino)
+        ):
+            raise ValueError("unsafe operator lease")
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return fd
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+class PrivateOperatorWindow:
+    """Host-only lifecycle handle; retaining it after close grants nothing."""
+
+    def __init__(
+        self,
+        prepared: PreparedOwnerHost | PreparedEnrollmentHost,
+        *,
+        mode: PrivateOperatorMode,
+        origin: str,
+        clock: Callable[[], datetime],
+    ) -> None:
+        self._prepared, self._mode, self._origin, self._clock = prepared, mode, origin, clock
+        self._active, self._serving, self._served = True, False, False
+
+    def __repr__(self) -> str:
+        return "PrivateOperatorWindow()"
+
+    @property
+    def private_interface_ready(self) -> Literal[False]:
+        return False
+
+    @property
+    def credential_recovery_verified(self) -> Literal[False]:
+        return False
+
+    @property
+    def source_access_authorized(self) -> Literal[False]:
+        return False
+
+    def _require(self) -> None:
+        if (
+            threading.current_thread() is not threading.main_thread()
+            or not self._active
+            or self._serving
+        ):
+            raise ValueError("operator unavailable")
+
+    def serve(self, *, server: Callable[[FastAPI], None] = _serve) -> None:
+        """Explicit foreground action; injected server is trusted test-only glue.
+
+        Server MUST return only after request/background protection work stops.
+        Native Uvicorn waits without a graceful-shutdown timeout. No reload or
+        worker subprocesses may outlive the mode lease. No auto-restart occurs.
+        """
+        okay = False
+        try:
+            self._require()
+            if self._served or not callable(server):
+                raise ValueError("operator already served")
+            baseline = set(threading.enumerate())
+            if baseline != {threading.main_thread()}:
+                raise ValueError("dedicated foreground process required")
+            handlers = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
+            if any(handler is None for handler in handlers.values()):
+                raise ValueError("unknown foreground signal handler")
+            self._served, self._serving = True, True
+            disabled = logging.root.manager.disable
+            try:
+                logging.disable(sys.maxsize)
+                try:
+                    # Native Uvicorn installs its handlers during serving and
+                    # restores these ignored handlers on return. Replayed second
+                    # interrupts cannot terminate the ensuing private worker drain.
+                    for sig in handlers:
+                        signal.signal(sig, signal.SIG_IGN)
+                    server(self._prepared.app)
+                    okay = True
+                finally:
+                    for sig in handlers:
+                        signal.signal(sig, signal.SIG_IGN)
+                    _drain_threads(baseline)
+            finally:
+                # All private worker jobs are now finished. Restore logging/state
+                # before SIGINT last, so an immediate subsequent interrupt cannot
+                # skip restoration or release the lease with a worker still active.
+                try:
+                    logging.disable(disabled)
+                finally:
+                    self._serving = False
+                    for sig in reversed(handlers):
+                        handler = handlers[sig]
+                        assert handler is not None
+                        signal.signal(sig, handler)
+        except BaseException:  # noqa: BLE001 - sanitize runtime/interrupt diagnostics after drain.
+            okay = False
+            self._active = False
+        if not okay:
+            raise PrivateOperatorError("private operator serving unavailable; stop and reconcile")
+
+    def pending_owner(self) -> PendingOwner:
+        """Explicit local inspection only; never serialize/log candidate identity."""
+        result: PendingOwner | None = None
+        try:
+            self._require()
+            if type(self._prepared) is not PreparedEnrollmentHost or not self._served:
+                raise ValueError("not stopped enrollment")
+            result = self._prepared.enrollment.pending(self._clock())
+        except Exception:  # noqa: BLE001,S110
+            pass
+        except BaseException:  # noqa: BLE001 - interrupts terminate the local window.
+            self._active = False
+        if result is None:
+            raise PrivateOperatorError("private operator enrollment unavailable")
+        return result
+
+    def confirm_owner(
+        self,
+        *,
+        pairing_code: str,
+        expected_identity: Identity,
+        confirmation: str,
+    ) -> OwnerGrant:
+        """Local explicit exact pairing+issuer/sub confirmation, fixed scopes only."""
+        result: OwnerGrant | None = None
+        try:
+            pending = self.pending_owner()
+            if (
+                type(self._prepared) is not PreparedEnrollmentHost
+                or type(expected_identity) is not Identity
+                or expected_identity != pending.identity
+                or type(pairing_code) is not str
+                or not secrets.compare_digest(pairing_code, pending.pairing_code)
+                or confirmation != _CONFIRMATION
+            ):
+                raise ValueError("local confirmation mismatch")
+            self._active = False  # No serving/retry after confirmation or persistence failure.
+            result = self._prepared.owners.confirm_and_save(
+                enrollment=self._prepared.enrollment,
+                candidate_id=pending.candidate_id,
+                pairing_code=pairing_code,
+                origin=self._origin,
+                identity=expected_identity,
+                scopes=_SCOPE,
+                now=self._clock(),
+            )
+        except BaseException:  # noqa: BLE001 - no pairing/identity/backend or interrupt diagnostic
+            self._active = False
+        if result is None:
+            raise PrivateOperatorError(
+                "private operator confirmation unavailable; stop and reconcile"
+            )
+        return result
+
+    def revoke_owner(self) -> None:
+        okay = False
+        try:
+            self._require()
+            if type(self._prepared) is not PreparedOwnerHost:
+                raise ValueError("not owner mode")
+            self._active = False
+            self._prepared.revoke_owner()
+            okay = True
+        except BaseException:  # noqa: BLE001
+            self._active = False
+        if not okay:
+            raise PrivateOperatorError(
+                "private operator revocation unavailable; stop and reconcile"
+            )
+
+    def _close(self) -> None:
+        self._active = False
+        if type(self._prepared) is PreparedEnrollmentHost:
+            self._prepared.enrollment.cancel()
+
+
+@contextmanager
+def open_private_operator(
+    *,
+    mode: PrivateOperatorMode,
+    client_id: str,
+    origin: str,
+    directory: Path,
+    escrow_confirmed_by_operator: bool,
+    view: Callable[[InterfacePrincipal], Awaitable[str]] | None = None,
+    work_choices: WorkChoiceWeb | None = None,
+    clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+    startup_loader: StartupLoader = load_owner_startup,
+    identities: IdentityProvider | None = None,
+) -> Iterator[PrivateOperatorWindow]:
+    """Explicit trusted local window, not a credential/readiness approval receipt.
+
+    Reviewed directory must be shared by all cooperating modes. Validate public
+    inputs and acquire the exclusive lease before any startup credential load.
+    Test injections are host-controlled, never browser arguments or agent APIs.
+    """
+    fd: int | None = None
+    window: PrivateOperatorWindow | None = None
+    prepared: PreparedOwnerHost | PreparedEnrollmentHost | None = None
+    try:
+        _configuration(client_id, origin)
+        if (
+            threading.current_thread() is not threading.main_thread()
+            or type(mode) is not PrivateOperatorMode
+            or type(escrow_confirmed_by_operator) is not bool
+            or not escrow_confirmed_by_operator
+            or not isinstance(directory, Path)
+            or not directory.is_absolute()
+            or not callable(clock)
+            or not callable(startup_loader)
+            or (mode == PrivateOperatorMode.OWNER and not callable(view))
+            or (
+                mode == PrivateOperatorMode.ENROLLMENT
+                and (view is not None or work_choices is not None)
+            )
+        ):
+            raise ValueError("invalid operator inputs")
+        fd = _lease(directory)
+        configuration = startup_loader(client_id=client_id, origin=origin)
+        if (
+            type(configuration) is not OwnerStartupConfiguration
+            or configuration.client_id != client_id
+            or configuration.origin != origin
+        ):
+            raise ValueError("startup configuration changed")
+        if mode == PrivateOperatorMode.ENROLLMENT:
+            prepared = prepare_enrollment_host(
+                configuration=configuration,
+                directory=directory,
+                clock=clock,
+                identities=identities,
+            )
+        else:
+            assert view is not None
+            prepared = prepare_owner_host(
+                configuration=configuration,
+                directory=directory,
+                view=view,
+                clock=clock,
+                identities=identities,
+                work_choices=work_choices,
+            )
+        window = PrivateOperatorWindow(prepared, mode=mode, origin=origin, clock=clock)
+    except BaseException:  # noqa: BLE001,S110 - close acquired lease on startup interrupts.
+        pass
+    if window is None:
+        try:
+            if type(prepared) is PreparedEnrollmentHost:
+                prepared.enrollment.cancel()
+        except BaseException:  # noqa: BLE001,S110 - sanitize cleanup; always release acquired lease.
+            pass
+        finally:
+            if fd is not None:
+                os.close(fd)
+        raise PrivateOperatorError("private operator window unavailable")
+    try:
+        yield window
+    finally:
+        try:
+            window._close()
+        finally:
+            assert fd is not None
+            os.close(fd)  # Releases flock; do not unlink retained lease inode.
