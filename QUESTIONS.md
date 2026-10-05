@@ -11,8 +11,8 @@ approved live rollout are complete; exact reviewed project evidence and the priv
 next. D034P concrete operator composition and invented end-to-end tests are
 complete. Prior real recovery and gate mechanics are recorded below.
 D034I verifies the schema-aware backup mechanism with synthetic recovery drills.
-D034AK preserves the failed approved trial and prepares a separate diagnostic
-attempt. That new one-shot processing decision is pending.
+D034AL preserves both consumed, recovered failed attempts. The next exact
+same-source trial proposes a 3,200-token output reservation; fresh approval is pending.
 
 ## Decisions needed before a live/private step
 
@@ -569,3 +569,17 @@ independent verification, request one new processing decision; prior consent is
 not replayed. No key setup or manual push needed.
 Broader historical collection, automatic project links and private/mobile service
 remain behind the accepted usefulness and delivery gates.
+
+
+## D034AL — next concrete delivery decision
+
+Both private one-shot attempts are protected failures with no draft; approvals
+are consumed. Prepare the same PowerBI meeting, reviewed brief and four bounded
+candidate Sources for one local attempt with explicit output reservation 3,200
+instead of 1,600. Same pinned model, 16,384 window and 120-second generation budget;
+concise guidance preserves material facts. Fresh human approval is required after
+preparation/recovery/seal. No additional credential or manual push step is needed.
+
+After an actual protected draft, Zac judges context, useful detail, voice and
+missing material facts. Do not demand a universal project/SOW rule. Track >16-item
+schema capacity as a delivery limitation before broadening use.

@@ -83,6 +83,7 @@ class BrainstormContextualOperator:
         model_digest: str,
         token_counter: LocalPromptTokenCounter,
         restoration: DisposableStateRestoreVerifier,
+        max_output_tokens: int = 1600,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         try:
@@ -100,6 +101,9 @@ class BrainstormContextualOperator:
             ):
                 raise ValueError("invalid controlled operator configuration")
             route = ModelRoute.model_validate(route)
+            if type(max_output_tokens) is not int or max_output_tokens not in {1600, 3200} or max_output_tokens > route.max_output_tokens:
+                raise ValueError("invalid approved contextual budget")
+            self._max_output_tokens = max_output_tokens
             if (
                 route.destination != Destination.LOCAL
                 or token_counter.model_digest != model_digest
@@ -255,6 +259,7 @@ class BrainstormContextualOperator:
                         protection=self._protection,
                         clock=self._clock,
                         failure_observer=observe,
+                        max_output_tokens=self._max_output_tokens,
                     )
                     self._recovery_receipt = result.recovery_receipt
                     require_lease()

@@ -278,3 +278,14 @@ def test_follow_up_flag_is_not_silently_rewritten():
     item = output.items[0].model_copy(update={"kind": ItemKind.FOLLOW_UP, "inferred": False})
     with pytest.raises(ContextualGenerationError):
         resolve_contextual_draft(output.model_copy(update={"items": (item,)}), req)
+
+
+def test_no_related_evidence_does_not_request_invented_continuity():
+    from tests.test_review_generation import synthetic_context
+
+    req = request(synthetic_context(related=False))
+    assert not req.context.related_source_ids
+    assert "Return background=[] and continuity=[]" in req.instruction
+    with_related = request()
+    assert with_related.context.related_source_ids
+    assert "Return background=[] and continuity=[]" not in with_related.instruction

@@ -107,8 +107,23 @@ def prepare_contextual_request(context: ReviewContext) -> ContextualRequest:
             "Do not omit material facts to meet a target. Defensive ceilings: 80 words per "
             "claim and 650 words/6000 characters for the rendered review with labels. "
             "Return only the supplied schema, exact host evidence IDs, no offsets, source "
-            "UUIDs, classifications, approvals or executable instructions."
+            "UUIDs, classifications, approvals or executable instructions. "
+            "Output space is shared between JSON structure and prose. Write every material "
+            "decision, commitment, risk and follow-up as its own item; keep overview, "
+            "background and continuity brief so they do not crowd out items. State each "
+            "claim in one plain sentence; put owners and dates in their fields instead "
+            "of repeating them in text. Cite the fewest passages that fully support each "
+            "claim, usually one. Restatements of the same commitment are one item; different "
+            "owners, dates or scope stay separate. Emit compact JSON with no repeated items "
+            "or extra whitespace. Tighten wording, never drop, merge or generalize material "
+            "evidence for brevity, and never ask about output length or limits."
         )
+        if not context.related_source_ids:
+            instruction += (
+                " This request has no related_context evidence. Return background=[] and "
+                "continuity=[]; do not invent prior connections. Relevant history reported "
+                "inside this meeting may be described in the meeting-cited overview."
+            )
         roles = {
             role: [p["id"] for p in passages if p["role"] == role]
             for role in ("meeting", "related_context")

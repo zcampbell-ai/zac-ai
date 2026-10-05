@@ -253,3 +253,22 @@ The 2026-10-05 candidate-history attempt has PROTECTED_FAILURE_NO_RETRY, no draf
 and a verified failed-attempt state/journal/artifact receipt. Its original specific
 cause is unavailable. Its consent is consumed. Diagnostic improvements do not
 permit replay; prepare and approve a separate exact processing attempt.
+
+
+### D034AL runtime diagnostic reader floor and task reservation
+
+New failed contextual audits may include a closed runtime_failure_code only at
+RUNTIME_PREFLIGHT/GENERATION. No backend text is retained. UNSPECIFIED must be
+absent; impossible preflight hints reject/filter. Historical omitted fields remain
+byte-identical. Keep D034AL-compatible readers with new coded recovery artifacts.
+
+Output reservation is explicitly 1,600 default or 3,200; it is not inferred from
+route ceiling. Task/prepared digest and full route bind consent. Payload sets
+think=false and num_predict to the exact task reservation. Related sections must
+validate against related evidence; absent related evidence instruction explicitly
+requests empty background/continuity. A length completion is never repaired.
+
+The second private trial failed at GENERATION with protected recovery, no draft.
+Host dispatch_attempted does not prove delivery or actual completion. Its original
+inner reason remains unknown. PUBLIC controlled 16-item success is structural only;
+new private output requires fresh approval and actual usefulness assessment.

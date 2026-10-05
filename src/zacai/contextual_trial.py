@@ -26,7 +26,11 @@ from zacai.intelligence.contextual_generation import prepare_contextual_request
 from zacai.intelligence.contextual_host import assemble_contextual_context
 from zacai.intelligence.contracts import Contract, Digest, ModelRoute
 from zacai.intelligence.eligibility import ApprovedRoute, ApprovedRouteRegistry, assess_routes
-from zacai.intelligence.local_contextual_runtime import LocalContextualRuntime, prepare_payload
+from zacai.intelligence.local_contextual_runtime import (
+    LocalContextualRuntime,
+    _context_tokens,
+    prepare_payload,
+)
 from zacai.intelligence.local_review_runtime import LocalPromptTokenCounter
 from zacai.intelligence.review_freshness import review_evidence_digest
 from zacai.intelligence.review_host import ReviewSelection
@@ -48,9 +52,9 @@ class ContextualTrialProposal(Contract):
     evidence_digest: Digest
     source_hashes: tuple[tuple[UUID, Digest], ...] = Field(min_length=1, max_length=11)
     prepared_at: AwareDatetime
-    prompt_tokens: int = Field(gt=0, le=8192, strict=True)
-    reserved_output_tokens: int = Field(gt=0, le=8192, strict=True)
-    context_limit: Literal[8192] = 8192
+    prompt_tokens: int = Field(gt=0, le=16384, strict=True)
+    reserved_output_tokens: int = Field(gt=0, le=3200, strict=True)
+    context_limit: Literal[8192, 16384] = 8192
     serialized_bytes: int = Field(gt=0, le=64000, strict=True)
     max_generation_latency_ms: int = Field(gt=0, strict=True)
     state_recovery_reference: str
@@ -59,7 +63,10 @@ class ContextualTrialProposal(Contract):
 
     @model_validator(mode="after")
     def capacity(self) -> Self:
-        if self.prompt_tokens + self.reserved_output_tokens > self.context_limit:
+        if (self.context_limit != _context_tokens(self.route)
+            or self.reserved_output_tokens not in {1600, 3200}
+            or self.reserved_output_tokens > self.route.max_output_tokens
+            or self.prompt_tokens + self.reserved_output_tokens > self.context_limit):
             raise ValueError("proposal outside current context capacity")
         return self
 
@@ -83,6 +90,7 @@ def prepare_contextual_trial(
     token_counter: LocalPromptTokenCounter,
     checkpoint: ReviewRecoveryCheckpoint,
     recovery: BrainstormReviewRecoveryGate,
+    max_output_tokens: int = 1600,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> ContextualTrialProposal:
     """Validate target/recovery, assemble exact evidence, metadata-only preflight.
@@ -93,6 +101,9 @@ def prepare_contextual_trial(
     recorded after revalidation, and consumed by the concrete operator.
     """
     try:
+        if (type(max_output_tokens) is not int or max_output_tokens not in {1600, 3200}
+            or max_output_tokens > route.max_output_tokens):
+            raise ValueError("unsupported explicit output reservation")
         url = engine.url
         if (
             url.drivername != "postgresql+psycopg"
@@ -137,6 +148,7 @@ def prepare_contextual_trial(
             authorized_boundaries=_BOUNDARIES,
             allowed_classifications=_LABELS,
             now=clock(),
+            max_output_tokens=max_output_tokens,
         )
         registry = ApprovedRouteRegistry((ApprovedRoute(route, _BOUNDARIES, _LABELS),))
         if (
@@ -160,6 +172,7 @@ def prepare_contextual_trial(
             authorized_boundaries=_BOUNDARIES,
             allowed_classifications=_LABELS,
             now=clock(),
+            max_output_tokens=max_output_tokens,
         )
         if review_evidence_digest(current) != review_evidence_digest(context):
             raise ValueError("evidence changed during preparation")
@@ -176,6 +189,7 @@ def prepare_contextual_trial(
             prepared_at=clock(),
             prompt_tokens=count,
             reserved_output_tokens=context.task.max_output_tokens,
+            context_limit=_context_tokens(route),
             serialized_bytes=len(body),
             max_generation_latency_ms=context.task.max_latency_ms,
             state_recovery_reference=checkpoint.state_reference,

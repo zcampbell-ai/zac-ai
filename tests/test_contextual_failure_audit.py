@@ -119,3 +119,31 @@ def test_explicit_null_is_not_canonical_legacy_encoding():
 def test_impossible_diagnostic_shapes_rejected(changes):
     with pytest.raises(ValidationError):
         ContextualAuditEvent.model_validate(legacy_data() | changes)
+
+
+
+def test_new_runtime_code_preserves_d034ak_bytes_when_absent():
+    data = legacy_data() | {"failure_step": "GENERATION", "dispatch_attempted": True}
+    event = ContextualAuditEvent.model_validate(data)
+    assert event.runtime_failure_code is None
+    assert canonical_bytes(event.model_dump(mode="json")) == canonical_bytes(data)
+
+
+@pytest.mark.parametrize("changes", [
+    {"runtime_failure_code": "PRIVATE arbitrary diagnostic"},
+    {"failure_step": "GENERATION", "dispatch_attempted": True, "runtime_failure_code": "UNSPECIFIED"},
+    {"runtime_failure_code": "OUTPUT_LIMIT"},
+    {"runtime_failure_code": None},
+    {"failure_step": "PACKET_CAPTURE", "dispatch_attempted": True, "runtime_failure_code": "OUTPUT_LIMIT"},
+])
+def test_invalid_runtime_diagnostic_rejected(changes):
+    with pytest.raises(ValidationError):
+        ContextualAuditEvent.model_validate(legacy_data() | changes)
+
+
+
+def test_valid_runtime_diagnostic_canonical_round_trip():
+    data = legacy_data() | {"failure_step": "GENERATION", "dispatch_attempted": True,
+                            "runtime_failure_code": "OUTPUT_LIMIT"}
+    raw = canonical_bytes(data)
+    assert canonical_bytes(ContextualAuditEvent.model_validate_json(raw).model_dump(mode="json")) == raw

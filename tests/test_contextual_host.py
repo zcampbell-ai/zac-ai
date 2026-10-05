@@ -763,3 +763,79 @@ def test_mutated_task_label_cannot_lower_original_failure_audit_label(host_setup
     assert failed["data_classification"] == prepared["data_classification"] == "CONFIDENTIAL"
     assert failed["trust_boundary"] == prepared["trust_boundary"] == "BRAINSTORM"
     assert failed["task_id"] == prepared["task_id"]
+
+
+@pytest.mark.parametrize("phase", ["preflight", "generation"])
+def test_runtime_code_is_canonical_fixed_metadata(host_setup, phase):  # noqa: F811
+    from zacai.intelligence.runtime_diagnostics import RuntimeDiagnosticError, RuntimeFailureCode
+
+    runtime = Runtime(host_setup)
+
+    def rejected(*args):
+        raise RuntimeDiagnosticError("PRIVATE backend diagnostic", code=RuntimeFailureCode.MODEL_PIN if phase == "preflight" else RuntimeFailureCode.OUTPUT_LIMIT)
+
+    if phase == "preflight":
+        runtime.preflight = rejected
+    else:
+        runtime.generate = rejected
+    with pytest.raises(ContextualHostError):
+        run(host_setup, runtime=runtime)
+    failed = events(host_setup)[-1]
+    assert failed["runtime_failure_code"] == ("MODEL_PIN" if phase == "preflight" else "OUTPUT_LIMIT")
+    assert failed["failure_step"] == ("RUNTIME_PREFLIGHT" if phase == "preflight" else "GENERATION")
+    assert failed["dispatch_attempted"] == (phase == "generation")
+    assert "PRIVATE" not in json.dumps(failed)
+
+
+
+def test_broken_runtime_diagnostic_lookup_cannot_skip_failure_audit(host_setup):  # noqa: F811
+    from zacai.intelligence.runtime_diagnostics import RuntimeDiagnosticError
+
+    class BrokenDiagnostic(RuntimeDiagnosticError):
+        def __init__(self):
+            ValueError.__init__(self, "PRIVATE primary error")
+
+        @property
+        def code(self):
+            raise ValueError("PRIVATE diagnostic lookup")
+
+    runtime = Runtime(host_setup)
+
+    def rejected(*args):
+        raise BrokenDiagnostic()
+
+    runtime.generate = rejected
+    with pytest.raises(ContextualHostError) as error:
+        run(host_setup, runtime=runtime)
+    assert error.value.__context__ is None and error.value.__cause__ is None
+    failed = events(host_setup)[-1]
+    assert failed["failure_step"] == "GENERATION" and failed["dispatch_attempted"] is True
+    assert "runtime_failure_code" not in failed and "PRIVATE" not in json.dumps(failed)
+
+
+def test_explicit_route_output_budget_reaches_task_and_freshness(host_setup):  # noqa: F811
+    runtime = Runtime(host_setup)
+    runtime.route = runtime.route.model_copy(update={"max_output_tokens": 3200})
+    result = run(host_setup, runtime=runtime, max_output_tokens=3200)
+    assert result.packet.task.max_output_tokens == runtime.request.context.task.max_output_tokens == 3200
+
+
+@pytest.mark.parametrize("budget", [True, 1599, 1601, 3201, 4096])
+def test_unsupported_output_budget_rejects_before_artifact_io(host_setup, budget):  # noqa: F811
+    class NoRead:
+        def get(self, *args):
+            pytest.fail("invalid budget read private artifact")
+
+    with pytest.raises(ValueError, match="unsupported contextual output budget"):
+        host.assemble_contextual_context(host_setup[0], artifacts=NoRead(),
+            selection=ReviewSelection(MeetingEvidence(host_setup[2].meeting_id, host_setup[2].normalized_source_id)),
+            authorized_boundaries=BOUNDARIES, allowed_classifications=frozenset({C.CONFIDENTIAL}),
+            now=NOW, max_output_tokens=budget)
+
+
+@pytest.mark.parametrize("ceiling", [2048, 3200, 4096])
+def test_route_ceiling_does_not_silently_expand_default_output(host_setup, ceiling):  # noqa: F811
+    runtime = Runtime(host_setup)
+    runtime.route = runtime.route.model_copy(update={"max_output_tokens": ceiling})
+    result = run(host_setup, runtime=runtime)
+    assert result.packet.task.max_output_tokens == 1600

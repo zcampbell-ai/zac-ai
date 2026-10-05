@@ -49,6 +49,11 @@ from zacai.intelligence.review_context import assemble_review_context
 from zacai.intelligence.review_evaluation import review_context_digest
 from zacai.intelligence.review_freshness import review_evidence_digest
 from zacai.intelligence.review_host import ReviewSelection, _snapshot
+from zacai.intelligence.runtime_diagnostics import (
+    PREFLIGHT_CODES,
+    RuntimeFailureCode,
+    closed_runtime_code,
+)
 from zacai.policy import AccessRequest, DataClassification, Destination, TrustBoundary
 from zacai.state import Source, SourceSystem
 from zacai.state_repository import get_effective_source_classification
@@ -174,8 +179,15 @@ def assemble_contextual_context(
     authorized_boundaries: frozenset[TrustBoundary],
     allowed_classifications: frozenset[DataClassification],
     now: datetime,
+    max_output_tokens: int = 1600,
 ) -> ReviewContext:
-    """Exact existing read-only contextual assembly; caller owns read permission."""
+    """Read-only assembly with a host-supplied budget, bound by exact consent.
+
+    The default remains 1600. A larger explicit route budget requires a new
+    proposal/consent; no agent decides or expands this allowance.
+    """
+    if type(max_output_tokens) is not int or max_output_tokens not in {1600, 3200}:
+        raise ValueError("unsupported contextual output budget")
     with _snapshot(factory) as session:
         # Keep existing assembly/relationship and canonical Event contracts.
         if selection.projects:
@@ -200,6 +212,7 @@ def assemble_contextual_context(
                 observed_at=now,
             )
         data = context.task.model_dump()
+        data["max_output_tokens"] = max_output_tokens
         data["required_capabilities"] = (
             context.task.required_capabilities - {"compact_meeting_review"}
         ) | {"contextual_meeting_review"}
@@ -236,6 +249,7 @@ def execute_contextual_shadow(
     failure_observer: Callable[[ContextualHostFailure], None] | None = None,
     max_release_latency_ms: int = 300_000,
     allow_synthetic_protection: bool = False,
+    max_output_tokens: int = 1600,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     monotonic: Callable[[], float] = time.monotonic,
 ) -> ContextualHostResult:
@@ -264,6 +278,7 @@ def execute_contextual_shadow(
     result: ContextualHostResult | None = None
     audit_failed = False
     observer_failed = False
+    runtime_failure_code: RuntimeFailureCode | None = None
     bound_request_digest: str | None = None
     bound_context_digest: str | None = None
     bound_task_id: UUID | None = None
@@ -301,6 +316,8 @@ def execute_contextual_shadow(
             diagnostics: dict[str, Any] = {}
             if stage == ContextualAuditStage.RUN_FAILED:
                 diagnostics = {"failure_step": failure_step, "dispatch_attempted": dispatched}
+                if runtime_failure_code is not None:
+                    diagnostics["runtime_failure_code"] = runtime_failure_code
             sid = append_contextual_audit(
                 session,
                 artifacts=artifacts,
@@ -333,6 +350,7 @@ def execute_contextual_shadow(
             authorized_boundaries=authorized_boundaries,
             allowed_classifications=allowed_classifications,
             now=now,
+            max_output_tokens=max_output_tokens,
         )
 
     def refresh() -> None:
@@ -539,6 +557,12 @@ def execute_contextual_shadow(
             run_id, packet_id, packet_hash, packet, tuple(audit_ids), receipt
         )
     except BaseException as error:  # noqa: BLE001 - sanitized cancellation audit
+        if failure_step in {ContextualFailureStep.RUNTIME_PREFLIGHT, ContextualFailureStep.GENERATION}:
+            runtime_failure_code = closed_runtime_code(error)
+            if runtime_failure_code == RuntimeFailureCode.UNSPECIFIED or (
+                failure_step == ContextualFailureStep.RUNTIME_PREFLIGHT and runtime_failure_code not in PREFLIGHT_CODES
+            ):
+                runtime_failure_code = None
         if isinstance(error, KeyboardInterrupt):
             interruption = "keyboard"
         elif isinstance(error, SystemExit):

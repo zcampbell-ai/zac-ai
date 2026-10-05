@@ -645,3 +645,32 @@ def test_reconciliation_independently_requires_claim_hash_coverage(complete, mon
             verification_objects=options["verification_objects"],
             identity_path=options["identity_path"],
         )
+
+
+def test_proposal_reports_and_enforces_actual_named_context_window():
+    from uuid import uuid4
+
+    from pydantic import ValidationError
+
+    from zacai.contextual_trial import ContextualTrialProposal
+    from zacai.intelligence.contracts import ModelRoute
+    from zacai.intelligence.review_context import MeetingEvidence
+    from zacai.intelligence.review_host import ReviewSelection
+    from zacai.policy import Destination
+
+    route = ModelRoute(identity={"provider_id": "ollama", "model_id": "qwen3.8:27b-mlx",
+                                 "runtime_id": "mac-loopback-contextual-16k"},
+                       destination=Destination.LOCAL, capabilities=frozenset({"contextual_meeting_review"}),
+                       max_input_characters=64000, max_output_tokens=3200,
+                       estimated_latency_ms=120000, estimated_cost_usd=0, available=True)
+    data = {"builder_id": uuid4(), "selection": ReviewSelection(MeetingEvidence(uuid4(), uuid4())),
+            "route": route, "model_digest": "a"*64, "prepared_digest": "b"*64, "evidence_digest": "c"*64,
+            "source_hashes": ((uuid4(), "d"*64),), "prepared_at": NOW, "prompt_tokens": 10000,
+            "reserved_output_tokens": 3200, "context_limit": 16384, "serialized_bytes": 34000,
+            "max_generation_latency_ms": 120000, "state_recovery_reference": "invented state",
+            "artifact_recovery_reference": "invented artifacts", "credential_recovery_reference": "invented key"}
+    assert ContextualTrialProposal(**data).context_limit == 16384
+    with pytest.raises(ValidationError):
+        ContextualTrialProposal(**(data | {"context_limit": 8192, "prompt_tokens": 1000}))
+    with pytest.raises(ValidationError):
+        ContextualTrialProposal(**(data | {"prompt_tokens": 13185}))

@@ -702,3 +702,35 @@ def test_canonical_authority_actual_recovery_and_protection_together(
             )
             == result.recovery_receipt
         )
+
+
+@pytest.mark.parametrize("approved,runtime_limit,mismatch", [
+    (1600, 3200, "reservation"), (3200, 1600, "reservation"),
+    (2048, 3200, "route_ceiling"), (3200, 2048, "route_ceiling"),
+])
+def test_exact_output_scope_rejects_both_direction_changes_before_generation(issued, approved, runtime_limit, mismatch):
+    f, old, _approval, old_request = issued[:4]
+    approved_ceiling = approved if mismatch == "route_ceiling" else 3200
+    runtime_ceiling = runtime_limit if mismatch == "route_ceiling" else 3200
+    reservation = approved if mismatch == "reservation" else 1600
+    execution_reservation = runtime_limit if mismatch == "reservation" else 1600
+    task = old_request.context.task.model_copy(update={"max_output_tokens": reservation})
+    request = prepare_contextual_request(replace(old_request.context, task=task))
+    consent = ContextualConsent.model_validate(old.model_copy(update={
+        "id": uuid4(), "route": old.route.model_copy(update={"max_output_tokens": approved_ceiling}),
+        "prepared_digest": prepared_contextual_digest(request),
+    }))
+    with f[0]() as session:
+        approval = record_contextual_consent(session, store=f[1], consent=consent, clock=lambda: NOW)
+        session.commit()
+    auth = CanonicalContextualAuthorization(factory=f[0], store=f[1], approval_id=approval,
+                                           recovery=issued[4], clock=lambda: NOW)
+    runtime = Runtime(f)
+    runtime.route = old.route.model_copy(update={"max_output_tokens": runtime_ceiling})
+    assert runtime.route.identity == consent.route.identity
+    with pytest.raises(ContextualHostError):
+        run(f, runtime=runtime, authorization=auth, builder_id=consent.builder_id,
+            max_output_tokens=execution_reservation)
+    assert runtime.calls == 0
+    with f[0]() as session:
+        assert session.scalar(select(Source.id).where(Source.external_ref == f"contextual-claim/{approval}")) is None

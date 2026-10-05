@@ -27,6 +27,8 @@ from zacai.intelligence.local_review_runtime import (
     verify_model,
 )
 from zacai.intelligence.review_evaluation import review_context_digest
+from zacai.intelligence.runtime_diagnostics import RuntimeDiagnosticError, closed_runtime_code
+from zacai.intelligence.runtime_diagnostics import RuntimeFailureCode as F
 from zacai.policy import Destination
 
 _CONTEXT_TOKENS = 8192
@@ -41,7 +43,7 @@ def _context_tokens(route: ModelRoute) -> int:
     return _CONTEXT_TOKENS
 
 
-class LocalContextualRuntimeError(ValueError):
+class LocalContextualRuntimeError(RuntimeDiagnosticError):
     """Fixed diagnostics; no backend/input/output text."""
 
 
@@ -104,33 +106,65 @@ def prepare_payload(request: ContextualRequest, route: ModelRoute, digest: str) 
 def dispatch_draft(
     request: ContextualRequest, route: ModelRoute, body: bytes, transport: Transport
 ) -> tuple[ContextualDraft, UsageObservation]:
-    started = time.perf_counter()
-    reply = transport("POST", "/api/chat", body)
-    elapsed = (time.perf_counter() - started) * 1000
-    if (
-        reply.get("model") != route.identity.model_id
-        or reply.get("done") is not True
-        or reply.get("done_reason") != "stop"
-        or not 0 <= elapsed <= request.context.task.max_latency_ms
-    ):
-        raise LocalContextualRuntimeError("incomplete or late local output")
-    message = reply["message"]
-    if message.get("role") != "assistant" or message.get("tool_calls") or message.get("thinking"):
-        raise LocalContextualRuntimeError("unexpected model authority or thinking output")
-    counts = (reply["prompt_eval_count"], reply["eval_count"])
-    if (
-        any(type(count) is not int or count < 0 for count in counts)
-        or counts[1] > request.context.task.max_output_tokens
-        or counts[0] + counts[1] > _context_tokens(route)
-    ):
-        raise LocalContextualRuntimeError("invalid local usage or context capacity")
-    content = message["content"]
-    if not isinstance(content, str):
-        raise TypeError("invalid response content")
-    draft = parse_contextual_draft(content.encode())
-    return draft, UsageObservation(
-        input_tokens=counts[0], output_tokens=counts[1], latency_ms=elapsed, cost_usd=0.0
-    )
+    failure = F.TRANSPORT
+    try:
+        started = time.perf_counter()
+        reply = transport("POST", "/api/chat", body)
+        elapsed = (time.perf_counter() - started) * 1000
+        failure = F.RESPONSE_SHAPE
+        if not isinstance(reply, dict):
+            raise TypeError("invalid reply shape")
+        failure = F.RESPONSE_MODEL
+        if reply.get("model") != route.identity.model_id:
+            raise ValueError("model mismatch")
+        failure = F.RESPONSE_INCOMPLETE
+        if reply.get("done") is not True:
+            raise ValueError("incomplete reply")
+        failure = F.RESPONSE_SHAPE
+        message = reply["message"]
+        if not isinstance(message, dict):
+            raise TypeError("invalid message shape")
+        failure = F.RESPONSE_AUTHORITY
+        if message.get("role") != "assistant" or message.get("tool_calls") or message.get("thinking"):
+            raise ValueError("unexpected response authority")
+        if reply.get("done_reason") == "length":
+            failure = F.RESPONSE_USAGE
+            reported = (reply["prompt_eval_count"], reply["eval_count"])
+            if (any(type(n) is not int or n < 0 for n in reported)
+                or reported[1] > request.context.task.max_output_tokens
+                or reported[0] + reported[1] > _context_tokens(route)):
+                raise ValueError("invalid usage")
+            failure = F.OUTPUT_LIMIT if reported[1] == request.context.task.max_output_tokens and sum(reported) < _context_tokens(route) else F.RESPONSE_LENGTH
+            raise ValueError("length completion")
+        failure = F.RESPONSE_STOP_REASON
+        if reply.get("done_reason") != "stop":
+            raise ValueError("nonstop completion")
+        failure = F.RESPONSE_LATENCY
+        if not 0 <= elapsed <= request.context.task.max_latency_ms:
+            raise ValueError("late response")
+        failure = F.RESPONSE_USAGE
+        counts = (reply["prompt_eval_count"], reply["eval_count"])
+        if (any(type(count) is not int or count < 0 for count in counts)
+            or counts[1] > request.context.task.max_output_tokens
+            or counts[0] + counts[1] > _context_tokens(route)):
+            raise ValueError("invalid usage")
+        failure = F.RESPONSE_SCHEMA
+        content = message["content"]
+        if not isinstance(content, str):
+            raise TypeError("invalid content shape")
+        draft = parse_contextual_draft(content.encode())
+        return draft, UsageObservation(input_tokens=counts[0], output_tokens=counts[1],
+                                       latency_ms=elapsed, cost_usd=0.0)
+    except Exception:  # noqa: BLE001, S110 - no raw backend/model diagnostics
+        pass
+    raise LocalContextualRuntimeError("local contextual response rejected", code=failure)
+
+
+_INNER_CODES = {
+    F.TOKEN_COUNT: frozenset({F.MODEL_PIN, F.TOKEN_COUNT, F.TOKEN_CAPACITY}),
+    F.TRANSPORT: frozenset(code for code in F if code == F.TRANSPORT or code == F.OUTPUT_LIMIT
+                         or code.value.startswith("RESPONSE_")),
+}
 
 
 class LocalContextualRuntime:
@@ -179,27 +213,30 @@ class LocalContextualRuntime:
 
     def _token_count(self, body: bytes, request: ContextualRequest) -> int:
         if self._token_counter.model_digest != self.model_digest:
-            raise ValueError("tokenizer model pin mismatch")
+            raise LocalContextualRuntimeError("tokenizer model pin mismatch", code=F.MODEL_PIN)
         count = self._token_counter.count_prompt_tokens(body)
-        if (
-            type(count) is not int
-            or count <= 0
-            or (count + request.context.task.max_output_tokens > _context_tokens(self.route))
-        ):
-            raise ValueError("prompt/output token budget exceeded")
+        if type(count) is not int or count <= 0:
+            raise LocalContextualRuntimeError("invalid token count", code=F.TOKEN_COUNT)
+        if count + request.context.task.max_output_tokens > _context_tokens(self.route):
+            raise LocalContextualRuntimeError("prompt/output token budget exceeded", code=F.TOKEN_CAPACITY)
         return count
 
     def preflight(self, request: ContextualRequest) -> None:
         interruption = None
         exit_code = 1
+        failure = F.PREFLIGHT_BINDING
         try:
             if self._attempted:
                 raise ValueError("attempt consumed")
             # Never retain a successful stale preflight after a failed new one.
             self._prepared = None
+            failure = F.REQUEST_PAYLOAD
             body = prepare_payload(request, self.route, self.model_digest)
+            failure = F.TOKEN_COUNT
             count = self._token_count(body, request)
+            failure = F.RUNTIME_VERSION
             self._token_counter.verify_runtime()
+            failure = F.MODEL_PIN
             verify_model(self.route.identity.model_id, self.model_digest, _http)
             # Include exact context/task identity as well as serialized messages.
             self._prepared = hashlib.sha256(
@@ -207,43 +244,60 @@ class LocalContextualRuntime:
             ).digest()
             return
         except BaseException as error:  # noqa: BLE001 - sanitize interruption diagnostics too
+            code = closed_runtime_code(error)
+            if code in _INNER_CODES.get(failure, frozenset()):
+                failure = code
             interruption = type(error)
             if isinstance(error, SystemExit):
                 exit_code = error.code if type(error.code) is int else 1
         _raise_interruption(interruption, exit_code)
-        raise LocalContextualRuntimeError("local contextual preflight failed")
+        raise LocalContextualRuntimeError("local contextual preflight failed", code=failure)
 
     def generate(self, request: ContextualRequest) -> ContextualDraft:
         interruption = None
         exit_code = 1
+        failure = F.PREFLIGHT_BINDING
         try:
             started = time.perf_counter()
             self._usage = None
             if self._attempted:
                 raise ValueError("attempt consumed")
             self._attempted = True
+            failure = F.REQUEST_PAYLOAD
             body = prepare_payload(request, self.route, self.model_digest)
+            failure = F.TOKEN_COUNT
             count = self._token_count(body, request)
+            failure = F.PREFLIGHT_BINDING
             expected = hashlib.sha256(
                 body + review_context_digest(request.context).encode() + str(count).encode()
             ).digest()
             if self._prepared is None or self._prepared != expected:
                 raise ValueError("preflight missing or changed")
+            failure = F.RUNTIME_VERSION
             self._token_counter.verify_runtime()
+            failure = F.MODEL_PIN
             verify_model(self.route.identity.model_id, self.model_digest, _http)
+            failure = F.TRANSPORT
             draft, usage = dispatch_draft(request, self.route, body, _http)
+            failure = F.POST_RUNTIME_VERSION
             self._token_counter.verify_runtime()
+            failure = F.POST_MODEL_PIN
             verify_model(self.route.identity.model_id, self.model_digest, _http)
+            failure = F.PROMPT_COUNT_MISMATCH
             if usage.input_tokens != count:
                 raise ValueError("runtime prompt usage disagrees with tokenizer")
+            failure = F.TOTAL_LATENCY
             elapsed = (time.perf_counter() - started) * 1000
             if not 0 <= elapsed <= request.context.task.max_latency_ms:
                 raise ValueError("late adapter output")
             self._usage = usage.model_copy(update={"latency_ms": elapsed})
             return draft
         except BaseException as error:  # noqa: BLE001 - sanitize interruption diagnostics too
+            code = closed_runtime_code(error)
+            if code in _INNER_CODES.get(failure, frozenset()):
+                failure = code
             interruption = type(error)
             if isinstance(error, SystemExit):
                 exit_code = error.code if type(error.code) is int else 1
         _raise_interruption(interruption, exit_code)
-        raise LocalContextualRuntimeError("local contextual generation failed")
+        raise LocalContextualRuntimeError("local contextual generation failed", code=failure)

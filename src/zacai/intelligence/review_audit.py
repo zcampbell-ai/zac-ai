@@ -31,6 +31,7 @@ from zacai.intelligence.review_evaluation import (
     ReviewEvaluation,
     check_review_evaluation,
 )
+from zacai.intelligence.runtime_diagnostics import PREFLIGHT_CODES, RuntimeFailureCode
 from zacai.policy import (
     AccessRequest,
     DataClassification,
@@ -109,6 +110,7 @@ class ContextualAuditEvent(Contract):
     packet_digest: Digest | None = None
     failure_step: ContextualFailureStep | None = None
     dispatch_attempted: bool | None = Field(default=None, strict=True)
+    runtime_failure_code: RuntimeFailureCode | None = None
 
     @model_serializer(mode="wrap")
     def preserve_legacy_bytes(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
@@ -116,13 +118,24 @@ class ContextualAuditEvent(Contract):
         if self.failure_step is None:
             data.pop("failure_step", None)
             data.pop("dispatch_attempted", None)
+        if self.runtime_failure_code is None:
+            data.pop("runtime_failure_code", None)
         return data
 
     @model_validator(mode="after")
     def consistent_packet(self) -> Self:
         if any(name in self.model_fields_set and getattr(self, name) is None
-               for name in ("failure_step", "dispatch_attempted")):
+               for name in ("failure_step", "dispatch_attempted", "runtime_failure_code")):
             raise ValueError("diagnostic fields must be absent rather than null")
+        if self.runtime_failure_code == RuntimeFailureCode.UNSPECIFIED:
+            raise ValueError("unspecified diagnostic must be absent")
+        if self.runtime_failure_code is not None and self.failure_step not in {
+            ContextualFailureStep.RUNTIME_PREFLIGHT, ContextualFailureStep.GENERATION
+        }:
+            raise ValueError("runtime diagnostic requires runtime operation")
+        if (self.runtime_failure_code is not None and self.failure_step == ContextualFailureStep.RUNTIME_PREFLIGHT
+            and self.runtime_failure_code not in PREFLIGHT_CODES):
+            raise ValueError("runtime preflight diagnostic mismatch")
         if (self.failure_step is None) != (self.dispatch_attempted is None):
             raise ValueError("failure operation and dispatch flag must be paired")
         if self.failure_step is not None:

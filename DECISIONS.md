@@ -5823,3 +5823,38 @@ bindings before assigning the live request; a changed request must not destroy i
 own failure audit. Preserve committed packet/audit IDs before session exit so a
 close failure cannot hide durable records. Observer failure has its own fixed
 message rather than falsely claiming the durable audit is unavailable.
+
+
+## D034AL — explicit output reservation; closed private-safe runtime reasons
+
+Preserve consumed approvals and protected failed-attempt receipts. The diagnostic
+attempt's known operation is GENERATION; its inner reason is unavailable. PUBLIC
+output exhaustion is a reproduction, not a retrospective private diagnosis.
+
+A task explicitly reserves 1,600 or 3,200 tokens. Default stays 1,600 independently
+of route ceiling. Operators reject over-ceiling reservations; preparation rejects
+before artifact/metadata I/O. Consent binds full ModelRoute and prepared task limits;
+both-direction ceiling-only and reservation-only changes reject before generation.
+Window, pinned model, 64,000-byte maximum and 120-second generation budget remain.
+
+Runtime errors expose only typed RuntimeFailureCode values. Inner hints are accepted
+only at token count (pin/count/capacity) and dispatch (transport/response/output);
+version/pin/post-dispatch stages keep their host-assigned reason. Length replies
+must pass authority and usage checks before OUTPUT_LIMIT can be assigned, and
+OUTPUT_LIMIT requires reported output at cap with total usage below context cap.
+UNSPECIFIED is omitted and rejected as an explicit audit value. Optional fields
+omit absent values and preserve historical audit bytes. New coded audits require
+D034AL-compatible recovery readers; older readers reject unknown fields.
+
+Opus recommended compact, material-item-preserving instructions and a measured
+larger reservation. Never parse/repair partial JSON or omit facts to force a fit.
+No related evidence means empty background/continuity. All runtime trials in this
+engineering change use invented PUBLIC evidence. Controlled 16-item structural
+success does not validate semantic entailment or private delivery quality. Track
+schema capacity above 16 material items before widening v1 use. No canonical Zac
+Event change, provider egress, recurring intake or automatic retry is introduced.
+
+Validation: all 1,541 tests pass; Ruff and strict mypy (62 source files) pass.
+Fresh read-only same-scope preparation measures 9,268 input + 3,200 output tokens
+within 16,384; encrypted selected artifacts/full disposable restore verify and
+clean up, with canonical state unchanged and no private generation.

@@ -11,7 +11,7 @@ This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position — reconciled 2026-10-05
 
-Current completed engineering checkpoint: D034AK. The bounded research intake
+Current completed engineering checkpoint: D034AL. The bounded research intake
 and its original encrypted remote checkpoint are now fully verified.
 D031B verified real BRAINSTORM encrypted off-device artifact recovery. D032
 intelligence contracts are implemented. D033C verified one explicitly approved
@@ -44,8 +44,11 @@ intake artifacts recovered, and the missing encrypted receipt was saved/read bac
 The approved D034AJ candidate-history attempt failed after dispatch preparation;
 no draft was released. Actual encrypted failed-attempt recovery passed. D034AK
 adds independently reviewed closed operation/dispatch diagnostics and preserves
-legacy audit bytes. A separately prepared diagnostic scope keeps the same evidence
-and local model limits; fresh approval is pending. No recurring ingestion or broad
+legacy audit bytes. The separately approved diagnostic retry also failed during GENERATION; its
+failed-attempt encrypted recovery passed. No draft or business facts were produced.
+D034AL adds closed runtime diagnostics and an explicitly consent-bound 3,200-token
+output option, retaining the 1,600 default and the existing latency/window/model.
+A new same-evidence trial requires fresh approval; none has run. No recurring ingestion or broad
 production routing is enabled. The app remains health-only.
 
 Zac confirmed the first usable version's delivery target in chat on 2026-10-04:
@@ -1141,3 +1144,30 @@ preflight passes. Current host namespaces measure 9,096 input tokens plus 1,600
 reserved output, 34,025 serialized bytes. No second generation or canonical write
 occurred. Separate approval/output paths preserve the consumed attempt and prevent
 replay. Human authorization for this new attempt remains pending.
+
+
+## D034AL — output diagnostics and explicit bounded delivery reservation
+
+The approved diagnostic retry failed during GENERATION with dispatch_attempted
+true (host call attempted, not transport proof). Its original inner cause remains
+unknown. Actual encrypted artifact/state/journal recovery passed; canonical Source
+inventory is 56, including attempt metadata, with no draft or promoted business fact.
+Both one-shot approvals are consumed.
+
+PUBLIC reproduction at 1,600 output tokens reported a length completion. A denser
+3,200-token experiment completed but failed related-evidence validation. After
+explicit empty-background/continuity guidance for absent related evidence, a
+controlled invented fixture with exactly 16 distinct commitments passed structural
+and citation checks: 7,639 input, 2,259 output, about 63 seconds, all 16 component
+commitments returned. This is limited structural/recall evidence, not proof of
+private usefulness, owner/date entailment, or coverage above the schema's 16 items.
+
+Closed runtime failure codes distinguish response authority, token capacity,
+output exhaustion, schema and transport failure without exception/model text.
+Explicit output reservation is restricted to 1,600 (unchanged default) or 3,200;
+route ceiling alone never increases it. Exact prepared consent binds this value
+and full route. Proposal preparation reports the actual 8,192/16,384 profile window.
+Opus reviewed code and PUBLIC evidence only; concrete findings were corrected.
+The concise output guidance changes the prepared digest, so prior approvals cannot
+be replayed. Next: prepare and approve one same-scope local trial, judge its actual
+usefulness, then continue briefing/open-loop/private access under existing order.

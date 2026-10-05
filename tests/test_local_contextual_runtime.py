@@ -127,8 +127,9 @@ def test_pin_changes_reject_without_retry(monkeypatch, phase):
         return value
 
     monkeypatch.setattr(local, "_http", changed)
-    with pytest.raises(local.LocalContextualRuntimeError):
+    with pytest.raises(local.LocalContextualRuntimeError) as error:
         runtime.generate(request)
+    assert error.value.code.value == ("MODEL_PIN" if phase == "before" else "POST_MODEL_PIN")
     count = sum(c[1] == "/api/chat" for c in calls)
     assert count == (0 if phase == "before" else 1)
     assert runtime.usage is None
@@ -212,8 +213,9 @@ def test_invalid_or_overflowing_token_count_rejected_before_network(monkeypatch,
     runtime = local.LocalContextualRuntime(
         route=route(), model_digest="a" * 64, token_counter=counter
     )
-    with pytest.raises(local.LocalContextualRuntimeError):
+    with pytest.raises(local.LocalContextualRuntimeError) as error:
         runtime.preflight(prepare_contextual_request(synthetic_context()))
+    assert error.value.code.value == ("TOKEN_CAPACITY" if count == 6593 else "TOKEN_COUNT")
     assert calls == []
 
 
@@ -497,5 +499,62 @@ def test_profile_observed_combined_usage_overflow_rejected(monkeypatch):
             "eval_count": 1600,
         }
 
-    with pytest.raises(local.LocalContextualRuntimeError, match="invalid local usage"):
+    with pytest.raises(local.LocalContextualRuntimeError) as error:
         local.dispatch_draft(request, runtime.route, body, transport)
+    assert error.value.code.value == "RESPONSE_USAGE"
+
+
+@pytest.mark.parametrize("changes,expected", [
+    ({"done": False}, "RESPONSE_INCOMPLETE"),
+    ({"done_reason": "length", "eval_count": 1600,
+      "message": {"role": "assistant", "thinking": "invented"}}, "RESPONSE_AUTHORITY"),
+    ({"done_reason": "length", "eval_count": 1600}, "OUTPUT_LIMIT"),
+    ({"done_reason": "length"}, "RESPONSE_LENGTH"),
+    ({"done_reason": "invented-private-marker"}, "RESPONSE_STOP_REASON"),
+    ({"model": "foreign"}, "RESPONSE_MODEL"),
+    ({"eval_count": True}, "RESPONSE_USAGE"),
+    ({"prompt_eval_count": 99}, "PROMPT_COUNT_MISMATCH"),
+    ({"message": {"role": "assistant", "tool_calls": ["send"]}}, "RESPONSE_AUTHORITY"),
+    ({"message": {"role": "assistant", "content": '{"summary":NaN}'}}, "RESPONSE_SCHEMA"),
+])
+def test_closed_runtime_code_survives_sanitization(monkeypatch, changes, expected):
+    runtime, request, calls = setup(monkeypatch, reply_changes=changes)
+    runtime.preflight(request)
+    with pytest.raises(local.LocalContextualRuntimeError) as error:
+        runtime.generate(request)
+    assert error.value.code.value == expected
+    assert "invented-private-marker" not in str(error.value)
+    assert error.value.__context__ is None
+    assert runtime.usage is None
+    assert sum(c[1] == "/api/chat" for c in calls) == 1
+
+
+def test_transport_failure_records_only_closed_code(monkeypatch):
+    runtime, request, _calls = setup(monkeypatch)
+    runtime.preflight(request)
+    original = local._http
+
+    def unavailable(method, path, body=None):
+        if path == "/api/chat":
+            raise ValueError("invented-private-marker")
+        return original(method, path, body)
+
+    monkeypatch.setattr(local, "_http", unavailable)
+    with pytest.raises(local.LocalContextualRuntimeError) as error:
+        runtime.generate(request)
+    assert error.value.code.value == "TRANSPORT"
+    assert error.value.__context__ is None
+    assert "invented-private-marker" not in str(error.value)
+
+
+@pytest.mark.parametrize("stage", ["count", "version"])
+def test_inner_response_code_cannot_mislabel_pre_dispatch_failure(monkeypatch, stage):
+    runtime, request, calls = setup(monkeypatch)
+    def fail(*args):
+        raise local.LocalContextualRuntimeError("invented", code=local.F.OUTPUT_LIMIT)
+    method = "count_prompt_tokens" if stage == "count" else "verify_runtime"
+    monkeypatch.setattr(runtime._token_counter, method, fail)
+    with pytest.raises(local.LocalContextualRuntimeError) as error:
+        runtime.preflight(request)
+    assert error.value.code == (local.F.TOKEN_COUNT if stage == "count" else local.F.RUNTIME_VERSION)
+    assert not any(c[1] == "/api/chat" for c in calls)
