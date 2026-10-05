@@ -11,7 +11,9 @@ This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position — reconciled 2026-10-05
 
-Current completed engineering checkpoint: D034AM. The bounded research intake
+Current completed engineering checkpoint: D034AN. One real contextual draft has
+now passed host validation, canonical capture and verified encrypted recovery;
+Zac's assessment of actual usefulness is pending. The bounded research intake
 and its original encrypted remote checkpoint are now fully verified.
 D031B verified real BRAINSTORM encrypted off-device artifact recovery. D032
 intelligence contracts are implemented. D033C verified one explicitly approved
@@ -51,10 +53,14 @@ output option, retaining the 1,600 default and the existing latency/window/model
 The new 3,200-token same-evidence trial was approved and ran once. Generation
 completed, but DRAFT_VALIDATION rejected the result. Encrypted failed-attempt
 recovery passed; no draft was released. D034AM aligns the draft schema/instructions and adds closed validation reasons.
-An invented mixed-context local rehearsal now passes structural checks and an
-independent Opus usefulness assessment for that case. A new same-source proposal
-and read-only recovery proof are prepared; fresh private-trial approval is pending. No recurring ingestion or broad
-production routing is enabled. The app remains health-only.
+The approved D034AM trial failed closed on CONTINUITY_RELATED, with verified
+failure recovery. D034AN requires both host citation roles and every draft section,
+aligns the dispatched schema and offline counter, and passes independent Opus
+code/PUBLIC quality review. Zac then approved the sealed corrected same-source
+one-shot. It succeeded: canonical packet captured, encrypted recovery verified,
+private display saved and exact ACL-checked reload verified. The private result
+has not been declared useful, complete or accepted by Zac. No recurring ingestion
+or broad production routing is enabled. The app remains health-only.
 
 Zac confirmed the first usable version's delivery target in chat on 2026-10-04:
 source-backed contextual meeting reviews and a concise daily briefing covering
@@ -1320,3 +1326,32 @@ attempt was consumed and the provider contract/instructions changed.
 
 Final selected encrypted evidence/full original-checkpoint restore verified and
 cleaned after test completion. Canonical state remains unchanged at 68 Sources.
+
+
+### D034AN — approved real trial succeeded; usefulness review pending
+
+Zac directly approved the exact sealed same-source one-shot on 2026-10-05.
+Manifest SHA-256 6e6705a338fa265e0ee5101dce2879dc38740f8b085bd65119d27b1b6f9bfa98;
+engineering code commit 06ee6e0d6bdc43ccc1298558bf0feeb5901c5657.
+The consumed attempt began at 2026-10-05T12:19:25.029816Z. It completed with
+PROTECTED_PRIVATE_DRAFT_NEEDS_HUMAN_REVIEW, verified encrypted recovery and
+unchanged business state. Exact packet reloaded through canonical source ACLs;
+re-rendered private display matches saved bytes. Structure: 4 overview, 2 background,
+2 continuity and 12 items, no conflicts/clarifications. Counts are not recall,
+entailment or usefulness proof. Canonical Source inventory is 75; no disposable
+restore target remains. No automatic retry, source-system write, fact promotion,
+external AI processing or wider intake. The previous failed attempts remain retained.
+
+Packet SHA-256 2dab88966c0dfb44279237bebe7bd6dc60825cc0b0af621f8abed7b28e1e87cd.
+Result sidecar SHA-256 87050568330b31c07fdc9c1504a880125438c29d6f4e12e7210054bf024aaf7a.
+Private display SHA-256 0c603af0feb55bae257328ee0299b6ac1e5f3d3cd5ca9ce5ebe4bff93403eba8.
+The private file is private-data/candidate-contextual-trial-draft-role-complete-2026-10-05.md,
+excluded from Git. Opening in Codex was queued for this chat's Mac panel; this
+is not proof of delivery/read/acceptance. Saved result retains delivery_recorded=false
+and semantic_usefulness_verified=false. No private prose was sent to Opus/cloud.
+
+Next input: Zac reviews actual project context, useful detail and voice. Do not
+mark useful-v1 gate complete without that feedback. If changes are needed, use
+targeted clarification and existing evidence; do not invent project/SOW standards.
+After useful-review confirmation, proceed to bounded source-backed briefing/open
+loops and then private text/mobile access in the established release order.

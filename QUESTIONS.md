@@ -628,3 +628,16 @@ recovery-verified with the final provider contract: local pinned model, 3,200 ou
 16,384 context, 120-second generation budget, no external models/actions.
 Recommend one exact sealed trial, never automatic replay. Zac's new approval
 is the only remaining input; actual useful delivery still needs his assessment.
+
+
+### D034AN one-shot approval resolved; actual usefulness question
+
+The sealed trial was approved and succeeded with protected canonical capture,
+verified recovery and exact display reload. No further execution approval or
+credential/manual push step is needed for this completed attempt. The private
+draft is saved; panel opening is queued, not confirmed as read or accepted.
+
+Ask Zac: does the actual draft get the project context right and provide useful
+detail in his wording? If not, what is the biggest adjustment? No transcript text
+is requested. Human usefulness remains pending; candidate facts remain provisional.
+His confirmation is the next workflow gate before briefing/open-loop expansion.
