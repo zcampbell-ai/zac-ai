@@ -30,6 +30,11 @@ from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 
 
+def complete_draft(**changes):
+    sections = {name: () for name in ("overview", "background", "continuity", "items", "conflicts", "clarifications")}
+    return ContextualDraft(**(sections | changes))
+
+
 def request(context=None):
     if context is None:
         context, _, _, _ = fixture()
@@ -43,8 +48,8 @@ def request(context=None):
 def draft(req):
     current = next(eid for eid, q in req.quotes if q.source_id == req.context.meeting_source_id)
     prior = next(eid for eid, q in req.quotes if q.source_id in req.context.related_source_ids)
-    return ContextualDraft(
-        format="zac-contextual-draft-v1",
+    return complete_draft(
+        format="zac-contextual-draft-v2",
         overview=(DraftClaim(text="The reporting fix is being tested.", evidence_ids=(current,)),),
         background=(
             DraftClaim(text="Prior records describe the reporting failure.", evidence_ids=(prior,)),
@@ -52,7 +57,8 @@ def draft(req):
         continuity=(
             DraftConnection(
                 text="This may continue the reporting investigation.",
-                evidence_ids=(current, prior),
+                meeting_evidence_ids=(current,),
+                related_evidence_ids=(prior,),
                 inferred=True,
             ),
         ),
@@ -121,8 +127,8 @@ def test_compact_capability_is_not_reused_for_contextual_workflow():
 def test_material_gap_returns_question_without_invented_overview():
     req = request()
     current = draft(req).overview[0].evidence_ids
-    output = ContextualDraft(
-        format="zac-contextual-draft-v1",
+    output = complete_draft(
+        format="zac-contextual-draft-v2",
         clarifications=(
             DraftQuestion(
                 text="Project attribution is uncertain.",
@@ -217,7 +223,7 @@ def test_valid_raw_provider_json_resolves_with_bound_schema():
     req = request()
     output = parse_contextual_draft(draft(req).model_dump_json().encode())
     assert output == draft(req)
-    assert "zac-contextual-draft-v1" in req.schema_json
+    assert "zac-contextual-draft-v2" in req.schema_json
     assert resolve_contextual_draft(output, req).task_id == req.context.task.task_id
 
 
@@ -232,13 +238,13 @@ def test_conflict_requires_meeting_and_distinct_support():
         reason="This changes the next action.",
     )
     result = resolve_contextual_draft(
-        ContextualDraft(format="zac-contextual-draft-v1", conflicts=(gap,)), req
+        complete_draft(format="zac-contextual-draft-v2", conflicts=(gap,)), req
     )
     assert "Conflicting accounts" in render_contextual_preview(result, req.context)
     for bad_ids in (ids[1:], ids[:1]):
         with pytest.raises(ContextualGenerationError):
             resolve_contextual_draft(
-                ContextualDraft(format="zac-contextual-draft-v1", conflicts=(gap,)).model_copy(
+                complete_draft(format="zac-contextual-draft-v2", conflicts=(gap,)).model_copy(
                     update={"conflicts": (gap.model_copy(update={"evidence_ids": bad_ids}),)}
                 ),
                 req,
@@ -321,9 +327,7 @@ def test_invalid_raw_structures_reject_before_resolution(change):
     import json
     req = request()
     data = draft(req).model_dump(mode="json")
-    if change == "empty":
-        data = {"format": "zac-contextual-draft-v1"}
-    elif change == "conflict_single":
+    if change == "conflict_single":
         data["conflicts"] = [{"text": "The accounts differ.", "evidence_ids": data["overview"][0]["evidence_ids"],
                               "question": "Did the plan change?", "reason": "This determines the action."}]
     else:
@@ -374,7 +378,7 @@ def test_short_passages_remain_visible_but_are_not_offered_as_citations():
     short = next(p for p in passages if p["text"] == "Agreed.")
     assert short["citable"] is False and short["id"] not in dict(req.quotes)
     assert any(p["citable"] is True for p in passages)
-    output = ContextualDraft(format="zac-contextual-draft-v1", overview=(DraftClaim(text="A test is planned.", evidence_ids=(short["id"],)),))
+    output = complete_draft(format="zac-contextual-draft-v2", overview=(DraftClaim(text="A test is planned.", evidence_ids=(short["id"],)),))
     with pytest.raises(ContextualGenerationError) as error:
         resolve_contextual_draft(output, req)
     assert error.value.code == GenerationFailure.CITATION
@@ -412,12 +416,132 @@ def test_raw_item_kind_and_flag_cannot_disagree_or_coerce(kind, flag):
 
 
 
-def test_items_only_draft_reaches_precise_missing_overview_rejection():
+def test_all_empty_draft_reaches_precise_missing_overview_rejection():
     from zacai.intelligence.contextual_diagnostics import ReviewRejection
     req = request()
-    output = parse_contextual_draft(b'{"format":"zac-contextual-draft-v1"}')
+    output = parse_contextual_draft(complete_draft(format="zac-contextual-draft-v2").model_dump_json().encode())
     with pytest.raises(ContextualGenerationError) as error:
         resolve_contextual_draft(output, req)
     assert error.value.code == GenerationFailure.VALIDATION
     assert error.value.rejection == ReviewRejection.OVERVIEW_MISSING
+    assert error.value.__context__ is None
+
+
+@pytest.mark.parametrize("change", ["missing_meeting", "missing_related", "empty_related", "wrong_role", "old_list", "over_limit", "old_format"])
+def test_continuity_requires_both_host_evidence_roles_before_resolution(change):
+    import json
+    req = request()
+    data = draft(req).model_dump(mode="json")
+    connection = data["continuity"][0]
+    if change == "missing_meeting":
+        del connection["meeting_evidence_ids"]
+    elif change == "missing_related":
+        del connection["related_evidence_ids"]
+    elif change == "empty_related":
+        connection["related_evidence_ids"] = []
+    elif change == "wrong_role":
+        connection["related_evidence_ids"] = connection["meeting_evidence_ids"]
+    elif change == "old_list":
+        connection["evidence_ids"] = connection.pop("meeting_evidence_ids") + connection.pop("related_evidence_ids")
+    elif change == "over_limit":
+        stem = connection["meeting_evidence_ids"][0].rsplit(":", 1)[0]
+        connection["meeting_evidence_ids"] = [stem + f":e{i}" for i in range(3)]
+    else:
+        data["format"] = "zac-contextual-draft-v1"
+    with pytest.raises(ContextualGenerationError) as error:
+        parse_contextual_draft(json.dumps(data).encode())
+    assert error.value.code == GenerationFailure.DRAFT_SCHEMA
+    assert error.value.__context__ is None
+
+
+def test_role_qualified_schema_does_not_grant_citation_authority():
+    import json
+    req = request()
+    data = draft(req).model_dump(mode="json")
+    # A syntactically correct role and namespace cannot mint a passage.
+    known = data["continuity"][0]["related_evidence_ids"][0]
+    data["continuity"][0]["related_evidence_ids"] = [known.rsplit(":", 1)[0] + ":e99999"]
+    parsed = parse_contextual_draft(json.dumps(data).encode())
+    with pytest.raises(ContextualGenerationError) as error:
+        resolve_contextual_draft(parsed, req)
+    assert error.value.code == GenerationFailure.CITATION
+    assert error.value.__context__ is None
+
+
+def test_role_qualified_catalog_and_schema_are_host_owned():
+    import json
+    req = request()
+    connection = json.loads(req.schema_json)["$defs"]["DraftConnection"]
+    for field, role in (("meeting_evidence_ids", "meeting"), ("related_evidence_ids", "related")):
+        assert field in connection["required"]
+        prop = connection["properties"][field]
+        assert prop["minItems"] == 1 and prop["maxItems"] == 2
+        assert f":{role}:" in prop["items"]["pattern"]
+    assert "evidence_ids" not in connection["properties"]
+    assert connection["additionalProperties"] is False
+    for eid, quote in req.quotes:
+        role = "meeting" if quote.source_id == req.context.meeting_source_id else "related"
+        assert f":{role}:" in eid
+    for passage in json.loads(req.evidence_json):
+        assert (":meeting:" in passage["id"]) == (passage["role"] == "meeting")
+
+
+def test_connections_can_be_omitted_without_inventing_related_support():
+    req = request()
+    output = draft(req).model_copy(update={"continuity": ()})
+    review = resolve_contextual_draft(output, req)
+    assert review.continuity == () and review.overview
+
+
+@pytest.mark.parametrize("short_related", [False, True])
+def test_no_citable_related_evidence_disables_background_and_continuity_in_schema(short_related):
+    import json
+
+    from tests.test_review_generation import synthetic_context
+    context = synthetic_context(related=short_related)
+    if short_related:
+        updated = tuple(item.model_copy(update={"untrusted_text": "OK."}) if item.reference.source_id in context.related_source_ids else item for item in context.task.context)
+        context = replace(context, task=context.task.model_copy(update={"context": updated}))
+    req = request(context)
+    schema = json.loads(req.schema_json)
+    assert schema["properties"]["background"]["maxItems"] == 0
+    assert schema["properties"]["continuity"]["maxItems"] == 0
+    assert set(schema["required"]) == {"format", "overview", "background", "continuity", "items", "conflicts", "clarifications"}
+    assert "Return background=[] and continuity=[]" in req.instruction
+
+
+@pytest.mark.parametrize("section", ["overview", "background", "continuity", "items", "conflicts", "clarifications"])
+def test_provider_cannot_silently_omit_a_review_section(section):
+    import json
+    req = request()
+    schema = json.loads(req.schema_json)
+    assert section in schema["required"]
+    data = draft(req).model_dump(mode="json")
+    del data[section]
+    with pytest.raises(ContextualGenerationError) as error:
+        parse_contextual_draft(json.dumps(data).encode())
+    assert error.value.code == GenerationFailure.DRAFT_SCHEMA
+
+
+@pytest.mark.parametrize("section", ["background", "continuity"])
+def test_empty_history_still_fails_closed_if_runtime_ignores_schema(section):
+    import json
+
+    from tests.test_review_generation import synthetic_context
+    from zacai.intelligence.contextual_diagnostics import ReviewRejection
+    req = request(synthetic_context(related=False))
+    eid = next(e for e, _ in req.quotes)
+    data = complete_draft(format="zac-contextual-draft-v2", overview=(DraftClaim(text="The fix is being tested.", evidence_ids=(eid,)),)).model_dump(mode="json")
+    if section == "background":
+        data[section] = [{"text": "Earlier work established the issue.", "evidence_ids": [eid], "inferred": False}]
+    else:
+        data[section] = [{"text": "This may continue earlier work.", "meeting_evidence_ids": [eid], "related_evidence_ids": [eid.split(":")[0] + ":related:e9999"], "inferred": True}]
+    output = parse_contextual_draft(json.dumps(data).encode())
+    with pytest.raises(ContextualGenerationError) as error:
+        resolve_contextual_draft(output, req)
+    if section == "background":
+        assert error.value.code == GenerationFailure.VALIDATION
+        assert error.value.rejection == ReviewRejection.ROLE_BACKGROUND
+    else:
+        assert error.value.code == GenerationFailure.CITATION
     assert error.value.__context__ is None

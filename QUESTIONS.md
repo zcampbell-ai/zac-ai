@@ -609,3 +609,22 @@ then extend the existing release path to briefing/open loops and private access.
 PUBLIC quality passes and test counts are evidence, not a declaration of usable v1.
 Nonblocking labeling/concision feedback remains alongside the source-backed draft
 for human assessment; no universal project/SOW rule is requested.
+
+
+## D034AN — prior decision resolved; next private decision not yet executed
+
+The D034AM approval was consumed. The draft was withheld for missing related-context
+support in a continuity claim, and failure recovery passed. No credential setup,
+manual push or business-context decision is needed to fix this known structure.
+Require both citation roles in the schema, validate with invented PUBLIC evidence
+and independent Opus review, then prepare/recover/seal the same private selection.
+A new exact private trial requires a new human decision. After protected delivery,
+ask Zac to assess actual context, voice, useful detail and missing material facts.
+
+
+Final D034AN engineering/Opus review and representative PUBLIC checks pass.
+The same meeting, reviewed brief and four candidate Sources are prepared and
+recovery-verified with the final provider contract: local pinned model, 3,200 output,
+16,384 context, 120-second generation budget, no external models/actions.
+Recommend one exact sealed trial, never automatic replay. Zac's new approval
+is the only remaining input; actual useful delivery still needs his assessment.

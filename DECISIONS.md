@@ -5955,3 +5955,64 @@ Briefing/private-interface requirements are prepared in the existing roadmap:
 verified packet/state inputs with visible coverage and provisional open loops,
 then authenticated private views/approval flows on the Mac host. No new competing
 plan, source integration, remote deployment or persistent-agent control plane.
+
+
+## D034AN — role requirements belong in the provider draft contract
+
+D034AM's one approved attempt failed closed on CONTINUITY_RELATED after dispatch,
+with verified failure recovery and no released draft. It revealed that instructing
+the model to cite both roles was insufficient: the generic evidence array allowed
+meeting-only continuity. Do not weaken the validator or append citations after
+model output. The consumed approval cannot be replayed.
+
+Use provider draft format zac-contextual-draft-v2. Host-qualified evidence IDs
+include meeting or related role; continuity requires meeting_evidence_ids and
+related_evidence_ids, each nonempty and at most two, at most four combined. Static role patterns
+expose this distinction to providers without embedding volatile request IDs into
+the schema. Host-owned catalog lookup and final role checks remain authoritative;
+a matching pattern is not provenance, permission, entailment or usefulness proof.
+Schema/roles remain bound by prepared consent across fresh task identities.
+
+The v2 format is ephemeral proposed model output only. Canonical Review/Packet/
+Zac Event contracts remain v1; saved prior packet bytes retain their existing
+reader and digest behavior. Old provider draft shape rejects explicitly. No silent
+migration, automatic repair, universal project mapping or expanded permissions.
+
+
+D034AN validation and delivery evidence: every provider review section is required
+explicitly, with empty arrays where justified. This prevents silent structural
+omission; it does not prove factual completeness. A revised PUBLIC output passed
+structure but omitted every material item, and Opus graded NEEDS_REVISION. That
+failed rehearsal remains recorded. The required-section correction then returned
+all five material items (hold, two promises, risk, unowned suggestion), both exact
+owners/dates, dated background and source-supported continuity. Independent Opus
+quality review: PASS, with minor repetition/date-anchor refinements retained for
+human evaluation. No private prose was submitted to Opus.
+
+Opus code review identified and resolved mismatched citation bounds, absent-history
+schema/payload divergence and typed schema equality. Each continuity role has
+1–2 IDs; no citable prior context constrains background/continuity to zero entries.
+The runtime dispatches the exact consent-bound schema. Offline counting permits
+only those two fixed shapes, rejecting bool/int substitutions and arbitrary schema
+changes. A PUBLIC no-related rehearsal also preserves every material item while
+returning background/continuity empty. Measured input matches reported input in
+both PUBLIC cases: mixed 3,573 / output 1,216 / about 32 seconds; no-related 3,356 /
+output 944 / about 27 seconds. These are bounded observed conformance, not proof
+of impossible runtime violations or general usefulness. Host validation remains
+mandatory even when grammar is ignored; forged IDs and wrong roles still reject.
+
+Full suite: 1,595 passed. Final typed-gate refinements: 199 focused tests passed;
+Ruff and strict mypy (63 source files) pass. Canonical packet golden bytes remain
+unchanged. An earlier full run had one failure from simultaneous disposable-restore
+checks; the isolated case and serial full rerun passed. Keep recovery verification
+and restore-dependent test suites serial. No rule was weakened to pass a test.
+
+Final read-only same-source preparation: 10,235 input + 3,200 reserved output =
+13,435 <= 16,384; 43,349 bytes <= 64,000. Same six Source hashes, pinned local model,
+120-second generation budget and BRAINSTORM/CONFIDENTIAL boundary; no private
+model call, source-system read/write, consent, upload or fact promotion in preparation.
+A fresh sealed one-shot decision remains required because the prior approved
+attempt was consumed and the provider contract/instructions changed.
+
+Final selected encrypted evidence/full original-checkpoint restore verified and
+cleaned after test completion. Canonical state remains unchanged at 68 Sources.

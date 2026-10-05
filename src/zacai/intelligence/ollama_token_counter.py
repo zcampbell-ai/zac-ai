@@ -9,13 +9,14 @@ other models, versions, tools, images, conversations or thinking modes.
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from importlib import import_module
 from pathlib import Path
 from typing import Any
 
 from zacai.intelligence import local_review_runtime as local
-from zacai.intelligence.contextual_generation import ContextualDraft
+from zacai.intelligence.contextual_generation import contextual_draft_schema
 from zacai.intelligence.review_generation import ReviewDraft
 
 _MODEL = "qwen3.8:27b-mlx"
@@ -44,7 +45,8 @@ def render_contextual_prompt(serialized_body: bytes) -> str:
     """Explicit contextual schema; compact counting does not accept it."""
     return _render_prompt(
         serialized_body,
-        ContextualDraft.model_json_schema(),
+        contextual_draft_schema(),
+        alternate_schemas=(contextual_draft_schema(related_citable=False),),
         context_tokens=frozenset({8192, 16384}),
     )
 
@@ -54,6 +56,7 @@ def _render_prompt(
     schema: dict[str, Any],
     *,
     context_tokens: frozenset[int] = frozenset({8192}),
+    alternate_schemas: tuple[dict[str, Any], ...] = (),
 ) -> str:
     """Only the exact two-turn no-thinking review payload is supported."""
     try:
@@ -77,7 +80,11 @@ def _render_prompt(
             or any(body[k] is not False for k in ("stream", "think", "truncate", "shift"))
             or type(body["keep_alive"]) is not int
             or body["keep_alive"] != 0
-            or body["format"] != schema
+            or not any(
+                json.dumps(body["format"], sort_keys=True, separators=(",", ":"))
+                == json.dumps(option, sort_keys=True, separators=(",", ":"))
+                for option in (schema, *alternate_schemas)
+            )
         ):
             raise ValueError("unsupported payload")
         options = body["options"]

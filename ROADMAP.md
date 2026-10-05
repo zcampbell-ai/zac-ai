@@ -1258,3 +1258,65 @@ network deployment. First render existing protected packets and material questio
 provider credentials remain outside agents and the UI. Current app is health-only;
 these requirements are prepared, not enabled features. They follow useful bounded
 private review and remain within the established v1 release gates.
+
+
+## D034AN — require both evidence roles for continuity
+
+The approved D034AM one-shot ran against ce82aa6. Dispatch completed, but the
+host withheld the draft with DRAFT_VALIDATION / VALIDATION / CONTINUITY_RELATED:
+a continuity claim lacked earlier-context evidence. No draft or packet was
+released; encrypted failure recovery passed. Canonical Source count is 68 and
+the disposable restore target was cleaned. Approval is consumed, no retry.
+Failure sidecar SHA-256 a5af0194128971a93142d11c11f0b7d9e26b33c5c85d9886cbbbfac1182db0a2.
+This is the first actual coded rejection; retain D034AM-compatible audit readers.
+
+Provider-only contextual draft v2 now requires separate nonempty meeting and
+related evidence arrays for continuity, with host-qualified role IDs. The parser
+rejects omitted, swapped or old-shape citation fields; exact catalog resolution
+still rejects forged IDs. Final role/quote/authority checks remain. Unsupported
+connections may be omitted; citations are never repaired or invented. The original
+canonical Review/Packet/Event contracts and golden packet bytes remain unchanged.
+Existing v1 provider output is explicitly rejected, not migrated or replayed.
+
+Next gate remains an actual useful protected meeting review judged by Zac, then
+briefing/open loops and private text/mobile access in the existing release order.
+No new project/SOW rule, bulk source intake, fact promotion or external AI egress.
+
+
+D034AN validation and delivery evidence: every provider review section is required
+explicitly, with empty arrays where justified. This prevents silent structural
+omission; it does not prove factual completeness. A revised PUBLIC output passed
+structure but omitted every material item, and Opus graded NEEDS_REVISION. That
+failed rehearsal remains recorded. The required-section correction then returned
+all five material items (hold, two promises, risk, unowned suggestion), both exact
+owners/dates, dated background and source-supported continuity. Independent Opus
+quality review: PASS, with minor repetition/date-anchor refinements retained for
+human evaluation. No private prose was submitted to Opus.
+
+Opus code review identified and resolved mismatched citation bounds, absent-history
+schema/payload divergence and typed schema equality. Each continuity role has
+1–2 IDs; no citable prior context constrains background/continuity to zero entries.
+The runtime dispatches the exact consent-bound schema. Offline counting permits
+only those two fixed shapes, rejecting bool/int substitutions and arbitrary schema
+changes. A PUBLIC no-related rehearsal also preserves every material item while
+returning background/continuity empty. Measured input matches reported input in
+both PUBLIC cases: mixed 3,573 / output 1,216 / about 32 seconds; no-related 3,356 /
+output 944 / about 27 seconds. These are bounded observed conformance, not proof
+of impossible runtime violations or general usefulness. Host validation remains
+mandatory even when grammar is ignored; forged IDs and wrong roles still reject.
+
+Full suite: 1,595 passed. Final typed-gate refinements: 199 focused tests passed;
+Ruff and strict mypy (63 source files) pass. Canonical packet golden bytes remain
+unchanged. An earlier full run had one failure from simultaneous disposable-restore
+checks; the isolated case and serial full rerun passed. Keep recovery verification
+and restore-dependent test suites serial. No rule was weakened to pass a test.
+
+Final read-only same-source preparation: 10,235 input + 3,200 reserved output =
+13,435 <= 16,384; 43,349 bytes <= 64,000. Same six Source hashes, pinned local model,
+120-second generation budget and BRAINSTORM/CONFIDENTIAL boundary; no private
+model call, source-system read/write, consent, upload or fact promotion in preparation.
+A fresh sealed one-shot decision remains required because the prior approved
+attempt was consumed and the provider contract/instructions changed.
+
+Final selected encrypted evidence/full original-checkpoint restore verified and
+cleaned after test completion. Canonical state remains unchanged at 68 Sources.

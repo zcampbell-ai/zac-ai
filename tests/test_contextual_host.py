@@ -9,6 +9,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
+from tests.test_contextual_generation import complete_draft
 from tests.test_review_host import (
     BOUNDARIES,
     NOW,
@@ -17,7 +18,7 @@ from tests.test_review_host import (
 )
 from zacai.ingestion.artifact_store import content_hash_of
 from zacai.intelligence import contextual_host as host
-from zacai.intelligence.contextual_generation import ContextualDraft, DraftQuestion
+from zacai.intelligence.contextual_generation import DraftQuestion
 from zacai.intelligence.contextual_host import (
     ContextualHostError,
     contextual_request_digest,
@@ -92,8 +93,8 @@ class Runtime:
         if self.invalid:
             eid = "unknown"
         if self.question:
-            return ContextualDraft(
-                format="zac-contextual-draft-v1",
+            return complete_draft(
+                format="zac-contextual-draft-v2",
                 clarifications=(
                     DraftQuestion(
                         text="The project connection is uncertain.",
@@ -103,8 +104,8 @@ class Runtime:
                     ),
                 ),
             )
-        return ContextualDraft(
-            format="zac-contextual-draft-v1",
+        return complete_draft(
+            format="zac-contextual-draft-v2",
             overview=(DraftClaim(text="The reporting fix is being tested.", evidence_ids=(eid,)),),
         )
 
@@ -843,14 +844,13 @@ def test_route_ceiling_does_not_silently_expand_default_output(host_setup, ceili
 
 @pytest.mark.parametrize("reason", ["citation", "display"])
 def test_draft_failure_audit_retains_only_closed_rule_metadata(host_setup, reason):  # noqa: F811
-    from zacai.intelligence.contextual_generation import ContextualDraft
     from zacai.intelligence.review_generation import DraftClaim
     runtime = Runtime(host_setup)
     original = runtime.generate
     def wrong(request):
         original(request)
         eid = "unknown" if reason == "citation" else next(e for e, q in request.quotes if q.source_id == request.context.meeting_source_id)
-        return ContextualDraft(format="zac-contextual-draft-v1", overview=(DraftClaim(text="PRIVATE invented\u200b marker" if reason == "display" else "PRIVATE invented marker", evidence_ids=(eid,)),))
+        return complete_draft(format="zac-contextual-draft-v2", overview=(DraftClaim(text="PRIVATE invented\u200b marker" if reason == "display" else "PRIVATE invented marker", evidence_ids=(eid,)),))
     runtime.generate = wrong
     with pytest.raises(ContextualHostError):
         run(host_setup, runtime=runtime)

@@ -239,3 +239,37 @@ def test_registered_control_token_rejected_in_message_content(installed):
     with pytest.raises(LocalTokenCounterError) as failure:
         auth.count_prompt_tokens(json.dumps(data).encode())
     assert failure.value.__context__ is None
+
+
+@pytest.mark.parametrize("related", [False, True])
+def test_contextual_counter_accepts_only_two_fixed_schema_variants(installed, related):
+    from tests.test_contextual_generation import request
+    from zacai.intelligence.local_contextual_runtime import prepare_payload
+    from zacai.intelligence.ollama_token_counter import OllamaQwenContextualTokenCounter
+
+    r = route().model_copy(update={"identity": route().identity.model_copy(update={"model_id": "qwen3.8:27b-mlx"}), "capabilities": frozenset({"contextual_meeting_review"})})
+    body = prepare_payload(request(synthetic_context(related=related)), r, installed[2])
+    contextual = OllamaQwenContextualTokenCounter(models_root=installed[0], model_digest=installed[2])
+    assert contextual.count_prompt_tokens(body) > 0
+    edited = json.loads(body)
+    edited["format"]["properties"]["continuity"]["maxItems"] = 1
+    with pytest.raises(LocalTokenCounterError) as error:
+        contextual.count_prompt_tokens(json.dumps(edited).encode())
+    assert error.value.__context__ is None
+
+
+@pytest.mark.parametrize("related", [False, True])
+def test_contextual_schema_cannot_coerce_boolean_or_integer_bounds(installed, related):
+    from tests.test_contextual_generation import request
+    from zacai.intelligence.local_contextual_runtime import prepare_payload
+    from zacai.intelligence.ollama_token_counter import OllamaQwenContextualTokenCounter
+
+    r = route().model_copy(update={"identity": route().identity.model_copy(update={"model_id": "qwen3.8:27b-mlx"}), "capabilities": frozenset({"contextual_meeting_review"})})
+    body = json.loads(prepare_payload(request(synthetic_context(related=related)), r, installed[2]))
+    if related:
+        body["format"]["$defs"]["DraftConnection"]["properties"]["inferred"]["const"] = 1
+    else:
+        body["format"]["properties"]["continuity"]["maxItems"] = False
+    contextual = OllamaQwenContextualTokenCounter(models_root=installed[0], model_digest=installed[2])
+    with pytest.raises(LocalTokenCounterError):
+        contextual.count_prompt_tokens(json.dumps(body).encode())

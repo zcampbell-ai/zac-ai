@@ -76,7 +76,7 @@ def prepare_payload(request: ContextualRequest, route: ModelRoute, digest: str) 
         or request.context.task.max_output_tokens > route.max_output_tokens
     ):
         raise LocalContextualRuntimeError("invalid local route or pin")
-    schema = ContextualDraft.model_json_schema()
+    schema = json.loads(request.schema_json)
     body = json.dumps(
         {
             "model": name,
@@ -87,7 +87,7 @@ def prepare_payload(request: ContextualRequest, route: ModelRoute, digest: str) 
             "keep_alive": 0,
             "format": schema,
             "messages": [
-                {"role": "system", "content": request.instruction + json.dumps(schema)},
+                {"role": "system", "content": request.instruction + "\nOutput JSON schema: " + request.schema_json},
                 {"role": "user", "content": request.evidence_json.replace("<", "\\u003c")},
             ],
             "options": {

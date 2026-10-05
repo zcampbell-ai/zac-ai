@@ -123,7 +123,8 @@ def complete(recovered_state, tmp_path, monkeypatch):
         evidence = json.loads(json.loads(body)["messages"][1]["content"])
         content = json.dumps(
             {
-                "format": "zac-contextual-draft-v1",
+                "format": "zac-contextual-draft-v2",
+                        "background": [], "continuity": [], "items": [], "conflicts": [], "clarifications": [],
                 "overview": [
                     {
                         "text": "The reporting fix is still being tested.",

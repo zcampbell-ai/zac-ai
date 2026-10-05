@@ -41,7 +41,8 @@ def install_fake_http(monkeypatch, **changes):
                 "role": "assistant",
                 "content": json.dumps(
                     {
-                        "format": "zac-contextual-draft-v1",
+                        "format": "zac-contextual-draft-v2",
+                        "background": [], "continuity": [], "items": [], "conflicts": [], "clarifications": [],
                         "overview": [
                             {
                                 "text": "The reporting fix is being tested.",
@@ -297,10 +298,10 @@ def test_tokenizer_runtime_incompatibility_blocks_release(monkeypatch, phase):
 @pytest.mark.parametrize(
     "content",
     [
-        '{"format":"zac-contextual-draft-v1","format":"zac-contextual-draft-v1"}',
-        '{"format":"zac-contextual-draft-v1","approved":true}',
+        '{"format":"zac-contextual-draft-v2","format":"zac-contextual-draft-v2"}',
+        '{"format":"zac-contextual-draft-v2","approved":true}',
         "x" * 64001,
-        '{"format":"zac-contextual-draft-v1","overview":NaN}',
+        '{"format":"zac-contextual-draft-v2","overview":NaN}',
     ],
 )
 def test_raw_contextual_schema_and_bounds(monkeypatch, content):
@@ -494,7 +495,7 @@ def test_profile_observed_combined_usage_overflow_rejected(monkeypatch):
             "model": runtime.route.identity.model_id,
             "done": True,
             "done_reason": "stop",
-            "message": {"role": "assistant", "content": '{"format":"zac-contextual-draft-v1"}'},
+            "message": {"role": "assistant", "content": '{"format":"zac-contextual-draft-v2"}'},
             "prompt_eval_count": 14785,
             "eval_count": 1600,
         }
@@ -558,3 +559,14 @@ def test_inner_response_code_cannot_mislabel_pre_dispatch_failure(monkeypatch, s
         runtime.preflight(request)
     assert error.value.code == (local.F.TOKEN_COUNT if stage == "count" else local.F.RUNTIME_VERSION)
     assert not any(c[1] == "/api/chat" for c in calls)
+
+
+@pytest.mark.parametrize("related", [False, True])
+def test_payload_uses_the_exact_consent_bound_request_schema(related):
+    request = prepare_contextual_request(synthetic_context(related=related))
+    body = json.loads(local.prepare_payload(request, route(), "a" * 64))
+    assert body["format"] == json.loads(request.schema_json)
+    assert body["messages"][0]["content"] == request.instruction + "\nOutput JSON schema: " + request.schema_json
+    if not related:
+        assert body["format"]["properties"]["continuity"]["maxItems"] == 0
+        assert body["format"]["properties"]["background"]["maxItems"] == 0
