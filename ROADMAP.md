@@ -11,10 +11,12 @@ This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position — reconciled 2026-10-05
 
-Current completed engineering checkpoint: D034AO. Zac confirmed the protected
+Current completed engineering checkpoint: D034AP. Zac confirmed the protected
 real D034AN review is a useful starting point, requested readable formatting,
 and authorized continuing. The first offline selected-review briefing view is
-implemented; broader daily source coverage and private interface remain pending. The bounded research intake
+implemented and now includes an offline proposed-work view with exact plan-bound
+preferences and explicit completion checks; broader daily source coverage, verified
+work status, execution and private interface remain pending. The bounded research intake
 and its original encrypted remote checkpoint are now fully verified.
 D031B verified real BRAINSTORM encrypted off-device artifact recovery. D032
 intelligence contracts are implemented. D033C verified one explicitly approved
@@ -1411,3 +1413,33 @@ private text/mobile views and approval flows. Existing Fireflies transport remai
 selected-transcript-only; any listing/new capture capability must be concrete,
 reviewed and approved before live use. Broader history, personal boundaries and
 specialists remain staged. No automatic daily schedule is enabled.
+
+
+## D034AP — proposed work, choices and completion checks
+
+Zac refined the delivery target: take ownership by proposing how Zac AI will get
+work done, offer approve as proposed / approve with changes / review before it
+ships / handle it himself, and answer whether work got done. Both morning and
+evening should stay concise with distinct purposes. No automation is requested.
+
+The selected-review prototype now accepts offline work proposals bound to the
+exact packet/item and preferences bound to the entire plan. Outcome/first step
+lead; full approach, proposed methods/actions/destinations and completion checks
+are expandable. Show the first two selected items and an explicit expandable
+remainder in original review order, not a fabricated priority ranking. Preserve
+every item/plan/evidence. Material questions hold work; missing plans are clearly
+unprepared. Changes need a revised proposal/fresh preference, review-first leaves
+shipping unapproved, self-handling does not mean done. Completion is unverified
+until real outcome evidence exists. Existing owners remain unchanged.
+
+This is a Phase 4/5 offline view, not a Phase 6 execution permission or usable
+mobile endpoint. Next: durable open-loop tracking and verified completion/status,
+bounded current source coverage, authenticated private interface, then centrally
+authorized concrete actions. No source expansion, private generation, external
+delivery, autonomous dispatch or scheduling was performed. Canonical contracts
+and existing protected packet bytes remain unchanged; app remains health-only.
+
+Final D034AP validation: 1,630 tests pass, Ruff passes and strict mypy passes
+for 65 source files. Independent Opus blocker fixed and follow-up reports no
+remaining blockers. No actual private work plan or new source/model run was
+produced; this checkpoint is the offline proposed-work interface foundation.

@@ -6100,3 +6100,65 @@ private text/mobile views and approval flows. Existing Fireflies transport remai
 selected-transcript-only; any listing/new capture capability must be concrete,
 reviewed and approved before live use. Broader history, personal boundaries and
 specialists remain staged. No automatic daily schedule is enabled.
+
+
+## D034AP — ownership-oriented work briefing prototype
+
+Zac clarified that a briefing should propose how Zac AI will get work done, not
+just assign him a to-do list. Each proposal needs an outcome, concrete approach,
+proposed method/action/destination and completion check, with four choices:
+approve as proposed, approve with changes, review before shipping, or handle it
+himself. Morning and evening serve distinct purposes and should be concise;
+supporting detail stays expandable. This is a format/workflow requirement, not
+a new daily schedule or blanket execution/source permission.
+
+Add an offline work view to the existing selected-review renderer. WorkProposal
+links an actionable commitment/follow-up by index to the exact canonical packet
+digest; WorkPreference links to the entire exact proposal digest. They are
+ephemeral presentation inputs, not new canonical tasks, approvals or execution
+status rows. Changing outcome/steps/method/destination/check invalidates the old
+preference. Changes require a revised plan/fresh preference; review-first does
+not authorize shipping; self-handling does not prove completion. Missing plans
+are explicitly unprepared and get no approval choices. Material context gaps
+hold the work view and its prose. Quotes support the original item, not the
+proposed approach. Existing owners are not reassigned to Zac.
+
+Lead with outcome/first step and retain every step/method/destination/completion
+check underneath expandable detail. Original review/context/evidence stays
+available below; no business items are silently omitted. Completion is always
+unverified in this prototype: no execution, completion observations, receipts
+or durable lifecycle are synthesized. Fixed diagnostic text, HTML escaping and
+exact packet revalidation remain in place. No controls are connected to dispatch.
+
+The existing policy/gateway remain authoritative. Future execution must resolve
+actual identities/destinations/routes, verify current ACLs and recovery, bind a
+real authenticated approval to concrete actions, prevent replay/duplicates and
+retain verified outcomes before reporting done. This presentation work fits
+Phases 4/5 and previews the Phase 6 interface without enabling Phase 6 writes.
+Canonical Event/Review/Packet v1 and original stored bytes stay unchanged; app
+remains health-only. No source reads, private generation, credential access,
+external delivery, persistent agent infrastructure or recurring automation.
+
+Independent Opus bounded audit found a concrete blocker: planned inferred items
+showed their inference label only in collapsed original-item details. Headline
+now always retains the inference marker, with regression cases both with and
+without a plan. Existing owner-from-review/suggested-owner/unconfirmed wording
+is also visible on planned cards; self-handling never transfers ownership.
+Opus follow-up reports no remaining blockers. Its conditional checks are
+resolved: Contract is frozen and always revalidates, ContextualReview caps
+items at 16 (matching proposal indices 0–15), and the integrated material-question
+test holds the work cards. Whole-view rejection on stale preferences is intended,
+not an implicit carry-over or silent drop. Approve wording matches Zac's explicit
+requested choices, with preference-only/no-execution semantics for this prototype.
+
+Two broader Opus CLI requests were stopped after prolonged no-output runs; they
+are not counted as passed reviews. A minimal Opus availability check succeeded;
+the subsequent bounded code audit and fix review returned actual findings. Only
+code and invented fixtures were supplied, no confidential source/draft prose.
+Mobile/print visual verification remains pending; generated invented HTML is an
+offline prototype only, not proof of layout or authenticated delivery.
+
+Final D034AP validation: 1,630 tests pass, Ruff passes and strict mypy passes
+for 65 source files. Independent Opus blocker fixed and follow-up reports no
+remaining blockers. No actual private work plan or new source/model run was
+produced; this checkpoint is the offline proposed-work interface foundation.

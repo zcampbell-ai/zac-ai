@@ -650,8 +650,23 @@ with real feedback over time. Keep delivery clearly formatted and easy to scan.
 No all-criteria PASS, fact promotion, broad source processing, recurrent delivery
 or new permissions are inferred from that confirmation.
 
-Optional format preference asked in chat: morning look-ahead (recommended: recent
-decisions, commitments to check, risks/questions) or end-of-day recap? This is not
-a scheduling request or approval to create an automation. Broader source coverage
-and verified open-loop status remain the next real capabilities. Keep owner/date
-suggestions and source coverage visible; no artificial universal project rules.
+Resolved in chat: both morning and evening, concise enough for about a one-minute
+read. Morning: attention, priorities and decisions. Evening: changes, completion
+checks and remaining work. Supporting detail goes behind expandable references.
+This preference does not request a schedule or authorize an automation. Broader
+source coverage and verified open-loop status remain real pending capabilities.
+Keep owner/date suggestions and source coverage visible; no universal project rule.
+
+
+## D034AP — work ownership and concise briefing direction resolved
+
+Zac wants proposed outcomes/approaches and four choices, not a to-do list handed
+back to him. He also wants the evening briefing to answer whether work got done
+with verified evidence or a clear explanation of what remains. No new question
+is needed to build the offline view. Do not mistake chat/build approval or a
+presentation preference for authority to execute a client's external action.
+
+Next implementation work: durable open-loop tracking with reliable completion
+observations, then authenticated private text/mobile interaction and exact-action
+approval under the existing roadmap. Concrete source expansion/external action
+scopes still need separate review/authorization. No universal SOW rule is needed.

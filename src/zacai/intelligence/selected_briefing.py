@@ -14,6 +14,7 @@ from html import escape
 from zacai.intelligence.contextual_evaluation import ContextualPacket
 from zacai.intelligence.contextual_review import Clarification, EvidenceConflict
 from zacai.intelligence.meeting_review import Claim, ItemKind
+from zacai.intelligence.work_proposals import WorkPreference, WorkProposal, render_work_proposals
 
 _STYLE = """
 body{font:16px/1.55 system-ui,sans-serif;color:#1c2934;background:#f4f6f8;margin:0}
@@ -28,7 +29,14 @@ summary{cursor:pointer;font-weight:650}details{margin:18px 0}blockquote{margin:1
 """
 
 
-def render_selected_briefing(packet: ContextualPacket, *, as_of: datetime) -> str:
+def render_selected_briefing(
+    packet: ContextualPacket,
+    *,
+    as_of: datetime,
+    work_proposals: tuple[WorkProposal, ...] = (),
+    work_preferences: tuple[WorkPreference, ...] = (),
+    work_view: bool = False,
+) -> str:
     """Preserve every selected claim/item; material gaps hold the full briefing.
 
     Dates are reported from the reviewed proposal, never converted into overdue,
@@ -39,6 +47,11 @@ def render_selected_briefing(packet: ContextualPacket, *, as_of: datetime) -> st
         packet = ContextualPacket.model_validate(packet)
         if as_of.tzinfo is None or as_of.utcoffset() is None or as_of < packet.created_at:
             raise ValueError("invalid display time")
+        if type(work_view) is not bool or (not work_view and (work_proposals or work_preferences)):
+            raise ValueError("work inputs require work view")
+        work_html = (
+            render_work_proposals(packet, work_proposals, work_preferences) if work_view else ""
+        )
         review = packet.review
         references: dict[tuple[str, int, int, str], int] = {}
 
@@ -63,7 +76,7 @@ def render_selected_briefing(packet: ContextualPacket, *, as_of: datetime) -> st
             "<title>Zac AI — selected meeting briefing</title>",
             "<style>" + _STYLE + "</style></head><body><main>",
             '<p class="meta">Selected review • ' + review.data_classification.value + "</p>",
-            "<h1>Selected meeting briefing</h1>",
+            "<h1>Work briefing</h1>" if work_view else "<h1>Selected meeting briefing</h1>",
             '<p class="meta">Prepared '
             + packet.created_at.astimezone(UTC).isoformat(timespec="minutes")
             + " · Displayed "
@@ -95,6 +108,9 @@ def render_selected_briefing(packet: ContextualPacket, *, as_of: datetime) -> st
                     f'<p class="meta">{len(gaps) - 1} more question{"s" if len(gaps) > 2 else ""} retained.</p>'
                 )
         else:
+            if work_view:
+                lines.append(work_html)
+                lines.append("<details><summary>Selected review and context</summary>")
             lines.append("<h2>Context and changes</h2>")
             lines.extend("<p>" + claim_html(claim) + "</p>" for claim in review.overview)
             if review.background or review.continuity:
@@ -149,6 +165,8 @@ def render_selected_briefing(packet: ContextualPacket, *, as_of: datetime) -> st
                         lines.append('<span class="owner">' + " · ".join(details) + "</span>")
                     lines.append("</li>")
                 lines.append("</ul>")
+            if work_view:
+                lines.append("</details>")
         # Only quotes of visible claims are disclosed; held review text never leaks.
         if references:
             lines.append("<details><summary>Supporting evidence</summary><ol>")
