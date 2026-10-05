@@ -1192,3 +1192,10 @@ metadata, and the disposable restore database count is zero. Approval is consume
 no automatic retry. Next engineering work must make closed validation reasons
 observable and check schema/instruction/validator alignment with invented data
 before asking for another private trial. Keep evidence protection intact.
+
+
+Code-only Opus review identified continuity inferred-flag and conflict citation-
+count schema mismatches with existing validation. Align those schemas and the
+meeting-only overview/FOLLOW_UP instructions; add content-free validation reasons
+and invented mixed-role checks before another sealed private proposal. None is
+asserted as the exact cause of the consumed attempt. No new private run is ready.

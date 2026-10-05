@@ -5878,3 +5878,26 @@ Before proposing another private call, consult Opus on code-only delivery/valida
 alignment and add fixed diagnostic categories using invented data. Do not weaken
 roles/citations, repair unsupported claims or treat a PUBLIC pass as proof of
 private usefulness. No manual push or credential action is required from Zac.
+
+
+### Code-only Opus delivery review after the protected rejection
+
+Opus reviewed contextual_generation.py, contextual_review.py and the shared
+review_generation.py without tools/private evidence. It found independently
+verifiable schema/instruction mismatches: continuity accepts/defaults inferred
+false while ProvisionalConnection requires true; conflicts permit one citation
+while validation requires two distinct supporting passages; FOLLOW_UP instruction
+says proposed while validation requires every follow-up provisional; overview
+wording invites prior context while citations must remain meeting-only. These are
+code findings, not a diagnosis of the consumed private attempt. Other proposed
+quote-catalog/display-budget refinements require separate design/testing; do not
+apply every suggestion or weaken protections automatically.
+
+Next bounded engineering checkpoint: preserve closed, content-free resolution/
+validation reason codes in failed audits; align contextual draft schema and plain
+instructions to the existing continuity/conflict/inference/role rules; verify
+invented mixed-role fixtures and malformed-output denials. Consult Opus on changes.
+Only then measure/seal another exact private proposal. No automatic mutation of
+unsupported claims, partial JSON repair, retry, fact promotion or new source scope.
+The code-only review is retained in the existing local work directory; no private
+source or generated prose was supplied to Opus.
