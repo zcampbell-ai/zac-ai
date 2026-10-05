@@ -11,7 +11,8 @@ This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position — reconciled 2026-10-04
 
-Current completed engineering checkpoint: D034AG (building on D034AF / 6f30d0d).
+Current completed engineering checkpoint: D034AH / 35d191c. The bounded research
+intake is committed; its final remote checkpoint receipt remains unverified.
 D031B verified real BRAINSTORM encrypted off-device artifact recovery. D032
 intelligence contracts are implemented. D033C verified one explicitly approved
 Fireflies capture. D034O applied live schema 0005 with protected recovery, and
@@ -32,12 +33,15 @@ token counter, including the complete guarded chain with mocked provider output.
 D034AG wires the concrete one-shot operator, failed-attempt recovery, read-only
 proposal preparation and conservative crash reconciliation. A real read-only
 measurement/recovery check of the existing meeting/project scope found 6,890
-input + 1,600 reserved output tokens exceed the unchanged 8,192 limit. Three
-prior meeting research exhibits and eight ClickUp exhibits remain outside
-canonical context; their hash-bound scoped import/backup proposal needs a human
-source-scope decision. No trial approval or historical import is implied. These do not
-enable recurring ingestion, an improved
-live generation flow or broad production routing. The app remains health-only.
+input + 1,600 reserved output tokens exceed the unchanged 8,192 limit. D034AH then imported the explicitly approved three prior meeting and eight
+ClickUp research exhibits as candidate Sources plus approval/locator metadata.
+All thirteen new artifacts were independently recovered from actual encrypted B2;
+a diagnostic local full state/journal restore passes. Final remote checkpoint
+binding/receipt remains unverified: the current backup key has readFiles/writeFiles
+but lacks listFiles, and the required absence/list checks return HTTP 403. Zac
+approved the narrowly scoped read/write/list replacement; creation/installation
+is pending Backblaze account access. No new model trial, recurring ingestion or
+broad production routing is enabled. The app remains health-only.
 
 Zac confirmed the first usable version's delivery target in chat on 2026-10-04:
 source-backed contextual meeting reviews and a concise daily briefing covering
@@ -939,3 +943,44 @@ setup, inspect the exact incomplete checkpoint, deliberately finish only missing
 recovery steps, then assemble candidate evidence and present faithful explicit
 source/model/budget trial scope. No live review trial or service/mobile launch
 was enabled. The app remains health-only, not Zac v1.
+
+
+## Accepted full-context scope — 2026-10-04 clarification
+
+Zac clarified that download all context means all accessible context from his
+authorized systems/services: Gmail, Slack, ClickUp, Google Drive, Outlook,
+Fireflies, WhatsApp, Salesforce, LinkedIn, Claude, ChatGPT, Monarch Money,
+investment/financial accounts, and the Brainstorm database he will arrange access
+to. This is the full personal/business context goal within the existing roadmap,
+not a meeting-history-only scope or a new competing project. Capture includes
+available relevant history, attachments/documents, relationships and temporal
+context, with original provenance and coverage gaps reported. Availability must
+be established per account; connector tools do not prove a complete export.
+
+The instruction authorizes read-only collection planning and capture from
+identified authorized accounts, subject to existing credential, source ACL,
+classification, recovery and staged intake checks. It does not authorize sending
+messages, modifying source records, publishing, trading, payments or financial
+account actions. Historical/source instructions remain untrusted evidence rather
+than current policy. PERSONAL and BRAINSTORM remain separate; mixed accounts
+need deliberate classification rather than a single business bucket. Financial
+context stays in private local storage with appropriate sensitivity; collection
+is not blanket permission to send it to external AI providers.
+
+Execution sequence remains: finish D034AH recovery -> useful bounded review
+trial/private workflow -> verified read-only adapters and staged historical
+coverage, measuring each source independently. Prepare account/source inventory
+and access requests in parallel without starting unmanaged bulk downloads or
+claiming successful ingestion. Existing task tools presently expose Gmail, Slack,
+Google Drive, ClickUp and Fireflies capabilities; account identity, completeness
+and Zac AI production adapter support remain unverified. Other requested sources
+need source-specific connection/export assessment.
+
+Inventory tracks account/workspace, PERSONAL/BRAINSTORM boundary, owner/access
+rights, schema/export method, data/date coverage, attachment coverage, original
+IDs/timestamps, incremental updates/deletions, retention, sensitivity, encryption
+and verified recovery. CTO supplies Brainstorm database schema/relationships,
+read-only connection and private-network requirements; work-system account/admin
+contacts and available supported exports can accompany that. Personal/financial
+account authorization comes from Zac. Avoid speculative credentials or broad
+permission presets; request the concrete next account access when needed.

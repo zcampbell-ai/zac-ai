@@ -482,3 +482,29 @@ missing backup receipt/recovery stages. Next prepare explicit candidate-context
 selection and realistic measured model/budget scope for the useful real trial.
 Current 8,192-token runtime cannot fit the old 6,890 + 1,600 scope; no budget was
 silently changed and no new client-source model call occurred.
+
+
+## Full context — scope clarified, no repeat scope question
+
+Zac explicitly clarified all available context across Gmail, Slack, ClickUp,
+Google Drive, Outlook, Fireflies, WhatsApp, Salesforce, LinkedIn, Claude, ChatGPT,
+Monarch Money, investments/finances and an additional Brainstorm database. The
+earlier all-three-histories versus Brainstorm-only question is superseded; do
+not ask it again. Preserve staged rollout and PERSONAL/BRAINSTORM separation.
+No account-specific credentials, complete exports or new connection success were
+established by the clarification. Source collection and external model processing
+remain separate scopes; no communications or financial actions authorized.
+
+Needed at actual access setup: identify each account/workspace and its boundary,
+source/export coverage and permissions. CTO should provide the Brainstorm
+database platform/contents, schema/data dictionary, relationships, read-only
+account, connection/private-network details, sensitivity exclusions and history/
+change tracking. Work-system account inventory and integration-admin contacts
+will help. Share credentials securely in 1Password, not chat. Personal/financial
+account grants come from Zac. This does not block preparing source inventories.
+
+Immediate blocker remains the previously approved scoped B2-key setup and final
+D034AH remote checkpoint receipt: complete human verification/account sign-in on
+the Mac's prepared Backblaze Safari tab. No new approval of the full context goal
+is required. No unmanaged bulk collection starts ahead of the recovery/workflow
+gates.
