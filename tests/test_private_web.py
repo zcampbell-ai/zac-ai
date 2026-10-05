@@ -321,3 +321,43 @@ def test_security_header_mode_has_no_arbitrary_csp_override():
 
     with pytest.raises(ValueError):
         _SecurityHeaders(object(), google_start_path="/")
+
+
+@pytest.mark.parametrize("change", ["revoke", "reenroll", "scopes", "expiry"])
+def test_home_withholds_rendered_bytes_after_async_authority_change(change):
+    # Invented provider and in-memory sessions only: no canonical/private data.
+    import asyncio
+
+    sessions = InMemorySessionStore()
+    now = [datetime(2026, 10, 5, tzinfo=UTC)]
+    grants = [OwnerGrant(OWNER, (SCOPE,))]
+    rendered = []
+
+    async def view(principal):
+        await asyncio.sleep(0)  # Actual suspension within the protected render.
+        if change == "revoke":
+            sessions.revoke_identity(OWNER)
+        elif change == "reenroll":
+            sessions.revoke_identity(OWNER)
+            # A new same-identity login cannot resurrect the original cookie.
+            sessions.start_user(OWNER, now[0])
+            grants[0] = OwnerGrant(OWNER, (SCOPE,))
+        elif change == "scopes":
+            grants[0] = OwnerGrant(OWNER, (BoundaryScope(B.PERSONAL, frozenset({C.INTERNAL})),))
+        else:
+            now[0] += timedelta(hours=8)
+        rendered.append(principal)
+        return "<html><main>Invented private bytes must be withheld</main></html>"
+
+    app = create_private_web(
+        origin=ORIGIN, identities=InventedProvider(), sessions=sessions,
+        owner=lambda: grants[0], view=view, clock=lambda: now[0],
+    )
+    with TestClient(app, base_url=ORIGIN, follow_redirects=False) as client:
+        sign_in(client)
+        response = client.get("/")
+        assert rendered
+        assert response.status_code == 403
+        assert "Invented private bytes" not in response.text
+        assert "csrf" not in response.text
+        assert response.headers["cache-control"] == "no-store"

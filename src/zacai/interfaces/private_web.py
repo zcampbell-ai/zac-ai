@@ -240,6 +240,17 @@ def create_private_web(
                 return RedirectResponse("/login", status_code=303)
             session, principal = found
             html = await view(principal)
+            # Rendering can await private I/O. Do not release its result if the
+            # owner, scopes or original browser session changed meanwhile.
+            refreshed = authenticated(request)
+            if (
+                refreshed is None
+                or refreshed[1] != principal
+                or not secrets.compare_digest(refreshed[0].csrf, session.csrf)
+                or refreshed[0].issued_at != session.issued_at
+                or refreshed[0].expires_at != session.expires_at
+            ):
+                return Response("Private view unavailable", status_code=403)
             logout = (
                 '<form class="caz-session-control" method="post" action="/logout"><input type="hidden" name="csrf" value="'
                 + escape(session.csrf, quote=True)

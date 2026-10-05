@@ -1711,3 +1711,51 @@ reconciled against real canonical contracts: duplicate Source context/provenance
 remains invalid rather than silently deduplicated. Exact staged Gitleaks scanning
 found no leaks; commit/push status is tracked against actual Git state. No live source/model call,
 production migration, credential read, serving or iPhone acceptance occurred.
+
+
+### D034AU — generated-reply recovery and private trial integration
+
+The next connected text path now has distinct canonical one-shot follow-up
+authorization, a shared checked host clock, a bounded local-only runtime adapter
+and protected generated reply retention. These are trusted host components, not
+enabled routes or agent-provided authority. Future-dated request observations
+are rejected before consuming an attempt. The original request digest remains
+pinned; only observed_at is normalized for refreshed content comparisons.
+
+Replies are MANUAL Sources with a distinct generated-reply envelope and immutable
+claim/request/context/usage bindings. Initial acknowledgement still requires
+current owner/access, active unrevoked consent, independent release checks and
+verified reply recovery. Recovery-only preservation of already committed history
+must remain separate from processing and historical display permission.
+
+The distinct loopback transport uses one remaining socket deadline across model
+metadata, chat and final model checks per operation. Joined socket shutdown
+guards interrupt stalled/trickling reads. Tokenizer/model work is not subject to
+a claimed process-kill guarantee. Preflight and generation have separate budgets;
+a composed host still needs an explicit end-to-end response/recovery budget.
+
+The explicit private trial entry supports enrollment, followed by a separately
+constructed read-only selected-packet owner view. Google client creation/escrow,
+private TLS serving, owner pairing and a physical iPhone trial remain required.
+No listener, credential read, live model call or source connection was enabled.
+
+The progress component presents the existing FOUR D034AC acceptance gates with
+dated evidence and expandable next steps. Only reviewed verified completion
+contributes to its gate count. This is not test/commit activity, estimated effort
+or a full-product percentage; broader context/delegation goals stay separate.
+
+Concrete follow-up authority recovery, a current semantic gate, conversation
+routes, historical read permission and live runtime measurement remain next
+connected work. No phase is declared complete by this engineering checkpoint.
+
+
+Final D034AU engineering validation: 2,870 serial tests passed in 138.64
+seconds, with the same three dependency deprecation warnings. Final Ruff and
+strict mypy (105 source files) passed. Independent Opus/helper review corrections
+include future-observation rejection, receipt-only pending recovery, original
+record-before-expiry provenance and shared owner/view clock composition. The
+actual SQL/local-age pending test recovers a timely committed reply after expiry
+and canonical revocation, while active capture/load remain held. Authority
+recovery preflight and semantic usefulness in that fixture are explicitly
+invented; no production/B2/model/credential/listener/iPhone readiness is claimed.
+Exact staged secret checks pass; commit/push are verified against actual Git.

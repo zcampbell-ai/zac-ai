@@ -6508,3 +6508,52 @@ reconciled against real canonical contracts: duplicate Source context/provenance
 remains invalid rather than silently deduplicated. Exact staged Gitleaks scanning
 found no leaks; commit/push status is tracked against actual Git state. No live source/model call,
 production migration, credential read, serving or iPhone acceptance occurred.
+
+
+## D034AU — exact follow-up claims, retained generated replies and progress
+
+Status: reviewed engineering checkpoint; no live owner/mobile acceptance.
+
+Keep packet_followup distinct from contextual_meeting_review, including consent
+Sources, exact local route capability, one consumed claim and original request
+digest. The same observed host clock must be injected into the composed new
+components. Reject future observation timestamps before committing authority.
+Duplicate consent recording uses the existing immutable _write and returns the
+same Source; it does not create another attempt or extend expiry.
+
+A generated result remains a MANUAL Source, not USER_INSTRUCTION. Bind its exact
+original claim, receipt references, user/packet/parents, source text, usage, draft
+and display to an immutable attempt identity. Recover artifact plus canonical
+state/journal before acknowledgement, then recheck current authority, owner,
+access and independently recomputed release. Historical recovery is distinct
+from a new inference or permission to display old outputs.
+
+Opus review identified a real future-observation claim gap and pending recovery
+after expiry. Correct them without extending processing authority. Conditional
+duplicate-record replay concerns were checked against immutable _write and real
+SQL idempotence/one-shot tests. Capability serialization is deliberately singleton;
+no additional capability is silently introduced. Foreground Ctrl-C behavior must
+be assessed against the actual private operator/Uvicorn path, not a raw injected
+KeyboardInterrupt.
+
+Owner requested a progress bar. Use the existing four acceptance gates, explicit
+reviewed evidence/status/as-of and expandable next steps. The one accepted scoped
+review is not complete daily coverage, deployed mobile access, a ten-case quality
+rubric, or completion of the larger product vision. No invented effort estimate.
+
+Real guarded SQL/age/local-client tests exercise original packet/user/claim/reply
+records, full selected-row/state/journal recovery, leases and immutable retry.
+Their authority recovery preflight and semantic usefulness remain explicit
+invented fixtures; they are not production/B2/model readiness evidence.
+
+
+Final D034AU engineering validation: 2,870 serial tests passed in 138.64
+seconds, with the same three dependency deprecation warnings. Final Ruff and
+strict mypy (105 source files) passed. Independent Opus/helper review corrections
+include future-observation rejection, receipt-only pending recovery, original
+record-before-expiry provenance and shared owner/view clock composition. The
+actual SQL/local-age pending test recovers a timely committed reply after expiry
+and canonical revocation, while active capture/load remain held. Authority
+recovery preflight and semantic usefulness in that fixture are explicitly
+invented; no production/B2/model/credential/listener/iPhone readiness is claimed.
+Exact staged secret checks pass; commit/push are verified against actual Git.

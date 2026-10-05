@@ -450,3 +450,37 @@ reconciled against real canonical contracts: duplicate Source context/provenance
 remains invalid rather than silently deduplicated. Exact staged Gitleaks scanning
 found no leaks; commit/push status is tracked against actual Git state. No live source/model call,
 production migration, credential read, serving or iPhone acceptance occurred.
+
+
+## D034AU — generated replies and explicit private trial entry
+
+Generated reply artifacts use the existing BRAINSTORM partition. Their dedicated
+encrypted recovery receipt is
+`BRAINSTORM/state/text-reply-{SourceUUID}/receipt-{replyDigest}.age`. Exact state
+and operational-journal ciphertext objects remain beneath that same UUID prefix.
+The reply envelope retains the original consumed canonical claim/consent and
+selected user/packet/parent/evidence references. No new credential was installed.
+
+Failed protection leaves the immutable reply pending; reconcile/protect that
+same Source rather than infer again or overwrite a receipt. Recovery of committed
+history after processing expiry must not renew consent or release an answer.
+PERSONAL recovery and company-source permissions remain separate.
+
+`python -m zacai.interfaces.private_trial` is now an explicit enrollment-only
+entry. Its nonsecret client/origin/private-directory arguments do not install
+credentials, configure TLS or start anything unless the trusted local operator
+invokes it. The owner view requires separately reviewed factory/artifact and
+genuinely retained protected receipt composition. No production installation,
+credential escrow, enrollment or iPhone acceptance is claimed by these files.
+
+
+Final D034AU engineering validation: 2,870 serial tests passed in 138.64
+seconds, with the same three dependency deprecation warnings. Final Ruff and
+strict mypy (105 source files) passed. Independent Opus/helper review corrections
+include future-observation rejection, receipt-only pending recovery, original
+record-before-expiry provenance and shared owner/view clock composition. The
+actual SQL/local-age pending test recovers a timely committed reply after expiry
+and canonical revocation, while active capture/load remain held. Authority
+recovery preflight and semantic usefulness in that fixture are explicitly
+invented; no production/B2/model/credential/listener/iPhone readiness is claimed.
+Exact staged secret checks pass; commit/push are verified against actual Git.
