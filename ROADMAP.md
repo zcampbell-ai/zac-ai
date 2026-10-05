@@ -11,7 +11,9 @@ This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position — reconciled 2026-10-05
 
-Current completed engineering checkpoint: D034AR. Zac confirmed the protected
+Current completed engineering checkpoint: D034AR. D034AS implementation is
+prepared with final validation pending; its release gates are recorded below.
+Zac confirmed the protected
 real D034AN review is a useful starting point, requested readable formatting,
 and authorized continuing. The first offline selected-review briefing view is
 implemented and now includes an offline proposed-work view with exact plan-bound
@@ -1576,3 +1578,87 @@ code. This is an engineering foundation verdict, not live authentication, full
 context ingestion, usable mobile release or completion of the active Goal.
 Library deprecation warnings remain documented upgrade work; no dependency
 migration beyond the reviewed Authlib pin was attempted.
+
+
+## D034AS — protected draft choices and private host composition
+
+Within the existing Phase 4/5 delivery sequence, durable owner enrollment and
+explicit setup/owner host factories now compose current authenticated sessions.
+Owner revocation and re-enrollment invalidate prior sessions; enrollment binds
+exact client/origin and fails closed. Safe host ancestry, same-UID runtime
+isolation and mutually exclusive setup/serving are trusted launcher duties.
+Factories do not configure a listener, TLS, Tailscale Serve/Funnel or deployment.
+
+Canonical work choices now record the exact owner, packet, retained recovery
+receipt, proposal and request identity as protected append-only Source evidence.
+As proposed/with changes/review first/self-handle are draft preferences, never
+execution approvals. Renewed forms reconcile one canonical packet/proposal-bound
+request, independent of receipt rotation; conflicting replay refuses overwrite.
+Original receipt provenance remains immutable and rotation requires reconciliation. Fresh canonical ACLs and material question holds apply.
+The concrete protector covers exact choice artifacts plus final state/journal,
+independently reads back immutable encrypted receipts and performs full cold
+restore. Historical mode retains every frame/row/field comparison and exact
+selected Source metadata, while unrelated later business rows do not invalidate
+the historical receipt. Current context/work readiness remains a separate gate.
+Artifact identity remains its decrypted plaintext hash across legitimate backup
+re-encryption; state/journal ciphertext pins and original receipt bytes stay exact.
+Selected provenance uses every canonical Source field in explicit column order;
+both actual database schemas must match, and selected-row COPY formatting is
+normalized to UTC/ISO inside the owned read-only transactions.
+The host/local database share the Mac clock, with no skew allowance; inconsistent
+chronology holds release. Receipt-less failed checkpoint objects require trusted
+reconciliation and future reviewed cleanup, never automatic deletion.
+
+Optional authenticated preference routes are implemented under the existing
+private owner host, with bounded form parsing, Host/Origin/session-CSRF checks and
+post-operation owner/session refresh. They are not mounted by the default app.
+Isolated route rehearsals pass; final checkpoint validation remains pending.
+No deployed conversation, execution gateway
+workflow, usable iPhone endpoint or mobile/browser usability verdict follows.
+Repeated full restores and controller serialization remain latency constraints;
+background delivery and safe performance reuse require their own measured work.
+
+Fixed read-only Gmail HTTPS transport joins the existing offline wire/Slack
+preparation. Actual source connections still require scoped credentials, verified
+account/visibility, classification, canonical capture, recovery and processing
+checks. No Caz runtime Gmail/Slack intake or provider-account setup happened. Separately
+authorized bounded connector research remains outside-Git context coverage, not
+full mailbox/channel history or canonical ingestion. PERSONAL
+intake remains closed; existing BRAINSTORM receipts cannot cover financial data.
+
+Next stays in the existing order: concrete approved sign-in credentials/escrow and
+host enrollment; private-only serving and real phone validation; source-backed
+text questions and protected plan choices; bounded current context/daily briefing
+coverage; gateway-authorized actions and source-backed completion. Historical
+context/imports, specialist agents and OCE evaluation retain their existing gates.
+The personal-life/financial end state remains part of the wider roadmap, with
+separate PERSONAL recovery and read-only intake before financial workflows.
+
+Owner progress display should use the agreed bounded v1 acceptance gates and
+verified outcomes, distinguish built/tested from enabled/live/accepted, and show
+pending decisions/coverage. Keep a separate broader-roadmap view. No numeric
+percentage is assigned from engineering counts or unagreed weighting; acceptance
+denominator and remaining evidence must be explicit before a percent is shown.
+
+A pure packet-follow-up contract is prepared for the next text-conversation
+integration. It keeps existing Event/evidence/task envelopes and introduces a
+distinct packet_followup capability, with concise cited answers, one targeted
+clarification or an explicit unsupported outcome. Original evidence must
+support business claims; user/parent/generated text is not interchangeable
+evidence. Release requires a trusted host recheck of actual canonical Source
+kinds, recovery, ACLs, relevance, freshness and semantic support. Declared
+references and invented contract tests do not prove text capture or grant
+processing consent. No runtime, concrete release gate or conversation route is
+mounted.
+
+Final D034AS validation: 2,428 tests pass in 98.46 seconds; Ruff and strict
+mypy (91 source files) pass. Exact staged Gitleaks scan found no leaks.
+Independent Opus and helper reviews identified and checked the corrections,
+including slow capture acknowledgement, stable plan identity, actual Source
+schema, evidence presentation and restored selected provenance. Actual guarded
+SQL/age recovery used invented fixtures and local object clients; its narrowed
+synthetic artifact inventory is not proof of production/B2 coverage. Three
+existing dependency deprecation warnings remain.
+No new live source intake/private-source model call, production migration,
+credential read or deployment
+was performed by this engineering checkpoint.

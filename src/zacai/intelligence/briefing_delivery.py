@@ -75,7 +75,7 @@ def render_retained_briefing(
     return result
 
 
-def _retained_packet(
+def load_retained_packet(
     session: Session,
     *,
     artifacts: ArtifactStore,
@@ -164,3 +164,7 @@ def render_retained_decision_cards(
     if result is None:
         raise ValueError("retained decision cards unavailable or mismatched")
     return result
+
+
+# Preserve the existing private helper binding for compatibility.
+_retained_packet = load_retained_packet

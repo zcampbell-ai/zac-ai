@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 from collections.abc import Buffer
 from pathlib import Path
 from uuid import UUID
@@ -38,6 +39,26 @@ from zacai.state_repository import get_effective_source_classification
 
 _MAX_STATE_BYTES = 64_000_000
 _DRILL_LOCK = 73403412
+# All current canonical Source fields in one explicit order, independent of the
+# physical ALTER TABLE order. Future schema fields require deliberate review.
+_SELECTED_SOURCE_COLUMNS = (
+    "id",
+    "trust_boundary",
+    "data_classification",
+    "system",
+    "external_ref",
+    "captured_at",
+    "excerpt",
+    "content_hash",
+    "content_location",
+    "supersedes_source_id",
+)
+_SELECTED_SOURCE_COPY_SQL = (
+    "COPY (SELECT "
+    + ", ".join(_SELECTED_SOURCE_COLUMNS)
+    + " FROM source WHERE trust_boundary = %s AND id = ANY(%s) "
+    "ORDER BY id) TO STDOUT WITH (FORMAT csv, HEADER true)"
+)
 
 
 class ReviewProtectionError(RuntimeError):
@@ -66,11 +87,21 @@ class DisposableStateRestoreVerifier:
         expected_sources: dict[UUID, str],
         *,
         current_business_state: Engine | None = None,
+        current_selected_sources: Engine | None = None,
         operational_journal: bytes | None = None,
     ) -> None:
         try:
             if not snapshot or len(snapshot) > _MAX_STATE_BYTES or not expected_sources:
                 raise ValueError("invalid recovery inventory")
+            if current_selected_sources is not None:
+                assert_local_review_state_engine(current_selected_sources)
+                if any(
+                    type(sid) is not UUID
+                    or not isinstance(digest, str)
+                    or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+                    for sid, digest in expected_sources.items()
+                ):
+                    raise ValueError("invalid selected source inventory")
             with backup._admin_connection() as admin:
                 if not admin.execute(
                     text("SELECT pg_try_advisory_lock(:key)"), {"key": _DRILL_LOCK}
@@ -115,6 +146,10 @@ class DisposableStateRestoreVerifier:
                                     raise ValueError("operational journal boundary mismatch")
                         if current_business_state is not None:
                             _verify_current_business_state(engine, current_business_state)
+                        if current_selected_sources is not None:
+                            _verify_selected_source_rows(
+                                engine, current_selected_sources, expected_sources
+                            )
                         with Session(engine) as session:
                             for sid, digest in expected_sources.items():
                                 source = session.get(Source, sid)
@@ -148,6 +183,67 @@ def assert_local_review_state_engine(engine: Engine) -> None:
         or url.query
     ):
         raise ReviewProtectionError("local review state target required")
+
+
+def _verify_selected_source_rows(
+    restored: Engine, current: Engine, expected_sources: dict[UUID, str]
+) -> None:
+    """Historical recovery plus exact current selected provenance, not readiness.
+
+    Full historical frames/journal remain independently restored and verified.
+    Current ACLs and contextual work readiness remain the caller's obligations.
+    No unselected business rows are compared or used as authority here.
+    """
+    assert_local_review_state_engine(current)
+    assert_safe_restore_target_url(restored.url.render_as_string(hide_password=False))
+    ids = sorted(expected_sources, key=str)
+    if set(_SELECTED_SOURCE_COLUMNS) != {column.name for column in Source.__table__.columns}:
+        raise ValueError("selected provenance schema requires review")
+    selected = select(Source.id, Source.content_hash).where(
+        Source.trust_boundary == B.BRAINSTORM, Source.id.in_(ids)
+    )
+    with current.connect() as live, restored.connect() as recovered:
+        for conn in (live, recovered):
+            conn.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+            conn.execute(text("SET LOCAL TIME ZONE 'UTC'"))
+            conn.execute(text("SET LOCAL DateStyle = 'ISO, YMD'"))
+            columns = (
+                conn.execute(
+                    text(
+                        "SELECT column_name FROM information_schema.columns "
+                        "WHERE table_schema = current_schema() AND table_schema = 'public' "
+                        "AND table_name = 'source'"
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            if len(columns) != len(_SELECTED_SOURCE_COLUMNS) or set(columns) != set(
+                _SELECTED_SOURCE_COLUMNS
+            ):
+                raise ValueError("actual selected provenance schema requires review")
+        if live.scalar(text("SELECT current_database()")) != current.url.database:
+            raise ValueError("current state target mismatch")
+        assert_connected_to_safe_restore_database(
+            recovered.scalar(text("SELECT current_database()"))
+        )
+        values: list[bytes] = []
+        for conn in (live, recovered):
+            if {sid: digest for sid, digest in conn.execute(selected)} != expected_sources:
+                raise ValueError("selected source inventory mismatch")
+            raw = backup._raw_connection(conn)
+            data = bytearray()
+            with (
+                raw.cursor() as cur,
+                cur.copy(_SELECTED_SOURCE_COPY_SQL, (B.BRAINSTORM.value, ids)) as copy,
+            ):
+                for chunk in copy:
+                    if len(data) + len(chunk) > _MAX_STATE_BYTES:
+                        raise ValueError("selected provenance outside capacity")
+                    data.extend(chunk)
+            values.append(bytes(data))
+        if values[0] != values[1]:
+            raise ValueError("selected Source changed since historical checkpoint")
 
 
 def _verify_current_business_state(restored: Engine, current: Engine) -> None:

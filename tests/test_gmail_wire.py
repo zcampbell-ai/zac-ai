@@ -289,3 +289,27 @@ def test_original_email_retained_but_not_exposed_in_inspection_repr():
     assert "opaque" not in repr(result)
     assert "Subject:" not in repr(result.value)
     assert "original_bytes=" not in repr(result.value)
+
+
+def test_direct_inspector_scope_duck_cannot_skip_classification_gate():
+    from types import SimpleNamespace
+
+    checks = []
+    forged = SimpleNamespace(
+        check=lambda: checks.append(True),
+        account_ref="invented",
+        boundary=B.SHARED,
+        classification=C.HIGHLY_RESTRICTED,
+    )
+    with pytest.raises(GmailWireError) as error:
+        inspect_message_page(wire({"messages": [{"id": "private", "threadId": "secret"}]}), forged)
+    assert checks == []
+    assert error.value.__context__ is None
+    assert "secret" not in str(error.value)
+
+
+def test_exact_dataclass_does_not_dispatch_instance_override_of_gate():
+    forged = replace(scope(), boundary=B.SHARED, classification=C.HIGHLY_RESTRICTED)
+    object.__setattr__(forged, "check", lambda: None)
+    with pytest.raises(GmailWireError):
+        inspect_message_page(wire({"messages": []}), forged)

@@ -221,7 +221,9 @@ def _inspect[T](
 ) -> GmailInspection[T]:
     # Sanitize outside except so validation input is not retained in __context__.
     try:
-        scope.check()
+        if type(scope) is not GmailScope:
+            raise TypeError("invalid declared scope contract")
+        GmailScope.check(scope)
         if type(raw) is not bytes or not 0 < len(raw) <= MAX_WIRE_BYTES:
             raise ValueError("wire size")
         obj = _object(

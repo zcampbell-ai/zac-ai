@@ -361,3 +361,13 @@ class SqliteSessionStore:
                     connection.execute("DELETE FROM sessions WHERE digest=?", (row[0],))
 
         self._run(remove)
+
+    def revoke_all(self) -> None:
+        """Trusted host lifecycle only: atomically invalidate users and logins.
+
+        No browser endpoint invokes this. Explicit owner recovery/re-enrollment
+        must call it before confirming a replacement, so old cookies and pending
+        transactions cannot revive under the same identity. Auth state only;
+        canonical sources and owner grants are untouched.
+        """
+        self._run(lambda connection: connection.execute("DELETE FROM sessions"))

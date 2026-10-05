@@ -6345,3 +6345,123 @@ code. This is an engineering foundation verdict, not live authentication, full
 context ingestion, usable mobile release or completion of the active Goal.
 Library deprecation warnings remain documented upgrade work; no dependency
 migration beyond the reviewed Authlib pin was attempted.
+
+
+## D034AS — canonical draft choices and trusted private host composition
+
+This checkpoint advances the existing Phase 4/5 private text delivery path;
+Zac State remains canonical memory and provenance. Owner enrollment and browser
+sessions are operational authentication state, not a second context store.
+No new schema, Event contract, provider/model pin or roadmap phase is introduced.
+
+Owner enrollment is now durably authenticated and bound to the exact Google
+client and private origin. Missing, corrupt, wrong-key, revoked or old unbound
+records fail closed; email/domain/admin status does not create scope. Explicit
+local setup invalidates prior browser/OIDC sessions, including same-owner
+re-enrollment. Composed owner revocation attempts session invalidation even when
+owner persistence fails; partial failure requires stopping serving and trusted
+local reconciliation. A failed durable write can leave a valid new record visible
+without a successful acknowledgement. Neither rollback nor absence is promised.
+HMAC/encryption cannot stop same-UID hostile code from replaying older files or
+using host keys. Trusted launcher/runtime separation, safe filesystem ancestry
+and stopping setup before owner serving remain operational release requirements;
+these factories do not enforce a cross-process serving-mode lease or deploy TLS.
+
+The new canonical choice path captures an exact authenticated host identity,
+packet/recovery receipt, proposal fingerprint, request identity and preferred
+approach. The four existing work choices remain draft preferences: as proposed,
+with changes, review first and self-handle. They do not create executable approval,
+agent permission, dispatch, publication or verified completion. Material questions
+hold capture. BRAINSTORM/CONFIDENTIAL is the only initial protected choice family;
+PERSONAL permissions cannot authorize or relabel business content. Request replay
+is serialized; identical requests finish the same canonical append-only Source,
+and conflicting replay cannot overwrite it. The host controller binds request
+identity to owner/canonical packet/proposal across renewed forms, retains bounded
+handles for reviewed retry and normalizes changes without introducing a new memory
+store. A rotated receipt does not create a second conflicting choice; original
+receipt provenance remains immutable and rotation requires explicit reconciliation.
+
+A saved acknowledgement requires protection of the new committed choice, not
+reuse of the old packet receipt. The concrete adapter reuses existing encrypted
+artifacts, state snapshots, operational journal and disposable full restore.
+Deterministic encrypted receipts are independently read back and never overwritten
+when corrupt or mismatched. Shared reentrant maintenance-database/restore-target
+leases and the existing operator lease remain intact. Choice loading releases its
+initial SQL transaction before cold recovery, then uses a fresh READ COMMITTED
+session for final owner, packet, Source, byte and ACL checks. Verification time
+records completion; rollback checks and the successful journal run's aware
+choice/start/finish/verification ordering remain enforced. Host capture/verification
+and the controlled local PostgreSQL lifecycle timestamps share the same Mac clock:
+no cross-host skew tolerance is granted. Clock rollback or inconsistent ordering
+holds release. Python >=3.12 and actual PostgreSQL CSV timezone forms are exercised.
+
+Historical recovery compares every restored frame/journal row and field, plus
+all selected current Source columns and hashes, using an explicit complete
+canonical column order independent of physical ALTER TABLE order. Both owned
+read-only comparison transactions check actual public Source columns against
+that complete list; ORM SQL names are checked too. Unknown/omitted fields hold
+release. Selected-row COPY uses local UTC/ISO settings on both connections,
+without changing historical snapshot framing/export. Unrelated new business records
+do not invalidate historical recovery if those selected Sources are unchanged.
+This optional verifier mode leaves existing full-current-business comparison
+unchanged. Historical recoverability does not establish current context, work
+readiness or completion; fresh selected ACL/packet gates still apply. Artifact
+backup may repair/re-encrypt its stable plaintext-hash key. The immutable receipt
+retains the initially observed artifact ciphertext checksum; current artifact
+identity requires successful decryption and the exact canonical plaintext hash.
+State/journal ciphertext-addressed pins remain exact. Full cold restores remain
+repeated and serialized; no cached proof or performance readiness is claimed.
+A failure after checkpoint upload can leave receipt-less state/journal objects;
+failed Source registration can leave an unreferenced content-addressed artifact.
+Trusted operator reconciliation and future reviewed garbage collection remain
+necessary; this adapter does not auto-delete or broaden storage permissions.
+
+Optional private owner host routes compose the retained plan controller with
+current authenticated session, exact Host/Origin, CSRF, bounded unambiguous form
+parsing and post-operation session/owner refresh. They remain explicitly injected
+and unmounted in the default health-only app. Controller success means protected
+draft preference saved, not work executed. A real text conversation, gateway
+actions and mobile delivery are still pending. Optional routes have isolated
+authenticated rehearsal coverage; final checkpoint validation remains pending.
+
+Gmail transport now allows only fixed read-only profile/list/raw-message/history
+HTTPS calls, with explicit host scope, account inspection, bounded responses and
+closed errors. No proxy inheritance, redirects, arbitrary URL, automatic retry or
+expired-history rescan authorization. The transport and Slack preparation were
+exercised with invented replies only. Separately authorized bounded connected
+Gmail/Slack research occurred and its coverage stays outside Git; it is not full
+history ingestion or a Caz runtime connection. No runtime Gmail/Slack intake,
+new source OAuth grants,
+provider account creation, credential installation, private-source model disclosure, deployment
+or iPhone validation occurred. PERSONAL intake remains closed pending its separate
+uploader, recovered encryption identity and actual off-device state recovery.
+
+Zac requested a progress bar. Delivery progress must reflect verified, agreed
+v1 acceptance gates with visible evidence and pending holds, separately from the
+larger architecture roadmap and engineering test/checkpoint counts. Do not invent
+a percentage from files, elapsed effort or all roadmap checkboxes. Until the v1
+gate denominator and measured acceptance are fixed, show named gate status and
+unknown coverage honestly. Context gathering remains dated/source-backed and
+one material question at a time; no full-history coverage claim is made.
+
+A pure packet-follow-up contract is prepared for the next text-conversation
+integration. It keeps existing Event/evidence/task envelopes and introduces a
+distinct packet_followup capability, with concise cited answers, one targeted
+clarification or an explicit unsupported outcome. Original evidence must
+support business claims; user/parent/generated text is not interchangeable
+evidence. Release requires a trusted host recheck of actual canonical Source
+kinds, recovery, ACLs, relevance, freshness and semantic support. Declared
+references and invented contract tests do not prove text capture or grant
+processing consent. No runtime, concrete release gate or conversation route is
+mounted.
+
+Final D034AS validation: 2,428 tests pass in 98.46 seconds; Ruff and strict
+mypy (91 source files) pass. Exact staged Gitleaks scan found no leaks.
+Independent Opus and helper reviews identified and checked the corrections,
+including slow capture acknowledgement, stable plan identity, actual Source
+schema, evidence presentation and restored selected provenance. Actual guarded
+SQL/age recovery used invented fixtures and local object clients; its narrowed
+synthetic artifact inventory is not proof of production/B2 coverage. Three
+existing dependency deprecation warnings remain.
+This engineering checkpoint is not live authentication, usable conversation,
+mobile acceptance or completion of the active Goal.

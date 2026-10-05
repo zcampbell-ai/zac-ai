@@ -359,3 +359,56 @@ The Mac's Tailscale installation and its own online private hostname were checke
 read-only; this does not prove HTTPS serving or iPhone reachability. Record the
 exact approved callback and 1Password item/Keychain locations after creation and
 installation, without placing secrets or raw callback tokens in this file.
+
+
+## D034AS draft-choice and owner-host recovery boundaries
+
+Protected draft choices reuse the existing BRAINSTORM artifact destination,
+uploader/verifier separation and encryption/recovery machinery documented above.
+No new actual storage account, credential location or key escrow was created in
+this checkpoint. BRAINSTORM/CONFIDENTIAL choice coverage does not authorize
+PERSONAL intake; that separate recovery path remains pending.
+
+A choice acknowledgement requires its own committed Source/artifact and final
+state/journal checkpoint, an encrypted immutable receipt and independent readback
+plus full disposable restore. Historical recovery verifies every snapshot/journal
+row and field and all selected current Source columns/hashes in one explicit
+canonical column order. Actual public Source schemas on both databases must
+exactly match that list; selected-row COPY normalizes local UTC/ISO formatting
+within its read-only transactions. Historical framing/export remains unchanged.
+Unrelated later
+business records do not erase historical recoverability; current ACL/context
+checks still govern release. Old packet receipts cannot cover new choice bytes.
+
+The receipt's artifact ciphertext checksum records the initially observed backup.
+Routine artifact repair may legitimately replace age ciphertext at a stable
+plaintext-hash key. Recheck requires decryption and the exact canonical plaintext
+hash; it does not demand that randomized ciphertext remain unchanged forever.
+State and journal remain ciphertext-addressed and exactly hash-pinned. Corrupt or
+mismatched existing receipts are never overwritten; reconciliation is a trusted
+operator task. Failed protection may leave receipt-less state/journal objects or
+unreferenced artifact bytes; no automatic deletion occurs. Future garbage
+collection requires reviewed retention/reconciliation, not permission expansion.
+No new live choice receipt or off-device drill is claimed here.
+
+Persisted owner enrollment and encrypted browser sessions are authentication
+operational state, not canonical memory or execution approvals. The actual host
+operational directory, credential escrow and installed Keychain entries remain
+unverified; do not invent location-map entries. Existing Google client creation
+and private serving gates above remain open. After authentication-key loss or
+configuration change, use explicit local owner enrollment; do not restore an old
+scope file as authority. Setup invalidates prior sessions, including same-owner
+re-enrollment. Composed revocation attempts both owner and session invalidation;
+partial failure requires stopping serving and local reconciliation.
+
+Same-UID authenticated-file rollback is not defeated by HMAC/encryption. Trusted
+launcher/runtime separation and exclusive setup/serving remain requirements.
+Shared reentrant maintenance/restore-target leases serialize cooperating recovery
+helpers; third-party administrator SQL still requires an exclusive window.
+The controlled local PostgreSQL and host timestamp checks share the same Mac
+clock, with no cross-host skew allowance. Rollback or inconsistent chronology
+holds release. Python >=3.12 parses actual PostgreSQL CSV timezone offsets.
+Repeated full restores are not a measured interactive mobile performance result.
+FINAL VALIDATION PENDING; no deployed interface, actual iPhone access, full history
+import, Caz runtime Gmail/Slack connection or financial intake follows from this
+checkpoint. Separate bounded connected research is not canonical runtime intake.

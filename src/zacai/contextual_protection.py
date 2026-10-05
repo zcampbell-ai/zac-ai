@@ -358,7 +358,10 @@ class BrainstormContextualProtector:
     def _protect_state(self, hashes: dict[UUID, str], prefix: str) -> ProtectedState:
         """Shared verified checkpoint mechanics; callers bind their own record."""
         if (
-            not re.fullmatch(r"BRAINSTORM/state/contextual-(packet|attempt|research)-[0-9a-f-]{36}", prefix)
+            not re.fullmatch(
+                r"BRAINSTORM/state/(?:contextual-(?:packet|attempt|research)|work-choice)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+                prefix,
+            )
             or not hashes
         ):
             raise ValueError("invalid protected checkpoint scope")

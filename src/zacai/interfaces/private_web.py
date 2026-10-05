@@ -10,23 +10,29 @@ No route dispatches actions or interprets client claims as identity/permission.
 
 from __future__ import annotations
 
+import re
 import secrets
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from html import escape
+from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlsplit
 
 from fastapi import FastAPI
+from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, RedirectResponse, Response
 from starlette.types import ASGIApp
 
 from zacai.interfaces.oidc_identity import GOOGLE_ISSUER, IdentityProvider
-from zacai.interfaces.presentation import render_sign_in
+from zacai.interfaces.presentation import CAZ_STYLE, render_sign_in
 from zacai.interfaces.session_store import Identity, SessionStore, UserSession
 from zacai.policy import DataClassification, TrustBoundary
+
+if TYPE_CHECKING:
+    from zacai.interfaces.work_choice_web import WorkChoiceWeb
 
 _LOGIN = "__Host-zac-login"
 _USER = "__Host-zac-session"
@@ -127,6 +133,7 @@ def create_private_web(
     owner: Callable[[], OwnerGrant],
     view: Callable[[InterfacePrincipal], Awaitable[str]],
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+    work_choices: WorkChoiceWeb | None = None,
 ) -> FastAPI:
     """Create an isolated app, never mount/run it or alter existing service binding.
 
@@ -134,8 +141,14 @@ def create_private_web(
     email, domain/admin membership, forwarded headers or login status grant no
     source access. Per-boundary classifications never form a cross-boundary union.
     `view` must refresh protected canonical source permissions/recovery itself.
-    This factory has no approved-action endpoint; logout is its only user change.
+    Optional trusted work_choices mounts non-executing preference capture only.
+    Disabled default exposes no choice route; no executable approval is granted.
     """
+    if work_choices is not None:
+        from zacai.interfaces.work_choice_web import WorkChoiceWeb
+
+        if type(work_choices) is not WorkChoiceWeb:
+            raise ValueError("private work choice configuration unavailable")
     target = urlsplit(origin)
     if (
         target.scheme != "https"
@@ -160,10 +173,11 @@ def create_private_web(
         return OwnerGrant(configured.identity, configured.scopes)
 
     def authenticated(request: Request) -> tuple[UserSession, InterfacePrincipal] | None:
+        # A revoked/unavailable owner cannot keep denied cookies idle-alive.
+        grant = current_owner()
         session = sessions.user(_cookie(request, _USER), clock())
         if session is None:
             return None
-        grant = current_owner()
         if session.identity != grant.identity:
             sessions.revoke(_cookie(request, _USER))
             return None
@@ -231,8 +245,13 @@ def create_private_web(
                 + escape(session.csrf, quote=True)
                 + '"><button>Sign out</button></form>'
             )
+            extra = (
+                '<p><a href="/work-choice">Review a work preference</a></p>'
+                if work_choices is not None
+                else ""
+            ) + logout
             return HTMLResponse(
-                html.replace("</main>", logout + "</main>") if "</main>" in html else html + logout
+                html.replace("</main>", extra + "</main>") if "</main>" in html else html + extra
             )
         except Exception:  # noqa: BLE001 - fixed view diagnostic, no private error chains
             return Response("Private view unavailable", status_code=503)
@@ -265,5 +284,111 @@ def create_private_web(
             return response
         except Exception:  # noqa: BLE001 - fixed diagnostic without tokens or private data
             return Response(status_code=403)
+
+    if work_choices is not None:
+        # Exact trusted injection is validated above. No request constructs a
+        # controller, selection callback, retained receipt or protection adapter.
+        controller = work_choices
+
+        @app.get("/work-choice")
+        async def work_choice_page(request: Request) -> Response:
+            try:
+                if not valid_host(request) or request.scope.get("query_string", b""):
+                    return Response(status_code=400)
+                found = authenticated(request)
+                if found is None:
+                    return RedirectResponse("/login", status_code=303)
+                session, principal = found
+
+                def form() -> str:
+                    handle = controller.issue(principal)
+                    return controller.render(handle=handle, principal=principal, csrf=session.csrf)
+
+                html = await run_in_threadpool(form)
+                refreshed = authenticated(request)
+                if (
+                    refreshed is None
+                    or refreshed[1] != principal
+                    or refreshed[0].csrf != session.csrf
+                ):
+                    return Response("Private preference unavailable", status_code=403)
+                return HTMLResponse(
+                    '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+                    '<meta name="viewport" content="width=device-width, initial-scale=1">'
+                    "<title>Caz AI · Work preference</title><style>" + CAZ_STYLE + "</style>"
+                    "</head><body><main><h1>Work preference</h1>"
+                    + html
+                    + '<p><a href="/">Back to your review</a></p></main></body></html>'
+                )
+            except Exception:  # noqa: BLE001 - fixed text, no request/backend locals
+                return Response("Private preference unavailable", status_code=503)
+
+        @app.post("/work-choice")
+        async def record_work_choice(request: Request) -> Response:
+            try:
+                if (
+                    not valid_host(request)
+                    or request.headers.getlist("origin") != [origin]
+                    or request.scope.get("query_string", b"")
+                ):
+                    return Response(status_code=403)
+                found = authenticated(request)
+                if found is None:
+                    return Response(status_code=401)
+                session, principal = found
+                if request.headers.getlist("content-type") != ["application/x-www-form-urlencoded"]:
+                    return Response(status_code=403)
+                body = b""
+                async for chunk in request.stream():
+                    if len(body) + len(chunk) > 8192:
+                        return Response(status_code=413)
+                    body += chunk
+                try:
+                    text = body.decode("utf-8", errors="strict")
+                    if re.search(r"%(?![0-9a-fA-F]{2})", text):
+                        return Response(status_code=403)
+                    parsed = parse_qs(
+                        text,
+                        keep_blank_values=True,
+                        strict_parsing=True,
+                        max_num_fields=4,
+                        encoding="utf-8",
+                        errors="strict",
+                    )
+                except (UnicodeError, ValueError):
+                    return Response(status_code=403)
+                if (
+                    set(parsed)
+                    not in ({"handle", "choice", "csrf"}, {"handle", "choice", "csrf", "changes"})
+                    or any(len(values) != 1 for values in parsed.values())
+                    or not secrets.compare_digest(parsed["csrf"][0], session.csrf)
+                ):
+                    return Response(status_code=403)
+                fields = {key: values[0] for key, values in parsed.items() if key != "csrf"}
+                saved = await run_in_threadpool(
+                    controller.submit, principal=principal, fields=fields
+                )
+                from zacai.interfaces.work_choice_capture import SavedWorkChoice
+
+                refreshed = authenticated(request)
+                if (
+                    type(saved) is not SavedWorkChoice
+                    or refreshed is None
+                    or refreshed[1] != principal
+                    or refreshed[0].csrf != session.csrf
+                ):
+                    return Response("Private preference unavailable", status_code=403)
+                return HTMLResponse(
+                    '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+                    '<meta name="viewport" content="width=device-width, initial-scale=1">'
+                    "<title>Caz AI · Preference saved</title><style>" + CAZ_STYLE + "</style>"
+                    "</head><body><main><h1>Preference saved</h1>"
+                    "<p>Your preference was recorded with verified recovery. No work was executed.</p>"
+                    '<p><a href="/">Back to your review</a></p></main></body></html>'
+                )
+            except Exception:  # noqa: BLE001 - no saved claim or unverified choice-state disclosure
+                return Response(
+                    "Preference not acknowledged. Retry or request a review.", status_code=503
+                )
 
     return app
