@@ -6045,3 +6045,58 @@ mark useful-v1 gate complete without that feedback. If changes are needed, use
 targeted clarification and existing evidence; do not invent project/SOW standards.
 After useful-review confirmation, proceed to bounded source-backed briefing/open
 loops and then private text/mobile access in the established release order.
+
+
+## D034AO — accepted useful review and first selected briefing view
+
+Zac directly confirmed the protected D034AN result as a good starting point on
+2026-10-05, requested nicely formatted/easy-to-understand delivery, and authorized
+continuing. Record this as actual usefulness feedback, not ten independent rubric
+PASS judgments or approval to promote every candidate fact. Preserve the accepted
+original packet/result/display bytes. Formatting is a presentation concern, not a
+new canonical memory or provider dependency. A later preference refinement does
+not invalidate provenance or imply a universal project/SOW standard.
+
+Implement render_selected_briefing as one pure offline HTML projection of an
+already protected, source-ACL-checked contextual packet. Clear headings, mobile
+viewport/wrapping, owner/date fields, candidate earlier context, provisional
+connections and expandable numbered exact evidence. Retain every material item;
+no automatic semantic deduplication, ranking, shortening or new model invocation.
+Explicit coverage is one selected review plus its selected earlier context, with
+other meetings/mail/calendar unchecked. Preparation/display time is not meeting
+time. Dates from reviewed proposals never imply current completion or overdue
+status. Suggested owners/dates stay suggestions; inferred content remains marked.
+A material question/conflict holds all other claims and their evidence, labels
+conflict vs missing context, and shows why the answer matters.
+
+This is not an authenticated endpoint, publication authority, recovery gate,
+daily-coverage assertion or complete briefing/open-loop engine. The trusted host
+still checks retained protected receipts and canonical source ACLs before release.
+Canonical Review/Packet/Zac Event v1 and saved preview bytes remain unchanged.
+No new table, source intake, agent permissions, remote deployment or provider path.
+
+Independent Opus review found three concrete presentation defects in the first
+version (lost inference markers, ambiguous holds/conflict labels, overassertive
+owner/date provenance). These were corrected and covered with regression tests.
+Follow-up found no display-semantic blockers; vacuous assertions were corrected
+and nested quote tamper tested. Final validation: 1,611 tests, Ruff and strict mypy
+(64 source files) pass. Model-controlled markup is escaped; fixed CSS/CSP uses no
+external assets/scripts. Code tests do not prove physical layout or Safari anchor
+behavior. Browser policy blocked local-file visual preview; no workaround was
+attempted. Visual mobile/print verification remains a release check, not a pass.
+
+A read-only local projection of the accepted actual packet was saved privately
+as private-data/selected-meeting-briefing-D034AO-2026-10-05.html, without exposing
+private prose to cloud/Opus. The retained result hash and recovery receipt packet
+binding were checked; canonical source ACLs refreshed. No new models, consent,
+source/business writes or external delivery; Source inventory remains 75. Human
+feedback and formatting preference are also retained in a private local sidecar.
+These derived files can be regenerated from the protected packet and versioned
+code; no separate new off-device protection claim is made for them.
+
+Continue the existing release path: bounded current source coverage and reliable
+commitment/open-loop status for the first daily briefing, then authenticated
+private text/mobile views and approval flows. Existing Fireflies transport remains
+selected-transcript-only; any listing/new capture capability must be concrete,
+reviewed and approved before live use. Broader history, personal boundaries and
+specialists remain staged. No automatic daily schedule is enabled.

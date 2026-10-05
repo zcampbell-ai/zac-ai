@@ -641,3 +641,17 @@ Ask Zac: does the actual draft get the project context right and provide useful
 detail in his wording? If not, what is the biggest adjustment? No transcript text
 is requested. Human usefulness remains pending; candidate facts remain provisional.
 His confirmation is the next workflow gate before briefing/open-loop expansion.
+
+
+## D034AO — useful-review feedback resolved; first briefing preference
+
+Zac confirmed the actual protected review is a useful start. Refine voice/context
+with real feedback over time. Keep delivery clearly formatted and easy to scan.
+No all-criteria PASS, fact promotion, broad source processing, recurrent delivery
+or new permissions are inferred from that confirmation.
+
+Optional format preference asked in chat: morning look-ahead (recommended: recent
+decisions, commitments to check, risks/questions) or end-of-day recap? This is not
+a scheduling request or approval to create an automation. Broader source coverage
+and verified open-loop status remain the next real capabilities. Keep owner/date
+suggestions and source coverage visible; no artificial universal project rules.

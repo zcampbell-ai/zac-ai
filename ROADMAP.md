@@ -11,9 +11,10 @@ This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position — reconciled 2026-10-05
 
-Current completed engineering checkpoint: D034AN. One real contextual draft has
-now passed host validation, canonical capture and verified encrypted recovery;
-Zac's assessment of actual usefulness is pending. The bounded research intake
+Current completed engineering checkpoint: D034AO. Zac confirmed the protected
+real D034AN review is a useful starting point, requested readable formatting,
+and authorized continuing. The first offline selected-review briefing view is
+implemented; broader daily source coverage and private interface remain pending. The bounded research intake
 and its original encrypted remote checkpoint are now fully verified.
 D031B verified real BRAINSTORM encrypted off-device artifact recovery. D032
 intelligence contracts are implemented. D033C verified one explicitly approved
@@ -58,8 +59,8 @@ failure recovery. D034AN requires both host citation roles and every draft secti
 aligns the dispatched schema and offline counter, and passes independent Opus
 code/PUBLIC quality review. Zac then approved the sealed corrected same-source
 one-shot. It succeeded: canonical packet captured, encrypted recovery verified,
-private display saved and exact ACL-checked reload verified. The private result
-has not been declared useful, complete or accepted by Zac. No recurring ingestion
+private display saved and exact ACL-checked reload verified. Zac confirmed the private result as a useful starting point; this does not
+certify every factual criterion, completeness or current commitment status. No recurring ingestion
 or broad production routing is enabled. The app remains health-only.
 
 Zac confirmed the first usable version's delivery target in chat on 2026-10-04:
@@ -1355,3 +1356,58 @@ mark useful-v1 gate complete without that feedback. If changes are needed, use
 targeted clarification and existing evidence; do not invent project/SOW standards.
 After useful-review confirmation, proceed to bounded source-backed briefing/open
 loops and then private text/mobile access in the established release order.
+
+
+## D034AO — accepted useful review and first selected briefing view
+
+Zac directly confirmed the protected D034AN result as a good starting point on
+2026-10-05, requested nicely formatted/easy-to-understand delivery, and authorized
+continuing. Record this as actual usefulness feedback, not ten independent rubric
+PASS judgments or approval to promote every candidate fact. Preserve the accepted
+original packet/result/display bytes. Formatting is a presentation concern, not a
+new canonical memory or provider dependency. A later preference refinement does
+not invalidate provenance or imply a universal project/SOW standard.
+
+Implement render_selected_briefing as one pure offline HTML projection of an
+already protected, source-ACL-checked contextual packet. Clear headings, mobile
+viewport/wrapping, owner/date fields, candidate earlier context, provisional
+connections and expandable numbered exact evidence. Retain every material item;
+no automatic semantic deduplication, ranking, shortening or new model invocation.
+Explicit coverage is one selected review plus its selected earlier context, with
+other meetings/mail/calendar unchecked. Preparation/display time is not meeting
+time. Dates from reviewed proposals never imply current completion or overdue
+status. Suggested owners/dates stay suggestions; inferred content remains marked.
+A material question/conflict holds all other claims and their evidence, labels
+conflict vs missing context, and shows why the answer matters.
+
+This is not an authenticated endpoint, publication authority, recovery gate,
+daily-coverage assertion or complete briefing/open-loop engine. The trusted host
+still checks retained protected receipts and canonical source ACLs before release.
+Canonical Review/Packet/Zac Event v1 and saved preview bytes remain unchanged.
+No new table, source intake, agent permissions, remote deployment or provider path.
+
+Independent Opus review found three concrete presentation defects in the first
+version (lost inference markers, ambiguous holds/conflict labels, overassertive
+owner/date provenance). These were corrected and covered with regression tests.
+Follow-up found no display-semantic blockers; vacuous assertions were corrected
+and nested quote tamper tested. Final validation: 1,611 tests, Ruff and strict mypy
+(64 source files) pass. Model-controlled markup is escaped; fixed CSS/CSP uses no
+external assets/scripts. Code tests do not prove physical layout or Safari anchor
+behavior. Browser policy blocked local-file visual preview; no workaround was
+attempted. Visual mobile/print verification remains a release check, not a pass.
+
+A read-only local projection of the accepted actual packet was saved privately
+as private-data/selected-meeting-briefing-D034AO-2026-10-05.html, without exposing
+private prose to cloud/Opus. The retained result hash and recovery receipt packet
+binding were checked; canonical source ACLs refreshed. No new models, consent,
+source/business writes or external delivery; Source inventory remains 75. Human
+feedback and formatting preference are also retained in a private local sidecar.
+These derived files can be regenerated from the protected packet and versioned
+code; no separate new off-device protection claim is made for them.
+
+Continue the existing release path: bounded current source coverage and reliable
+commitment/open-loop status for the first daily briefing, then authenticated
+private text/mobile views and approval flows. Existing Fireflies transport remains
+selected-transcript-only; any listing/new capture capability must be concrete,
+reviewed and approved before live use. Broader history, personal boundaries and
+specialists remain staged. No automatic daily schedule is enabled.
