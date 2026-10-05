@@ -5685,3 +5685,38 @@ research exhibits with original provider IDs and separate unconfirmed
 interpretations. Do not imply a native provider capture or promote project links.
 Human intake/backup scope, protected recovery and exact faithful model/budget
 trial follow in that order under the existing roadmap.
+
+
+## D034AH — approved candidate research evidence and honest partial recovery
+
+Existing research snapshots may enter canonical Source provenance under an exact
+human-approved hash-bound scope without becoming native provider captures,
+current facts or confirmed project connections. Store them as MANUAL candidate
+evidence with provider/original ID, proposal/packet/record hashes, explicit
+unconfirmed relationships and separately marked research interpretation. Keep
+the approved canonical record encoding for integrity; it is not the original
+input packet's formatting. Future retrieval must decode these roles explicitly.
+
+Predictable reference conflicts must reject before artifact writes. Later
+separately approved packet snapshots may preserve the same record under their
+own approval namespace. Caller owns authenticated consent, live target/lease,
+commit and real recovery. This helper grants no permission, executes no model,
+changes no business entity and enables no ingestion service.
+
+Real intake committed eleven exhibits and approval/locator metadata. Actual B2
+artifact recovery of all thirteen new Sources is verified; a local diagnostic
+full current-state/journal restore passes. Final remote checkpoint binding and
+receipt are still unverified because missing-object existence checks and scoped
+listing return access denied. Neither a successful journal row nor a local
+restore alone establishes that final remote checkpoint. Preserve partial state;
+no automatic re-import/retry or denial-as-absence behavior.
+
+Native capability inspection confirms the old bucket-specific backup key has
+readFiles/writeFiles only. Human explicitly approved replacement restricted to
+zac-ai-brainstorm-backup, BRAINSTORM/, readFiles/writeFiles/listFiles, no deletes.
+Replacement creation/installation still needs account access. Do not use a broad
+console Read and Write preset if it adds delete capability; validate exact
+capabilities before installing. Do not rotate the master key or revoke the old
+key as an inferred side effect. Finish missing checkpoint recovery before the
+new contextual trial. Engineering passes 1,409 tests, Ruff and strict mypy; Opus
+reviews were code/invented tests only, without client-source egress.

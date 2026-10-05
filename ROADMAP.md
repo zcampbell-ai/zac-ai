@@ -885,3 +885,57 @@ proposal; no native provider capture, automatic project links, account-wide sync
 or cloud-model processing is authorized by it. After protected intake, prepare
 faithful relevant evidence and explicit model/budget scope for a usefulness trial;
 then extend to briefing/private access. The app remains health-only, not Zac v1.
+
+
+## D034AH — bounded research intake; final checkpoint receipt pending
+
+Zac explicitly approved the hash-bound intake of the existing three prior
+Fireflies research exhibits and eight ClickUp records. All eleven were committed
+as CONFIDENTIAL BRAINSTORM MANUAL Sources, plus a canonical USER_INSTRUCTION
+approval and planned provenance/recovery locator. No native provider capture,
+new provider reads, inference, project/meeting/SOW links or business-fact changes.
+The pre/post-intake comparison verifies every existing Source column and every
+canonical non-Source table across all trust boundaries.
+
+The bounded parser verifies exact approved proposal/packet/exhibit hashes, UTF-8
+record serialization, provider/role/identity and size. Duplicate keys, nonfinite
+numbers (including exponent overflow), duplicate selections and ambiguous
+identities reject. Each envelope pins its approval, marks research candidate
+status and retains derived interpretation separately; its canonical record is a
+research exhibit, never a new native provider capture. Recording revalidates
+inputs, prechecks conflicting references before writes, namespaces separately
+approved snapshots, verifies canonical labels/identity/hash and sanitizes errors.
+Unpredictable storage failures can still leave private orphan artifacts; rollback
+does not prove filesystem cleanup. No automatic retry is implemented.
+
+Three actual Opus code-only engineering reviews found provenance, JSON ambiguity,
+partial-write, key-continuity and receipt wording/durability issues. Fixes include
+rechecking current identity against the exact earlier 1Password-recovered B2
+checkpoint. The concrete private launcher uses the existing operator lease,
+public schema inventory check, canonical locator before snapshot, separate actual
+B2 read client, full disposable recovery and append-only receipt checks.
+
+Actual outcome is PARTIAL, not a completed protected checkpoint: 11 exhibits +
+2 metadata Sources committed (44 Sources total). Artifact backup journal reports
+SUCCEEDED. Separate reconciliation independently downloaded/decrypted all 13
+new artifacts from actual B2 and verified their canonical hashes. A recovery-only
+diagnostic full restore of current state and journal passed and cleaned the
+disposable target. The original run did not produce a verified final remote
+checkpoint binding/receipt. B2 returns HTTP 403 for the precise receipt existence
+check and denies scoped object listing; do not interpret denial as absence, infer
+checkpoint success from journal status, re-import Sources or overwrite receipts.
+The existing backup key's native capability inspection confirms readFiles and
+writeFiles only, bucket-limited, without listFiles.
+
+Zac approved a replacement limited to the existing Brainstorm bucket and
+BRAINSTORM/ prefix with readFiles/writeFiles/listFiles and no delete permission.
+It has not been created or installed. Safari is at Backblaze's human-verification
+step; account sign-in is required. Private approval and partial reconciliation
+records remain ignored, owner-only, with no confidential prose in Git.
+
+Verification: 1,409 tests pass, two existing dependency warnings; Ruff and strict
+mypy on 60 source files pass. Next finish the approved narrowly scoped credential
+setup, inspect the exact incomplete checkpoint, deliberately finish only missing
+recovery steps, then assemble candidate evidence and present faithful explicit
+source/model/budget trial scope. No live review trial or service/mobile launch
+was enabled. The app remains health-only, not Zac v1.

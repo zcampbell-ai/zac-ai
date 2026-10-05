@@ -457,3 +457,28 @@ packet and each exhibit are hash-bound. Permission remains pending; do not infer
 it from prior research reads or the request to keep engineering work moving.
 After that decision: protected intake, faithful relevant evidence selection and
 exact model/budget scope, a useful real result, then briefing/private interface.
+
+
+## D034AH — intake and limited backup-permission decisions answered
+
+The D034AG intake scope was explicitly approved in chat (Please do it), and
+eleven research exhibits plus canonical approval/provenance were committed.
+All thirteen new artifacts are independently recovered from actual encrypted B2;
+current-state diagnostic full restore passes. Final remote checkpoint receipt
+remains unverified. Do not repeat the import.
+
+Zac also approved the narrowly scoped backup-key replacement: existing bucket,
+BRAINSTORM/ prefix, read/write/list files, no deletes. This is authorization, not
+evidence of creation/installation. Current key has readFiles/writeFiles only.
+
+Required user interaction now: complete Backblaze's human-verification and
+account sign-in in the prepared Safari tab, then open B2 Cloud Storage →
+Application Keys. Do not create a broader preset key or send credentials in
+chat. Exact capability setup and secure 1Password/Keychain recovery/installation
+follow; no master-key rotation or old-key revocation is inferred.
+
+Then reconcile exact incomplete remote objects and deliberately finish only the
+missing backup receipt/recovery stages. Next prepare explicit candidate-context
+selection and realistic measured model/budget scope for the useful real trial.
+Current 8,192-token runtime cannot fit the old 6,890 + 1,600 scope; no budget was
+silently changed and no new client-source model call occurred.
