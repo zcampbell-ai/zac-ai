@@ -15,13 +15,14 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Literal, Protocol, Self
 from uuid import UUID
 
-from pydantic import AwareDatetime, ConfigDict, Field, TypeAdapter, model_validator
+from pydantic import AwareDatetime, ConfigDict, Field, TypeAdapter, field_validator, model_validator
 from sqlalchemy.orm import Session, sessionmaker
 
 from zacai.ingestion.artifact_store import ArtifactStore, canonical_bytes, content_hash_of
 from zacai.intelligence.contextual_generation import ContextualRequest, prepare_contextual_request
 from zacai.intelligence.contextual_host import ContextualRunScope, contextual_request_digest
 from zacai.intelligence.contracts import Contract, Digest, ModelRoute
+from zacai.intelligence.research_context import ResearchReviewSelection
 from zacai.intelligence.review_context import _unique_pairs
 from zacai.intelligence.review_evaluation import review_context_digest
 from zacai.intelligence.review_freshness import review_evidence_digest
@@ -45,7 +46,7 @@ class ContextualConsent(Contract):
     format: Literal["zac-contextual-consent-v1"] = "zac-contextual-consent-v1"
     id: UUID
     builder_id: UUID
-    selection: ReviewSelection
+    selection: ReviewSelection | ResearchReviewSelection
     authorized_boundaries: frozenset[B]
     allowed_classifications: frozenset[C]
     boundary: Literal[B.BRAINSTORM] = B.BRAINSTORM
@@ -59,6 +60,16 @@ class ContextualConsent(Contract):
     state_recovery_reference: str = Field(min_length=1, max_length=500, strict=True)
     artifact_recovery_reference: str = Field(min_length=1, max_length=500, strict=True)
     credential_recovery_reference: str = Field(min_length=1, max_length=500, strict=True)
+
+    @field_validator("selection", mode="before")
+    @classmethod
+    def exact_selection(cls, value: object) -> object:
+        if isinstance(value, dict):
+            if "format" in value:
+                return ResearchReviewSelection.model_validate(value)
+            if set(value) - {"selected", "earlier", "projects"}:
+                raise ValueError("unknown selection fields")
+        return value
 
     @model_validator(mode="after")
     def bounded_scope(self) -> Self:
@@ -281,6 +292,8 @@ def _request_matches(consent: ContextualConsent, request: ContextualRequest) -> 
     related = {item.source_id for item in consent.selection.earlier} | {
         item.source_id for item in consent.selection.projects
     }
+    if isinstance(consent.selection, ResearchReviewSelection):
+        related |= {item.source_id for item in consent.selection.research}
     meetings = {selected.meeting_id} | {item.meeting_id for item in consent.selection.earlier}
     actual = {
         e.entity_id
@@ -467,7 +480,11 @@ class BrainstormContextualRecoveryGate:
             self._gate.preflight(
                 ReviewConsent(
                     id=consent.id,
-                    selection=consent.selection,
+                    selection=ReviewSelection(
+                        consent.selection.selected,
+                        consent.selection.earlier,
+                        consent.selection.projects,
+                    ),
                     route=consent.route,
                     model_digest=consent.model_digest,
                     prepared_digest=consent.prepared_digest,
@@ -477,7 +494,12 @@ class BrainstormContextualRecoveryGate:
                     state_recovery_reference=consent.state_recovery_reference,
                     artifact_recovery_reference=consent.artifact_recovery_reference,
                     credential_recovery_reference=consent.credential_recovery_reference,
-                )
+                ),
+                additional_sources=(
+                    {x.source_id: x.content_hash for x in consent.selection.research}
+                    if isinstance(consent.selection, ResearchReviewSelection)
+                    else None
+                ),
             )
         except Exception:  # noqa: BLE001 - original gate diagnostics stay private
             failed = True

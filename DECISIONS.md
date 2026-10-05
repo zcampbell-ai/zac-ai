@@ -5750,3 +5750,43 @@ agent credential gateway or enabled service.
 
 D034AI validation: 1,411 tests pass (two existing dependency warnings); Ruff
 and strict mypy on 60 source files pass.
+
+
+## D034AJ — explicit research excerpts; consent-bound larger local profile
+
+Keep native meeting selection and reviewed project evidence distinct from MANUAL
+candidate research. Add a strict contextual research selection format; reject
+unknown fields rather than silently drop history into the legacy selection.
+Consent binds source/record/field hashes, exact Unicode-code-point spans and host
+relevance rationale. Rationale is not model evidence. Do not normalize or shift
+ranges after source changes. Unsupported/oversized spans reject before consent;
+final serializer/token limits still apply. Candidate roles never assert prior
+native meeting chronology or promote project/SOW identities.
+
+Preserve original Event provenance, including non-context dependency Sources,
+then append research references. Original import records remain unchanged;
+projection excludes derived interpretations, status/parent/list metadata and
+marks names/timestamps as captured/unverified. Re-recorded wrappers for the same
+original provider record are duplicate-denied within this bounded slice. Future
+history comparison of multiple versions needs a deliberate separate structure.
+JSON strings escape line-separator controls and retain exact original ranges.
+
+Extend read-only recovery with additional pinned MANUAL Sources and require them
+in both encrypted artifact storage and the restored state. A contextual recovery
+view is never a compact consent or dispatch grant. Accept the hash-bound existing
+contextual-research checkpoint namespace as reusable same-boundary recovery
+material; this does not grant authority or excuse freshness checks.
+
+The fixed named local profile mac-loopback-contextual-16k maps to 16,384 only for
+the pinned qwen3.8:27b-mlx model. The default stays 8,192 and compact schema/counting
+cannot use the larger profile. Treat profile identity as part of the exact human
+route approval; changing its semantics requires a new identity, not altering the
+meaning of outstanding consent. No automatic context expansion, trimming or cloud
+fallback. The profile is implemented/validated for an exact proposed one-shot
+trial, not registered as an unattended service.
+
+Actual PUBLIC conformance and real read-only B2 recovery passed. Lexical excerpt
+selection is a proposed source scope, not evidence of topical sufficiency. If the
+first draft needs context, return a targeted material question under Zac's
+preference rather than invent history or produce an irrelevant summary. Private
+trial approval and later human semantic/usefulness feedback remain separate.

@@ -11,7 +11,8 @@ approved live rollout are complete; exact reviewed project evidence and the priv
 next. D034P concrete operator composition and invented end-to-end tests are
 complete. Prior real recovery and gate mechanics are recorded below.
 D034I verifies the schema-aware backup mechanism with synthetic recovery drills.
-No immediate contextual question blocks that engineering work.
+D034AJ completes this engineering preparation; the exact private trial now needs
+a human decision.
 
 ## Decisions needed before a live/private step
 
@@ -527,3 +528,27 @@ Do not request a speculative context-limit increase yet. First finish relevant
 source selection/projection and exact measurement, then present the concrete
 trial and any material contextual questions. No new question blocks this
 engineering preparation.
+
+
+## D034AJ — exact one-meeting trial ready for decision
+
+Recommend one local shadow contextual review using the previously selected
+PowerBI meeting, its case-specific reviewed brief and four explicitly marked
+candidate history Sources. No project identity is inferred from the account.
+The hash-bound private v3 proposal contains the exact field ranges, source/model
+pin and larger named local profile. Input measured 9,248 plus 1,600 reserved
+output; 16,384 profile and 64,000 per-route characters are proposed, with the
+default 8,192 unchanged. PUBLIC full-reservation conformance and actual selected-
+evidence/original-checkpoint recovery passed. No private model run occurred.
+
+Approval permits only this one local processing attempt, canonical draft/audits
+and encrypted post-run recovery. It does not authorize external AI processing,
+new provider reads, account-wide sync, automatic entity/SOW links, retries or
+service/mobile activation. A local preview makes the chosen excerpt windows and
+known omissions reviewable. Relevance is lexical/candidate, not verified history;
+a material uncertainty should become a quick targeted question.
+
+After the protected draft: ask for usefulness/context/style feedback and resolve
+material gaps, then continue the accepted briefing/private-interface path before
+staged broad history collection. No more Backblaze credentials or manual push
+are required now.

@@ -66,7 +66,9 @@ class ReviewRecoveryCheckpoint(BaseModel):
 
 
 def _state_key(key: str, digest: str) -> None:
-    match = re.fullmatch(r"BRAINSTORM/state/(review-)?([0-9a-f-]{36})/([0-9a-f]{64})\.age", key)
+    match = re.fullmatch(
+        r"BRAINSTORM/state/(review-|contextual-research-)?([0-9a-f-]{36})/([0-9a-f]{64})\.age", key
+    )
     if not match or str(UUID(match[2])) != match[2] or match[3] != digest:
         raise ValueError("invalid state recovery object binding")
 
@@ -152,7 +154,9 @@ class BrainstormReviewRecoveryGate:
         if age_decrypt(age_encrypt(challenge, self._recipient), self._identity) != challenge:
             raise ValueError("recipient identity mismatch")
 
-    def preflight(self, consent: ReviewConsent) -> None:
+    def preflight(
+        self, consent: ReviewConsent, *, additional_sources: dict[UUID, str] | None = None
+    ) -> None:
         try:
             consent = ReviewConsent.model_validate(consent)
             checkpoint = self._checkpoint
@@ -174,12 +178,14 @@ class BrainstormReviewRecoveryGate:
                 )
             ):
                 raise ValueError("current checkpoint unavailable")
-            hashes = self._required_artifacts(consent)
+            hashes = self._required_artifacts(consent, additional_sources=additional_sources)
             self._restoration.verify(state, hashes, current_business_state=self._engine)
         except Exception:  # noqa: BLE001 - never expose receipt/artifact/backend text
             raise ReviewRecoveryError("review recovery prerequisites unavailable") from None
 
-    def _required_artifacts(self, consent: ReviewConsent) -> dict[UUID, str]:
+    def _required_artifacts(
+        self, consent: ReviewConsent, *, additional_sources: dict[UUID, str] | None = None
+    ) -> dict[UUID, str]:
         hashes: dict[UUID, str] = {}
         with _snapshot(self._factory) as session:
             if session.scalar(text("SELECT current_database()")) != self._engine.url.database:
@@ -209,6 +215,13 @@ class BrainstormReviewRecoveryGate:
                     raise ValueError("remote artifact recovery mismatch")
                 return source, raw
 
+            if additional_sources is not None:
+                if not 1 <= len(additional_sources) <= 11:
+                    raise ValueError("additional recovery scope outside capacity")
+                for sid, expected in additional_sources.items():
+                    source, _ = recover(sid)
+                    if source.content_hash != expected or source.system != SourceSystem.MANUAL:
+                        raise ValueError("additional recovery source changed")
             meetings = (consent.selection.selected, *consent.selection.earlier)
             if len({m.meeting_id for m in meetings}) != len(meetings):
                 raise ValueError("duplicate selected meeting")

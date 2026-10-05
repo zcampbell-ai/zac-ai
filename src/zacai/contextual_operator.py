@@ -36,6 +36,7 @@ from zacai.intelligence.contracts import ModelRoute
 from zacai.intelligence.eligibility import ApprovedRoute, ApprovedRouteRegistry
 from zacai.intelligence.local_contextual_runtime import LocalContextualRuntime
 from zacai.intelligence.local_review_runtime import LocalPromptTokenCounter
+from zacai.intelligence.research_context import ResearchReviewSelection
 from zacai.intelligence.review_host import ReviewSelection
 from zacai.policy import DataClassification as C
 from zacai.policy import Destination
@@ -168,7 +169,7 @@ class BrainstormContextualOperator:
         """Failure evidence only; no approval, retry or captured-packet release."""
         return self._failure_receipt
 
-    def execute(self, selection: ReviewSelection) -> ContextualHostResult:
+    def execute(self, selection: ReviewSelection | ResearchReviewSelection) -> ContextualHostResult:
         """One committed approval, with complete failed-attempt recovery if possible.
 
         A cross-process operator lease prevents concurrent backup/manifest work

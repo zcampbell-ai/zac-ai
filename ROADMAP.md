@@ -11,7 +11,7 @@ This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position — reconciled 2026-10-04
 
-Current completed engineering checkpoint: D034AI. The bounded research intake
+Current completed engineering checkpoint: D034AJ. The bounded research intake
 and its original encrypted remote checkpoint are now fully verified.
 D031B verified real BRAINSTORM encrypted off-device artifact recovery. D032
 intelligence contracts are implemented. D033C verified one explicitly approved
@@ -1041,3 +1041,57 @@ consult Opus on the structure using code/invented examples, and measure a
 concrete complete payload. Prefer faithful relevant evidence over dumping all
 records or quietly trimming them. Present any necessary model/context-budget
 change with measured scope and runtime validation before a private generation.
+
+
+## D034AJ — scoped candidate history in the contextual operator; useful trial ready
+
+Candidate research excerpts now use a distinct strict selection format in the
+existing contextual consent/operator chain. The original compact consent/selection
+shape remains unchanged. Pin wrapper, approved record and decoded field hashes;
+explicit ranges use Unicode code points without normalization. Reject ambiguous,
+coerced, overlapping, adjacent, out-of-bounds and forged ranges, duplicate Sources
+and duplicate original provider records. Relevance reasons are approval metadata,
+not evidence sent to the model. Never promote research snapshots into native
+Meeting/Project entities or confirmed SOW continuity.
+
+Only explicitly selected original text/description spans and limited as-captured
+name/update metadata reach the model. Prior research interpretation and task
+status/parent/list fields are excluded from this projection. JSON escaping and
+fixed line limits preserve framing; omissions are explicit. Preserve all original
+Zac Event dependency provenance in order, then append candidate references.
+Assembly, consent matching, freshness, packet capture, successful/failed recovery
+and conservative reconciliation use the same exact selection. Candidate artifacts
+must recover independently and exist in the protected checkpoint before processing.
+
+Default contextual/compact runtime stays at 8,192. A named contextual-only host
+profile, mac-loopback-contextual-16k for the existing pinned qwen3.8:27b-mlx,
+uses 16,384, bound through the consent's route identity. Its serializer, offline
+counter, prompt/output reservation and observed usage enforce the same limit;
+compact counting stays at 8,192. No default configuration or running service was
+expanded. Byte ceiling stays 64,000; the proposed per-trial character ceiling is
+64,000 and requires the exact route approval.
+
+The profile passed actual PUBLIC invented long-context conformance with the full
+1,600 output reservation: 11,773 input tokens matched the offline tokenizer,
+634 output tokens, about 60 seconds. No private Source input or canonical writes.
+That establishes structural/runtime conformance, not semantic usefulness.
+
+Private preparation proposes four lexical candidate Sources from six eligible
+matches among the eleven imported exhibits, at most two explicit topic windows
+per Source. It is not a semantic relevance judgment or complete-history claim.
+The selected meeting, reviewed brief and these candidates serialize to 34,025
+bytes. Exact preparation measured 9,248 input + 1,600 output reservation = 10,848,
+within the proposed 16,384 profile. Fresh host ID namespaces can change the exact
+count; dispatch recounts and rejects overflow. Canonical state was unchanged.
+Actual B2 prerequisite recovery of selected candidates/dependencies and the
+original checkpoint passed full disposable restore, cleanup and prior recovered-
+identity checks. No approval record, new private generation or upload occurred.
+
+Opus design/code/profile reviews informed provenance, Unicode framing, explicit
+selection parsing and test corrections. Validation: 1,451 tests pass, two existing
+dependency warnings; Ruff and strict mypy on 61 source files pass. Exact private
+proposal, preview, recovery proof and human approval remain outside Git. The next
+human decision is one local shadow review with this exact selected evidence,
+profile/pin and encrypted post-run recovery. Output stays an unevaluated private
+draft or material question. No recurring connector, cloud processing, fact
+promotion or mobile service is enabled; the app remains health-only.

@@ -42,10 +42,19 @@ def render_review_prompt(serialized_body: bytes) -> str:
 
 def render_contextual_prompt(serialized_body: bytes) -> str:
     """Explicit contextual schema; compact counting does not accept it."""
-    return _render_prompt(serialized_body, ContextualDraft.model_json_schema())
+    return _render_prompt(
+        serialized_body,
+        ContextualDraft.model_json_schema(),
+        context_tokens=frozenset({8192, 16384}),
+    )
 
 
-def _render_prompt(serialized_body: bytes, schema: dict[str, Any]) -> str:
+def _render_prompt(
+    serialized_body: bytes,
+    schema: dict[str, Any],
+    *,
+    context_tokens: frozenset[int] = frozenset({8192}),
+) -> str:
     """Only the exact two-turn no-thinking review payload is supported."""
     try:
         if len(serialized_body) > 64_000:
@@ -77,7 +86,7 @@ def _render_prompt(serialized_body: bytes, schema: dict[str, Any]) -> str:
             or type(options["temperature"]) is not int
             or options["temperature"] != 0
             or type(options["num_ctx"]) is not int
-            or options["num_ctx"] != 8192
+            or options["num_ctx"] not in context_tokens
             or type(options["num_predict"]) is not int
             or not 0 < options["num_predict"] < 8192
         ):
@@ -196,7 +205,8 @@ class OllamaQwenReviewTokenCounter:
             # forge chat-template boundaries even with add_special_tokens=False.
             messages = local._json(serialized_body)["messages"]
             controls = tuple(
-                token.content for token in self._tokenizer.get_added_tokens_decoder().values()
+                token.content
+                for token in self._tokenizer.get_added_tokens_decoder().values()
                 if token.special
             )
             if any(control in message["content"] for control in controls for message in messages):

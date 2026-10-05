@@ -32,6 +32,15 @@ from zacai.policy import Destination
 _CONTEXT_TOKENS = 8192
 
 
+def _context_tokens(route: ModelRoute) -> int:
+    # Explicit host profile, bound by consent route identity. Default stays unchanged.
+    if route.identity.runtime_id == "mac-loopback-contextual-16k":
+        if route.identity.model_id != "qwen3.8:27b-mlx":
+            raise LocalContextualRuntimeError("unsupported contextual profile model")
+        return 16384
+    return _CONTEXT_TOKENS
+
+
 class LocalContextualRuntimeError(ValueError):
     """Fixed diagnostics; no backend/input/output text."""
 
@@ -82,7 +91,7 @@ def prepare_payload(request: ContextualRequest, route: ModelRoute, digest: str) 
             "options": {
                 "temperature": 0,
                 "num_predict": request.context.task.max_output_tokens,
-                "num_ctx": _CONTEXT_TOKENS,
+                "num_ctx": _context_tokens(route),
             },
         },
         ensure_ascii=False,
@@ -112,7 +121,7 @@ def dispatch_draft(
     if (
         any(type(count) is not int or count < 0 for count in counts)
         or counts[1] > request.context.task.max_output_tokens
-        or counts[0] + counts[1] > _CONTEXT_TOKENS
+        or counts[0] + counts[1] > _context_tokens(route)
     ):
         raise LocalContextualRuntimeError("invalid local usage or context capacity")
     content = message["content"]
@@ -175,7 +184,7 @@ class LocalContextualRuntime:
         if (
             type(count) is not int
             or count <= 0
-            or (count + request.context.task.max_output_tokens > _CONTEXT_TOKENS)
+            or (count + request.context.task.max_output_tokens > _context_tokens(self.route))
         ):
             raise ValueError("prompt/output token budget exceeded")
         return count

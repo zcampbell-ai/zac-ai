@@ -36,6 +36,7 @@ from zacai.intelligence.contracts import IntelligenceTask, ModelRoute
 from zacai.intelligence.eligibility import ApprovedRouteRegistry, assess_routes
 from zacai.intelligence.meeting_review import ReviewContext
 from zacai.intelligence.project_review_context import assemble_project_review_context
+from zacai.intelligence.research_context import ResearchReviewSelection, append_research_context
 from zacai.intelligence.review_audit import (
     ContextualAuditEvent,
     ContextualAuditStage,
@@ -74,7 +75,7 @@ def contextual_request_digest(request: ContextualRequest) -> str:
 class ContextualRunScope:
     run_id: UUID
     builder_id: UUID
-    selection: ReviewSelection
+    selection: ReviewSelection | ResearchReviewSelection
     authorized_boundaries: frozenset[TrustBoundary]
     allowed_classifications: frozenset[DataClassification]
     route: ModelRoute
@@ -168,7 +169,7 @@ def assemble_contextual_context(
     factory: sessionmaker[Session],
     *,
     artifacts: ArtifactStore,
-    selection: ReviewSelection,
+    selection: ReviewSelection | ResearchReviewSelection,
     authorized_boundaries: frozenset[TrustBoundary],
     allowed_classifications: frozenset[DataClassification],
     now: datetime,
@@ -205,14 +206,24 @@ def assemble_contextual_context(
             "Prepare a source-backed contextual meeting review or material question."
         )
         task = IntelligenceTask.model_validate(data)
-        return ReviewContext(task, context.meeting_source_id, context.related_source_ids)
+        result = ReviewContext(task, context.meeting_source_id, context.related_source_ids)
+        if isinstance(selection, ResearchReviewSelection):
+            result = append_research_context(
+                session,
+                artifacts=artifacts,
+                context=result,
+                research=selection.research,
+                authorized_boundaries=authorized_boundaries,
+                allowed_classifications=allowed_classifications,
+            )
+        return result
 
 
 def execute_contextual_shadow(
     factory: sessionmaker[Session],
     *,
     artifacts: ArtifactStore,
-    selection: ReviewSelection,
+    selection: ReviewSelection | ResearchReviewSelection,
     builder_id: UUID,
     authorized_boundaries: frozenset[TrustBoundary],
     allowed_classifications: frozenset[DataClassification],

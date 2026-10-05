@@ -212,3 +212,23 @@ write/commit is terminal audit-unavailable, never a fabricated durable record.
 Twenty new guarded tests cover the gate and denial journal. No actual private
 gate invocation, new B2 upload, live migration or model processing occurred in
 D034N. The full regression and independent review results are in DECISIONS.md.
+
+
+## D034AJ candidate context and explicit larger local profile
+
+The contextual host accepts an exact ResearchReviewSelection in addition to the
+legacy ReviewSelection. Candidate Sources use pinned envelope/record/field hashes
+and explicit Unicode-code-point ranges; unknown fields and altered scope reject.
+The host preserves original Event dependencies and refreshes the same projection
+before dispatch and release. Import permission alone does not approve processing.
+Candidate identity and dated metadata remain unconfirmed; interpretation and
+status/parent/list fields are absent from the projection.
+
+The additional MANUAL artifact hashes must recover and exist in the restored
+checkpoint before context reads. Successful and failed packet recovery keep this
+same scope. The named mac-loopback-contextual-16k profile is bound by the consent
+route and fixed to 16,384 for the pinned qwen3.8:27b-mlx. Default remains 8,192;
+byte ceiling remains 64,000. The real PUBLIC probe with 1,600 output reservation
+matched 11,773 input tokens and completed in about 60 seconds. It proves runtime
+conformance only. Exact proposed private evidence/profile/route approval and
+semantic evaluation are still required; no service is enabled.
