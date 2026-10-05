@@ -5720,3 +5720,33 @@ capabilities before installing. Do not rotate the master key or revoke the old
 key as an inferred side effect. Finish missing checkpoint recovery before the
 new contextual trial. Engineering passes 1,409 tests, Ruff and strict mypy; Opus
 reviews were code/invented tests only, without client-source egress.
+
+
+## D034AI — split uploader and read-only recovery verifier
+
+Retain the existing read/write uploader and use the separately user-created,
+1Password-recovered verifier restricted to the existing Brainstorm bucket and
+BRAINSTORM/ prefix. This supersedes the pending replacement-key implementation
+in D034AH; no master-key rotation or old-key revocation occurred. Backblaze's
+Read Only preset includes readFiles/listFiles plus bucket metadata reads and
+shareFiles download-authorization capability. Fresh authorization checks the
+actual credential against the exact accepted allowlist and checks that its ID
+differs from the uploader. Runtime verification uses read/list operations only.
+
+Receipt absence checks belong to the verification client, preserving writer
+scope. Never turn a 403 into absence. The deliberate one-time intake repair used
+the original encrypted state/journal, original journal-to-live backup-run binding,
+all thirteen intake artifacts and full disposable restore/current-state checks.
+Confirm cleanup before a receipt claims it, then upload/read back only the missing
+encrypted receipt. Private approval, attempt/completion records and hashes are
+owner-only ignored files. No repeated intake, snapshot, inference or entity writes.
+A restored checkpoint is not new device-loss credential escrow evidence.
+
+Use native Keychain reads with a private local stdin pipe where the CLI's access
+control blocks newly installed entries. Credentials never enter argv, plaintext
+files, logs or model input. Do not force-kill a restore child at a short parent
+timeout: its cleanup must run. This bridge is an operator helper, not a new
+agent credential gateway or enabled service.
+
+D034AI validation: 1,411 tests pass (two existing dependency warnings); Ruff
+and strict mypy on 60 source files pass.

@@ -11,8 +11,8 @@ This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position — reconciled 2026-10-04
 
-Current completed engineering checkpoint: D034AH / 35d191c. The bounded research
-intake is committed; its final remote checkpoint receipt remains unverified.
+Current completed engineering checkpoint: D034AI. The bounded research intake
+and its original encrypted remote checkpoint are now fully verified.
 D031B verified real BRAINSTORM encrypted off-device artifact recovery. D032
 intelligence contracts are implemented. D033C verified one explicitly approved
 Fireflies capture. D034O applied live schema 0005 with protected recovery, and
@@ -37,10 +37,11 @@ input + 1,600 reserved output tokens exceed the unchanged 8,192 limit. D034AH th
 ClickUp research exhibits as candidate Sources plus approval/locator metadata.
 All thirteen new artifacts were independently recovered from actual encrypted B2;
 a diagnostic local full state/journal restore passes. Final remote checkpoint
-binding/receipt remains unverified: the current backup key has readFiles/writeFiles
-but lacks listFiles, and the required absence/list checks return HTTP 403. Zac
-approved the narrowly scoped read/write/list replacement; creation/installation
-is pending Backblaze account access. No new model trial, recurring ingestion or
+binding/receipt is now verified by D034AI: a separately installed Read Only
+verifier provides scoped read/list checks while the existing uploader is retained.
+The original encrypted state/journal passed full disposable restore, all thirteen
+intake artifacts recovered, and the missing encrypted receipt was saved/read back.
+No new model trial, recurring ingestion or
 broad production routing is enabled. The app remains health-only.
 
 Zac confirmed the first usable version's delivery target in chat on 2026-10-04:
@@ -984,3 +985,40 @@ read-only connection and private-network requirements; work-system account/admin
 contacts and available supported exports can accompany that. Personal/financial
 account authorization comes from Zac. Avoid speculative credentials or broad
 permission presets; request the concrete next account access when needed.
+
+
+## D034AI — original intake checkpoint recovered; separate read-only verifier
+
+Zac created and recovered a separate Backblaze Read Only application key in
+1Password, scoped to zac-ai-brainstorm-backup and BRAINSTORM/. Native Mac
+Keychain installation and read-back succeeded; the clipboard was cleared.
+The existing uploader is unchanged. Fresh native authorization verifies the
+actual Read Only preset, including bucket-metadata read permissions and
+shareFiles, against an explicit allowlist; no write/delete/admin capabilities.
+The repair uses only file read/list, not sharing APIs.
+
+Actual repair downloaded/decrypted the original state and operational journal,
+verified the original ciphertext/plaintext hashes, independently recovered all
+thirteen intake artifacts, passed full disposable database restoration/current
+business-state comparison, and confirmed target cleanup before receipt creation.
+The original journal identifies the backup run and matches its live fields.
+Only the missing encrypted receipt was uploaded with the existing writer, then
+independently read back/decrypted with the separate verifier. Canonical state
+remains unchanged: 44 Sources, no repeat intake, new snapshot, entity writes or
+model generation. This did not repeat device-loss key-escrow verification; the
+prior independent recovered-key drill remains separate evidence.
+
+Successful and failed contextual receipts now check object absence through the
+verification client. Authorization failures remain failures, never absence.
+Two regression cases cover the uploader lacking receipt-list permissions.
+Opus independent code-only review identified and informed fixes for forced
+termination during restore, backup-run binding, supplied-key permission proof,
+and checking cleanup before writing the receipt. No client-source model egress.
+
+Next: faithfully decode candidate research evidence, select relevant context,
+measure a concrete useful local-model scope, then ask for exact processing/budget
+approval. The existing 8,192 limit is unchanged; the previous 6,890 + 1,600 scope
+still does not fit. No recurring ingestion or usable mobile interface is enabled.
+
+D034AI validation: 1,411 tests pass (two existing dependency warnings); Ruff
+and strict mypy on 60 source files pass.

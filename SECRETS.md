@@ -1,7 +1,7 @@
 # Zac AI Secrets Management
 
-Status: security rails only. No real credentials or Keychain entries exist
-yet. See DECISIONS.md D017 for the full architecture decision and rationale.
+Status: security rails plus separately approved Mac Keychain credentials.
+Credential values remain private; integration-specific setup is in RECOVERY.md. See DECISIONS.md D017 for the full architecture decision and rationale.
 
 ## Rules
 

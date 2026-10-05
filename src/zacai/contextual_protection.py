@@ -307,7 +307,7 @@ class BrainstormContextualProtector:
             receipt_raw = encode_recovery_receipt(receipt)
             receipt_ciphertext = age_encrypt(receipt_raw, self._recipient)
             # New UUID locator is append-only; existing objects must never be overwritten.
-            if self._objects.exists(locator.receipt_object):
+            if self._reader.exists(locator.receipt_object):
                 raise ValueError("receipt object already exists")
             self._put(locator.receipt_object, receipt_ciphertext)
             recovered_receipt = self._read(locator.receipt_object, 64_000)

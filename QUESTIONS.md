@@ -503,8 +503,19 @@ change tracking. Work-system account inventory and integration-admin contacts
 will help. Share credentials securely in 1Password, not chat. Personal/financial
 account grants come from Zac. This does not block preparing source inventories.
 
-Immediate blocker remains the previously approved scoped B2-key setup and final
-D034AH remote checkpoint receipt: complete human verification/account sign-in on
-the Mac's prepared Backblaze Safari tab. No new approval of the full context goal
-is required. No unmanaged bulk collection starts ahead of the recovery/workflow
-gates.
+The B2 setup and original D034AH checkpoint receipt are now complete under
+D034AI. No more Backblaze interaction is needed. Do not repeat the import or
+ask for a replacement key. Exact candidate-context selection and useful local
+model/budget approval are next; historical collection stays behind these gates.
+
+
+
+## D034AI — Backblaze resolved; contextual trial scope remains
+
+The separate Read Only verifier is installed and original remote checkpoint
+recovery/receipt verified. No immediate question remains for credential setup.
+Before a real generation, present the exact relevant candidate evidence and
+measured local-model route/context/output budget. The previous scope exceeds
+8,192 tokens. Never trim relevant history or enlarge runtime limits silently.
+Candidate meeting/project/SOW interpretations remain unconfirmed; ask a quick
+material question when project uncertainty would change the work.

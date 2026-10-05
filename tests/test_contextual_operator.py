@@ -185,6 +185,36 @@ def test_bad_usage_protects_failure_without_release_or_retry(complete):
     assert calls.count("/api/chat") == 1
 
 
+@pytest.mark.parametrize("bad_usage", [False, True])
+def test_receipt_absence_uses_verifier_when_uploader_cannot_list(complete, monkeypatch, bad_usage):
+    options, selection, calls, behavior, _, _ = complete
+    behavior["bad_usage"] = bad_usage
+    writer, reader = options["objects"], options["verification_objects"]
+    writer_exists, reader_exists = writer.exists, reader.exists
+    receipt_reads = []
+
+    def uploader_exists(key):
+        if key.rsplit("/", 1)[-1].startswith("receipt") and key.endswith(".age"):
+            pytest.fail("receipt absence checked with uploader lacking list permission")
+        return writer_exists(key)
+
+    def verifier_exists(key):
+        if key.rsplit("/", 1)[-1].startswith("receipt") and key.endswith(".age"):
+            receipt_reads.append(key)
+        return reader_exists(key)
+
+    monkeypatch.setattr(writer, "exists", uploader_exists)
+    monkeypatch.setattr(reader, "exists", verifier_exists)
+    operator = BrainstormContextualOperator(**options)
+    if bad_usage:
+        with pytest.raises(ContextualOperatorError, match="failure recovery verified"):
+            operator.execute(selection)
+        assert operator.failed_recovery_receipt is not None
+    else:
+        assert operator.execute(selection).recovery_receipt is not None
+    assert receipt_reads and calls.count("/api/chat") == 1
+
+
 @pytest.mark.parametrize("failure", ["schema", "target"])
 def test_connected_target_failure_precedes_all_host_io(complete, failure):
     options, selection, calls, _, restored, _ = complete

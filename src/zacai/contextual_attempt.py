@@ -269,7 +269,7 @@ def protect_failed_attempt(
         )
         receipt_raw = canonical_bytes(receipt.model_dump(mode="json"))
         ciphertext = age_encrypt(receipt_raw, protector._recipient)
-        if protector._objects.exists(locator.receipt_object):
+        if protector._reader.exists(locator.receipt_object):
             raise ValueError("attempt receipt already exists")
         protector._put(locator.receipt_object, ciphertext)
         returned = protector._read(locator.receipt_object, 64_000)

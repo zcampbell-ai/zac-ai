@@ -298,3 +298,23 @@ modified and no key material was displayed. Other application credentials and
 boundaries are not covered by this specific key recovery.
 Private object references, timestamps and digests are stored in the ignored
 private-data recovery receipt, never in repository documentation.
+
+
+## D034AI original research-intake recovery — 2026-10-04
+
+The original encrypted BRAINSTORM state/journal was independently retrieved from
+B2, hash-verified, decrypted and fully restored into zacai_restore_test. Canonical
+business-state equality and all thirteen intake Source hashes passed. Cleanup
+was confirmed before the missing encrypted recovery receipt was written and
+independently read back/decrypted. Live canonical state was unchanged; no new
+import or backup snapshot was created. This verifies the original checkpoint,
+not a fresh recovered-identity escrow drill. Private receipts remain ignored.
+
+The dedicated verifier is saved in 1Password and Mac Keychain, account
+brainstormzac, services zacai-brainstorm-b2-verifier-key-id and
+zacai-brainstorm-b2-verifier-application-key. Boundary-prefixed interface names
+are BRAINSTORM_B2_VERIFIER_KEY_ID and BRAINSTORM_B2_VERIFIER_APPLICATION_KEY.
+Its actual user-created Read Only preset is scoped to the existing bucket and
+BRAINSTORM/ prefix and includes read/list, metadata reads and shareFiles; no
+write/delete/admin permission. Verification uses read/list only. The uploader
+remains separate and unchanged. Neither key nor source prose belongs in Git.
