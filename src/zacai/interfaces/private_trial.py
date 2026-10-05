@@ -28,6 +28,7 @@ from starlette.concurrency import run_in_threadpool
 from zacai.contextual_recovery_record import ContextualRecoveryReceipt, encode_recovery_receipt
 from zacai.ingestion.artifact_store import ArtifactStore, content_hash_of
 from zacai.intelligence.briefing_delivery import render_retained_decision_cards
+from zacai.interfaces.build_progress import BuildProgressSnapshot, render_build_progress
 from zacai.interfaces.owner_enrollment import PendingOwner
 from zacai.interfaces.private_operator import PrivateOperatorMode, open_private_operator
 from zacai.interfaces.private_web import InterfacePrincipal, OwnerGrant
@@ -69,9 +70,13 @@ class SelectedPacketView:
     def __init__(
         self, *, factory: sessionmaker[Session], artifacts: ArtifactStore,
         selection: RetainedCardSelection, clock: Callable[[], datetime],
+        progress: BuildProgressSnapshot | None = None,
     ) -> None:
         if type(selection) is not RetainedCardSelection or not callable(factory) or not callable(clock):
             raise PrivateTrialError("private trial view unavailable")
+        if progress is not None and type(progress) is not BuildProgressSnapshot:
+            raise PrivateTrialError("private trial progress unavailable")
+        self._progress = progress
         self._factory, self._artifacts, self._selection, self._clock = (
             factory, artifacts, selection, clock
         )
@@ -91,13 +96,19 @@ class SelectedPacketView:
                     raise ValueError("invalid host clock")
                 with self._factory() as session:
                     _assert_ledger_isolation(session)
-                    return render_retained_decision_cards(
+                    html = render_retained_decision_cards(
                         session, artifacts=self._artifacts,
                         retained_receipt=self._selection.receipt,
                         expected_receipt_digest=self._selection.receipt_digest,
                         principal=principal, as_of=now,
                         selected_item=self._selection.selected_item,
                     )
+                    if self._progress is not None:
+                        if html.count("</main>") != 1:
+                            raise ValueError("protected document composition unavailable")
+                        fragment = render_build_progress(self._progress)
+                        html = html.replace("</main>", fragment + "</main>")
+                    return html
 
             result = await run_in_threadpool(render)
         except Exception:  # noqa: BLE001,S110 - no source/storage/SQL diagnostics

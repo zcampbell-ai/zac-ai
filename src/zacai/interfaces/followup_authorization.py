@@ -24,6 +24,7 @@ from zacai.ingestion.artifact_store import ArtifactStore, canonical_bytes, conte
 from zacai.intelligence.contracts import Contract, Digest, EvidenceReference, ModelRoute
 from zacai.intelligence.followup_generation import FollowupRequest, prepare_followup_request
 from zacai.intelligence.text_followup import FOLLOWUP_CAPABILITY
+from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.private_web import InterfacePrincipal, OwnerGrant
 from zacai.interfaces.text_followup_context import AssembledFollowup
 from zacai.policy import DataClassification as C
@@ -265,8 +266,21 @@ class ClaimedFollowup:
 
 
 class FollowupRecoveryGate(Protocol):
+    @property
+    def host_clock(self) -> HostObservedClock:
+        """Same process-local watermark as the calling canonical ledger."""
+        ...
+
     def preflight(self, consent: FollowupConsent) -> object:
-        """Actual checkpoint/key/credential recovery; only None acknowledges."""
+        """Current recovered inputs/key before subject commit; None acknowledges."""
+        ...
+
+    def protect_consent(self, *, consent: FollowupConsent, reference: EvidenceReference) -> object:
+        """Recover committed consent outside SQL; only None acknowledges."""
+        ...
+
+    def protect_claim(self, *, claimed: ClaimedFollowup, request: FollowupRequest) -> object:
+        """Recover committed consumed attempt; only None acknowledges."""
         ...
 
 
@@ -345,8 +359,15 @@ class CanonicalFollowupAuthorization:
         refresh: Callable[[], FollowupHostSnapshot],
         owner: Callable[[], OwnerGrant],
         recovery: FollowupRecoveryGate,
-        clock: Callable[[], datetime],
+        clock: HostObservedClock,
     ) -> None:
+        valid = False
+        try:
+            valid = type(clock) is HostObservedClock and recovery.host_clock is clock
+        except Exception:  # noqa: BLE001,S110 - fixed configuration diagnostic
+            pass
+        if not valid:
+            raise FollowupAuthorizationError("shared follow-up host clock required")
         self._factory, self._store = factory, store
         self._refresh, self._owner, self._recovery, self._clock = refresh, owner, recovery, clock
 
@@ -424,6 +445,25 @@ class CanonicalFollowupAuthorization:
                     raise ValueError("consent expired before commit")
                 self._owner_check(consent.scope)
                 session.commit()
+            reference = EvidenceReference(
+                source_id=result,
+                content_hash=content_hash_of(_raw(consent)),
+                trust_boundary=B.BRAINSTORM,
+                effective_classification=C.CONFIDENTIAL,
+            )
+            if self._recovery.protect_consent(consent=consent, reference=reference) is not None:
+                raise ValueError("consent recovery acknowledgement invalid")
+            self._fresh(consent.scope)
+            with self._factory() as session:
+                # After commit, cancellation and claim use the canonical Source
+                # ID, not the consent envelope ID used to serialize recording.
+                _lock(session, result)
+                current, current_reference = self._load(session, result, self._now())
+                if current != consent or current_reference != reference:
+                    raise ValueError("consent changed after recovery")
+            self._owner_check(consent.scope)
+            if not consent.approved_at <= self._now() < consent.expires_at:
+                raise ValueError("consent expired during recovery or final owner check")
         except Exception:  # noqa: BLE001 - fixed private-safe diagnostic
             result = None
         if result is None:
@@ -448,6 +488,8 @@ class CanonicalFollowupAuthorization:
             if consent.scope != scope:
                 raise ValueError("approval scope differs")
             self._recover(consent)
+            if self._recovery.protect_consent(consent=consent, reference=ref) is not None:
+                raise ValueError("consent recovery acknowledgement invalid")
             self._fresh(scope)
             with self._factory() as session:
                 _lock(session, approval_id)
@@ -491,11 +533,45 @@ class CanonicalFollowupAuthorization:
                         effective_classification=C.CONFIDENTIAL,
                     ),
                 )
-        except Exception:  # noqa: BLE001,S110 - no private context or chained diagnostics
-            pass
+            if self._recovery.protect_claim(claimed=result, request=request) is not None:
+                raise ValueError("claim recovery acknowledgement invalid")
+            self._fresh(scope)
+            self._claimed_check(result, consent)
+        except Exception:  # noqa: BLE001 - no private context or chained diagnostics
+            result = None
         if result is None:
             raise FollowupAuthorizationError("follow-up claim unavailable")
         return result
+
+    def _claimed_check(self, claimed: ClaimedFollowup, consent: FollowupConsent) -> None:
+        """Final locked active-authority check after historical durability recovery."""
+        claim = claimed.claim
+        with self._factory() as session:
+            _lock(session, claim.consent_reference.source_id)
+            current, current_ref = self._load(
+                session, claim.consent_reference.source_id, self._now()
+            )
+            source, raw = _source(
+                session,
+                self._store,
+                claimed.reference.source_id,
+                SourceSystem.MANUAL,
+                "packet-followup-claim/",
+            )
+            if (
+                current != consent
+                or current_ref != claim.consent_reference
+                or _reference(source) != claimed.reference
+                or source.external_ref
+                != f"packet-followup-claim/{claim.consent_reference.source_id}"
+                or source.captured_at != claim.claimed_at
+                or raw != _raw(claim)
+                or not consent.approved_at <= claim.claimed_at < consent.expires_at
+            ):
+                raise ValueError("consumed authority changed")
+        self._owner_check(claim.run_scope)
+        if not claim.claimed_at <= self._now() < consent.expires_at:
+            raise ValueError("claim expired during cleanup or final owner check")
 
     def recheck(self, claimed: ClaimedFollowup, request: FollowupRequest) -> None:
         """Consumed claim remains TTL/revocation/current-owner bound; no dispatch."""
@@ -518,30 +594,12 @@ class CanonicalFollowupAuthorization:
             if ref != claim.consent_reference or consent.scope != claim.run_scope:
                 raise ValueError("consent changed")
             self._recover(consent)
+            if self._recovery.protect_consent(consent=consent, reference=ref) is not None:
+                raise ValueError("consent recovery acknowledgement invalid")
+            if self._recovery.protect_claim(claimed=claimed, request=request) is not None:
+                raise ValueError("claim recovery acknowledgement invalid")
             self._fresh(claim.run_scope)
-            with self._factory() as session:
-                _lock(session, ref.source_id)
-                current, current_ref = self._load(session, ref.source_id, self._now())
-                source, raw = _source(
-                    session,
-                    self._store,
-                    claimed.reference.source_id,
-                    SourceSystem.MANUAL,
-                    "packet-followup-claim/",
-                )
-                if (
-                    current != consent
-                    or current_ref != ref
-                    or _reference(source) != claimed.reference
-                    or source.external_ref != f"packet-followup-claim/{ref.source_id}"
-                    or source.captured_at != claim.claimed_at
-                    or raw != _raw(claim)
-                    or not consent.approved_at <= claim.claimed_at < consent.expires_at
-                ):
-                    raise ValueError("consumed authority changed")
-                if not claim.claimed_at <= self._now() < consent.expires_at:
-                    raise ValueError("claim expired before acknowledgement")
-                self._owner_check(claim.run_scope)
+            self._claimed_check(claimed, consent)
             failed = False
         except Exception:  # noqa: BLE001,S110 - closed diagnostics
             pass

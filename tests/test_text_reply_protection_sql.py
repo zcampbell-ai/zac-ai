@@ -35,6 +35,7 @@ from zacai.interfaces.followup_authorization import (
     FollowupAuthorizationError,
     FollowupConsent,
     FollowupHostSnapshot,
+    _raw,
     scope_from_snapshot,
 )
 from zacai.interfaces.host_clock import HostObservedClock
@@ -158,11 +159,25 @@ def test_actual_sql_generated_reply_capture_cold_restore_and_immutable_retry(
     authority_recovery_checks = []
 
     class InventedAuthorityRecovery:
+        @property
+        def host_clock(self):
+            return clock
+
         def preflight(self, consent):
             # Deliberately not real credential/key/consent-checkpoint recovery.
             # The actual generated reply snapshot will include these Sources.
             assert consent.scope == scope
             authority_recovery_checks.append(consent.id)
+
+        def protect_consent(self, *, consent, reference):
+            # Invented post-commit authority gate, not an off-device proof.
+            assert consent.scope == scope and reference.content_hash == content_hash_of(
+                _raw(consent)
+            )
+
+        def protect_claim(self, *, claimed, request):
+            # Invented post-commit gate; reply backup mechanics remain real.
+            assert claimed.claim.request_digest == request.digest
 
     authority = CanonicalFollowupAuthorization(
         factory=factory,

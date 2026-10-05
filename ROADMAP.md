@@ -11,8 +11,10 @@ This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position — reconciled 2026-10-05
 
-Current completed engineering checkpoint: D034AR. D034AS implementation is
-prepared with final validation pending; its release gates are recorded below.
+Current validated engineering checkpoint: D034AV. Commit/push evidence is
+verified separately against Git; the D034AU parent is committed and pushed.
+Private iPhone acceptance and live conversation remain unverified; code completion
+must not stand in for those release gates.
 Zac confirmed the protected
 real D034AN review is a useful starting point, requested readable formatting,
 and authorized continuing. The first offline selected-review briefing view is
@@ -1759,3 +1761,56 @@ and canonical revocation, while active capture/load remain held. Authority
 recovery preflight and semantic usefulness in that fixture are explicitly
 invented; no production/B2/model/credential/listener/iPhone readiness is claimed.
 Exact staged secret checks pass; commit/push are verified against actual Git.
+
+
+## D034AV — recover canonical follow-up authority before acknowledgement
+
+New follow-up consent and consumed-claim Sources now require actual post-commit
+artifact/state/journal recovery before the ledger returns acknowledgement. Current
+TTL, revocation, Source ACL/hash, exact scope and owner are rechecked afterwards.
+A failed committed claim remains consumed. Explicit historical receipt repair can
+run after processing expires or is cancelled, but returns durability evidence only;
+it cannot renew permission, dispatch a model, release a draft or change business facts.
+
+The independently recovered BRAINSTORM identity verifier is extracted without
+broadening the existing operator-proof flags, namespace, byte limits or recipient
+challenge. Flags attest the operator drill; pinned bytes and actual decryption
+bind the currently configured identity. The new adapter uses its existing scoped
+reader/writer, canonical inventory, exclusive recovery lease, full cold restore
+and exact current selected rows. Owner/context refresh runs outside SQL and the
+restore lease. Record acknowledgement uses the same canonical Source lock as
+cancellation; initial immutable consent recording retains its envelope lock.
+
+Independent helper review reproduced final-owner expiry after the last clock
+check. Opus additionally identified arbitrary/different ledger clocks and owner
+callbacks inside recovery SQL/leases. Corrections require the exact SAME
+HostObservedClock as the recovery gate, observe expiry after the final owner
+check/session cleanup, and keep callbacks outside the recovery inventory transaction.
+
+The progress fragment is optional within the protected owner view, mounted only
+after canonical card rendering; final private-web reauthentication still withholds
+both. It reports the existing four first-usable-release acceptance gates, reviewed
+evidence and date, not effort/time or completion of the broader product.
+
+Pure named Ask Caz declarations pin a published local workflow, exact question,
+owner, references/receipts, nonce/session correlation, route/model/runtime/tokenizer/
+template and budgets. Admission expiry is distinct from fixed processing expiry.
+Two independently found future-time gaps were corrected with fully rebound tests.
+These are declarations ONLY: no canonical named-decision writer, nonce consumer,
+browser issuer or v2 consent integration is enabled. Existing v1 authority history
+remains byte-for-byte unchanged; explicit protected named-decision provenance and
+v2-only browser issuance remain the next conversation integration requirement.
+
+Actual local SQL drills exercise canonical consent/claim and reply records,
+encrypted snapshots/journal, disposable cold restore, selected rows and immutable
+historical repair after expiry and canonical revocation. Raw artifact inventory
+is limited to newly created fixture Sources; clients are local, keys throwaway,
+and independent operator-proof flags invented. This does not prove B2 credentials,
+real 1Password recovery, live model correctness, production intake or iPhone access.
+
+Final exact-tree serial regression: 3,076 tests passed in 184.03 seconds, with
+three known dependency deprecation warnings. Ruff and strict mypy (108 source
+files) pass. Independent Opus/helper findings are corrected and reconciled;
+original-observation metadata and codec regressions preserve restart provenance.
+Exact staged secret checks and Git release evidence are verified separately;
+none of this declares live credentials, production conversation or iPhone readiness.

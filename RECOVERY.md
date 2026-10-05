@@ -484,3 +484,28 @@ and canonical revocation, while active capture/load remain held. Authority
 recovery preflight and semantic usefulness in that fixture are explicitly
 invented; no production/B2/model/credential/listener/iPhone readiness is claimed.
 Exact staged secret checks pass; commit/push are verified against actual Git.
+
+
+## D034AV follow-up authority recovery preparation
+
+The existing BRAINSTORM identity proof verifier is reusable in
+src/zacai/brainstorm_identity_recovery.py; original proof location, pinned digest,
+operator flags, namespace and limits remain unchanged. It does not look up or
+create credentials. The trusted host must supply the actual existing proof/key
+configuration. No new live personal/business credential or production recovery
+receipt was created by this engineering checkpoint.
+
+Prepared follow-up authority receipts use BRAINSTORM/state/followup-authority-
+<canonical-subject-Source-UUID>/receipt-<Source-content-hash>.age, with immutable
+state and operational-journal ciphertext objects under that same namespace.
+Receipts bind exact consent or consumed-claim dependencies and the independent
+key-proof digest. They prove historical durability only; expiry/cancellation
+still holds processing. Failed committed attempts require receipt-only repair,
+not redispatch. Every operation uses the existing exclusive recovery-window
+mechanics and actual canonical row/hash/ACL comparisons.
+
+The guarded SQL/local-age drills use throwaway keys and invented operator-proof
+flags plus local clients; they are not off-device or password-manager evidence.
+Production wiring and actual independently recovered credentials remain separate
+owner setup and live verification steps. Progress is a dated reviewed snapshot,
+not proof that those external gates have passed.

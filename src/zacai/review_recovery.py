@@ -7,9 +7,6 @@ receipt. Synthetic clients do not establish real off-device durability or escrow
 
 from __future__ import annotations
 
-import json
-import re
-import stat
 from pathlib import Path
 from uuid import UUID
 
@@ -21,13 +18,16 @@ from sqlalchemy.orm import Session, sessionmaker
 from zacai.backup_artifacts import (
     BackupObjectStore,
     age_decrypt,
-    age_encrypt,
     backup_object_key_for,
 )
+from zacai.brainstorm_identity_recovery import (
+    assert_brainstorm_recovery_state_key as _state_key,
+)
+from zacai.brainstorm_identity_recovery import verify_brainstorm_recovered_identity
 from zacai.ingestion.artifact_store import content_hash_of
 from zacai.intelligence.contracts import classification_covers
 from zacai.intelligence.evidence import resolve_evidence_reference
-from zacai.intelligence.review_context import _unique_pairs, decode_normalized_review_envelope
+from zacai.intelligence.review_context import decode_normalized_review_envelope
 from zacai.intelligence.review_host import _snapshot
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
@@ -63,14 +63,6 @@ class ReviewRecoveryCheckpoint(BaseModel):
     @property
     def credential_reference(self) -> str:
         return f"age-escrow:{self.recovered_key_receipt_hash}"
-
-
-def _state_key(key: str, digest: str) -> None:
-    match = re.fullmatch(
-        r"BRAINSTORM/state/(review-|contextual-research-)?([0-9a-f-]{36})/([0-9a-f]{64})\.age", key
-    )
-    if not match or str(UUID(match[2])) != match[2] or match[3] != digest:
-        raise ValueError("invalid state recovery object binding")
 
 
 class BrainstormReviewRecoveryGate:
@@ -126,33 +118,13 @@ class BrainstormReviewRecoveryGate:
         return age_decrypt(raw, self._identity)
 
     def _verify_recovered_identity(self) -> None:
-        if stat.S_IMODE(self._receipt.stat().st_mode) != 0o600:
-            raise ValueError("private recovery receipt permissions required")
-        with self._receipt.open("rb") as file:
-            raw = file.read(64_001)
-        if len(raw) > 64_000 or content_hash_of(raw) != self._checkpoint.recovered_key_receipt_hash:
-            raise ValueError("recovered-key evidence changed")
-        proof = json.loads(raw, object_pairs_hook=_unique_pairs)
-        if (
-            proof["format"] != "zac-existing-state-recovery-v1"
-            or proof["boundary"] != B.BRAINSTORM.value
-            or proof["full_row_field_comparison"] != "passed"
-            or proof["target_cleaned"] is not True
-            or proof["off_device_retrieval"] is not True
-            or proof["recovered_identity_from_password_manager"] is not True
-            or proof["temporary_recovered_key_removed"] is not True
-            or not re.fullmatch(_DIGEST, proof["plaintext_hash"])
-        ):
-            raise ValueError("independent recovered-key evidence unavailable")
-        _state_key(proof["state_object"], proof["ciphertext_hash"])
-        prior = self._recover(
-            proof["state_object"], limit=65_000_000, digest=proof["ciphertext_hash"]
+        verify_brainstorm_recovered_identity(
+            verification_objects=self._objects,
+            recipient=self._recipient,
+            identity_path=self._identity,
+            recovered_key_receipt=self._receipt,
+            expected_receipt_hash=self._checkpoint.recovered_key_receipt_hash,
         )
-        if content_hash_of(prior) != proof["plaintext_hash"]:
-            raise ValueError("current identity differs from recovered-key evidence")
-        challenge = b"zacai BRAINSTORM pre-context recovery identity readiness"
-        if age_decrypt(age_encrypt(challenge, self._recipient), self._identity) != challenge:
-            raise ValueError("recipient identity mismatch")
 
     def preflight(
         self, consent: ReviewConsent, *, additional_sources: dict[UUID, str] | None = None

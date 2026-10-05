@@ -36,6 +36,14 @@ def fixture(monkeypatch):
     state.recovery_error = False
     state.recovery_result = None
     state.after_recovery = None
+    state.after_protect_consent = None
+    state.after_protect_claim = None
+    state.protect_consent_result = None
+    state.protect_claim_result = None
+    state.protect_consent_error = False
+    state.protect_claim_error = False
+    state.protected_consents = []
+    state.protected_claims = []
     state.refresh_error = False
     state.after_refresh = None
     state.route = ModelRoute(
@@ -61,6 +69,10 @@ def fixture(monkeypatch):
         return result
 
     class Recovery:
+        @property
+        def host_clock(self):
+            return clock
+
         def preflight(self, consent):
             assert state.active_sessions == 0
             state.recovery_calls += 1
@@ -69,6 +81,35 @@ def fixture(monkeypatch):
             if state.after_recovery:
                 state.after_recovery()
             return state.recovery_result
+
+        def protect_consent(self, *, consent, reference):
+            assert state.active_sessions == 0
+            source = next(x for x in state.sources.values() if x.id == reference.source_id)
+            assert source.system == SourceSystem.USER_INSTRUCTION
+            assert (
+                source.content_hash
+                == reference.content_hash
+                == content_hash_of(module._raw(consent))
+            )
+            state.protected_consents.append(reference)
+            if state.protect_consent_error:
+                raise RuntimeError("INVENTED PRIVATE CONSENT RECOVERY")
+            if state.after_protect_consent:
+                state.after_protect_consent()
+            return state.protect_consent_result
+
+        def protect_claim(self, *, claimed, request):
+            assert state.active_sessions == 0
+            source = next(x for x in state.sources.values() if x.id == claimed.reference.source_id)
+            assert source.system == SourceSystem.MANUAL
+            assert source.content_hash == claimed.reference.content_hash
+            assert claimed.claim.request_digest == request.digest
+            state.protected_claims.append(claimed.reference)
+            if state.protect_claim_error:
+                raise RuntimeError("INVENTED PRIVATE CLAIM RECOVERY")
+            if state.after_protect_claim:
+                state.after_protect_claim()
+            return state.protect_claim_result
 
     def find(session, ref, system):
         source = state.sources.get(ref)
@@ -421,3 +462,195 @@ def test_recheck_rejects_stored_attempt_observed_after_original_claim_time(fixtu
     s.now += timedelta(seconds=20)
     with pytest.raises(module.FollowupAuthorizationError):
         s.authority.recheck(historical, future)
+
+
+@pytest.mark.parametrize("failure", ["protect_consent_error", "protect_consent_result"])
+def test_committed_consent_is_not_acknowledged_until_recovered_and_retry_is_immutable(
+    fixture, failure
+):
+    s = fixture
+    setattr(s, failure, True)
+    with pytest.raises(module.FollowupAuthorizationError) as exc:
+        issue(s)
+    assert exc.value.__context__ is None
+    committed = [
+        x for x in s.sources.values() if x.external_ref.startswith("packet-followup-consent/")
+    ]
+    assert len(committed) == 1
+    prior_id, prior_bytes = committed[0].id, s.raw[committed[0].content_location]
+    setattr(s, failure, False if failure.endswith("error") else None)
+    assert issue(s) == prior_id
+    assert s.raw[committed[0].content_location] == prior_bytes
+    assert (
+        len(
+            [x for x in s.sources.values() if x.external_ref.startswith("packet-followup-consent/")]
+        )
+        == 1
+    )
+
+
+@pytest.mark.parametrize("failure", ["protect_claim_error", "protect_claim_result"])
+def test_failed_post_commit_claim_recovery_consumes_attempt_without_acknowledgement(
+    fixture, failure
+):
+    s = fixture
+    approval = issue(s)
+    setattr(s, failure, True)
+    with pytest.raises(module.FollowupAuthorizationError) as exc:
+        claim(s, approval)
+    assert exc.value.__context__ is None
+    assert (
+        len(
+            [x for x in s.sources.values() if x.external_ref == f"packet-followup-claim/{approval}"]
+        )
+        == 1
+    )
+    setattr(s, failure, False if failure.endswith("error") else None)
+    with pytest.raises(module.FollowupAuthorizationError):
+        claim(s, approval)
+    assert len(s.protected_claims) == 1
+
+
+@pytest.mark.parametrize("change", ["expiry", "revocation", "owner", "acl"])
+def test_active_authority_changes_during_claim_recovery_hold_committed_attempt(fixture, change):
+    s = fixture
+    approval = issue(s)
+
+    def mutate():
+        if change == "expiry":
+            s.now = s.consent.expires_at
+        elif change == "revocation":
+            s.authority.revoke(
+                approval_id=approval, human_reference="invented stop during recovery"
+            )
+        elif change == "owner":
+            s.owner = OwnerGrant(
+                Identity(s.owner.identity.issuer, "different-owner"), s.owner.scopes
+            )
+        else:
+            next(
+                x for x in s.sources.values() if x.id == s.scope.user_reference.source_id
+            ).data_classification = C.HIGHLY_RESTRICTED
+
+    s.after_protect_claim = mutate
+    with pytest.raises(module.FollowupAuthorizationError):
+        claim(s, approval)
+    assert (
+        len(
+            [x for x in s.sources.values() if x.external_ref == f"packet-followup-claim/{approval}"]
+        )
+        == 1
+    )
+
+
+@pytest.mark.parametrize("stage", ["consent", "claim"])
+def test_recheck_requires_both_committed_authority_recovery_hooks(fixture, stage):
+    s = fixture
+    approval = issue(s)
+    asserted = claim(s, approval)
+    setattr(s, f"protect_{stage}_error", True)
+    with pytest.raises(module.FollowupAuthorizationError):
+        s.authority.recheck(asserted, s.request)
+
+
+def test_consent_expiry_during_post_commit_recovery_holds_acknowledgement(fixture):
+    s = fixture
+    s.after_protect_consent = lambda: setattr(s, "now", s.consent.expires_at)
+    with pytest.raises(module.FollowupAuthorizationError):
+        issue(s)
+    assert (
+        len(
+            [x for x in s.sources.values() if x.external_ref.startswith("packet-followup-consent/")]
+        )
+        == 1
+    )
+
+
+@pytest.mark.parametrize("operation", ["record", "claim", "recheck"])
+def test_expiry_in_final_owner_getter_after_recovery_denies_acknowledgement(fixture, operation):
+    s = fixture
+    reads = []
+
+    def install_late_owner():
+        def owner():
+            reads.append(True)
+            # First read is the fresh locked canonical _load; second is the
+            # final owner check after that session has been closed.
+            if len(reads) == 2:
+                s.now = s.consent.expires_at
+            return s.owner
+
+        s.authority._owner = owner
+
+    if operation == "record":
+        s.after_protect_consent = install_late_owner
+        action = lambda: issue(s)
+    else:
+        approval = issue(s)
+        if operation == "claim":
+            s.after_protect_claim = install_late_owner
+            action = lambda: claim(s, approval)
+        else:
+            asserted = claim(s, approval)
+            s.after_protect_claim = install_late_owner
+            action = lambda: s.authority.recheck(asserted, s.request)
+    with pytest.raises(module.FollowupAuthorizationError):
+        action()
+    assert len(reads) == 2 and s.now == s.consent.expires_at
+
+
+@pytest.mark.parametrize("invalid", ["lambda", "different_clock", "missing_clock"])
+def test_authority_constructor_requires_same_exact_recovery_clock(fixture, invalid):
+    s = fixture
+    clock = (lambda: s.now) if invalid == "lambda" else HostObservedClock(lambda: s.now)
+    recovery = object() if invalid == "missing_clock" else s.authority._recovery
+    with pytest.raises(module.FollowupAuthorizationError):
+        module.CanonicalFollowupAuthorization(
+            factory=s.client._factory,
+            store=s.client._artifacts,
+            refresh=s.authority._refresh,
+            owner=lambda: s.owner,
+            recovery=recovery,
+            clock=clock,
+        )
+
+
+def test_backward_clock_during_final_owner_check_cannot_revive_attempt(fixture):
+    s = fixture
+    approval = issue(s)
+    observed = []
+
+    def install_rollback():
+        s.now += timedelta(seconds=1)
+        s.authority._clock()  # The SAME watermark is used by recovery and ledger.
+
+        def owner():
+            observed.append(True)
+            if len(observed) == 2:
+                s.now -= timedelta(seconds=1)
+            return s.owner
+
+        s.authority._owner = owner
+
+    s.after_protect_claim = install_rollback
+    with pytest.raises(module.FollowupAuthorizationError):
+        claim(s, approval)
+    assert len(observed) == 2
+    assert len(s.protected_claims) == 1
+
+
+def test_post_commit_consent_ack_uses_same_canonical_lock_as_cancellation(fixture, monkeypatch):
+    s = fixture
+    locks = []
+    original = module._lock
+
+    def record_lock(session, key):
+        locks.append(key)
+        return original(session, key)
+
+    monkeypatch.setattr(module, "_lock", record_lock)
+    approval = issue(s)
+    assert locks == [s.consent.id, approval]
+    locks.clear()
+    s.authority.revoke(approval_id=approval, human_reference="invented cancellation")
+    assert locks == [approval]

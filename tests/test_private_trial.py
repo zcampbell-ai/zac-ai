@@ -179,3 +179,99 @@ def test_cli_requires_real_local_terminal_before_startup(monkeypatch):
     with pytest.raises(SystemExit) as error:
         trial.main()
     assert error.value.code == 1
+
+
+def progress_view(monkeypatch, *, html="<main>Invented protected card</main>", deny=False):
+    from tests.test_build_progress import snapshot
+
+    @contextmanager
+    def factory():
+        yield object()
+
+    def render(*args, **kwargs):
+        if deny:
+            raise ValueError("INVENTED private current source denied")
+        return html
+
+    monkeypatch.setattr(trial, "_assert_ledger_isolation", lambda session: None)
+    monkeypatch.setattr(trial, "render_retained_decision_cards", render)
+    return trial.SelectedPacketView(factory=factory, artifacts=object(), selection=selection(),
+                                   clock=lambda: datetime.now(UTC), progress=snapshot())
+
+
+def test_optional_progress_after_protected_success_escaped_and_dated(monkeypatch):
+    from dataclasses import replace
+
+    from tests.test_build_progress import NOW, snapshot
+
+    view = progress_view(monkeypatch)
+    current = snapshot()
+    records = list(current.gates)
+    records[0] = replace(records[0], next_step='<img src=x onerror="spoof">')
+    view._progress = replace(current, gates=tuple(records))  # Trusted invented host setup only.
+    html = asyncio.run(view(PRINCIPAL))
+    assert html.startswith("<main>Invented protected card")
+    assert html.endswith("</section></main>")
+    assert html.count("</main>") == 1
+    assert "Evidence as of " + NOW.isoformat() in html
+    assert "0 of 4 acceptance gates verified" in html  # No inferred completed status.
+    assert "<img" not in html and "&lt;img" in html
+
+
+@pytest.mark.parametrize("html", ["<p>no main</p>", "<main>x</main><main>y</main>"])
+def test_progress_rejects_missing_or_ambiguous_protected_document(monkeypatch, html):
+    view = progress_view(monkeypatch, html=html)
+    with pytest.raises(trial.PrivateTrialError) as error:
+        asyncio.run(view(PRINCIPAL))
+    assert error.value.__context__ is None
+
+
+def test_current_source_failure_prevents_progress_fragment_or_card_release(monkeypatch):
+    view = progress_view(monkeypatch, deny=True)
+    monkeypatch.setattr(trial, "render_build_progress", lambda snapshot: pytest.fail("premature progress"))
+    with pytest.raises(trial.PrivateTrialError):
+        asyncio.run(view(PRINCIPAL))
+
+
+def test_claimed_progress_object_cannot_supply_html_or_status(monkeypatch):
+    class Spoof:
+        def __str__(self):
+            return "<script>invented spoofed progress</script>"
+
+    with pytest.raises(trial.PrivateTrialError):
+        trial.SelectedPacketView(factory=lambda: None, artifacts=object(), selection=selection(),
+                                 clock=lambda: datetime.now(UTC), progress=Spoof())
+
+
+def test_integrated_progress_view_still_withheld_after_session_revocation(monkeypatch):
+    from starlette.testclient import TestClient
+
+    from tests.test_build_progress import snapshot
+    from tests.test_private_web import ORIGIN, InventedProvider, sign_in
+    from tests.test_private_web import OWNER as web_owner
+    from zacai.interfaces.private_web import create_private_web
+    from zacai.interfaces.session_store import InMemorySessionStore
+
+    sessions = InMemorySessionStore()
+    grant = OwnerGrant(web_owner, GRANT.scopes)
+
+    @contextmanager
+    def factory():
+        yield object()
+
+    def render(*args, **kwargs):
+        sessions.revoke_identity(web_owner)
+        return "<main>Invented private card and progress must be withheld</main>"
+
+    monkeypatch.setattr(trial, "_assert_ledger_isolation", lambda session: None)
+    monkeypatch.setattr(trial, "render_retained_decision_cards", render)
+    view = trial.SelectedPacketView(factory=factory, artifacts=object(), selection=selection(),
+                                   clock=lambda: datetime.now(UTC), progress=snapshot())
+    app = create_private_web(origin=ORIGIN, identities=InventedProvider(), sessions=sessions,
+                             owner=lambda: grant, view=view)
+    with TestClient(app, base_url=ORIGIN, follow_redirects=False) as browser:
+        sign_in(browser)
+        response = browser.get("/")
+    assert response.status_code == 403
+    assert "Invented private card" not in response.text
+    assert "acceptance gates verified" not in response.text

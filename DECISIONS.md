@@ -6557,3 +6557,30 @@ and canonical revocation, while active capture/load remain held. Authority
 recovery preflight and semantic usefulness in that fixture are explicitly
 invented; no production/B2/model/credential/listener/iPhone readiness is claimed.
 Exact staged secret checks pass; commit/push are verified against actual Git.
+
+
+## D034AV — authority durability is not processing permission
+
+Canonical follow-up recording and claim acknowledgement require post-commit
+recovery plus fresh active-authority checks. Failed committed attempts remain
+consumed; historical repair yields only a recovery receipt. Share one exact
+HostObservedClock between ledger and recovery, and check time after final owner
+and cleanup callbacks. Owner/context callbacks must run outside recovery SQL and
+restore leases. Initial recording lock is envelope-bound; subsequent active
+acknowledgement shares the canonical Source lock used for cancellation.
+
+The named Ask Caz action will require explicit protected canonical human-decision
+provenance and a closed v2 consent reference, preserving original v1 history.
+The current pure declarations cannot act as an issuer or replace actual session,
+nonce, Source-kind/ACL/recovery/runtime checks. Generated replies remain generated
+Sources, never relabelled human parent instructions or established business facts.
+
+Use verified acceptance gates for the progress bar. It is protected presentation,
+not canonical product state or permission, and does not estimate overall effort.
+
+Final D034AV validation: 3,076 serial tests pass in184.03seconds; Ruff and strict
+mypy (108 source files) pass. Named decisions retain original_observed_at so
+cold restart need not infer a new request timestamp from a digest. Independent
+code-only Opus review and helper reproductions guide the corrected clock/owner/
+chronology checks. Actual local SQL/cold-restore drills remain explicitly bounded
+fixture evidence; live off-device credentials/model/mobile acceptance is separate.
