@@ -5858,3 +5858,23 @@ Validation: all 1,541 tests pass; Ruff and strict mypy (62 source files) pass.
 Fresh read-only same-scope preparation measures 9,268 input + 3,200 output tokens
 within 16,384; encrypted selected artifacts/full disposable restore verify and
 clean up, with canonical state unchanged and no private generation.
+
+
+### D034AL approved trial outcome — do not infer the missing inner reason
+
+The approved sealed manifest hash was
+7ce143698ed97a1528033cc52eeb9fd5e371d6a5d15fcc58d8a8cc33326b0dee.
+Its one-shot attempt failed at DRAFT_VALIDATION after generation returned and the
+host latency check passed. No raw invalid model content was captured/logged.
+The private failed-attempt sidecar is PROTECTED_FAILURE_NO_RETRY; SHA-256
+839b6e612b852f329bb2b122d0ccea91d14c7925832f9e09667ee9fa908173d3.
+It retains the actual verified encrypted artifact/state/journal recovery receipt.
+Canonical audit fields are source-hash checked; Source inventory 62 and disposable
+restore database count zero. Draft and result files are absent. This establishes
+validation rejection, not its missing inner cause or semantic quality. Preserve
+the consumed approval, exact sealed launcher and failure receipt. No retry grant.
+
+Before proposing another private call, consult Opus on code-only delivery/validator
+alignment and add fixed diagnostic categories using invented data. Do not weaken
+roles/citations, repair unsupported claims or treat a PUBLIC pass as proof of
+private usefulness. No manual push or credential action is required from Zac.

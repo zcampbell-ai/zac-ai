@@ -12,7 +12,8 @@ next. D034P concrete operator composition and invented end-to-end tests are
 complete. Prior real recovery and gate mechanics are recorded below.
 D034I verifies the schema-aware backup mechanism with synthetic recovery drills.
 D034AL preserves both consumed, recovered failed attempts. The next exact
-same-source trial proposes a 3,200-token output reservation; fresh approval is pending.
+same-source 3,200-token trial was approved and failed validation with protected
+recovery. No new processing decision is ready; engineering diagnosis comes first.
 
 ## Decisions needed before a live/private step
 
@@ -583,3 +584,12 @@ preparation/recovery/seal. No additional credential or manual push step is neede
 After an actual protected draft, Zac judges context, useful detail, voice and
 missing material facts. Do not demand a universal project/SOW rule. Track >16-item
 schema capacity as a delivery limitation before broadening use.
+
+
+### D034AL trial decision resolved
+
+Zac approved one 3,200-token same-source local attempt. It completed generation
+but failed draft validation; no draft was released, recovery passed, and consent
+is consumed. No question or credential step is needed now. Fix observable closed
+validation reasons and code-only instruction/schema alignment before preparing
+another exact private decision. Do not ask Zac to approve another blind retry.

@@ -48,7 +48,10 @@ legacy audit bytes. The separately approved diagnostic retry also failed during 
 failed-attempt encrypted recovery passed. No draft or business facts were produced.
 D034AL adds closed runtime diagnostics and an explicitly consent-bound 3,200-token
 output option, retaining the 1,600 default and the existing latency/window/model.
-A new same-evidence trial requires fresh approval; none has run. No recurring ingestion or broad
+The new 3,200-token same-evidence trial was approved and ran once. Generation
+completed, but DRAFT_VALIDATION rejected the result. Encrypted failed-attempt
+recovery passed; no draft was released. The next gate is validator diagnosis
+and instruction/schema alignment before any new private processing proposal. No recurring ingestion or broad
 production routing is enabled. The app remains health-only.
 
 Zac confirmed the first usable version's delivery target in chat on 2026-10-04:
@@ -1171,3 +1174,21 @@ Opus reviewed code and PUBLIC evidence only; concrete findings were corrected.
 The concise output guidance changes the prepared digest, so prior approvals cannot
 be replayed. Next: prepare and approve one same-scope local trial, judge its actual
 usefulness, then continue briefing/open-loop/private access under existing order.
+
+
+### D034AL approved output-budget attempt — protected validation failure
+
+Zac approved the sealed 3,200-token same-source local scope in chat. On 2026-10-05
+REQUEST_PREPARED was recorded at 09:43:51Z and DISPATCH_PREPARED at 09:43:53Z.
+RUN_FAILED at 09:45:12Z has failure_step DRAFT_VALIDATION and dispatch_attempted
+true. Runtime generation returned parsed output and passed its latency check;
+resolution/validation rejected it before capture. The specific inner validator
+reason is not retained, so neither output exhaustion nor a particular citation,
+role or inference error is established for this attempt.
+
+Failed-attempt encrypted artifact/state/journal recovery passed. No draft/result
+file or review packet was released; canonical Source count is 62 including attempt
+metadata, and the disposable restore database count is zero. Approval is consumed;
+no automatic retry. Next engineering work must make closed validation reasons
+observable and check schema/instruction/validator alignment with invented data
+before asking for another private trial. Keep evidence protection intact.
