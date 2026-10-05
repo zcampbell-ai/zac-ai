@@ -509,3 +509,25 @@ flags plus local clients; they are not off-device or password-manager evidence.
 Production wiring and actual independently recovered credentials remain separate
 owner setup and live verification steps. Progress is a dated reviewed snapshot,
 not proof that those external gates have passed.
+
+## D034AW named-decision checkpoint preparation
+
+A named processing choice is distinct from a question, consent or generated answer.
+Its USER_INSTRUCTION Source uses `packet-followup-named-decision/<host request UUID>`.
+Its dedicated encrypted checkpoint/receipt namespace is
+`BRAINSTORM/state/named-decision-<canonical Source UUID>/`.
+The receipt binds Source bytes/admission time, selected dependency inventory, independent
+recovered-key proof, artifact backup run, full State and operational journal pins.
+
+`BrainstormNamedDecisionRecovery` verifies original decision/question/direct parents,
+packet/original evidence with current ACLs; actual decrypted artifact identity, complete
+snapshot/journal cold restoration and current selected rows are verified through existing
+checkpoint machinery. Corrupt or conflicting receipts are never overwritten.
+`CanonicalNamedDecisionCapture.protect_pending` repairs retained history after expiry
+under current host/session checks and returns only a receipt. It never renews an
+admission, issues v2 consent, invokes a model or releases an answer.
+
+The disposable SQL/local-age drill uses actual encrypted objects and cold restoration,
+with invented admission/session and key-escrow flags. Production credentials, independently
+recovered identity and live off-device availability require their existing operator gates.
+No secret or current personal financial record is stored in these engineering documents.

@@ -61,7 +61,7 @@ def _json(raw: bytes) -> object:
 def _request(method: str, path: str, body: bytes | None) -> None:
     if type(method) is not str or type(path) is not str:
         raise ValueError("fixed route required")
-    if (method, path) == ("GET", "/api/tags"):
+    if (method, path) in (("GET", "/api/tags"), ("GET", "/api/version")):
         if body is not None:
             raise ValueError("metadata body forbidden")
         return

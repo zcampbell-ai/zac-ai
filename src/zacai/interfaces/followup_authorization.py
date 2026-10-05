@@ -11,6 +11,7 @@ Python types are contracts, not a sandbox against hostile in-process code.
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -239,6 +240,53 @@ class FollowupConsent(Contract):
         return self
 
 
+class FollowupConsentV2(Contract):
+    """Declared named-decision linkage, never proof of human admission.
+
+    Trusted canonical binding must verify the actual decision Source, protection,
+    original admission/processing window and deterministic consent ID. This type
+    does not issue authority, renew expiry or promote historical v1 records.
+    """
+
+    model_config = ConfigDict(hide_input_in_errors=True, strict=True)
+    format: Literal["zac-packet-followup-consent-v2"] = "zac-packet-followup-consent-v2"
+    id: UUID
+    scope: FollowupRunScope = Field(repr=False)
+    approved_at: AwareDatetime
+    expires_at: AwareDatetime
+    human_reference: str = Field(strict=True, min_length=1, max_length=500, repr=False)
+    decision_reference: EvidenceReference
+    decision_recovery_digest: Digest
+
+    @field_validator("approved_at", "expires_at", mode="before")
+    @classmethod
+    def explicit_time(cls, value: object) -> object:
+        if type(value) is not datetime and (type(value) is not str or "T" not in value):
+            raise ValueError("explicit aware timestamp required")
+        return value
+
+    @model_validator(mode="after")
+    def bounded(self) -> Self:
+        reference = self.decision_reference
+        if (
+            not self.human_reference.strip()
+            or not timedelta(0) < self.expires_at - self.approved_at <= timedelta(minutes=15)
+            or reference.trust_boundary != B.BRAINSTORM
+            or reference.effective_classification != C.CONFIDENTIAL
+            or reference.source_id in {
+                self.scope.packet_reference.source_id,
+                *(r.source_id for r in self.scope.context_references),
+                self.scope.user_reference.source_id,
+                *(r.source_id for r in self.scope.parent_references),
+            }
+        ):
+            raise ValueError("invalid named follow-up consent")
+        return self
+
+
+FollowupConsentRecord = FollowupConsent | FollowupConsentV2
+
+
 class FollowupClaim(Contract):
     model_config = ConfigDict(hide_input_in_errors=True)
     format: Literal["zac-packet-followup-claim-v1"] = "zac-packet-followup-claim-v1"
@@ -293,6 +341,82 @@ def _raw(value: Contract) -> bytes:
     if len(raw) > 32_000:
         raise ValueError("authority metadata exceeds bound")
     return raw
+
+
+def validate_followup_consent(value: object) -> FollowupConsentRecord:
+    """Revalidate an exact concrete version, including mutated frozen copies."""
+    result: FollowupConsentRecord | None = None
+    try:
+        if type(value) is FollowupConsent:
+            result = FollowupConsent.model_validate(value, strict=True)
+        elif type(value) is FollowupConsentV2:
+            result = FollowupConsentV2.model_validate(value, strict=True)
+        if result is not None:
+            _raw(result)
+    except Exception:  # noqa: BLE001 - fixed diagnostics outside exception context
+        result = None
+    if result is None:
+        raise FollowupAuthorizationError("follow-up consent metadata invalid")
+    return result
+
+
+def encode_followup_consent(value: FollowupConsentRecord) -> bytes:
+    """Preserve original canonical v1 bytes; never migrate or infer a version."""
+    return _raw(validate_followup_consent(value))
+
+
+def _consent_json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate field")
+        result[key] = value
+    return result
+
+
+def _consent_json_constant(value: str) -> object:
+    raise ValueError("nonfinite number")
+
+
+def _consent_json_float(value: str) -> float:
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError("nonfinite number")
+    return result
+
+
+def decode_followup_consent(raw: bytes) -> FollowupConsentRecord:
+    """Closed exact-byte historical decoder, not canonical Source validation."""
+    result: FollowupConsentRecord | None = None
+    try:
+        if type(raw) is not bytes or not 0 < len(raw) <= 32_000:
+            raise ValueError("bounded bytes required")
+        data = json.loads(
+            raw.decode("utf-8", errors="strict"),
+            object_pairs_hook=_consent_json_object,
+            parse_constant=_consent_json_constant,
+            parse_float=_consent_json_float,
+        )
+        if type(data) is not dict:
+            raise ValueError("versioned object required")
+        if data.get("format") == "zac-packet-followup-consent-v1":
+            result = FollowupConsent.model_validate_json(raw)
+        elif data.get("format") == "zac-packet-followup-consent-v2":
+            result = FollowupConsentV2.model_validate_json(raw, strict=False)
+        else:
+            raise ValueError("unsupported consent version")
+        # Existing v1 before-validators retain timestamp strings, so strict
+        # JSON validation cannot decode even its own bytes. Revalidate the
+        # parsed concrete instance strictly, then reject every normalization
+        # by exact original-byte comparison; v1 itself remains unchanged.
+        result = validate_followup_consent(result)
+        if _raw(result) != raw:
+            raise ValueError("canonical bytes required")
+    except Exception:  # noqa: BLE001 - no private payload diagnostics
+        result = None
+    if result is None:
+        raise FollowupAuthorizationError("follow-up consent metadata invalid")
+    return result
 
 
 def _reference(source: Source) -> EvidenceReference:

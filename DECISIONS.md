@@ -6584,3 +6584,33 @@ cold restart need not infer a new request timestamp from a digest. Independent
 code-only Opus review and helper reproductions guide the corrected clock/owner/
 chronology checks. Actual local SQL/cold-restore drills remain explicitly bounded
 fixture evidence; live off-device credentials/model/mobile acceptance is separate.
+
+## D034AW — a retained named decision precedes the explicit v2 path
+Status: Accepted implementation direction; production owner trial remains incomplete.
+
+Retain the named processing choice as its own protected canonical USER_INSTRUCTION
+Source, separate from the original question and generated reply. Bind the original
+admission, actual protected question, published manifest, exact prepared request,
+original observation and fixed expiry. The trusted authenticated controller owns
+admission/nonce/session checks; a constructor or digest is never authentication.
+
+Exact retries preserve the committed decision and its original time window. A failed
+checkpoint withholds saved acknowledgement. Expired historical repair returns only
+recovery evidence and does not grant active consent. V1 compatibility stays exact;
+the distinct required v2 linkage has no permissive downgrade or automatic migration.
+Actual v2 ledger/controller wiring remains a subsequent integration step.
+
+The existing encrypted backup/restore engine owns decision recovery. The dedicated
+receipt binds actual Source/inventory and independently pinned recovered-key evidence.
+Fresh callbacks run outside SQL/restore leases and final canonical rows/time are
+checked again before acknowledgment. The existing local follow-up transport now
+bounds version/model/chat probes using one operation deadline; no legacy unbounded
+version fallback is used in this path. No new cloud connection or agent privilege
+is introduced by these engineering changes.
+
+D034AW final validation: 3,295 serial tests pass in 230.24 seconds; Ruff and
+strict mypy (112 source files) pass. Independent review findings have concrete
+provenance/ACL/transaction/nested-DML corrections and regression evidence.
+Trusted row adapters are not a general SQL-effects or hostile-host sandbox.
+The exact named owner POST, v2 issuance and mobile acceptance remain subsequent
+composition gates; test fixtures do not establish production authentication.

@@ -92,7 +92,7 @@ def test_constructor_no_io_or_clock_read_and_fixed_repr(monkeypatch):
     assert repr(transport) == "FollowupLoopbackTransport()"
 
 
-@pytest.mark.parametrize("method,path,body", [("GET", "/api/tags", None),
+@pytest.mark.parametrize("method,path,body", [("GET", "/api/tags", None), ("GET", "/api/version", None),
     ("POST", "/api/show", b'{"model":"invented:local"}'),
     ("POST", "/api/chat", chat_body())])
 def test_fixed_routes_original_bytes_timeout_and_clean_guard(fixture, method, path, body):
@@ -107,6 +107,7 @@ def test_fixed_routes_original_bytes_timeout_and_clean_guard(fixture, method, pa
 
 
 @pytest.mark.parametrize("method,path,body", [("GET", "http://evil/api/tags", None),
+    ("GET", "/api/version", b"{}"), ("GET", "/api/version?x=1", None), ("POST", "/api/version", b"{}"),
     ("GET", "/api/tags?x=1", None), ("GET", "/api/tags", b'{}'),
     ("DELETE", "/api/tags", None), ("POST", "/api/pull", b'{}'),
     ("POST", "/api/chat", b'x' * 64_001), ("POST", "/api/show", b'{"model":"a","model":"b"}'),

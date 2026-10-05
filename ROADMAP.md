@@ -11,8 +11,8 @@ This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position — reconciled 2026-10-05
 
-Current validated engineering checkpoint: D034AV. Commit/push evidence is
-verified separately against Git; the D034AU parent is committed and pushed.
+Current validated engineering checkpoint: D034AW. Commit/push evidence is
+verified separately against Git; D034AV is its committed and pushed parent.
 Private iPhone acceptance and live conversation remain unverified; code completion
 must not stand in for those release gates.
 Zac confirmed the protected
@@ -1814,3 +1814,54 @@ files) pass. Independent Opus/helper findings are corrected and reconciled;
 original-observation metadata and codec regressions preserve restart provenance.
 Exact staged secret checks and Git release evidence are verified separately;
 none of this declares live credentials, production conversation or iPhone readiness.
+
+## D034AW — retain the named owner decision and bound follow-up runtime checks
+
+Validated engineering checkpoint, not a deployed conversation or live approval issuer.
+The authenticated controller must resolve its own consumed admission; question text,
+a shaped manifest, a boolean or a session-correlation digest cannot authorize processing.
+The canonical recorder retains a distinct USER_INSTRUCTION decision Source under
+`packet-followup-named-decision/<host request UUID>`, with original admission time,
+question/manifest/request identity and unchanged processing expiry. Exact replay
+preserves the original bound time and observation. Failed protection leaves a pending
+record; receipt-only repair after expiry cannot create consent or dispatch work.
+
+Actual decision/question/direct-parent/packet/evidence Source bytes, kinds, hashes,
+provenance and effective ACLs are checked by the bounded row inventory. A dedicated
+named-decision checkpoint reuses existing artifact/full State/journal/cold-restore
+mechanics, independent recovered-key proof and immutable encrypted receipt readback.
+Its only new namespace is `BRAINSTORM/state/named-decision-<Source UUID>`.
+Fresh host/session/recovery callbacks remain outside SQL and checkpoint leases.
+
+The closed v1/v2 consent codec preserves exact legacy v1 bytes and requires an explicit
+named-decision reference and recovery digest for v2. This release does not widen the
+ledger to accept v2, mount an issuer or infer approval from retained question text.
+The distinct follow-up tokenizer renders the pinned model template/schema, and its
+runtime version probes now share the same operation deadline as model metadata and
+chat. The compact/contextual token-counter APIs remain unchanged.
+
+Actual disposable SQL/local-age composition passes ordinary retention/replay and
+expired pending repair. Admission/session and escrow assertions are invented;
+local test objects do not verify current production B2 or an authenticated owner click.
+Final exact-tree release tests/review are recorded with the release checkpoint.
+Next: actual controller admission/persistence, concrete binding and v2 ledger/reply
+composition, semantic runtime acceptance, private Google credentials/serving and
+physical iPhone trial. Existing D034AC first-usable acceptance gates remain authoritative.
+
+D034AW review reconciliation: independent Opus/helper checks identified and
+corrected cross-kind provenance collisions, callbacks invalidating final ACL
+checks, transaction-ending row adapters, Core/raw statement writes and nested
+data-modifying CTEs. Canonical dependency reads follow external callbacks;
+request serialization is checked against the actual PostgreSQL advisory lock.
+The row checker is trusted host code with accidental-write guards, not a general
+SQL-effects or hostile-Python sandbox. Production owner/session/runtime and
+mobile acceptance remain separate from the disposable fixture evidence.
+
+Final D034AW exact-tree serial regression: 3,295 tests pass in 230.24 seconds.
+Ruff and strict mypy (112 source files) pass; three existing dependency
+deprecation warnings remain. The nested CTE regression demonstrated RED/GREEN
+at the cursor gate, and the real SQL request-lock test accepts the matching
+request and denies a different one outside the row hooks. Independent Opus and
+helper findings are reconciled. Exact staged secret scans and commit/push
+evidence are verified separately. No deployed owner conversation, live v2
+issuer, new source connection or iPhone acceptance is implied.

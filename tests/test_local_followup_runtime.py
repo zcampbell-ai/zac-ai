@@ -31,8 +31,9 @@ class Counter:
     count = 100
     checks = 0
 
-    def verify_runtime(self):
+    def verify_runtime_with_transport(self, transport):
         self.checks += 1
+        assert transport("GET", "/api/version", None) == {"version": "0.35.1"}
 
     def count_prompt_tokens(self, body):
         return self.count
@@ -54,6 +55,8 @@ def setup(monkeypatch):
 
     def transport(method, path, body=None):
         calls.append((method, path, body))
+        if path == '/api/version':
+            return {'version': '0.35.1'}
         if path == '/api/tags':
             return {'models': [{'name': selected_route.identity.model_id, 'digest': 'a' * 64}]}
         if path == '/api/show':
@@ -70,7 +73,7 @@ def setup(monkeypatch):
 def test_metadata_preflight_one_call_and_usage(monkeypatch):
     runtime, request, draft, counter, calls, _ = setup(monkeypatch)
     runtime.preflight(request)
-    assert [c[1] for c in calls] == ['/api/tags', '/api/show']
+    assert [c[1] for c in calls] == ['/api/version', '/api/tags', '/api/show']
     assert all(request.evidence_json not in (c[2] or b'') for c in calls)
     result = runtime.generate(request)
     assert result == draft
@@ -256,7 +259,7 @@ def test_remote_model_metadata_denies_no_chat(monkeypatch):
     monkeypatch.setattr(local, '_deadline_transport', lambda request, started: remote)
     with pytest.raises(local.LocalFollowupRuntimeError):
         runtime.preflight(request)
-    assert [c[1] for c in calls] == ['/api/tags', '/api/show']
+    assert [c[1] for c in calls] == ['/api/version', '/api/tags', '/api/show']
 
 
 @pytest.mark.parametrize('phase', ['before', 'after'])
@@ -394,8 +397,8 @@ def test_separate_operation_factories_and_shared_generation_transport(monkeypatc
     runtime.preflight(request)
     runtime.generate(request)
     assert len(groups) == 2 and groups[1][0] >= groups[0][0]
-    assert groups[0][1] == ['/api/tags', '/api/show']
-    assert groups[1][1] == ['/api/tags', '/api/show', '/api/chat', '/api/tags', '/api/show']
+    assert groups[0][1] == ['/api/version', '/api/tags', '/api/show']
+    assert groups[1][1] == ['/api/version', '/api/tags', '/api/show', '/api/chat', '/api/version', '/api/tags', '/api/show']
 
 
 @pytest.mark.parametrize('phase', ['preflight', 'chat', 'post_metadata'])
@@ -443,3 +446,58 @@ def test_late_return_tokenizer_preflight_cannot_retain_successful_binding(monkey
     assert exc.value.code == F.TOTAL_LATENCY
     assert runtime._prepared is None
     assert runtime.usage is None
+
+
+@pytest.mark.parametrize('phase', ['preflight', 'before_chat', 'after_chat'])
+def test_version_metadata_uses_operation_deadline_and_holds_usage(monkeypatch, phase):
+    from zacai.intelligence.followup_transport import FollowupTransportError
+
+    runtime, request, _, _, calls, _ = setup(monkeypatch)
+    base = local._deadline_transport(request, 0)
+    if phase != 'preflight':
+        runtime.preflight(request)
+        calls.clear()
+    version_calls = 0
+
+    def transport(method, path, body=None):
+        nonlocal version_calls
+        if path == '/api/version':
+            version_calls += 1
+            target = 2 if phase == 'after_chat' else 1
+            if version_calls == target:
+                assert method == 'GET' and body is None
+                raise FollowupTransportError('invented private deadline diagnostics', code=F.TOTAL_LATENCY)
+        return base(method, path, body)
+
+    monkeypatch.setattr(local, '_deadline_transport', lambda request, started: transport)
+    with pytest.raises(local.LocalFollowupRuntimeError) as failure:
+        if phase == 'preflight':
+            runtime.preflight(request)
+        else:
+            runtime.generate(request)
+    assert failure.value.code is F.TOTAL_LATENCY
+    assert failure.value.__context__ is None
+    assert 'private' not in str(failure.value)
+    assert runtime.usage is None
+    assert sum(c[1] == '/api/chat' for c in calls) == (1 if phase == 'after_chat' else 0)
+    assert version_calls == (2 if phase == 'after_chat' else 1)
+    if phase == 'preflight':
+        assert runtime._prepared is None
+
+
+def test_legacy_only_counter_cannot_fallback_to_unbounded_version_check(monkeypatch):
+    _, request, _, _, calls, _ = setup(monkeypatch)
+
+    class LegacyOnlyCounter:
+        model_digest = 'a' * 64
+        def count_prompt_tokens(self, body):
+            return 100
+        def verify_runtime(self):
+            pytest.fail('unbounded legacy fallback')
+
+    runtime = local.LocalFollowupRuntime(route=route(), model_digest='a' * 64, token_counter=LegacyOnlyCounter())
+    with pytest.raises(local.LocalFollowupRuntimeError) as failure:
+        runtime.preflight(request)
+    assert failure.value.code is F.RUNTIME_VERSION
+    assert runtime._prepared is None
+    assert calls == []

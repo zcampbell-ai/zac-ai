@@ -13,6 +13,7 @@ import hashlib
 import json
 import re
 import time
+from typing import Protocol
 
 from zacai.intelligence.contracts import ModelRoute, UsageObservation
 from zacai.intelligence.followup_generation import (
@@ -22,7 +23,6 @@ from zacai.intelligence.followup_generation import (
 )
 from zacai.intelligence.followup_transport import FollowupLoopbackTransport
 from zacai.intelligence.local_review_runtime import (
-    LocalPromptTokenCounter,
     Transport,
     verify_model,
 )
@@ -32,6 +32,17 @@ from zacai.intelligence.text_followup import FollowupDraft
 from zacai.policy import Destination
 
 _CONTEXT_TOKENS = 16384
+
+
+class FollowupPromptTokenCounter(Protocol):
+    """Distinct version check uses the host operation's bounded transport."""
+
+    @property
+    def model_digest(self) -> str: ...
+
+    def count_prompt_tokens(self, serialized_body: bytes) -> int: ...
+
+    def verify_runtime_with_transport(self, transport: Transport) -> None: ...
 
 
 def _context_tokens(route: ModelRoute) -> int:
@@ -173,6 +184,8 @@ def dispatch_draft(
 
 _INNER_CODES = {
     F.TOKEN_COUNT: frozenset({F.MODEL_PIN, F.TOKEN_COUNT, F.TOKEN_CAPACITY}),
+    F.RUNTIME_VERSION: frozenset({F.TRANSPORT, F.TOTAL_LATENCY}),
+    F.POST_RUNTIME_VERSION: frozenset({F.TRANSPORT, F.TOTAL_LATENCY}),
     F.MODEL_PIN: frozenset({F.TRANSPORT, F.TOTAL_LATENCY}),
     F.POST_MODEL_PIN: frozenset({F.TRANSPORT, F.TOTAL_LATENCY}),
     F.TRANSPORT: frozenset(code for code in F if code in {F.TRANSPORT, F.TOTAL_LATENCY, F.OUTPUT_LIMIT}
@@ -219,7 +232,7 @@ class LocalFollowupRuntime:
         *,
         route: ModelRoute,
         model_digest: str,
-        token_counter: LocalPromptTokenCounter,
+        token_counter: FollowupPromptTokenCounter,
     ) -> None:
         self._route = ModelRoute.model_validate(route)
         if not re.fullmatch(r"[0-9a-f]{64}", model_digest):
@@ -269,10 +282,11 @@ class LocalFollowupRuntime:
             failure = F.TOKEN_COUNT
             count = self._token_count(body, request)
             failure = F.RUNTIME_VERSION
-            self._token_counter.verify_runtime()
-            failure = F.MODEL_PIN
             transport = _deadline_transport(request, started)
-            verify_model(self.route.identity.model_id, self.model_digest, _metadata_transport(transport))
+            metadata = _metadata_transport(transport)
+            self._token_counter.verify_runtime_with_transport(metadata)
+            failure = F.MODEL_PIN
+            verify_model(self.route.identity.model_id, self.model_digest, metadata)
             failure = F.TOTAL_LATENCY
             if not 0 <= (time.perf_counter() - started) * 1000 <= request.context.task.max_latency_ms:
                 raise ValueError("late preflight")
@@ -312,16 +326,17 @@ class LocalFollowupRuntime:
             if self._prepared is None or self._prepared != expected:
                 raise ValueError("preflight missing or changed")
             failure = F.RUNTIME_VERSION
-            self._token_counter.verify_runtime()
-            failure = F.MODEL_PIN
             transport = _deadline_transport(request, started)
-            verify_model(self.route.identity.model_id, self.model_digest, _metadata_transport(transport))
+            metadata = _metadata_transport(transport)
+            self._token_counter.verify_runtime_with_transport(metadata)
+            failure = F.MODEL_PIN
+            verify_model(self.route.identity.model_id, self.model_digest, metadata)
             failure = F.TRANSPORT
             draft, usage = dispatch_draft(request, self.route, body, transport)
             failure = F.POST_RUNTIME_VERSION
-            self._token_counter.verify_runtime()
+            self._token_counter.verify_runtime_with_transport(metadata)
             failure = F.POST_MODEL_PIN
-            verify_model(self.route.identity.model_id, self.model_digest, _metadata_transport(transport))
+            verify_model(self.route.identity.model_id, self.model_digest, metadata)
             failure = F.PROMPT_COUNT_MISMATCH
             if usage.input_tokens != count:
                 raise ValueError("runtime prompt usage disagrees with tokenizer")
