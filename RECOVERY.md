@@ -318,3 +318,44 @@ Its actual user-created Read Only preset is scoped to the existing bucket and
 BRAINSTORM/ prefix and includes read/list, metadata reads and shareFiles; no
 write/delete/admin permission. Verification uses read/list only. The uploader
 remains separate and unchanged. Neither key nor source prose belongs in Git.
+
+
+## Recovery location map — updated 2026-10-05
+
+This is a navigation guide, never a credential store. It records locations and
+verification status only. Do not place passwords, API keys, private age identities,
+financial account details or private source content in this document.
+
+| What to recover | Where to look | Status / next check |
+| --- | --- | --- |
+| Code, roadmap and this guide | Private GitHub repository `zcampbell-ai/zac-ai`; local checkout `/Users/brainstormzac/zac-ai` | Git checkpoints provide code/documentation recovery; uncommitted work is not yet covered. |
+| PERSONAL backup storage | Backblaze B2, bucket `zac-ai-personal-backup`, object prefix `PERSONAL/`, endpoint `s3.us-east-005.backblazeb2.com` | Visibly verified private, encrypted at rest, empty on 2026-10-05. This is not a completed client-side encryption/recovery drill. |
+| PERSONAL recovery-reader credentials | 1Password item **Zac AI Personal Backup Reader**; contains Key ID and Application Key together | User confirmed saved on 2026-10-05. Vault name not yet recorded; search the exact item title. Independent retrieval and runtime Keychain installation remain unverified. |
+| PERSONAL reader application-key settings | Backblaze > B2 Cloud Storage > Application Keys; key name `zac-ai-personal-recovery-reader` | Verified bucket/prefix limited, read/list, no write/delete. Creating credentials does not authorize personal-data ingestion. |
+| PERSONAL backup uploader credentials | Not configured yet | Separate least-privilege credential remains required. Do not substitute the Brainstorm uploader or master key. |
+| PERSONAL client-side backup encryption key | Existing PERSONAL key location must be checked and its exact 1Password item title recorded | Do not assume the documented local key or escrow is currently recoverable. Independent recovery and real off-device drill remain pending. |
+| BRAINSTORM backup storage | Backblaze B2 bucket `zac-ai-brainstorm-backup`, prefix `BRAINSTORM/` | Existing verified snapshot/drill scope described above; separate from PERSONAL. |
+| BRAINSTORM independent backup reader | 1Password plus Mac Keychain, account `brainstormzac`, services `zacai-brainstorm-b2-verifier-key-id` and `zacai-brainstorm-b2-verifier-application-key` | Existing D034AI documented locations; exact 1Password item title/vault still to inventory. |
+| Fireflies API credential | 1Password Secure Note (exact title/vault still to inventory); Mac Keychain account `zcampbell@brainstormtech.io`, service `zacai-brainstorm-fireflies-api-key` | User previously confirmed saved and recovered. Do not ask for the key in chat. |
+
+When Zac is asked where an item lives, return its name and location plus the last
+verified status. Unknown titles/vaults stay explicitly unknown until confirmed.
+A saved-item attestation is distinct from successful independent recovery.
+This guide is project documentation; it has not itself been imported into Zac
+State or proved available through the future private interface.
+
+
+### Caz AI Google sign-in configuration — 2026-10-05
+
+Google Cloud project: **Caz AI Sign-in**, project ID `caz-ai-sign-in`, in the
+Brainstorm organization. User-facing brand is Caz AI; existing technical Zac
+identifiers remain intact. Internal Google Auth configuration exists; owner
+reported and UI confirmed 2-Step Verification is on. This is sign-in configuration,
+not an inherited Gmail/Drive authorization or proof of current Caz owner enrollment.
+
+The web-client creation form is prepared. **No OAuth client credentials have been
+created, saved or installed yet.** A specific client/callback approval is pending.
+The Mac's Tailscale installation and its own online private hostname were checked
+read-only; this does not prove HTTPS serving or iPhone reachability. Record the
+exact approved callback and 1Password item/Keychain locations after creation and
+installation, without placing secrets or raw callback tokens in this file.

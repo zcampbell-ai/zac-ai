@@ -14,7 +14,9 @@ from html import escape
 from zacai.intelligence.contextual_evaluation import ContextualPacket
 from zacai.intelligence.contextual_review import Clarification, EvidenceConflict
 from zacai.intelligence.meeting_review import Claim, ItemKind
-from zacai.intelligence.work_proposals import WorkPreference, WorkProposal, render_work_proposals
+from zacai.intelligence.work_briefing import render_work_proposals
+from zacai.intelligence.work_proposals import WorkPreference, WorkProposal
+from zacai.intelligence.work_tracking import WorkJournal
 
 _STYLE = """
 body{font:16px/1.55 system-ui,sans-serif;color:#1c2934;background:#f4f6f8;margin:0}
@@ -36,6 +38,7 @@ def render_selected_briefing(
     work_proposals: tuple[WorkProposal, ...] = (),
     work_preferences: tuple[WorkPreference, ...] = (),
     work_view: bool = False,
+    work_journals: tuple[WorkJournal, ...] = (),
 ) -> str:
     """Preserve every selected claim/item; material gaps hold the full briefing.
 
@@ -47,10 +50,16 @@ def render_selected_briefing(
         packet = ContextualPacket.model_validate(packet)
         if as_of.tzinfo is None or as_of.utcoffset() is None or as_of < packet.created_at:
             raise ValueError("invalid display time")
-        if type(work_view) is not bool or (not work_view and (work_proposals or work_preferences)):
+        if type(work_view) is not bool or (
+            not work_view and (work_proposals or work_preferences or work_journals)
+        ):
             raise ValueError("work inputs require work view")
         work_html = (
-            render_work_proposals(packet, work_proposals, work_preferences) if work_view else ""
+            render_work_proposals(
+                packet, work_proposals, work_preferences, journals=work_journals, as_of=as_of
+            )
+            if work_view
+            else ""
         )
         review = packet.review
         references: dict[tuple[str, int, int, str], int] = {}

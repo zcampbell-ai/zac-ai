@@ -70,12 +70,15 @@ def run() -> None:
 
     `log_config=None` stops uvicorn from installing its own logging
     dictConfig, which would otherwise replace the redacted JSON handler
-    `configure_logging` set up on the root logger above.
+    `configure_logging` set up on the root logger above. Access logging is
+    disabled so OAuth callback codes and state never enter raw request logs.
     """
     import uvicorn
 
     assert_safe_bind_host(settings.host)
-    uvicorn.run("zacai.main:app", host=settings.host, port=settings.port, log_config=None)
+    uvicorn.run(
+        "zacai.main:app", host=settings.host, port=settings.port, log_config=None, access_log=False
+    )
 
 
 if __name__ == "__main__":

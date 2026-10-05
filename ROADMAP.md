@@ -11,14 +11,17 @@ This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position — reconciled 2026-10-05
 
-Current completed engineering checkpoint: D034AQ. Zac confirmed the protected
+Current completed engineering checkpoint: D034AR. Zac confirmed the protected
 real D034AN review is a useful starting point, requested readable formatting,
 and authorized continuing. The first offline selected-review briefing view is
 implemented and now includes an offline proposed-work view with exact plan-bound
 preferences and explicit completion checks. Durable reported-work snapshots,
 host-only protected release composition and offline history selection inspection
-are now implemented; broader daily source coverage, verified
-work status, execution and private interface remain pending. The bounded research intake
+are now implemented. Reported status rendering, protected one-card release,
+unmounted encrypted owner sign-in/enrollment and offline Gmail/Slack preparation
+are integrated through D034AR. Broader daily source coverage, independently verified
+completion, real text conversation/actions, deployed private access and actual
+iPhone validation remain pending. The bounded research intake
 and its original encrypted remote checkpoint are now fully verified.
 D031B verified real BRAINSTORM encrypted off-device artifact recovery. D032
 intelligence contracts are implemented. D033C verified one explicitly approved
@@ -1484,3 +1487,92 @@ files) pass. Independent Opus follow-up reports no concrete blockers; final
 explicit history datetime hardening and host/provenance wording were checked
 with focused regressions and the serial full suite. No production data, live
 source/model run, session, migration or deployment was performed.
+
+
+## D034AR — protected cards and private-interface foundation
+
+User-facing name is Caz AI; technical repository/package/Zac State/Event and
+credential/storage identifiers remain unchanged. The user activated a continued
+Goal toward the reviewed text-first iPhone trial with context gathering, dates,
+coverage, provenance and one-at-a-time confirmation of material current facts.
+This preserves Phases 4/5 and the existing wider roadmap; it does not declare v1
+usable or complete. Voice remains the fast follow.
+
+Reported-work journals now render with exact packet/plan binding, trusted host
+as-of time and classification checks. Reports are not verified completion.
+One-card rendering retains all original source items, labels proposed outcomes
+separately, keeps material context questions as holds, and provides expandable
+evidence. Work controls remain disabled presentation; no approval/execution
+endpoint was created. Protected card release uses the independently retained
+receipt/hash and fresh canonical ACLs, taking classifications only from the
+BRAINSTORM scope. PERSONAL permissions cannot rescue a business denial.
+
+Unmounted Google OIDC, persistent encrypted sessions and host enrollment are
+implemented. Signed identity requires signature/audience/nonce/state/expiry;
+both documented Google issuer forms normalize only after validation. Email or
+Workspace administration grants no owner scope. Enrollment requires a short-lived
+browser/Mac pairing code and exact host confirmation before producing a grant.
+Separate bounded pending-login/user pools preserve authenticated capacity under
+login floods; corrupt encrypted rows fail closed during identity revocation.
+Exact Origin and session-CSRF protect logout; sign-in pages alone permit fixed
+Google form navigation. Main runtime remains health-only/loopback; raw access
+logging is disabled in its launcher without service restart.
+
+Opus implemented reusable premium inline CSS and fixed Caz sign-in markup from
+a bounded design brief; a separate invocation and helper independently reviewed
+it. No scripts, remote fonts/assets, trackers or fabricated conversations. Native
+radio/details behavior and print/contrast/motion fallbacks remain subject to
+actual browser/iPhone/keyboard/print verification. Protected rendering permits
+same-origin host logout without weakening default offline form denial.
+
+PERSONAL drill code uses invented fixtures/throwaway keys and never reports real
+intake readiness. A local full SQL rehearsal was independently checked and its
+disposable target cleaned up. Shared nonblocking restore-target leases now cover
+cooperating fixed-name helpers, schema/restore and the entire CLI drill composite;
+nested operations reuse the validated owner connection. OID checks remain.
+Noncooperating administrator SQL still requires an exclusive host window; this
+is not hostile-DBA protection. The framing regression now tests parsing separately
+and proves the public restore path refuses zacai_test before connection I/O.
+
+Gmail original-byte/account/boundary inspection and fixed read-only Slack transport
+and wire validation are offline preparation. No mailbox/Slack connection, OAuth
+grant, source capture or historical-completeness claim occurred. Slack's low-level
+seams still require the mandatory host boundary/classification/account gate before
+live intake; Slack Connect and restricted channels cannot inherit a business
+classification by assumption. Original private bytes are hidden from object repr.
+
+The host startup seam selects only two proposed fixed SHARED Keychain entries,
+uses no environment fallback, hides credentials from repr and sanitizes failures.
+No actual credential was read or installed. Escrow/readback, native ACLs, exact
+client/origin, stable owner enrollment and host/agent runtime separation remain
+release gates. Separate PERSONAL uploader/encryption recovery/real off-device SQL
+receipt are required before financial records; business consent/gates cannot be
+relabeled PERSONAL.
+
+Read-only setup verified the existing Mac Tailscale installation/self hostname;
+Serve is unconfigured and Funnel is off. Google project/internal branding exists
+and user MFA is enabled; web-client creation is awaiting specific approval. No
+new client, public serving, network exposure, private model run or deployment.
+Context inventories outside Git distinguish direct user decisions from stale
+assistant checkpoints/example opinions, and locate seven checksum-matched Claude
+proposal assets. These are not full exports or current-truth/canonical imports.
+Provider readiness inventory records candidates and access/data-term differences
+without changing model pins or creating accounts.
+
+Independent Opus found substantive Origin/CSP, pairing, revocation, capacity,
+source-vs-proposal presentation and restore-concurrency issues; corrections are
+covered by focused regressions and actual-library mocked OIDC exchanges. Final
+validation is recorded below after the serial suite completes.
+
+Next: approved Google client/credential escrow, reviewed stable host enrollment
+and private-only serving, real iPhone validation, gateway-backed conversation and
+plan choices, bounded source/context intake and trustworthy completion checks.
+Keep context/source gaps explicit; no numerical full-history coverage is claimed.
+
+Final D034AR validation: 2,068 tests pass; Ruff and strict mypy (84 source
+files) pass. Exact staged secret scan found no leaks. Independent Opus final
+sign-in/startup follow-up reports no remaining concrete blocker in the shown
+code. This is an engineering foundation verdict, not live authentication, full
+context ingestion, usable mobile release or completion of the active Goal.
+Library deprecation warnings remain documented upgrade work; no dependency
+migration beyond the reviewed Authlib pin was attempted.

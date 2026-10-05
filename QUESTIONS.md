@@ -748,3 +748,80 @@ and ask targeted material questions; imported history is not automatically compl
 or current truth. Context richness does not confer action permissions or prove
 correctness. This clarifies Phase 7 role goals, not permission to launch persistent
 production agents before the existing control-plane/evaluation/security gates.
+
+
+### Personal automation and financial oversight — scope clarification
+
+Zac clarified that the first usable outcome should help automate his own life,
+including personal financial oversight. Desired coverage includes financial
+organization, obligations, efficiency, and informed tax/investment planning.
+These are desired capabilities, not verified current financial facts or authority
+to trade, transfer funds, file taxes, or execute financial changes. Begin with
+source-backed read-only oversight and proposals through the existing gateway.
+
+Existing Claude/ChatGPT history should be inventoried and reused before asking
+him to repeat context; his role is to fill material gaps and resolve contradictions.
+Historical statements must be dated and reconciled with current source records.
+Neither conversation memory nor personal financial history is assumed imported.
+PERSONAL context, permissions and recovery remain separate from BRAINSTORM.
+
+Chief solution architect was an example of the broader specialist workforce
+(PMO, finance and other roles), not a request to prioritize that role now.
+Reconcile this expanded first-release goal with staged readiness and estimates;
+do not silently replace the roadmap or promise full financial automation within
+the earlier meeting-briefing estimate. Private owner sign-in must support the
+approved personal/business separation; company identity must not implicitly grant
+company administrators access to personal finances. No new live financial source
+connection or financial action is authorized by this clarification.
+
+
+## 2026-10-05 — Caz AI name and private interface direction
+
+User selected **Caz AI**, spelled C-A-Z, as the user-facing product name. Use it
+for new app branding and sign-in configuration. Retain existing `zac-ai` repository,
+`zacai` package, Zac State/Event contracts, Keychain services, backup names and
+storage identifiers; any technical migration requires its own deliberate review.
+
+First usable interface: private phone-accessible text and one decision card at
+a time; expandable plan/evidence/details, concise choices and completion summary
+with evidence preview and full-result link. Voice is a fast follow, central to
+delegation/context building. Voice messages versus live conversation remains open.
+Approximate one-second first spoken response is a target, not measured performance.
+
+Owner sign-in: user chose Brainstorm Google account, candidate email
+`zcampbell@brainstormtech.io`; require verified stable issuer/subject and separate
+PERSONAL/BRAINSTORM grants. Email/domain/admin ownership alone grants no access.
+
+Notify for meaningful completions and decisions; combine related completions.
+No fixed quiet-hours schedule; user can request temporary quiet hours. Emergency
+exceptions remain undefined, with urgent personal messages/family as examples only.
+Do not enable an unreviewed emergency classifier or live notification delivery.
+
+Delegation: concise outcome/approach, including proposed outreach, before approval.
+Initially review exact message and recipients; Caz may identify itself as Caz AI
+rather than impersonate the user. Approved bounded work need not ask every step.
+New requests/commitments materially changing scope return with recommendation
+(push back or accept) for user decision. No actual outreach is authorized by
+these future workflow preferences.
+
+
+## 2026-10-05 — continued Goal, context validation and provider readiness
+
+User explicitly activated a detailed continued Goal toward the reviewed text-first
+private iPhone trial, including relevant context gathering and validation. Use
+existing accessible conversations/files before asking him to recreate context.
+Historical source/date and coverage must be retained; assistant statements, old
+examples, estimates and preferences are not automatically current confirmed facts.
+Bring material contradictions and current-truth confirmations one at a time.
+The Goal does not waive authentication, source permissions, recovery, external
+action approval or usage limits, and does not prove uninterrupted availability.
+
+User supports preparing multiple provider/model accounts when useful for the
+right tasks and capabilities. Named candidates: Claude, ChatGPT, Grok, Gemini,
+plus spoken “Spacexai” and “Muse”; the latter two need exact product identification
+before account/installation recommendations. App subscriptions and API access
+are distinct readiness questions. Record actual access, permitted data, costs
+and capabilities; evaluate task fitness without creating accounts or spending
+by assumption. Preserve provider neutrality and the existing roadmap order.
+No new account, API credential, subscription or private model disclosure occurred
+from this preference.

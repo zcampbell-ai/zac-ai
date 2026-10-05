@@ -24,6 +24,7 @@ redirect them to a different database.
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import csv
 import io
@@ -31,7 +32,10 @@ import os
 import re
 import subprocess
 from collections.abc import Callable, Iterator, Sequence
+from contextvars import ContextVar
+from dataclasses import dataclass
 from pathlib import Path
+from threading import get_ident
 from typing import IO, Any, BinaryIO
 
 from sqlalchemy import create_engine, text
@@ -153,6 +157,24 @@ _MAX_FRAME_BYTES = 256 * 1024 * 1024
 RESTORE_TEST_DATABASE = "zacai_restore_test"
 _ADMIN_URL = "postgresql+psycopg://127.0.0.1:5432/postgres"
 RESTORE_TEST_URL = f"postgresql+psycopg://127.0.0.1:5432/{RESTORE_TEST_DATABASE}"
+
+# All cooperating fixed-target administrative/restore operations share one
+# session lease. Non-cooperating SQL/admin actors still require a host-exclusive
+# window; PostgreSQL has no atomic fixed-name OID-conditional DROP DATABASE.
+_RESTORE_TARGET_LOCK = 0x5A414352
+
+
+@dataclass
+class _RestoreTargetLease:
+    connection: Connection
+    thread_id: int
+    task: object | None
+    active: bool = True
+
+
+_RESTORE_TARGET_LEASE: ContextVar[_RestoreTargetLease | None] = ContextVar(
+    "zacai_restore_target_lease", default=None
+)
 
 
 def _raw_connection(conn: Connection) -> Any:
@@ -366,7 +388,8 @@ def restore_boundary_stream(
     The wrapper uses before_commit to verify decryption success after stream EOF
     and before DB commit. No plaintext file or partial table commit is created.
     """
-    with engine.connect() as conn:
+    assert_safe_restore_target_url(engine.url.render_as_string(hide_password=False))
+    with _admin_connection(), engine.connect() as conn:
         raw = _raw_connection(conn)
         try:
             _restore_frames(raw, in_stream)
@@ -480,15 +503,52 @@ def restore_boundary(
         engine.dispose()
 
 
+def _current_task_owner() -> object | None:
+    try:
+        return asyncio.current_task()
+    except RuntimeError:
+        return None
+
+
 @contextlib.contextmanager
 def _admin_connection() -> Iterator[Connection]:
+    """Fixed validated admin connection under a shared nonblocking target lease.
+
+    Synchronous nested helpers reuse the owning connection, never reacquire from
+    another PostgreSQL session. Do not share this context across threads/tasks.
+    Existing callers doing direct fixed-name SQL are covered by the same lease.
+    A host-exclusive window remains required against non-cooperating operators.
+    """
     assert_safe_admin_url(_ADMIN_URL)
+    existing = _RESTORE_TARGET_LEASE.get()
+    if existing is not None:
+        if (
+            not existing.active
+            or existing.thread_id != get_ident()
+            or existing.task is not _current_task_owner()
+        ):
+            raise RuntimeError("restore target lease owner mismatch")
+        yield existing.connection
+        return
     engine = create_engine(_ADMIN_URL, future=True, isolation_level="AUTOCOMMIT")
     try:
         with engine.connect() as conn:
             reported = conn.execute(text("SELECT current_database()")).scalar_one()
             assert_connected_to_safe_admin_database(reported)
-            yield conn
+            if not conn.execute(
+                text("SELECT pg_try_advisory_lock(:key)"), {"key": _RESTORE_TARGET_LOCK}
+            ).scalar_one():
+                raise RuntimeError("restore target lease unavailable")
+            lease = _RestoreTargetLease(conn, get_ident(), _current_task_owner())
+            token = _RESTORE_TARGET_LEASE.set(lease)
+            try:
+                yield conn
+            finally:
+                lease.active = False
+                _RESTORE_TARGET_LEASE.reset(token)
+                # Engine disposal below also closes the physical session if
+                # unlock itself fails; no owner connection survives this scope.
+                conn.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": _RESTORE_TARGET_LOCK})
     finally:
         engine.dispose()
 
@@ -516,18 +576,19 @@ def upgrade_restore_test_schema() -> None:
     from alembic.config import Config
 
     assert_safe_restore_target_url(RESTORE_TEST_URL)
-    engine = create_engine(RESTORE_TEST_URL, future=True)
-    try:
-        with engine.connect() as conn:
-            reported = conn.execute(text("SELECT current_database()")).scalar_one()
-        assert_connected_to_safe_restore_database(reported)
-    finally:
-        engine.dispose()
+    with _admin_connection():
+        engine = create_engine(RESTORE_TEST_URL, future=True)
+        try:
+            with engine.connect() as conn:
+                reported = conn.execute(text("SELECT current_database()")).scalar_one()
+            assert_connected_to_safe_restore_database(reported)
+        finally:
+            engine.dispose()
 
-    alembic_ini = Path(__file__).resolve().parent.parent.parent / "alembic.ini"
-    config = Config(str(alembic_ini))
-    config.set_main_option("sqlalchemy.url", RESTORE_TEST_URL)
-    command.upgrade(config, "head")
+        alembic_ini = Path(__file__).resolve().parent.parent.parent / "alembic.ini"
+        config = Config(str(alembic_ini))
+        config.set_main_option("sqlalchemy.url", RESTORE_TEST_URL)
+        command.upgrade(config, "head")
 
 
 def main() -> None:
@@ -573,9 +634,11 @@ def main() -> None:
             ["age", "-r", args.recipient],
         )
     elif args.command == "drill":
-        recreate_restore_test_database()
-        upgrade_restore_test_schema()
-        restore_boundary(args.artifact, RESTORE_TEST_URL, ["age", "-d", "-i", str(args.identity)])
+        # Hold one lease across the full composite, not just each helper call.
+        with _admin_connection():
+            recreate_restore_test_database()
+            upgrade_restore_test_schema()
+            restore_boundary(args.artifact, RESTORE_TEST_URL, ["age", "-d", "-i", str(args.identity)])
 
 
 if __name__ == "__main__":

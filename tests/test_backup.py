@@ -31,17 +31,20 @@ import tempfile
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy import create_engine, text
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import Session, sessionmaker
 
+from zacai import backup
 from zacai.backup import (
     _BACKUP_MAGIC,
     TABLE_ORDER,
     _read_exact,
     _read_line,
+    _restore_frames,
     _write_frame,
     drop_restore_test_database,
     export_boundary,
@@ -153,13 +156,27 @@ def test_export_boundary_stream_excludes_other_boundaries(
 # --- restore ordering --------------------------------------------------------
 
 
-def test_restore_boundary_stream_rejects_out_of_order_frames(_test_engine: Engine) -> None:
+def test_restore_frames_rejects_out_of_order_before_database_io() -> None:
     bad_stream = io.BytesIO()
     bad_stream.write(b"person\n0\n")  # "person" is not TABLE_ORDER[0] ("source")
     bad_stream.seek(0)
 
     with pytest.raises(RuntimeError, match="frame order mismatch"):
-        restore_boundary_stream(_test_engine, bad_stream)
+        # Wrong-order parsing must fail before raw SQL/COPY is possible.
+        _restore_frames(object(), bad_stream)
+
+
+def test_public_restore_rejects_non_restore_target_before_connection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    engine = MagicMock(spec=Engine)
+    engine.url = make_url(_TEST_DB_URL)
+    admin = MagicMock(side_effect=AssertionError("admin I/O forbidden"))
+    monkeypatch.setattr(backup, "_admin_connection", admin)
+    with pytest.raises(RuntimeError, match="restore target"):
+        restore_boundary_stream(engine, io.BytesIO(b"person\n0\n"))
+    admin.assert_not_called()
+    engine.connect.assert_not_called()
 
 
 # --- export_boundary: filesystem safety -------------------------------------
