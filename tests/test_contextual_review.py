@@ -321,3 +321,27 @@ def test_conflict_distinct_adjacent_passages_and_single_span():
             review.model_copy(update={"conflicts": (gap.model_copy(update={"quotes": (a,)}),)}),
             context,
         )
+
+
+
+def test_full_preview_always_identifies_draft_even_when_every_section_has_content():
+    context, review, _, _ = fixture()
+    from zacai.intelligence.contextual_review import render_contextual_delivery_preview
+    canonical = render_contextual_preview(review, context)
+    assert canonical.splitlines()[0] == "Contextual overview"
+    delivery = render_contextual_delivery_preview(review, context)
+    assert delivery.startswith("Draft for review\n\nContextual overview")
+    assert "owner: Alex" in delivery and "proposed owner" not in delivery
+    assert "proposed owner: Alex" in canonical
+
+
+
+def test_delivery_label_preserves_material_question_hold():
+    from zacai.intelligence.contextual_review import render_contextual_delivery_preview
+    context, review, current, _ = fixture()
+    gap = Clarification(text="Project attribution is uncertain.", quotes=(current,),
+                        question="Which project is this?", reason="This changes the history to use.")
+    review = review.model_copy(update={"clarifications": (gap,)})
+    delivery = render_contextual_delivery_preview(review, context)
+    assert delivery == "Draft for review\n\n" + render_contextual_preview(review, context)
+    assert "Which project" in delivery and "Alex will test" not in delivery

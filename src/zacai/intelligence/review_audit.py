@@ -24,6 +24,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from zacai.ingestion.artifact_store import ArtifactStore, canonical_bytes, content_hash_of
+from zacai.intelligence.contextual_diagnostics import GenerationFailure, ReviewRejection
 from zacai.intelligence.contracts import Contract, Digest, RouteIdentity
 from zacai.intelligence.meeting_review import MeetingReview, ReviewContext
 from zacai.intelligence.review_evaluation import (
@@ -111,6 +112,8 @@ class ContextualAuditEvent(Contract):
     failure_step: ContextualFailureStep | None = None
     dispatch_attempted: bool | None = Field(default=None, strict=True)
     runtime_failure_code: RuntimeFailureCode | None = None
+    draft_failure_code: GenerationFailure | None = None
+    draft_rejection: ReviewRejection | None = None
 
     @model_serializer(mode="wrap")
     def preserve_legacy_bytes(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
@@ -120,13 +123,21 @@ class ContextualAuditEvent(Contract):
             data.pop("dispatch_attempted", None)
         if self.runtime_failure_code is None:
             data.pop("runtime_failure_code", None)
+        if self.draft_failure_code is None:
+            data.pop("draft_failure_code", None)
+        if self.draft_rejection is None:
+            data.pop("draft_rejection", None)
         return data
 
     @model_validator(mode="after")
     def consistent_packet(self) -> Self:
         if any(name in self.model_fields_set and getattr(self, name) is None
-               for name in ("failure_step", "dispatch_attempted", "runtime_failure_code")):
+               for name in ("failure_step", "dispatch_attempted", "runtime_failure_code", "draft_failure_code", "draft_rejection")):
             raise ValueError("diagnostic fields must be absent rather than null")
+        if self.draft_failure_code is not None and self.failure_step != ContextualFailureStep.DRAFT_VALIDATION:
+            raise ValueError("draft diagnostic requires draft validation operation")
+        if self.draft_rejection is not None and self.draft_failure_code != GenerationFailure.VALIDATION:
+            raise ValueError("review rejection requires validation code")
         if self.runtime_failure_code == RuntimeFailureCode.UNSPECIFIED:
             raise ValueError("unspecified diagnostic must be absent")
         if self.runtime_failure_code is not None and self.failure_step not in {

@@ -272,3 +272,24 @@ The second private trial failed at GENERATION with protected recovery, no draft.
 Host dispatch_attempted does not prove delivery or actual completion. Its original
 inner reason remains unknown. PUBLIC controlled 16-item success is structural only;
 new private output requires fresh approval and actual usefulness assessment.
+
+
+### D034AM schema and draft rejection reader floor
+
+Draft schema contains strict explicit provisional continuity, conflict min2 IDs
+and kind-specific inference shapes. Final missing-overview rejection remains a
+semantic validator reason. Non-citable short passages remain visible as context,
+but their IDs are excluded from quote/role catalogs. Final exact-quote/role/display
+checks are unchanged; no output repair or permission follows from schema validity.
+
+Future RUN_FAILED at DRAFT_VALIDATION may contain closed draft_failure_code and,
+only for VALIDATION, draft_rejection. Never exception text or evidence IDs. Null/
+free-text/wrong-step combinations reject; absent fields preserve historical bytes.
+Use D034AM-compatible readers after the first coded write. These engineering
+checks used PUBLIC/invented evidence, not a new private execution.
+
+Canonical v1 preview/packet golden bytes remain unchanged. User-facing delivery
+uses render_contextual_delivery_preview: fixed draft label, clear owner/date and
+Suggested follow-up labels, with material questions still withholding the full
+review. This layer grants no approval or canonical fact status. The fixed display
+label is UI chrome outside the canonical preview's original content ceilings.

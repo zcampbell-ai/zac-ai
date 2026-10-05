@@ -24,6 +24,11 @@ from sqlalchemy.orm import Session, sessionmaker
 from zacai.contextual_recovery_record import ContextualRecoveryReceipt
 from zacai.gateway import ActionRequest, ActionType, GatewayOutcome, evaluate_gateway
 from zacai.ingestion.artifact_store import ArtifactStore, content_hash_of
+from zacai.intelligence.contextual_diagnostics import (
+    GenerationFailure,
+    ReviewRejection,
+    closed_draft_code,
+)
 from zacai.intelligence.contextual_evaluation import ContextualPacket, encode_contextual_packet
 from zacai.intelligence.contextual_generation import (
     ContextualDraft,
@@ -279,6 +284,8 @@ def execute_contextual_shadow(
     audit_failed = False
     observer_failed = False
     runtime_failure_code: RuntimeFailureCode | None = None
+    draft_failure_code: GenerationFailure | None = None
+    draft_rejection: ReviewRejection | None = None
     bound_request_digest: str | None = None
     bound_context_digest: str | None = None
     bound_task_id: UUID | None = None
@@ -318,6 +325,10 @@ def execute_contextual_shadow(
                 diagnostics = {"failure_step": failure_step, "dispatch_attempted": dispatched}
                 if runtime_failure_code is not None:
                     diagnostics["runtime_failure_code"] = runtime_failure_code
+                if draft_failure_code is not None:
+                    diagnostics["draft_failure_code"] = draft_failure_code
+                if draft_rejection is not None:
+                    diagnostics["draft_rejection"] = draft_rejection
             sid = append_contextual_audit(
                 session,
                 artifacts=artifacts,
@@ -557,6 +568,8 @@ def execute_contextual_shadow(
             run_id, packet_id, packet_hash, packet, tuple(audit_ids), receipt
         )
     except BaseException as error:  # noqa: BLE001 - sanitized cancellation audit
+        if failure_step == ContextualFailureStep.DRAFT_VALIDATION:
+            draft_failure_code, draft_rejection = closed_draft_code(error)
         if failure_step in {ContextualFailureStep.RUNTIME_PREFLIGHT, ContextualFailureStep.GENERATION}:
             runtime_failure_code = closed_runtime_code(error)
             if runtime_failure_code == RuntimeFailureCode.UNSPECIFIED or (

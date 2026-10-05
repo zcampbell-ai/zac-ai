@@ -11,7 +11,7 @@ This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position — reconciled 2026-10-05
 
-Current completed engineering checkpoint: D034AL. The bounded research intake
+Current completed engineering checkpoint: D034AM. The bounded research intake
 and its original encrypted remote checkpoint are now fully verified.
 D031B verified real BRAINSTORM encrypted off-device artifact recovery. D032
 intelligence contracts are implemented. D033C verified one explicitly approved
@@ -50,8 +50,10 @@ D034AL adds closed runtime diagnostics and an explicitly consent-bound 3,200-tok
 output option, retaining the 1,600 default and the existing latency/window/model.
 The new 3,200-token same-evidence trial was approved and ran once. Generation
 completed, but DRAFT_VALIDATION rejected the result. Encrypted failed-attempt
-recovery passed; no draft was released. The next gate is validator diagnosis
-and instruction/schema alignment before any new private processing proposal. No recurring ingestion or broad
+recovery passed; no draft was released. D034AM aligns the draft schema/instructions and adds closed validation reasons.
+An invented mixed-context local rehearsal now passes structural checks and an
+independent Opus usefulness assessment for that case. A new same-source proposal
+and read-only recovery proof are prepared; fresh private-trial approval is pending. No recurring ingestion or broad
 production routing is enabled. The app remains health-only.
 
 Zac confirmed the first usable version's delivery target in chat on 2026-10-04:
@@ -1199,3 +1201,60 @@ count schema mismatches with existing validation. Align those schemas and the
 meeting-only overview/FOLLOW_UP instructions; add content-free validation reasons
 and invented mixed-role checks before another sealed private proposal. None is
 asserted as the exact cause of the consumed attempt. No new private run is ready.
+
+
+## D034AM — align delivery rules and diagnose rejection without private retries
+
+The contextual model schema now requires explicit true continuity, at least two
+conflict citations and kind-specific inference flags: DECISION/COMMITMENT false,
+FOLLOW_UP explicit true, RISK separately typed. Boolean coercion rejects. Missing
+overview remains a final semantic/role rejection with OVERVIEW_MISSING, rather
+than hiding under a parser error. Instructions match meeting-only overview/items,
+related-only background, provisional work continuity and unowned suggestions.
+
+Short passages stay visible as context with citable=false; their IDs are excluded
+from quotes/role lists using the same existing quote-support predicate. No original
+source text is truncated. Invalid citations, display control/structure, inferred
+agreement, missing related evidence and display overflow still reject. Closed
+GenerationFailure/ReviewRejection metadata can accompany only failed draft-
+validation audits; absent fields preserve old bytes, explicit null/free text/wrong
+operations reject. Keep D034AM-compatible readers for future coded artifacts.
+
+The PUBLIC mixed-context probe initially rejected schema, then exposed an omitted/
+misclassified unowned suggestion despite passing structure. Kind-visible schema
+and more explicit guidance fixed the measured case. Final local PUBLIC rehearsal:
+3,818 input, 1,243 output, about 33 seconds; both owners/dates, hold decision, risk,
+provisional unowned follow-up, background and continuity retained. Opus independently
+assessed actual PUBLIC sources/draft/rendering: PASS with nonblocking delivery
+refinements, suitable for one bounded human-assessed trial. This is not private
+usefulness/general reliability proof. Failed intermediate probes remain recorded.
+
+A golden-byte test caught an attempted renderer-heading change. The original v1
+canonical preview/digest is preserved. A separate validated delivery preview adds
+Draft for review, clearer owner/date labels and Suggested follow-up wording, while
+material questions continue to withhold the full review. No wire-version update,
+canonical Event change, source-system write, fact promotion or private generation.
+All 1,571 tests, Ruff and strict mypy (63 source files) pass; Opus reviewed concrete
+code-only changes independently. New private read-only proposal has the same six
+Source hashes, 10,568 measured input + 3,200 output <= 16,384, 42,403 serialized
+bytes <= 64,000, same pinned local model and 120-second generation budget. Selected
+encrypted artifacts/full disposable restore verified and cleaned. Source count
+remains 62. Fresh exact approval is required before that one-shot trial.
+
+### Preparation alongside delivery, within the existing phase order
+
+The next Phase 4 briefing should consume bounded permission-checked, recovered
+review packets and confirmed state; keep candidate decisions/open loops distinct
+from canonical confirmed commitments. Show what changed, decisions/commitments,
+risks/follow-ups and material questions, with source references and visible coverage
+gaps. Completion/overdue claims need dated evidence and status verification, not
+absence from one meeting. Start with the verified narrow coverage before staged
+history expansion; do not enable automatic fact promotion or bulk intake here.
+
+For Phase 5 private text/mobile access, use the same Mac host/state and exact
+approval/question flow. Preserve loopback-only service binding; authenticated
+private access and authorized source views must be designed/reviewed before any
+network deployment. First render existing protected packets and material questions;
+provider credentials remain outside agents and the UI. Current app is health-only;
+these requirements are prepared, not enabled features. They follow useful bounded
+private review and remain within the established v1 release gates.

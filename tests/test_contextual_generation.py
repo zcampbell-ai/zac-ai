@@ -13,6 +13,9 @@ from zacai.intelligence.contextual_evaluation import encode_contextual_packet
 from zacai.intelligence.contextual_generation import (
     ContextualDraft,
     ContextualGenerationError,
+    DraftAgreement,
+    DraftConflict,
+    DraftConnection,
     DraftQuestion,
     GenerationFailure,
     parse_contextual_draft,
@@ -22,7 +25,7 @@ from zacai.intelligence.contextual_generation import (
 from zacai.intelligence.contextual_review import render_contextual_preview
 from zacai.intelligence.contextual_storage import capture_contextual_packet, load_contextual_packet
 from zacai.intelligence.meeting_review import ItemKind
-from zacai.intelligence.review_generation import DraftClaim, DraftItem
+from zacai.intelligence.review_generation import DraftClaim
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 
@@ -47,14 +50,14 @@ def draft(req):
             DraftClaim(text="Prior records describe the reporting failure.", evidence_ids=(prior,)),
         ),
         continuity=(
-            DraftClaim(
+            DraftConnection(
                 text="This may continue the reporting investigation.",
                 evidence_ids=(current, prior),
                 inferred=True,
             ),
         ),
         items=(
-            DraftItem(
+            DraftAgreement(
                 text="Alex will test the fix.",
                 evidence_ids=(current,),
                 kind=ItemKind.COMMITMENT,
@@ -222,7 +225,7 @@ def test_conflict_requires_meeting_and_distinct_support():
     req = request()
     base = draft(req)
     ids = base.continuity[0].evidence_ids
-    gap = DraftQuestion(
+    gap = DraftConflict(
         text="The accounts may differ.",
         evidence_ids=ids,
         question="Did the decision change?",
@@ -235,16 +238,15 @@ def test_conflict_requires_meeting_and_distinct_support():
     for bad_ids in (ids[1:], ids[:1]):
         with pytest.raises(ContextualGenerationError):
             resolve_contextual_draft(
-                ContextualDraft(
-                    format="zac-contextual-draft-v1",
-                    conflicts=(gap.model_copy(update={"evidence_ids": bad_ids}),),
+                ContextualDraft(format="zac-contextual-draft-v1", conflicts=(gap,)).model_copy(
+                    update={"conflicts": (gap.model_copy(update={"evidence_ids": bad_ids}),)}
                 ),
                 req,
             )
 
 
 @pytest.mark.parametrize(
-    "text", ["Decisions and commitments", "- Decision: Budget approved", "1. Approval", "# Risks"]
+    "text", ["Decisions and commitments", "Contextual overview (draft)", "- Decision: Budget approved", "1. Approval", "# Risks"]
 )
 def test_overview_cannot_forge_renderer_headings_or_lists(text):
     req = request()
@@ -289,3 +291,133 @@ def test_no_related_evidence_does_not_request_invented_continuity():
     with_related = request()
     assert with_related.context.related_source_ids
     assert "Return background=[] and continuity=[]" not in with_related.instruction
+
+
+@pytest.mark.parametrize("flag", [None, False, 1, "true"])
+def test_raw_continuity_cannot_omit_or_coerce_provisional_flag(flag):
+    import json
+    req = request()
+    data = draft(req).model_dump(mode="json")
+    if flag is None:
+        del data["continuity"][0]["inferred"]
+    else:
+        data["continuity"][0]["inferred"] = flag
+    with pytest.raises(ContextualGenerationError) as error:
+        parse_contextual_draft(json.dumps(data).encode())
+    assert error.value.code == GenerationFailure.DRAFT_SCHEMA
+    assert error.value.__context__ is None
+
+
+def test_schema_exposes_continuity_and_conflict_requirements():
+    import json
+    schema = json.loads(request().schema_json)
+    assert schema["$defs"]["DraftConnection"]["properties"]["inferred"]["const"] is True
+    assert "inferred" in schema["$defs"]["DraftConnection"]["required"]
+    assert schema["$defs"]["DraftConflict"]["properties"]["evidence_ids"]["minItems"] == 2
+
+
+@pytest.mark.parametrize("change", ["conflict_single", "follow_up"])
+def test_invalid_raw_structures_reject_before_resolution(change):
+    import json
+    req = request()
+    data = draft(req).model_dump(mode="json")
+    if change == "empty":
+        data = {"format": "zac-contextual-draft-v1"}
+    elif change == "conflict_single":
+        data["conflicts"] = [{"text": "The accounts differ.", "evidence_ids": data["overview"][0]["evidence_ids"],
+                              "question": "Did the plan change?", "reason": "This determines the action."}]
+    else:
+        data["items"][0].update(kind="FOLLOW_UP", inferred=False)
+    with pytest.raises(ContextualGenerationError) as error:
+        parse_contextual_draft(json.dumps(data).encode())
+    assert error.value.code == GenerationFailure.DRAFT_SCHEMA
+
+
+def test_mixed_roles_agreements_and_suggestions_resolve_without_coercion():
+    import json
+    req = request()
+    data = draft(req).model_dump(mode="json")
+    current = data["overview"][0]["evidence_ids"]
+    data["items"].extend([
+        {"text": "The reporting issue remains a risk.", "evidence_ids": current, "kind": "RISK", "inferred": False},
+        {"text": "Confirm the next validation checkpoint.", "evidence_ids": current, "kind": "FOLLOW_UP", "inferred": True},
+    ])
+    output = parse_contextual_draft(json.dumps(data).encode())
+    review = resolve_contextual_draft(output, req)
+    assert len(review.items) == 3 and len(review.continuity) == 1 and len(review.background) == 1
+    assert review.items[-1].inferred and not review.items[0].inferred
+    assert "Possible:" in render_contextual_preview(review, req.context)
+
+
+def test_rule_reason_survives_resolution_without_private_text():
+    from zacai.intelligence.contextual_diagnostics import ReviewRejection
+    req = request()
+    output = draft(req)
+    output = output.model_copy(update={"overview": (output.overview[0].model_copy(update={"text": "PRIVATE invented\u200b marker"}),)})
+    with pytest.raises(ContextualGenerationError) as error:
+        resolve_contextual_draft(output, req)
+    assert error.value.code == GenerationFailure.VALIDATION
+    assert error.value.rejection == ReviewRejection.DISPLAY_CONTROL
+    assert "PRIVATE" not in str(error.value) and error.value.__context__ is None
+
+
+
+def test_short_passages_remain_visible_but_are_not_offered_as_citations():
+    import json
+
+    from tests.test_review_generation import synthetic_context
+    context = synthetic_context(related=False)
+    item = context.task.context[0].model_copy(update={"untrusted_text": "Agreed.\nAlex: I will test the reporting fix tomorrow."})
+    context = replace(context, task=context.task.model_copy(update={"context": (item,)}))
+    req = request(context)
+    passages = json.loads(req.evidence_json)
+    short = next(p for p in passages if p["text"] == "Agreed.")
+    assert short["citable"] is False and short["id"] not in dict(req.quotes)
+    assert any(p["citable"] is True for p in passages)
+    output = ContextualDraft(format="zac-contextual-draft-v1", overview=(DraftClaim(text="A test is planned.", evidence_ids=(short["id"],)),))
+    with pytest.raises(ContextualGenerationError) as error:
+        resolve_contextual_draft(output, req)
+    assert error.value.code == GenerationFailure.CITATION
+
+
+def test_secondary_diagnostic_lookup_never_propagates_private_or_interrupt():
+    from zacai.intelligence.contextual_diagnostics import closed_draft_code
+    class Broken(ContextualGenerationError):
+        @property
+        def rejection(self):
+            raise KeyboardInterrupt("PRIVATE invented marker")
+    error = Broken.__new__(Broken)
+    error.code = GenerationFailure.VALIDATION
+    assert closed_draft_code(error) == (None, None)
+
+
+
+def test_item_schema_exposes_inference_rules_instead_of_only_python_validation():
+    import json
+    schema = json.loads(request().schema_json)
+    assert schema["$defs"]["DraftFollowUp"]["properties"]["inferred"]["const"] is True
+    assert schema["$defs"]["DraftAgreement"]["properties"]["inferred"]["const"] is False
+    assert "inferred" in schema["$defs"]["DraftFollowUp"]["required"]
+
+
+@pytest.mark.parametrize("kind,flag", [("FOLLOW_UP", False), ("FOLLOW_UP", 1), ("COMMITMENT", True), ("DECISION", 0)])
+def test_raw_item_kind_and_flag_cannot_disagree_or_coerce(kind, flag):
+    import json
+    req = request()
+    data = draft(req).model_dump(mode="json")
+    data["items"][0].update(kind=kind, inferred=flag)
+    with pytest.raises(ContextualGenerationError) as error:
+        parse_contextual_draft(json.dumps(data).encode())
+    assert error.value.code == GenerationFailure.DRAFT_SCHEMA
+
+
+
+def test_items_only_draft_reaches_precise_missing_overview_rejection():
+    from zacai.intelligence.contextual_diagnostics import ReviewRejection
+    req = request()
+    output = parse_contextual_draft(b'{"format":"zac-contextual-draft-v1"}')
+    with pytest.raises(ContextualGenerationError) as error:
+        resolve_contextual_draft(output, req)
+    assert error.value.code == GenerationFailure.VALIDATION
+    assert error.value.rejection == ReviewRejection.OVERVIEW_MISSING
+    assert error.value.__context__ is None

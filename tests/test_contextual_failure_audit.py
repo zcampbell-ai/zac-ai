@@ -147,3 +147,23 @@ def test_valid_runtime_diagnostic_canonical_round_trip():
                             "runtime_failure_code": "OUTPUT_LIMIT"}
     raw = canonical_bytes(data)
     assert canonical_bytes(ContextualAuditEvent.model_validate_json(raw).model_dump(mode="json")) == raw
+
+
+@pytest.mark.parametrize("fields", [
+    {"draft_failure_code": "CITATION"},
+    {"failure_step": "GENERATION", "dispatch_attempted": True, "draft_failure_code": "CITATION"},
+    {"failure_step": "DRAFT_VALIDATION", "dispatch_attempted": True, "draft_failure_code": "PRIVATE text"},
+    {"failure_step": "DRAFT_VALIDATION", "dispatch_attempted": True, "draft_rejection": "DISPLAY_CONTROL"},
+    {"failure_step": "DRAFT_VALIDATION", "dispatch_attempted": True, "draft_failure_code": "CITATION", "draft_rejection": "DISPLAY_CONTROL"},
+    {"draft_failure_code": None}, {"draft_rejection": None},
+])
+def test_draft_diagnostics_reject_free_text_null_or_wrong_operation(fields):
+    with pytest.raises(ValidationError):
+        ContextualAuditEvent.model_validate(legacy_data() | fields)
+
+
+def test_closed_draft_rule_round_trips_and_legacy_fields_stay_absent():
+    data = legacy_data() | {"failure_step": "DRAFT_VALIDATION", "dispatch_attempted": True,
+                            "draft_failure_code": "VALIDATION", "draft_rejection": "ROLE_MEETING_ONLY"}
+    assert canonical_bytes(ContextualAuditEvent.model_validate(data).model_dump(mode="json")) == canonical_bytes(data)
+    assert "draft_failure_code" not in ContextualAuditEvent.model_validate(legacy_data()).model_dump(mode="json")

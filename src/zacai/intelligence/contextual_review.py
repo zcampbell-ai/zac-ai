@@ -17,6 +17,7 @@ from uuid import UUID
 
 from pydantic import Field
 
+from zacai.intelligence.contextual_diagnostics import ContextualReviewInvalid, ReviewRejection
 from zacai.intelligence.contracts import Contract, classification_covers
 from zacai.intelligence.meeting_review import (
     Claim,
@@ -56,18 +57,26 @@ class ContextualReview(Contract):
     clarifications: tuple[Clarification, ...] = Field(default=(), max_length=3)
 
 
+def citable_quote(text: str) -> bool:
+    """Same minimum textual support at catalog preparation and final validation."""
+    return len(text.strip()) >= 8 and sum(c.isalnum() for c in text) >= 3
+
+
 def validate_contextual_review(
     review: ContextualReview, context: ReviewContext
 ) -> ContextualReview:
     """Check exact evidence/roles; no semantic grade, approval or source refresh."""
+    reason = ReviewRejection.MODEL
     try:
         review = ContextualReview.model_validate(review)
         context = ReviewContext(context.task, context.meeting_source_id, context.related_source_ids)
         if review.task_id != context.task.task_id or not classification_covers(
             review.data_classification, context.task.event.data_classification
         ):
+            reason = ReviewRejection.TASK
             raise ValueError("task or label mismatch")
         if not review.overview and not (review.conflicts or review.clarifications):
+            reason = ReviewRejection.OVERVIEW_MISSING
             raise ValueError("overview required for a full draft")
         texts = {item.reference.source_id: item.untrusted_text for item in context.task.context}
         allowed = context.related_source_ids | {context.meeting_source_id}
@@ -94,9 +103,11 @@ def validate_contextual_review(
                 for value in display_fields
                 for c in value
             ):
+                reason = ReviewRejection.DISPLAY_CONTROL
                 raise ValueError("display controls rejected")
             reserved = {
                 "contextual overview",
+                "contextual overview (draft)",
                 "decisions and commitments",
                 "risks and follow-ups",
                 "context clarification needed",
@@ -106,9 +117,11 @@ def validate_contextual_review(
                 or re.match(r"^(?:[-*+•‣]\s|\d+[.)]\s|#{1,6}\s)", value)
                 for value in display_fields
             ):
+                reason = ReviewRejection.DISPLAY_STRUCTURE
                 raise ValueError("model text cannot forge renderer structure")
             ids = {quote.source_id for quote in claim.quotes}
             if not ids <= allowed:
+                reason = ReviewRejection.ROLE_UNASSIGNED
                 raise ValueError("unassigned evidence role")
             for quote in claim.quotes:
                 text = texts.get(quote.source_id)
@@ -117,8 +130,10 @@ def validate_contextual_review(
                     or quote.end > len(text)
                     or text[quote.start : quote.end] != quote.text
                 ):
+                    reason = ReviewRejection.QUOTE_MISMATCH
                     raise ValueError("quote mismatch")
-                if len(quote.text.strip()) < 8 or sum(c.isalnum() for c in quote.text) < 3:
+                if not citable_quote(quote.text):
+                    reason = ReviewRejection.QUOTE_TOO_SMALL
                     raise ValueError("quote too small")
 
                 def word(c: str) -> bool:
@@ -129,46 +144,56 @@ def validate_contextual_review(
                 ) or (
                     quote.end < len(text) and word(text[quote.end - 1]) and word(text[quote.end])
                 ):
+                    reason = ReviewRejection.QUOTE_SPLITS_WORD
                     raise ValueError("quote splits a word")
             if len(claim.text.split()) > 80:
+                reason = ReviewRejection.CLAIM_WORDS
                 raise ValueError("claim too large")
             if background:
                 if not ids <= context.related_source_ids:
+                    reason = ReviewRejection.ROLE_BACKGROUND
                     raise ValueError("background requires only related evidence")
             elif (claim in review.overview or isinstance(claim, ReviewItem)) and ids != {
                 context.meeting_source_id
             }:
+                reason = ReviewRejection.ROLE_MEETING_ONLY
                 raise ValueError("current overview/items require meeting-only evidence")
             elif context.meeting_source_id not in ids:
+                reason = ReviewRejection.ROLE_MEETING_REQUIRED
                 raise ValueError("current claims require selected meeting")
         for connection in review.continuity:
             if not {q.source_id for q in connection.quotes} & context.related_source_ids:
+                reason = ReviewRejection.CONTINUITY_RELATED
                 raise ValueError("connection requires related evidence")
         for item in review.items:
             if item.inferred and item.kind in (ItemKind.DECISION, ItemKind.COMMITMENT):
+                reason = ReviewRejection.INFERRED_AGREEMENT
                 raise ValueError("inference cannot establish agreement")
             if item.kind == ItemKind.FOLLOW_UP and not item.inferred:
+                reason = ReviewRejection.FOLLOW_UP_NOT_INFERRED
                 raise ValueError("suggested follow-up must be provisional")
         for conflict in review.conflicts:
             if not any(
                 a.source_id != b.source_id or a.end <= b.start or b.end <= a.start
                 for a, b in combinations(conflict.quotes, 2)
             ):
+                reason = ReviewRejection.CONFLICT_SINGLE_PASSAGE
                 raise ValueError("conflict requires distinct supporting passages")
         preview = _full_preview(review)
         if len(preview.split()) > 650 or len(preview) > 6000:
+            reason = ReviewRejection.DISPLAY_CEILING
             raise ValueError("review exceeds defensive display ceiling")
         return review
     except Exception:  # noqa: BLE001, S110 - private validation must not be logged
         pass
-    raise ValueError("contextual review unavailable or invalid")
+    raise ContextualReviewInvalid(reason)
 
 
 def _text(claim: Claim) -> str:
     return ("Possible: " if claim.inferred else "") + claim.text
 
 
-def _full_preview(review: ContextualReview) -> str:
+def _full_preview(review: ContextualReview, *, delivery: bool = False) -> str:
     lines = ["Contextual overview", *(_text(c) for c in review.overview)]
     lines.extend("Candidate context: " + _text(c) for c in review.background)
     lines.extend(_text(c) for c in review.continuity)
@@ -185,16 +210,16 @@ def _full_preview(review: ContextualReview) -> str:
         for item in selected:
             details = []
             if item.owner:
-                details.append("proposed owner: " + item.owner)
+                details.append(("owner: " if delivery else "proposed owner: ") + item.owner)
             elif item.kind in (ItemKind.COMMITMENT, ItemKind.FOLLOW_UP):
                 details.append("owner unconfirmed")
             if item.due_date:
-                details.append("proposed date: " + item.due_date.isoformat())
+                details.append(("date: " if delivery else "proposed date: ") + item.due_date.isoformat())
             lines.append(
                 "- "
-                + item.kind.value.title().replace("_", " ")
+                + ("Suggested follow-up" if delivery and item.kind == ItemKind.FOLLOW_UP else item.kind.value.title().replace("_", " "))
                 + ": "
-                + _text(item)
+                + (item.text if delivery and item.kind == ItemKind.FOLLOW_UP else _text(item))
                 + (" (" + "; ".join(details) + ")" if details else "")
             )
     # Count retained material gaps in the defensive ceiling, though full prose is held.
@@ -220,3 +245,15 @@ def render_contextual_preview(review: ContextualReview, context: ReviewContext) 
             lines.append(f"{len(gaps) - 1} additional questions retained for follow-up.")
         return "\n".join(lines)
     return _full_preview(review)
+
+
+
+def render_contextual_delivery_preview(review: ContextualReview, context: ReviewContext) -> str:
+    """Trusted display label outside the byte-stable v1 canonical packet preview.
+
+    The original content ceilings and validation apply to the canonical preview;
+    this fixed UI label supplies no model content, approval or fact promotion.
+    """
+    canonical = render_contextual_preview(review, context)
+    content = canonical if review.conflicts or review.clarifications else _full_preview(review, delivery=True)
+    return "Draft for review\n\n" + content

@@ -839,3 +839,24 @@ def test_route_ceiling_does_not_silently_expand_default_output(host_setup, ceili
     runtime.route = runtime.route.model_copy(update={"max_output_tokens": ceiling})
     result = run(host_setup, runtime=runtime)
     assert result.packet.task.max_output_tokens == 1600
+
+
+@pytest.mark.parametrize("reason", ["citation", "display"])
+def test_draft_failure_audit_retains_only_closed_rule_metadata(host_setup, reason):  # noqa: F811
+    from zacai.intelligence.contextual_generation import ContextualDraft
+    from zacai.intelligence.review_generation import DraftClaim
+    runtime = Runtime(host_setup)
+    original = runtime.generate
+    def wrong(request):
+        original(request)
+        eid = "unknown" if reason == "citation" else next(e for e, q in request.quotes if q.source_id == request.context.meeting_source_id)
+        return ContextualDraft(format="zac-contextual-draft-v1", overview=(DraftClaim(text="PRIVATE invented\u200b marker" if reason == "display" else "PRIVATE invented marker", evidence_ids=(eid,)),))
+    runtime.generate = wrong
+    with pytest.raises(ContextualHostError):
+        run(host_setup, runtime=runtime)
+    event = events(host_setup)[-1]
+    assert event["failure_step"] == "DRAFT_VALIDATION" and event["dispatch_attempted"] is True
+    assert event["draft_failure_code"] == ("CITATION" if reason == "citation" else "VALIDATION")
+    assert event.get("draft_rejection") == (None if reason == "citation" else "DISPLAY_CONTROL")
+    assert "PRIVATE" not in json.dumps(event) and event["packet_source_id"] is None
+    assert runtime.calls == 1

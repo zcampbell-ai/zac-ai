@@ -13,7 +13,7 @@ complete. Prior real recovery and gate mechanics are recorded below.
 D034I verifies the schema-aware backup mechanism with synthetic recovery drills.
 D034AL preserves both consumed, recovered failed attempts. The next exact
 same-source 3,200-token trial was approved and failed validation with protected
-recovery. No new processing decision is ready; engineering diagnosis comes first.
+recovery. D034AM fixes/rehearsal are complete; a new aligned same-source decision is ready.
 
 ## Decisions needed before a live/private step
 
@@ -593,3 +593,19 @@ but failed draft validation; no draft was released, recovery passed, and consent
 is consumed. No question or credential step is needed now. Fix observable closed
 validation reasons and code-only instruction/schema alignment before preparing
 another exact private decision. Do not ask Zac to approve another blind retry.
+
+
+## D034AM — concrete improved local trial decision
+
+Code fixes, representative invented local rehearsal, independent Opus code/quality
+review and full tests are complete. Read-only preparation/recovery verify the same
+meeting, reviewed brief and four candidate Sources, local pinned model, 3,200 output,
+16,384 context and 120-second generation budget. Processing instructions/schema
+changed, so prior consumed approvals cannot authorize this proposal. Ask Zac once
+for the exact sealed scope. No credential setup or manual push is needed.
+
+After successful protected delivery, Zac judges actual context/usefulness/voice;
+then extend the existing release path to briefing/open loops and private access.
+PUBLIC quality passes and test counts are evidence, not a declaration of usable v1.
+Nonblocking labeling/concision feedback remains alongside the source-backed draft
+for human assessment; no universal project/SOW rule is requested.
