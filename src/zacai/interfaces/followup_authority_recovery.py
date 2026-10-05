@@ -26,6 +26,7 @@ from uuid import UUID
 
 from pydantic import AwareDatetime, Field, model_validator
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from zacai import backup
 from zacai.backup_artifacts import age_decrypt, age_encrypt, backup_object_key_for
@@ -41,14 +42,21 @@ from zacai.interfaces.followup_authorization import (
     ClaimedFollowup,
     FollowupClaim,
     FollowupConsent,
+    FollowupConsentRecord,
+    FollowupConsentV2,
     FollowupHostSnapshot,
     FollowupRunScope,
+    NamedFollowupConsentBinding,
     _owner_digest,
     _raw,
+    checked_named_consent_inventory,
+    decode_followup_consent,
     followup_scope_digest,
     scope_from_snapshot,
+    validate_followup_consent,
 )
 from zacai.interfaces.host_clock import HostObservedClock
+from zacai.interfaces.named_decision_inventory import NamedDecisionInventory
 from zacai.interfaces.private_web import OwnerGrant
 from zacai.interfaces.text_turn_capture import decode_text_turn
 from zacai.policy import DataClassification as C
@@ -106,9 +114,9 @@ class FollowupAuthoritySubject(Contract):
 
 
 def consent_subject(
-    consent: FollowupConsent, reference: EvidenceReference
+    consent: FollowupConsentRecord, reference: EvidenceReference
 ) -> FollowupAuthoritySubject:
-    consent = FollowupConsent.model_validate(consent)
+    consent = validate_followup_consent(consent)
     if reference.content_hash != content_hash_of(_raw(consent)):
         raise FollowupAuthorityRecoveryError("authority subject unavailable")
     return FollowupAuthoritySubject(
@@ -228,6 +236,7 @@ class BrainstormFollowupAuthorityRecovery:
         owner: Callable[[], OwnerGrant],
         recovered_key_receipt: Path,
         expected_key_proof_digest: str,
+        named_binding: NamedFollowupConsentBinding | None = None,
     ) -> None:
         if (
             type(protector) is not BrainstormContextualProtector
@@ -239,12 +248,24 @@ class BrainstormFollowupAuthorityRecovery:
         self._protector, self._clock = protector, clock
         self._refresh, self._owner = refresh, owner
         self._key_receipt, self._key_proof_digest = recovered_key_receipt, expected_key_proof_digest
+        valid = False
+        try:
+            valid = named_binding is None or named_binding.host_clock is clock
+        except Exception:  # noqa: BLE001,S110 - fixed configuration diagnostic
+            pass
+        if not valid:
+            raise FollowupAuthorityRecoveryError("shared named binding clock required")
+        self._named_binding = named_binding
         self._lock = RLock()
         self._last_observed: datetime | None = None
 
     @property
     def host_clock(self) -> HostObservedClock:
         return self._clock
+
+    @property
+    def named_binding(self) -> NamedFollowupConsentBinding | None:
+        return self._named_binding
 
     def _key_check(self) -> None:
         p = self._protector
@@ -279,6 +300,29 @@ class BrainstormFollowupAuthorityRecovery:
             ):
                 raise ValueError("authority original request changed")
 
+    def _named_fresh(self, consent: FollowupConsentRecord) -> None:
+        if type(consent) is FollowupConsentV2:
+            if self._protector._lease_guard is not None:
+                raise ValueError("named fresh gate inside checkpoint lease")
+            binding = self._named_binding
+            if binding is None or binding.verify_fresh(consent, self._now()) is not None:
+                raise ValueError("named consent current protected binding unavailable")
+
+    def _named_rows(
+        self, session: Session, consent: FollowupConsentV2, now: datetime
+    ) -> NamedDecisionInventory:
+        binding = self._named_binding
+        if binding is None:
+            raise ValueError("named consent canonical binding unavailable")
+        return checked_named_consent_inventory(
+            session,
+            artifacts=self._protector._artifacts,
+            consent=consent,
+            binding=binding,
+            clock=self._clock,
+            as_of=now,
+        )
+
     def _fresh_subject(self, subject: FollowupAuthoritySubject) -> None:
         """Canonical recovery refresh runs outside our SQL and restore leases."""
         p = self._protector
@@ -298,7 +342,7 @@ class BrainstormFollowupAuthorityRecovery:
             ):
                 raise ValueError("authority refresh consent denied")
             raw = _bytes(session, p._artifacts, source)
-            consent = FollowupConsent.model_validate_json(raw)
+            consent = decode_followup_consent(raw)
             if (
                 raw != _raw(consent)
                 or source.external_ref != f"packet-followup-consent/{consent.id}"
@@ -306,9 +350,10 @@ class BrainstormFollowupAuthorityRecovery:
                 or followup_scope_digest(consent.scope) != subject.scope_digest
             ):
                 raise ValueError("authority refresh consent mismatch")
+        self._named_fresh(consent)
         self._fresh(consent.scope, subject)
 
-    def preflight(self, consent: FollowupConsent) -> None:
+    def preflight(self, consent: FollowupConsentRecord) -> None:
         """Pre-commit prerequisites; never claims a nonexistent Source is backed up.
 
         Fresh host assembly must perform canonical input recovery. Actual newly
@@ -316,9 +361,10 @@ class BrainstormFollowupAuthorityRecovery:
         """
         succeeded = False
         try:
-            consent = FollowupConsent.model_validate(consent)
+            consent = validate_followup_consent(consent)
             started = self._now()
             self._key_check()
+            self._named_fresh(consent)
             snapshot = self._refresh()
             if (
                 scope_from_snapshot(
@@ -335,7 +381,9 @@ class BrainstormFollowupAuthorityRecovery:
         if not succeeded:
             raise FollowupAuthorityRecoveryError("authority preflight unavailable")
 
-    def protect_consent(self, *, consent: FollowupConsent, reference: EvidenceReference) -> None:
+    def protect_consent(
+        self, *, consent: FollowupConsentRecord, reference: EvidenceReference
+    ) -> None:
         """Durability only; the calling ledger separately checks active permission."""
         succeeded = False
         try:
@@ -452,7 +500,7 @@ class BrainstormFollowupAuthorityRecovery:
             consent_source, consent_raw = add(
                 scope.consent_reference, SourceSystem.USER_INSTRUCTION
             )
-            consent = FollowupConsent.model_validate_json(consent_raw)
+            consent = decode_followup_consent(consent_raw)
             if (
                 consent_raw != _raw(consent)
                 or consent_source.external_ref != f"packet-followup-consent/{consent.id}"
@@ -470,6 +518,16 @@ class BrainstormFollowupAuthorityRecovery:
                 or not consent.approved_at <= scope.captured_at < consent.expires_at
             ):
                 raise ValueError("authority claim original window mismatch")
+            named = None
+            if type(consent) is FollowupConsentV2:
+                named = self._named_rows(session, consent, now)
+                add(consent.decision_reference, SourceSystem.USER_INSTRUCTION)
+                if scope.kind == "consumed_claim" and (
+                    scope.original_observed_at != named.decision.original_observed_at
+                    or scope.original_request_digest != named.decision.prepared_request_digest
+                    or not named.decision.bound_at <= scope.captured_at < consent.expires_at
+                ):
+                    raise ValueError("named claim original chronology differs")
             user_source, user_raw = add(declared.user_reference, SourceSystem.USER_INSTRUCTION)
             user = decode_text_turn(user_raw)
             if (
@@ -481,7 +539,15 @@ class BrainstormFollowupAuthorityRecovery:
                 or user.packet_reference != declared.packet_reference
                 or user.parent_references != declared.parent_references
                 or user.packet_receipt_digest != declared.packet_receipt_digest
-                or user.recorded_at > consent.approved_at
+                or (type(consent) is FollowupConsent and user.recorded_at > consent.approved_at)
+                or (
+                    named is not None
+                    and not consent.approved_at
+                    <= user.recorded_at
+                    <= named.decision.original_observed_at
+                    <= named.decision.bound_at
+                    < consent.expires_at
+                )
             ):
                 raise ValueError("authority user context mismatch")
             if scope.kind == "consumed_claim" and (
@@ -529,6 +595,10 @@ class BrainstormFollowupAuthorityRecovery:
                 if selected is None:
                     raise ValueError("authority original evidence missing")
                 add(item.reference, selected.system, read=False)
+            if named is not None:
+                for source_id, digest in named.hashes:
+                    if hashes.get(source_id) != digest:
+                        raise ValueError("named recovered dependency inventory differs")
             return hashes
 
     def _load_receipt(self, key: str) -> FollowupAuthorityRecoveryReceipt:

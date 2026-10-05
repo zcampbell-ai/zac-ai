@@ -15,7 +15,7 @@ import math
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Literal, Protocol, Self
+from typing import TYPE_CHECKING, Literal, Protocol, Self
 from uuid import UUID
 
 from pydantic import AwareDatetime, ConfigDict, Field, field_validator, model_validator
@@ -49,6 +49,11 @@ class FollowupHostSnapshot:
     owner: OwnerGrant = field(repr=False)
     route: ModelRoute
     model_digest: str
+
+
+if TYPE_CHECKING:
+    from zacai.interfaces.named_decision_inventory import NamedDecisionInventory
+    from zacai.interfaces.named_followup_decision import NamedFollowupDecision
 
 
 def _owner_digest(owner: OwnerGrant) -> str:
@@ -319,17 +324,94 @@ class FollowupRecoveryGate(Protocol):
         """Same process-local watermark as the calling canonical ledger."""
         ...
 
-    def preflight(self, consent: FollowupConsent) -> object:
+    @property
+    def named_binding(self) -> NamedFollowupConsentBinding | None:
+        """Exact original named gate, required for named production composition."""
+        ...
+
+    def preflight(self, consent: FollowupConsentRecord) -> object:
         """Current recovered inputs/key before subject commit; None acknowledges."""
         ...
 
-    def protect_consent(self, *, consent: FollowupConsent, reference: EvidenceReference) -> object:
+    def protect_consent(self, *, consent: FollowupConsentRecord, reference: EvidenceReference) -> object:
         """Recover committed consent outside SQL; only None acknowledges."""
         ...
 
     def protect_claim(self, *, claimed: ClaimedFollowup, request: FollowupRequest) -> object:
         """Recover committed consumed attempt; only None acknowledges."""
         ...
+
+
+class NamedFollowupConsentBinding(Protocol):
+    """Trusted actual named-admission/recovery gate; declarations cannot satisfy it.
+
+    Historical integrity is independent of active processing TTL. Fresh checks
+    run outside SQL/leases; rows checks must perform canonical read validation
+    only. Both acknowledge solely by returning None, never truthy metadata.
+    """
+
+    @property
+    def host_clock(self) -> HostObservedClock: ...
+
+    def verify_fresh(self, consent: FollowupConsentV2, now: datetime) -> object: ...
+
+    def verify_rows(self, session: Session, consent: FollowupConsentV2, now: datetime) -> object: ...
+
+
+def load_named_consent_inventory(
+    session: Session, *, artifacts: ArtifactStore, consent: FollowupConsentV2,
+    as_of: datetime,
+) -> NamedDecisionInventory:
+    """Actual canonical rows only: no recovery/session/clock callbacks or grant."""
+    from zacai.interfaces.named_decision_inventory import load_named_decision_inventory
+    from zacai.interfaces.named_followup_decision import named_decision_consent_id
+
+    if type(consent) is not FollowupConsentV2:
+        raise ValueError("exact named consent required")
+    consent = FollowupConsentV2.model_validate(consent)
+    inventory = load_named_decision_inventory(
+        session, artifacts=artifacts, reference=consent.decision_reference, as_of=as_of,
+    )
+    decision = inventory.decision
+    if (
+        consent.id != named_decision_consent_id(consent.decision_reference.source_id)
+        or consent.scope != decision.run_scope
+        or consent.approved_at != decision.admitted_at
+        or consent.expires_at != decision.processing_expires_at
+    ):
+        raise ValueError("named consent original binding changed")
+    return inventory
+
+
+class _NamedConsentRows:
+    """Explicit adapter from the shared guarded-row protocol to consent checks."""
+
+    def __init__(self, binding: NamedFollowupConsentBinding, consent: FollowupConsentV2) -> None:
+        self.binding, self.consent = binding, consent
+
+    def verify_fresh(self, decision: NamedFollowupDecision, now: datetime) -> object:
+        raise ValueError("row adapter has no fresh authority")
+
+    def verify_rows(self, session: Session, decision: NamedFollowupDecision, now: datetime) -> object:
+        if decision.run_scope != self.consent.scope:
+            raise ValueError("named row scope changed")
+        return self.binding.verify_rows(session, self.consent, now)
+
+
+def checked_named_consent_inventory(
+    session: Session, *, artifacts: ArtifactStore, consent: FollowupConsentV2,
+    binding: NamedFollowupConsentBinding, clock: HostObservedClock, as_of: datetime,
+) -> NamedDecisionInventory:
+    """Guard the trusted row callback, then reread all actual dependencies."""
+    from zacai.interfaces.named_decision_capture import _checked_rows
+
+    # Binding clock identity is validated outside SQL at host construction.
+    if type(clock) is not HostObservedClock:
+        raise ValueError("named consent shared clock required")
+    initial = load_named_consent_inventory(session, artifacts=artifacts, consent=consent, as_of=as_of)
+    _checked_rows(session, _NamedConsentRows(binding, consent), initial.decision, as_of)
+    session.expire_all()
+    return load_named_consent_inventory(session, artifacts=artifacts, consent=consent, as_of=clock())
 
 
 def _raw(value: Contract) -> bytes:
@@ -484,16 +566,57 @@ class CanonicalFollowupAuthorization:
         owner: Callable[[], OwnerGrant],
         recovery: FollowupRecoveryGate,
         clock: HostObservedClock,
+        named_binding: NamedFollowupConsentBinding | None = None,
+        named_only: bool = False,
     ) -> None:
         valid = False
         try:
-            valid = type(clock) is HostObservedClock and recovery.host_clock is clock
+            valid = (
+                type(clock) is HostObservedClock and recovery.host_clock is clock
+                and type(named_only) is bool and (not named_only or named_binding is not None)
+                and (named_binding is None or (
+                    named_binding.host_clock is clock
+                    and recovery.named_binding is named_binding
+                    and callable(named_binding.verify_fresh)
+                    and callable(named_binding.verify_rows)
+                ))
+            )
         except Exception:  # noqa: BLE001,S110 - fixed configuration diagnostic
             pass
         if not valid:
             raise FollowupAuthorizationError("shared follow-up host clock required")
         self._factory, self._store = factory, store
         self._refresh, self._owner, self._recovery, self._clock = refresh, owner, recovery, clock
+        self._named_binding = named_binding
+        self._named_only = named_only
+
+    @property
+    def named_binding(self) -> NamedFollowupConsentBinding | None:
+        """Exact original host gate; no fallback or inferred authorization."""
+        return self._named_binding
+
+    def _named_fresh(self, consent: FollowupConsentRecord) -> None:
+        if type(consent) is FollowupConsentV2:
+            binding = self._named_binding
+            if binding is None or binding.verify_fresh(consent, self._now()) is not None:
+                raise ValueError("named consent proof unavailable")
+
+    def _named_rows(self, session: Session, consent: FollowupConsentRecord, now: datetime) -> NamedDecisionInventory | None:
+        if type(consent) is not FollowupConsentV2:
+            return None
+        if self._named_binding is None:
+            raise ValueError("named consent binding unavailable")
+        return checked_named_consent_inventory(
+            session, artifacts=self._store, consent=consent,
+            binding=self._named_binding, clock=self._clock, as_of=now,
+        )
+
+    def _named_request(self, session: Session, consent: FollowupConsentRecord, request: FollowupRequest) -> None:
+        if type(consent) is FollowupConsentV2:
+            inventory = load_named_consent_inventory(session, artifacts=self._store, consent=consent, as_of=self._now())
+            if (inventory.decision.prepared_request_digest != request.digest
+                or inventory.decision.original_observed_at != request.context.task.event.observed_at):
+                raise ValueError("named original request changed")
 
     def _now(self) -> datetime:
         now = self._clock()
@@ -514,7 +637,7 @@ class CanonicalFollowupAuthorization:
 
     def _load(
         self, session: Session, approval_id: UUID, now: datetime
-    ) -> tuple[FollowupConsent, EvidenceReference]:
+    ) -> tuple[FollowupConsentRecord, EvidenceReference]:
         source, raw = _source(
             session,
             self._store,
@@ -522,7 +645,7 @@ class CanonicalFollowupAuthorization:
             SourceSystem.USER_INSTRUCTION,
             "packet-followup-consent/",
         )
-        consent = FollowupConsent.model_validate_json(raw)
+        consent = decode_followup_consent(raw)
         if (
             _raw(consent) != raw
             or source.external_ref != f"packet-followup-consent/{consent.id}"
@@ -534,29 +657,53 @@ class CanonicalFollowupAuthorization:
             is not None
         ):
             raise ValueError("follow-up authority inactive")
-        self._owner_check(consent.scope)
+        if type(consent) is FollowupConsent:
+            self._owner_check(consent.scope)
         _refs(session, consent.scope)
+        initial_reference = _reference(source)
+        self._named_rows(session, consent, now)
+        if type(consent) is FollowupConsentV2:
+            session.expire_all()
+            final_source, final_raw = _source(session, self._store, approval_id,
+                SourceSystem.USER_INSTRUCTION, "packet-followup-consent/")
+            if (final_raw != raw or _reference(final_source) != initial_reference
+                or final_source.external_ref != f"packet-followup-consent/{consent.id}"
+                or final_source.captured_at != consent.approved_at):
+                raise ValueError("named consent changed during rows validation")
         return consent, _reference(source)
 
-    def _recover(self, consent: FollowupConsent) -> None:
+    def _recover(self, consent: FollowupConsentRecord) -> None:
         if self._recovery.preflight(consent) is not None:
             raise ValueError("recovery acknowledgement invalid")
 
-    def record(self, consent: FollowupConsent) -> UUID:
+    def record(self, consent: FollowupConsentRecord) -> UUID:
         """Only after an authenticated explicit human approval, never input alone."""
         result: UUID | None = None
         try:
-            consent = FollowupConsent.model_validate(consent)
+            consent = validate_followup_consent(consent)
+            if self._named_only and type(consent) is not FollowupConsentV2:
+                raise ValueError("new named consent required")
             self._fresh(consent.scope)
+            self._named_fresh(consent)
+            if type(consent) is FollowupConsentV2:
+                self._owner_check(consent.scope)
             self._recover(consent)
             self._fresh(consent.scope)
+            self._named_fresh(consent)
+            if type(consent) is FollowupConsentV2:
+                self._owner_check(consent.scope)
             with self._factory() as session:
                 _lock(session, consent.id)
                 now = self._now()
                 if not consent.approved_at <= now < consent.expires_at:
                     raise ValueError("consent inactive")
-                self._owner_check(consent.scope)
+                if type(consent) is FollowupConsent:
+                    self._owner_check(consent.scope)
                 _refs(session, consent.scope)
+                self._named_rows(session, consent, now)
+                if type(consent) is FollowupConsentV2:
+                    from zacai.interfaces.named_decision_capture import _require_request_lock
+                    _require_request_lock(session, consent.id)
                 result = _write(
                     session,
                     self._store,
@@ -567,7 +714,8 @@ class CanonicalFollowupAuthorization:
                 )
                 if not consent.approved_at <= self._now() < consent.expires_at:
                     raise ValueError("consent expired before commit")
-                self._owner_check(consent.scope)
+                if type(consent) is FollowupConsent:
+                    self._owner_check(consent.scope)
                 session.commit()
             reference = EvidenceReference(
                 source_id=result,
@@ -578,6 +726,9 @@ class CanonicalFollowupAuthorization:
             if self._recovery.protect_consent(consent=consent, reference=reference) is not None:
                 raise ValueError("consent recovery acknowledgement invalid")
             self._fresh(consent.scope)
+            self._named_fresh(consent)
+            if type(consent) is FollowupConsentV2:
+                self._owner_check(consent.scope)
             with self._factory() as session:
                 # After commit, cancellation and claim use the canonical Source
                 # ID, not the consent envelope ID used to serialize recording.
@@ -585,7 +736,8 @@ class CanonicalFollowupAuthorization:
                 current, current_reference = self._load(session, result, self._now())
                 if current != consent or current_reference != reference:
                     raise ValueError("consent changed after recovery")
-            self._owner_check(consent.scope)
+            if type(consent) is FollowupConsent:
+                self._owner_check(consent.scope)
             if not consent.approved_at <= self._now() < consent.expires_at:
                 raise ValueError("consent expired during recovery or final owner check")
         except Exception:  # noqa: BLE001 - fixed private-safe diagnostic
@@ -609,12 +761,20 @@ class CanonicalFollowupAuthorization:
             self._fresh(scope)
             with self._factory() as session:
                 consent, ref = self._load(session, approval_id, self._now())
+            if self._named_only and type(consent) is not FollowupConsentV2:
+                raise ValueError("named consent required for active processing")
             if consent.scope != scope:
                 raise ValueError("approval scope differs")
+            self._named_fresh(consent)
+            if type(consent) is FollowupConsentV2:
+                self._owner_check(consent.scope)
             self._recover(consent)
             if self._recovery.protect_consent(consent=consent, reference=ref) is not None:
                 raise ValueError("consent recovery acknowledgement invalid")
             self._fresh(scope)
+            self._named_fresh(consent)
+            if type(consent) is FollowupConsentV2:
+                self._owner_check(consent.scope)
             with self._factory() as session:
                 _lock(session, approval_id)
                 current, current_ref = self._load(session, approval_id, self._now())
@@ -625,6 +785,10 @@ class CanonicalFollowupAuthorization:
                     is not None
                 ):
                     raise ValueError("authority consumed or changed")
+                self._named_request(session, consent, request)
+                if type(consent) is FollowupConsentV2:
+                    from zacai.interfaces.named_decision_capture import _require_request_lock
+                    _require_request_lock(session, approval_id)
                 claim = FollowupClaim(
                     consent_reference=ref,
                     run_scope=scope,
@@ -646,7 +810,8 @@ class CanonicalFollowupAuthorization:
                 )
                 if not consent.approved_at <= self._now() < consent.expires_at:
                     raise ValueError("claim expired before commit")
-                self._owner_check(scope)
+                if type(consent) is FollowupConsent:
+                    self._owner_check(scope)
                 session.commit()
                 result = ClaimedFollowup(
                     claim,
@@ -667,9 +832,14 @@ class CanonicalFollowupAuthorization:
             raise FollowupAuthorizationError("follow-up claim unavailable")
         return result
 
-    def _claimed_check(self, claimed: ClaimedFollowup, consent: FollowupConsent) -> None:
+    def _claimed_check(self, claimed: ClaimedFollowup, consent: FollowupConsentRecord) -> None:
         """Final locked active-authority check after historical durability recovery."""
+        if self._named_only and type(consent) is not FollowupConsentV2:
+            raise ValueError("named consent required for active processing")
         claim = claimed.claim
+        self._named_fresh(consent)
+        if type(consent) is FollowupConsentV2:
+            self._owner_check(claim.run_scope)
         with self._factory() as session:
             _lock(session, claim.consent_reference.source_id)
             current, current_ref = self._load(
@@ -693,7 +863,12 @@ class CanonicalFollowupAuthorization:
                 or not consent.approved_at <= claim.claimed_at < consent.expires_at
             ):
                 raise ValueError("consumed authority changed")
-        self._owner_check(claim.run_scope)
+            if type(consent) is FollowupConsentV2:
+                inventory = load_named_consent_inventory(session, artifacts=self._store, consent=consent, as_of=self._now())
+                if inventory.decision.prepared_request_digest != claim.request_digest:
+                    raise ValueError("named consumed request changed")
+        if type(consent) is FollowupConsent:
+            self._owner_check(claim.run_scope)
         if not claim.claimed_at <= self._now() < consent.expires_at:
             raise ValueError("claim expired during cleanup or final owner check")
 
@@ -715,8 +890,15 @@ class CanonicalFollowupAuthorization:
             self._fresh(claim.run_scope)
             with self._factory() as session:
                 consent, ref = self._load(session, claim.consent_reference.source_id, self._now())
+            if self._named_only and type(consent) is not FollowupConsentV2:
+                raise ValueError("named consent required for active processing")
             if ref != claim.consent_reference or consent.scope != claim.run_scope:
                 raise ValueError("consent changed")
+            with self._factory() as session:
+                self._named_request(session, consent, request)
+            self._named_fresh(consent)
+            if type(consent) is FollowupConsentV2:
+                self._owner_check(consent.scope)
             self._recover(consent)
             if self._recovery.protect_consent(consent=consent, reference=ref) is not None:
                 raise ValueError("consent recovery acknowledgement invalid")
@@ -749,32 +931,50 @@ class CanonicalFollowupAuthorization:
                     SourceSystem.USER_INSTRUCTION,
                     "packet-followup-consent/",
                 )
-                consent = FollowupConsent.model_validate_json(raw)
+                consent = decode_followup_consent(raw)
                 if (
                     _raw(consent) != raw
                     or source.external_ref != f"packet-followup-consent/{consent.id}"
                 ):
                     raise ValueError("consent unavailable")
+                if type(consent) is FollowupConsent:
+                    self._owner_check(consent.scope)
+                    now = self._now()
+                    if now < consent.approved_at:
+                        raise ValueError("clock precedes approval")
+                    result = _write(
+                        session,
+                        self._store,
+                        f"packet-followup-revocation/{approval_id}",
+                        SourceSystem.USER_INSTRUCTION,
+                        canonical_bytes(
+                            {
+                                "format": "zac-packet-followup-revocation-v1",
+                                "approval_id": str(approval_id),
+                                "human_reference": human_reference,
+                                "revoked_at": now.isoformat(),
+                            }
+                        ),
+                        now,
+                    )
+                    session.commit()
+            if type(consent) is FollowupConsentV2:
                 self._owner_check(consent.scope)
-                now = self._now()
-                if now < consent.approved_at:
-                    raise ValueError("clock precedes approval")
-                result = _write(
-                    session,
-                    self._store,
-                    f"packet-followup-revocation/{approval_id}",
-                    SourceSystem.USER_INSTRUCTION,
-                    canonical_bytes(
-                        {
-                            "format": "zac-packet-followup-revocation-v1",
-                            "approval_id": str(approval_id),
-                            "human_reference": human_reference,
-                            "revoked_at": now.isoformat(),
-                        }
-                    ),
-                    now,
-                )
-                session.commit()
+                with self._factory() as session:
+                    _lock(session, approval_id)
+                    current_source, current_raw = _source(session, self._store, approval_id,
+                        SourceSystem.USER_INSTRUCTION, "packet-followup-consent/")
+                    if current_raw != raw or _reference(current_source) != _reference(source):
+                        raise ValueError("named cancellation provenance changed")
+                    now = self._now()
+                    if now < consent.approved_at:
+                        raise ValueError("clock precedes approval")
+                    result = _write(session, self._store,
+                        f"packet-followup-revocation/{approval_id}", SourceSystem.USER_INSTRUCTION,
+                        canonical_bytes({"format": "zac-packet-followup-revocation-v1",
+                            "approval_id": str(approval_id), "human_reference": human_reference,
+                            "revoked_at": now.isoformat()}), now)
+                    session.commit()
         except Exception:  # noqa: BLE001 - fixed diagnostics
             result = None
         if result is None:

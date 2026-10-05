@@ -11,8 +11,8 @@ This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position — reconciled 2026-10-05
 
-Current validated engineering checkpoint: D034AW. Commit/push evidence is
-verified separately against Git; D034AV is its committed and pushed parent.
+Current validated engineering checkpoint: D034AX. Commit/push evidence is
+verified separately against Git; D034AW is its committed and pushed parent.
 Private iPhone acceptance and live conversation remain unverified; code completion
 must not stand in for those release gates.
 Zac confirmed the protected
@@ -1865,3 +1865,54 @@ request and denies a different one outside the row hooks. Independent Opus and
 helper findings are reconciled. Exact staged secret scans and commit/push
 evidence are verified separately. No deployed owner conversation, live v2
 issuer, new source connection or iPhone acceptance is implied.
+
+
+## D034AX — persist the original owner action and compose closed v2 recovery
+
+Validated engineering checkpoint; no private listener or owner processing issuer
+is mounted by this checkpoint. The encrypted operational admission store retains
+one original session, nonce, question hash/length, published manifest and fixed
+processing window. Question and named-decision attachments are exact immutable
+references. Raw question text, cookies and browser handles are not persisted in
+this operational store; canonical protected Sources remain authoritative.
+
+Actual SQLite owner sessions provide original-cookie continuity and separate
+receipt-only current-owner checks. A sealed browser pointer permits GET reuse
+without renewing the original window. Missing both pointer and cache may create a fresh
+unconsumed ISSUED action. A valid original same-session pointer may repopulate
+read-only cache after restart; neither path renews admission or dispatches work.
+Expired admitted records require explicit trusted cleanup after actual worker
+termination; the GET coordinator lock is not evidence of worker drainage.
+
+The ledger and authority/reply recovery paths accept the closed v2 consent with
+its exact named decision, recovered receipt digest and original scope/window.
+Production named-only mode rejects new v1 recording and active v1 claim/recheck/
+reply consumption while preserving historical ledger load, revocation and
+receipt-only repair. Exact shared clock and binding identities are enforced.
+External owner/session/recovery checks precede final canonical row and ACL reads.
+Reply writes share the consent cancellation lock and recheck active permission
+immediately before commit; new timestamps follow long validation rather than
+backdating generated output. Exact replays preserve the original timestamp.
+
+Integrated focused regressions pass 170 tests. The actual disposable PostgreSQL,
+local-age full State/journal/cold-restore fixture passes consent, one-shot claim,
+saved reply, reload and expired receipt-only repair in 140.36 seconds. Output,
+semantic usefulness and off-device escrow assertions remain invented fixture
+inputs. Ruff and strict mypy (115 source files) pass. The pre-final full serial suite passed 3,466 tests in 396.25 seconds. Opus then
+identified active legacy-consumption and browser-cache availability/selection
+gaps; all were reproduced and corrected, with 106 installed focused tests
+passing. Final exact-tree serial regression passes 3,476 tests in 391.44 seconds; three
+existing dependency warnings remain. Ruff and strict mypy (115 source files)
+pass. Independent Opus review is reconciled: v2 imports and positive named-only
+SQL reply/recovery are verified; legacy ledger history remains readable while
+active legacy replies deny. Valid original pointers may refill read-only cache
+after restart; this does not authorize or redispatch consumed work. Exact staged
+secret scans and commit/push evidence are verified separately.
+
+Next in the existing order: concrete retained-proof/canonical admission/runtime
+bindings, authenticated native Ask Caz submission and worker lifecycle; reviewed
+Google client credentials and private serving; current bounded briefing context
+and representative quality; physical iPhone acceptance. Workspace-staged adapters
+are not part of this installed checkpoint or proof of a usable app. Existing
+D034AC acceptance gates and context provenance/confirmation requirements remain
+unchanged; no broad history or personal-finance intake is enabled.

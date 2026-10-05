@@ -114,6 +114,7 @@ def fixture(monkeypatch):
 
     monkeypatch.setattr(CanonicalFollowupAuthorization, "recheck", claim_check)
     authorization = object.__new__(CanonicalFollowupAuthorization)
+    authorization._named_only = False
     draft = FollowupDraft(
         task_id=request.context.task.task_id,
         user_source_id=saved.source_id,

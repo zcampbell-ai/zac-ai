@@ -14,18 +14,28 @@ from sqlalchemy import event, select, text, update
 
 from tests.test_contextual_storage import stored
 from tests.test_fireflies_protection import keypair
+from tests.test_text_followup import Gate
 from zacai import backup_artifacts, contextual_protection
 from zacai.backup_artifacts import LocalDirectoryBackupStore
 from zacai.contextual_protection import BrainstormContextualProtector
 from zacai.contextual_recovery_record import encode_recovery_receipt
 from zacai.ingestion.artifact_store import canonical_bytes, content_hash_of
-from zacai.intelligence.contracts import ModelRoute, RouteIdentity
+from zacai.intelligence.contracts import ModelRoute, RouteIdentity, UsageObservation
 from zacai.intelligence.followup_generation import prepare_followup_request
-from zacai.interfaces.followup_authorization import FollowupHostSnapshot, scope_from_snapshot
+from zacai.intelligence.text_followup import FollowupDraft, UnsupportedReason, release_text_followup
+from zacai.interfaces.followup_authority_recovery import BrainstormFollowupAuthorityRecovery
+from zacai.interfaces.followup_authorization import (
+    CanonicalFollowupAuthorization,
+    FollowupAuthorizationError,
+    FollowupConsentV2,
+    FollowupHostSnapshot,
+    scope_from_snapshot,
+)
 from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_decision_capture import (
     CanonicalNamedDecisionCapture,
     NamedDecisionCaptureError,
+    NamedDecisionCheckpointScope,
     _require_request_lock,
 )
 from zacai.interfaces.named_decision_inventory import load_named_decision_inventory
@@ -33,6 +43,7 @@ from zacai.interfaces.named_decision_recovery import BrainstormNamedDecisionReco
 from zacai.interfaces.named_followup_decision import (
     NamedFollowupDecision,
     NamedFollowupManifest,
+    named_decision_consent_id,
     named_manifest_digest,
     validate_declared_bindings,
 )
@@ -40,6 +51,8 @@ from zacai.interfaces.oidc_identity import GOOGLE_ISSUER
 from zacai.interfaces.private_web import BoundaryScope, InterfacePrincipal, OwnerGrant
 from zacai.interfaces.session_store import Identity
 from zacai.interfaces.text_followup_context import CanonicalFollowupAssembler
+from zacai.interfaces.text_reply_capture import CanonicalTextReplyCapture, TextReplyCaptureError
+from zacai.interfaces.text_reply_protection import BrainstormTextReplyProtection
 from zacai.interfaces.text_turn_capture import CanonicalTextTurnCapture
 from zacai.interfaces.text_turn_protection import BrainstormTextTurnProtection
 from zacai.policy import DataClassification as C
@@ -50,7 +63,7 @@ from zacai.review_protection import DisposableStateRestoreVerifier
 from zacai.state import Source, SourceSystem
 
 
-@pytest.mark.parametrize("pending", [False, True, "foreign_kind", "row_flush", "row_commit", "row_bulk_update", "row_raw_update", "row_connection_update", "row_rollback", "row_dml_cte"])
+@pytest.mark.parametrize("pending", [False, True, "v2", "foreign_kind", "row_flush", "row_commit", "row_bulk_update", "row_raw_update", "row_connection_update", "row_rollback", "row_dml_cte"])
 def test_named_decision_actual_sql_cold_restore_and_expired_pending_repair(
     test_session_factory, tmp_path, monkeypatch, pending,
 ):
@@ -300,7 +313,7 @@ def test_named_decision_actual_sql_cold_restore_and_expired_pending_repair(
                 Source.system == SourceSystem.USER_INSTRUCTION,
             )) is None
         return
-    if pending:
+    if pending is True:
         original_protect = recovery.protect
         def failed_after_commit(checkpoint):
             with factory() as session:
@@ -330,6 +343,75 @@ def test_named_decision_actual_sql_cold_restore_and_expired_pending_repair(
         assert actual.decision == decision
         assert sid in dict(actual.hashes) and saved_turn.source_id in dict(actual.hashes)
         assert saved.recovery_receipt.key_proof_digest == content_hash_of(proof)
+        if pending == "v2":
+            # Real canonical V2 ledger, receipts and full cold restoration;
+            # admission/session/runtime identity remains an invented host fixture.
+            class NamedConsentBinding:
+                host_clock = clock
+
+                def verify_fresh(self, consent, now):
+                    assert consent.decision_reference == saved.reference
+                    assert consent.decision_recovery_digest == content_hash_of(
+                        canonical_bytes(saved.recovery_receipt.model_dump(mode="json")))
+                    assert recovery.recheck(NamedDecisionCheckpointScope(
+                        sid, digest, decision.admitted_at), saved.recovery_receipt) is None
+
+                def verify_rows(self, session, consent, now):
+                    actual = load_named_decision_inventory(
+                        session, artifacts=artifacts, reference=consent.decision_reference, as_of=now)
+                    assert actual.decision == decision
+
+            named_binding = NamedConsentBinding()
+            authority_recovery = BrainstormFollowupAuthorityRecovery(
+                protector=protector, clock=clock, refresh=snapshot, owner=lambda: owner,
+                recovered_key_receipt=proof_path, expected_key_proof_digest=content_hash_of(proof),
+                named_binding=named_binding,
+            )
+            authorization = CanonicalFollowupAuthorization(
+                factory=factory, store=artifacts, refresh=snapshot, owner=lambda: owner,
+                recovery=authority_recovery, clock=clock, named_binding=named_binding, named_only=True,
+            )
+            consent = FollowupConsentV2(
+                id=named_decision_consent_id(sid), scope=scope,
+                approved_at=decision.admitted_at, expires_at=decision.processing_expires_at,
+                human_reference="invented authenticated named POST",
+                decision_reference=saved.reference,
+                decision_recovery_digest=content_hash_of(canonical_bytes(saved.recovery_receipt.model_dump(mode="json"))),
+            )
+            approval_id = authorization.record(consent)
+            claimed = authorization.claim(approval_id=approval_id, scope=scope, request=request)
+            authorization.recheck(claimed, request)
+            with pytest.raises(FollowupAuthorizationError):
+                authorization.claim(approval_id=approval_id, scope=scope, request=request)
+            # Invented unsupported draft/semantic gate, no live generation or
+            # usefulness claim; canonical reply and recovery paths are real.
+            release_gate = Gate()
+            draft = FollowupDraft(task_id=request.context.task.task_id,
+                user_source_id=saved_turn.source_id, user_content_hash=saved_turn.turn_digest,
+                packet_digest=scope.packet_reference.content_hash,
+                unsupported=UnsupportedReason.OUTSIDE_PACKET)
+            released = release_text_followup(request.context, draft, gate=release_gate)
+            replies = CanonicalTextReplyCapture(
+                assembler=assembler, authorization=authorization, release_gate=release_gate,
+                protection=BrainstormTextReplyProtection(
+                    protector=protector, clock=clock, named_binding=named_binding),
+            )
+            saved_reply = replies.capture(principal=principal, request=request, claimed=claimed,
+                release=released, usage=UsageObservation(input_tokens=10, output_tokens=20, latency_ms=5, cost_usd=0),
+                retained_receipt=packet_receipt, text_receipt=saved_turn.recovery_receipt)
+            reply_args = {"principal": principal, "source_id": saved_reply.source_id,
+                "expected_reply_digest": saved_reply.reply_digest, "retained_receipt": packet_receipt,
+                "text_receipt": saved_turn.recovery_receipt, "recovery_receipt": saved_reply.recovery_receipt}
+            assert replies.load(**reply_args) == saved_reply
+            # Durable consumed-claim/reply recovery is historical evidence only.
+            clock_offset = timedelta(minutes=16)
+            assert replies.protect_pending(principal=principal, source_id=saved_reply.source_id,
+                expected_reply_digest=saved_reply.reply_digest) == saved_reply.recovery_receipt
+            with pytest.raises(TextReplyCaptureError):
+                replies.load(**reply_args)
+            authority_recovery.protect_claim(claimed=claimed, request=request)
+            with pytest.raises(FollowupAuthorizationError):
+                authorization.recheck(claimed, request)
         clock_offset = timedelta(minutes=16)
         assert capture.protect_pending(principal=principal, source_id=sid, expected_decision_digest=digest) == saved.recovery_receipt
         with pytest.raises(NamedDecisionCaptureError):

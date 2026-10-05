@@ -6614,3 +6614,44 @@ provenance/ACL/transaction/nested-DML corrections and regression evidence.
 Trusted row adapters are not a general SQL-effects or hostile-host sandbox.
 The exact named owner POST, v2 issuance and mobile acceptance remain subsequent
 composition gates; test fixtures do not establish production authentication.
+
+
+## D034AX — original authenticated action and explicit named-only recording
+Status: Accepted implementation direction; engineering validation complete, owner trial pending.
+
+Operational encrypted admission metadata supports restart and browser reuse,
+but grants no permission by itself. The original authenticated owner session,
+canonical protected question and separately retained named human decision must
+match the published scope, immutable observation and fixed processing window.
+GET reuse cannot dispatch or renew work. A valid original same-session pointer
+may repopulate read-only cache after restart. Missing both pointer and cache may
+lead to a fresh unconsumed action; it cannot retry an old consumed action.
+Authenticated POST must separately match the exact published card, so another
+tab changing a shared cookie cannot substitute a different displayed scope.
+
+Named host composition explicitly enables named-only recording: reject new v1
+consents and active v1 claim/recheck/reply consumption; preserve exact old v1
+receipt bytes and historical ledger load/revocation/receipt-only repair.
+V2 authority and reply protection require identical host clock and named binding
+objects. Recovery callbacks run outside canonical SQL and restoration leases;
+canonical rows/bytes/ACLs are reread after the last external callback.
+
+New reply persistence is serialized against consent cancellation and checks
+expiry/revocation again immediately before commit. Original replay timestamps
+remain immutable. Receipt-only repair proves committed history and does not
+renew inference or authorize external actions.
+
+Terminal admission cleanup requires the actual host worker-drain guarantee.
+No GET mutex, boolean constructor flag or shaped receipt proves that guarantee.
+The installed persistence and closed v2 consumers do not yet mount submission,
+model generation, Google owner sign-in, a network listener or phone acceptance.
+
+
+D034AX final validation: 3,476 serial tests pass in 391.44 seconds, including
+actual SQL/local-age v2 consent, one-shot claim, reply/reload and expired
+receipt-only recovery under named-only mode. Ruff and strict mypy (115 source
+files) pass. Independent Opus findings are reconciled with reproduced
+legacy-consumption/cache regressions and explicit read-only restart semantics.
+The exact staged scan passes without secrets; commit/push are verified separately.
+Workspace-staged native submission, concrete bindings and worker lifecycle are
+not installed by this checkpoint and remain required for an actual owner trial.

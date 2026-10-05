@@ -28,7 +28,14 @@ from zacai.intelligence.contextual_storage import load_contextual_packet
 from zacai.intelligence.contracts import EvidenceReference
 from zacai.intelligence.work_proposals import packet_fingerprint
 from zacai.interfaces.checkpoint_lease import checkpoint_lease
-from zacai.interfaces.followup_authorization import FollowupConsent
+from zacai.interfaces.followup_authorization import (
+    FollowupConsentV2,
+    NamedFollowupConsentBinding,
+    checked_named_consent_inventory,
+    decode_followup_consent,
+    encode_followup_consent,
+)
+from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.text_reply_capture import (
     TextReply,
     TextReplyCheckpointScope,
@@ -66,7 +73,11 @@ class BrainstormTextReplyProtection:
     """
 
     def __init__(
-        self, *, protector: BrainstormContextualProtector, clock: Callable[[], datetime]
+        self,
+        *,
+        protector: BrainstormContextualProtector,
+        clock: Callable[[], datetime],
+        named_binding: NamedFollowupConsentBinding | None = None,
     ) -> None:
         if (
             type(protector) is not BrainstormContextualProtector
@@ -74,8 +85,28 @@ class BrainstormTextReplyProtection:
         ):
             raise TextReplyProtectionError("reply protection configuration rejected")
         self._protector, self._clock = protector, clock
+        if named_binding is not None:
+            valid = False
+            try:
+                valid = type(clock) is HostObservedClock and named_binding.host_clock is clock
+            except Exception:  # noqa: BLE001,S110 - fixed dependency diagnostics
+                pass
+            if not valid:
+                raise TextReplyProtectionError("shared named binding clock required")
+        self._named_binding = named_binding
+        self._named_clock = clock if type(clock) is HostObservedClock else None
         self._lock = RLock()
         self._last_observed: datetime | None = None
+
+    @property
+    def host_clock(self) -> HostObservedClock:
+        if type(self._clock) is not HostObservedClock:
+            raise TextReplyProtectionError("shared reply host clock unavailable")
+        return self._clock
+
+    @property
+    def named_binding(self) -> NamedFollowupConsentBinding | None:
+        return self._named_binding
 
     def _now(self) -> datetime:
         """Validate every observed host clock value, including inventory reads.
@@ -180,17 +211,40 @@ class BrainstormTextReplyProtection:
             consent_source, consent_raw = add(
                 reply.claim.consent_reference, SourceSystem.USER_INSTRUCTION
             )
-            consent = FollowupConsent.model_validate_json(consent_raw)
+            consent = decode_followup_consent(consent_raw)
             if (
-                consent_raw != canonical_bytes(consent.model_dump(mode="json"))
+                consent_raw != encode_followup_consent(consent)
                 or consent_source.external_ref != f"packet-followup-consent/{consent.id}"
                 or consent_source.captured_at != consent.approved_at
                 or consent.scope != declared
                 or not consent.approved_at <= reply.claim.claimed_at < consent.expires_at
                 or not reply.recorded_at < consent.expires_at
-                or not reply.original_observed_at <= reply.claim.claimed_at <= reply.recorded_at <= now
+                or not reply.original_observed_at
+                <= reply.claim.claimed_at
+                <= reply.recorded_at
+                <= now
             ):
                 raise ValueError("reply original consent binding mismatch")
+            named = None
+            if type(consent) is FollowupConsentV2:
+                binding = self._named_binding
+                if binding is None or self._named_clock is None:
+                    raise ValueError("named reply row binding unavailable")
+                named = checked_named_consent_inventory(
+                    session,
+                    artifacts=p._artifacts,
+                    consent=consent,
+                    binding=binding,
+                    clock=self._named_clock,
+                    as_of=now,
+                )
+                add(consent.decision_reference, SourceSystem.USER_INSTRUCTION)
+                if (
+                    reply.original_observed_at != named.decision.original_observed_at
+                    or reply.claim.request_digest != named.decision.prepared_request_digest
+                    or not named.decision.bound_at <= reply.claim.claimed_at < consent.expires_at
+                ):
+                    raise ValueError("named reply original processing binding differs")
             user_source, user_raw = add(declared.user_reference, SourceSystem.USER_INSTRUCTION)
             user = decode_text_turn(user_raw)
             if (
@@ -248,7 +302,49 @@ class BrainstormTextReplyProtection:
                 if selected is None:
                     raise ValueError("reply original evidence missing")
                 add(item.reference, selected.system, read=False)
+            if named is not None:
+                for source_id, digest in named.hashes:
+                    if hashes.get(source_id) != digest:
+                        raise ValueError("named reply dependency inventory differs")
             return hashes
+
+    def _fresh_named(self, scope: TextReplyCheckpointScope) -> None:
+        # Legacy-only compositions do not acquire new callbacks. V2 is still
+        # denied by _hashes before object reads when this dependency is absent.
+        if self._named_binding is None:
+            return
+        p = self._protector
+        if p._lease_guard is not None:
+            raise ValueError("named fresh gate inside recovery lease")
+        with p._factory() as session:
+            _assert_ledger_isolation(session)
+            if session.scalar(text("SELECT current_database()")) != p._engine.url.database:
+                raise ValueError("named reply session target mismatch")
+            source = session.get(Source, scope.source_id)
+            if (
+                source is None
+                or source.content_hash != scope.reply_digest
+                or source.captured_at != scope.captured_at
+            ):
+                raise ValueError("named reply Source unavailable")
+            reply = self._read_reply(session, source)
+            consent_source = session.get(Source, reply.claim.consent_reference.source_id)
+            if (
+                consent_source is None
+                or consent_source.content_hash != reply.claim.consent_reference.content_hash
+                or consent_source.system != SourceSystem.USER_INSTRUCTION
+                or consent_source.trust_boundary != B.BRAINSTORM
+                or consent_source.data_classification != C.CONFIDENTIAL
+                or get_effective_source_classification(session, source_id=consent_source.id)
+                != C.CONFIDENTIAL
+            ):
+                raise ValueError("named reply consent missing")
+            consent = decode_followup_consent(_bytes(session, p._artifacts, consent_source))
+        if (
+            type(consent) is FollowupConsentV2
+            and self._named_binding.verify_fresh(consent, self._now()) is not None
+        ):
+            raise ValueError("named reply protected binding unavailable")
 
     def _load_receipt(self, key: str) -> TextReplyRecoveryReceipt:
         p = self._protector
@@ -324,6 +420,7 @@ class BrainstormTextReplyProtection:
         result: TextReplyRecoveryReceipt | None = None
         try:
             operation_started = self._now()
+            self._fresh_named(scope)
             if type(operation_started) is not datetime or operation_started.utcoffset() is None:
                 raise ValueError("aware operation clock required")
             with self._lease() as require:
@@ -383,6 +480,9 @@ class BrainstormTextReplyProtection:
                 ):
                     raise ValueError("host clock moved backward before receipt release")
                 require()
+            self._fresh_named(scope)
+            if self._named_binding is not None and self._hashes(scope) != hashes:
+                raise ValueError("named reply inventory changed after final host callback")
             released = self._now()
             if type(released) is not datetime or released.utcoffset() is None or released < final:
                 raise ValueError("host clock moved backward after lease release")
@@ -397,16 +497,20 @@ class BrainstormTextReplyProtection:
         succeeded = False
         try:
             operation_started = self._now()
+            self._fresh_named(scope)
             if type(operation_started) is not datetime or operation_started.utcoffset() is None:
                 raise ValueError("aware operation clock required")
             receipt = TextReplyRecoveryReceipt.model_validate(receipt)
             with self._lease() as require:
-                self._hashes(scope)  # Current source ACL/identity before object reads.
+                hashes = self._hashes(scope)  # Current source ACL/identity before object reads.
                 loaded = self._load_receipt(receipt.receipt_object)
                 if loaded != receipt:
                     raise ValueError("retained receipt differs")
                 completed = self._verify(scope, loaded)
                 require()
+            self._fresh_named(scope)
+            if self._named_binding is not None and self._hashes(scope) != hashes:
+                raise ValueError("named reply inventory changed after final host callback")
             final = self._now()
             if (
                 type(final) is not datetime
