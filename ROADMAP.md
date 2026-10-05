@@ -9,9 +9,9 @@ SECURITY.md governs permissions and data handling.
 DECISIONS.md records meaningful architectural decisions.
 This roadmap defines implementation order, not a reduction in scope.
 
-## Current Position — reconciled 2026-10-04
+## Current Position — reconciled 2026-10-05
 
-Current completed engineering checkpoint: D034AJ. The bounded research intake
+Current completed engineering checkpoint: D034AK. The bounded research intake
 and its original encrypted remote checkpoint are now fully verified.
 D031B verified real BRAINSTORM encrypted off-device artifact recovery. D032
 intelligence contracts are implemented. D033C verified one explicitly approved
@@ -41,8 +41,12 @@ binding/receipt is now verified by D034AI: a separately installed Read Only
 verifier provides scoped read/list checks while the existing uploader is retained.
 The original encrypted state/journal passed full disposable restore, all thirteen
 intake artifacts recovered, and the missing encrypted receipt was saved/read back.
-No new model trial, recurring ingestion or
-broad production routing is enabled. The app remains health-only.
+The approved D034AJ candidate-history attempt failed after dispatch preparation;
+no draft was released. Actual encrypted failed-attempt recovery passed. D034AK
+adds independently reviewed closed operation/dispatch diagnostics and preserves
+legacy audit bytes. A separately prepared diagnostic scope keeps the same evidence
+and local model limits; fresh approval is pending. No recurring ingestion or broad
+production routing is enabled. The app remains health-only.
 
 Zac confirmed the first usable version's delivery target in chat on 2026-10-04:
 source-backed contextual meeting reviews and a concise daily briefing covering
@@ -1095,3 +1099,45 @@ human decision is one local shadow review with this exact selected evidence,
 profile/pin and encrypted post-run recovery. Output stays an unevaluated private
 draft or material question. No recurring connector, cloud processing, fact
 promotion or mobile service is enabled; the app remains health-only.
+
+
+## D034AK — approved candidate-history trial protected; fixed failure diagnostics
+
+On 2026-10-05 Zac approved the exact D034AJ one-meeting local scope. The sealed
+launcher recorded fresh one-shot authority, verified current recovery and entered
+the contextual operator. Canonical audits reached REQUEST_PREPARED and
+DISPATCH_PREPARED, then RUN_FAILED; no packet or draft was released. The old
+sanitized path discarded the specific failure cause, so do not attribute this
+attempt to latency, citations, model output or insufficient context. Authority
+is consumed; no automatic retry occurred.
+
+Failed-attempt artifacts, state and journal were encrypted off-device and
+independently recovered with full disposable restoration. The protected failure
+receipt is retained privately; no disposable restore database remains. There are
+50 canonical Sources, up from 44: consent, claim, three audits and failure locator.
+These are workflow metadata, not promoted project facts or generated conclusions.
+
+Add a closed failure_step operation label and paired dispatch_attempted flag to
+future RUN_FAILED contextual audits. The flag records a host runtime-call attempt,
+not successful transport.
+Distinguish runtime generation from response validation, capture, protection and
+release checks without recording exception text, frame locals, model prose or
+source passages. Absent labels serialize exactly as before, preserving recovery
+of historical audits. The actual three protected legacy audits round-trip byte
+for byte under the new decoder. This does not retroactively diagnose this attempt
+or change any authority, source selection, routing budget or canonical Zac Event.
+
+Validation: 1,503 tests pass, two existing dependency warnings; Ruff and strict
+mypy on 61 source files pass. Independent code-only Opus review found operation ambiguity, request-binding
+loss and commit/close bookkeeping gaps; fixes and focused regressions are included. Next prepare a separately authorized diagnostic trial with the same
+bounded evidence, then obtain useful-draft feedback before briefing/private access
+and staged broad history. The app remains health-only; Zac AI v1 is not ready.
+
+
+A new diagnostic scope uses the same selected meeting, reviewed brief, four
+candidate Sources, local model pin and context/output limits. Fresh read-only
+assembly confirms its prepared digest is unchanged; metadata-only model/tokenizer
+preflight passes. Current host namespaces measure 9,096 input tokens plus 1,600
+reserved output, 34,025 serialized bytes. No second generation or canonical write
+occurred. Separate approval/output paths preserve the consumed attempt and prevent
+replay. Human authorization for this new attempt remains pending.

@@ -1,6 +1,6 @@
 # Questions for Zac
 
-Updated: 2026-10-04
+Updated: 2026-10-05
 Purpose: Keep nonblocking decisions here while engineering continues. This log
 is not approval evidence. Zac resumed and selected continued engineering and
 synthetic checks before a concrete private-trial proposal. D034G adds the host
@@ -11,8 +11,8 @@ approved live rollout are complete; exact reviewed project evidence and the priv
 next. D034P concrete operator composition and invented end-to-end tests are
 complete. Prior real recovery and gate mechanics are recorded below.
 D034I verifies the schema-aware backup mechanism with synthetic recovery drills.
-D034AJ completes this engineering preparation; the exact private trial now needs
-a human decision.
+D034AK preserves the failed approved trial and prepares a separate diagnostic
+attempt. That new one-shot processing decision is pending.
 
 ## Decisions needed before a live/private step
 
@@ -552,3 +552,20 @@ After the protected draft: ask for usefulness/context/style feedback and resolve
 material gaps, then continue the accepted briefing/private-interface path before
 staged broad history collection. No more Backblaze credentials or manual push
 are required now.
+
+
+## D034AK — first candidate-history attempt consumed; diagnostic decision next
+
+Zac approved D034AJ on 2026-10-05. That one-shot trial failed after its dispatch
+preparation audit; no draft was released. Encrypted failed-attempt recovery passed
+and disposable targets were cleaned up. The specific cause is unavailable in the
+old audit, and must not be guessed. Existing processing approval is consumed.
+
+Future attempts record a closed failure operation and whether the host attempted
+generation, without private prose. The proposed next diagnostic scope keeps the
+same meeting, reviewed brief, four candidate history Sources, model pin and budgets.
+Fresh read-only assembly/metadata preflight confirms unchanged scope. After final
+independent verification, request one new processing decision; prior consent is
+not replayed. No key setup or manual push needed.
+Broader historical collection, automatic project links and private/mobile service
+remain behind the accepted usefulness and delivery gates.

@@ -9,10 +9,17 @@ from __future__ import annotations
 
 from datetime import UTC
 from enum import Enum
-from typing import Literal, Self
+from typing import Any, Literal, Self
 from uuid import UUID
 
-from pydantic import AwareDatetime, ConfigDict, model_validator
+from pydantic import (
+    AwareDatetime,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+    model_validator,
+)
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
@@ -55,6 +62,32 @@ class ContextualAuditStage(str, Enum):
     RUN_FAILED = "RUN_FAILED"
 
 
+class ContextualFailureStep(str, Enum):
+    """Closed host operation labels; never exception text or model content."""
+
+    REQUEST_AUDIT = "REQUEST_AUDIT"
+    ROUTE_CHECK = "ROUTE_CHECK"
+    CLAIM = "CLAIM"
+    RUNTIME_PREFLIGHT = "RUNTIME_PREFLIGHT"
+    FRESHNESS_AGE_CHECK = "FRESHNESS_AGE_CHECK"
+    REQUEST_INTEGRITY_CHECK = "REQUEST_INTEGRITY_CHECK"
+    EVIDENCE_REFRESH = "EVIDENCE_REFRESH"
+    AUTHORIZATION_RECHECK = "AUTHORIZATION_RECHECK"
+    GENERATION_LATENCY_CHECK = "GENERATION_LATENCY_CHECK"
+    RECOVERY_RECEIPT_VALIDATION = "RECOVERY_RECEIPT_VALIDATION"
+    PACKET_VALIDATION = "PACKET_VALIDATION"
+    METADATA_ACCESS_CHECK = "METADATA_ACCESS_CHECK"
+    RELEASE_LATENCY_CHECK = "RELEASE_LATENCY_CHECK"
+    DISPATCH_AUDIT = "DISPATCH_AUDIT"
+    DISPATCH_CLOCK_START = "DISPATCH_CLOCK_START"
+    CAPTURE_SESSION_CLOSE = "CAPTURE_SESSION_CLOSE"
+    GENERATION = "GENERATION"
+    DRAFT_VALIDATION = "DRAFT_VALIDATION"
+    PACKET_CAPTURE = "PACKET_CAPTURE"
+    PROTECTION = "PROTECTION"
+    PACKET_READ = "PACKET_READ"
+
+
 class ContextualAuditEvent(Contract):
     """Host metadata for the distinct contextual path; never dispatch authority."""
 
@@ -74,9 +107,46 @@ class ContextualAuditEvent(Contract):
     model_digest: Digest
     packet_source_id: UUID | None = None
     packet_digest: Digest | None = None
+    failure_step: ContextualFailureStep | None = None
+    dispatch_attempted: bool | None = Field(default=None, strict=True)
+
+    @model_serializer(mode="wrap")
+    def preserve_legacy_bytes(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data: dict[str, Any] = handler(self)
+        if self.failure_step is None:
+            data.pop("failure_step", None)
+            data.pop("dispatch_attempted", None)
+        return data
 
     @model_validator(mode="after")
     def consistent_packet(self) -> Self:
+        if any(name in self.model_fields_set and getattr(self, name) is None
+               for name in ("failure_step", "dispatch_attempted")):
+            raise ValueError("diagnostic fields must be absent rather than null")
+        if (self.failure_step is None) != (self.dispatch_attempted is None):
+            raise ValueError("failure operation and dispatch flag must be paired")
+        if self.failure_step is not None:
+            if self.stage != ContextualAuditStage.RUN_FAILED:
+                raise ValueError("failure operation belongs only to failed audit")
+            before_dispatch = {ContextualFailureStep.REQUEST_AUDIT, ContextualFailureStep.CLAIM,
+                               ContextualFailureStep.RUNTIME_PREFLIGHT, ContextualFailureStep.DISPATCH_AUDIT,
+                               ContextualFailureStep.DISPATCH_CLOCK_START}
+            before_capture = before_dispatch | {ContextualFailureStep.GENERATION,
+                ContextualFailureStep.GENERATION_LATENCY_CHECK, ContextualFailureStep.DRAFT_VALIDATION,
+                ContextualFailureStep.PACKET_CAPTURE}
+            after_capture = {ContextualFailureStep.CAPTURE_SESSION_CLOSE, ContextualFailureStep.PROTECTION, ContextualFailureStep.RECOVERY_RECEIPT_VALIDATION,
+                ContextualFailureStep.PACKET_READ, ContextualFailureStep.PACKET_VALIDATION,
+                ContextualFailureStep.METADATA_ACCESS_CHECK, ContextualFailureStep.RELEASE_LATENCY_CHECK}
+            if self.failure_step in before_dispatch and self.dispatch_attempted is not False:
+                raise ValueError("operation precedes dispatch")
+            if self.failure_step in (before_capture - before_dispatch) | after_capture and self.dispatch_attempted is not True:
+                raise ValueError("operation follows dispatch attempt")
+            if self.failure_step in before_capture and self.packet_digest is not None:
+                raise ValueError("operation precedes capture")
+            if self.failure_step in after_capture and self.packet_digest is None:
+                raise ValueError("operation requires captured packet")
+            if self.packet_digest is not None and self.dispatch_attempted is not True:
+                raise ValueError("packet requires dispatch attempt")
         if (self.packet_source_id is None) != (self.packet_digest is None):
             raise ValueError("packet metadata must be paired")
         if self.stage == ContextualAuditStage.PACKET_CAPTURED and self.packet_digest is None:

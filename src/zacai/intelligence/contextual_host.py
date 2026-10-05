@@ -16,7 +16,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Protocol
+from typing import Any, Protocol
 from uuid import UUID, uuid4
 
 from sqlalchemy.orm import Session, sessionmaker
@@ -40,6 +40,7 @@ from zacai.intelligence.research_context import ResearchReviewSelection, append_
 from zacai.intelligence.review_audit import (
     ContextualAuditEvent,
     ContextualAuditStage,
+    ContextualFailureStep,
     ReviewPreContextAudit,
     append_contextual_audit,
     append_review_pre_context_audit,
@@ -262,7 +263,14 @@ def execute_contextual_shadow(
     audit_ids: list[UUID] = []
     result: ContextualHostResult | None = None
     audit_failed = False
+    observer_failed = False
+    bound_request_digest: str | None = None
+    bound_context_digest: str | None = None
+    bound_task_id: UUID | None = None
+    bound_boundary: TrustBoundary | None = None
+    bound_classification: DataClassification | None = None
     dispatched = False
+    failure_step: ContextualFailureStep | None = None
     interruption: str | None = None
     exit_code = 1
 
@@ -275,10 +283,10 @@ def execute_contextual_shadow(
             with factory() as owned:
                 sid = audit(stage, owned, capture)
                 owned.commit()
-            audit_ids.append(sid)
+                audit_ids.append(sid)
             return sid
         captured_id, captured_hash = capture if capture is not None else (packet_id, packet_hash)
-        if request is None or route is None:
+        if request is None or route is None or bound_task_id is None:
             sid = append_review_pre_context_audit(
                 session,
                 artifacts=artifacts,
@@ -290,24 +298,28 @@ def execute_contextual_shadow(
                 authorized_boundaries=authorized_boundaries,
             )
         else:
+            diagnostics: dict[str, Any] = {}
+            if stage == ContextualAuditStage.RUN_FAILED:
+                diagnostics = {"failure_step": failure_step, "dispatch_attempted": dispatched}
             sid = append_contextual_audit(
                 session,
                 artifacts=artifacts,
                 event=ContextualAuditEvent(
                     audit_event_id=uuid4(),
                     run_id=run_id,
-                    task_id=request.context.task.task_id,
+                    task_id=bound_task_id,
                     builder_id=builder_id,
                     recorded_at=clock(),
-                    trust_boundary=request.context.task.event.trust_boundary,
-                    data_classification=request.context.task.event.data_classification,
+                    trust_boundary=bound_boundary,
+                    data_classification=bound_classification,
                     stage=stage,
-                    request_digest=contextual_request_digest(request),
-                    context_digest=review_context_digest(request.context),
+                    request_digest=bound_request_digest,
+                    context_digest=bound_context_digest,
                     route=route.identity,
                     model_digest=pin,
                     packet_source_id=captured_id,
                     packet_digest=captured_hash,
+                    **diagnostics,
                 ),
                 authorized_boundaries=authorized_boundaries,
             )
@@ -324,16 +336,23 @@ def execute_contextual_shadow(
         )
 
     def refresh() -> None:
+        nonlocal failure_step
+        failure_step = ContextualFailureStep.FRESHNESS_AGE_CHECK
         assert request is not None
         now = clock()
         age = (now - request.context.task.event.observed_at).total_seconds()
         if age < 0 or (not dispatched and age > 120):
             raise ValueError("request expired or clock regressed")
-        contextual_request_digest(request)
+        failure_step = ContextualFailureStep.REQUEST_INTEGRITY_CHECK
+        if contextual_request_digest(request) != bound_request_digest:
+            raise ValueError("request binding changed")
+        failure_step = ContextualFailureStep.EVIDENCE_REFRESH
         if review_evidence_digest(assemble(now)) != review_evidence_digest(request.context):
             raise ValueError("canonical evidence changed")
 
     def route_check() -> None:
+        nonlocal failure_step
+        failure_step = ContextualFailureStep.ROUTE_CHECK
         assert request is not None and route is not None
         if (
             route.destination != Destination.LOCAL
@@ -387,30 +406,47 @@ def execute_contextual_shadow(
             pin,
         )
         authorization.preflight(scope)
-        request = prepare_contextual_request(assemble(clock()))
+        failure_step = ContextualFailureStep.REQUEST_AUDIT
+        prepared = prepare_contextual_request(assemble(clock()))
+        bound_request_digest = contextual_request_digest(prepared)
+        bound_context_digest = review_context_digest(prepared.context)
+        bound_task_id = prepared.context.task.task_id
+        bound_boundary = prepared.context.task.event.trust_boundary
+        bound_classification = prepared.context.task.event.data_classification
+        request = prepared
         audit(ContextualAuditStage.REQUEST_PREPARED)
         route_check()
-        authorization.claim(scope, request, contextual_request_digest(request), clock())
+        failure_step = ContextualFailureStep.CLAIM
+        authorization.claim(scope, request, bound_request_digest, clock())
+        failure_step = ContextualFailureStep.RUNTIME_PREFLIGHT
         runtime.preflight(request)
         refresh()
+        failure_step = ContextualFailureStep.DISPATCH_AUDIT
         audit(ContextualAuditStage.DISPATCH_PREPARED)
         refresh()
         route_check()
-        authorization.recheck(scope, request, contextual_request_digest(request), clock())
+        failure_step = ContextualFailureStep.AUTHORIZATION_RECHECK
+        authorization.recheck(scope, request, bound_request_digest, clock())
         # Recovery rechecks can be slow: refresh again immediately before dispatch.
         refresh()
         route_check()
+        failure_step = ContextualFailureStep.DISPATCH_CLOCK_START
         start = monotonic()
         dispatched = True
+        failure_step = ContextualFailureStep.GENERATION
         draft = runtime.generate(request)
+        failure_step = ContextualFailureStep.GENERATION_LATENCY_CHECK
         release_start = monotonic()
         elapsed = release_start - start
         if not 0 <= elapsed * 1000 <= request.context.task.max_latency_ms:
             raise ValueError("runtime latency exceeded")
+        failure_step = ContextualFailureStep.DRAFT_VALIDATION
         review = resolve_contextual_draft(draft, request)
         refresh()
         route_check()
-        authorization.recheck(scope, request, contextual_request_digest(request), clock())
+        failure_step = ContextualFailureStep.AUTHORIZATION_RECHECK
+        authorization.recheck(scope, request, bound_request_digest, clock())
+        failure_step = ContextualFailureStep.PACKET_CAPTURE
         payload = encode_contextual_packet(
             review,
             request.context,
@@ -432,9 +468,12 @@ def execute_contextual_shadow(
                 (captured, captured_hash),
             )
             session.commit()
-        packet_id, packet_hash = captured, captured_hash
-        audit_ids.append(captured_audit)
+            packet_id, packet_hash = captured, captured_hash
+            audit_ids.append(captured_audit)
+            failure_step = ContextualFailureStep.CAPTURE_SESSION_CLOSE
+        failure_step = ContextualFailureStep.PROTECTION
         receipt = protection.protect(packet_id, packet_hash, tuple(audit_ids))
+        failure_step = ContextualFailureStep.RECOVERY_RECEIPT_VALIDATION
         if receipt is None and not allow_synthetic_protection:
             raise ValueError("durable recovery receipt required")
         if receipt is not None:
@@ -449,7 +488,9 @@ def execute_contextual_shadow(
                 raise ValueError("recovery receipt differs from this run")
         refresh()
         route_check()
-        authorization.recheck(scope, request, contextual_request_digest(request), clock())
+        failure_step = ContextualFailureStep.AUTHORIZATION_RECHECK
+        authorization.recheck(scope, request, bound_request_digest, clock())
+        failure_step = ContextualFailureStep.PACKET_READ
         with _snapshot(factory) as session:
             packet = load_contextual_packet(
                 session,
@@ -459,12 +500,15 @@ def execute_contextual_shadow(
                 authorized_boundaries=authorized_boundaries,
                 allowed_classifications=allowed_classifications,
             )
+        failure_step = ContextualFailureStep.PACKET_VALIDATION
         if packet.context() != request.context or packet.review != review:
             raise ValueError("captured packet differs")
         # Packet read/validation is I/O too: recheck after it before delivery.
         refresh()
         route_check()
-        authorization.recheck(scope, request, contextual_request_digest(request), clock())
+        failure_step = ContextualFailureStep.AUTHORIZATION_RECHECK
+        authorization.recheck(scope, request, bound_request_digest, clock())
+        failure_step = ContextualFailureStep.METADATA_ACCESS_CHECK
         # Returned audit/receipt metadata retains its own current source labels.
         with _snapshot(factory) as session:
             metadata_ids = tuple(audit_ids) + (
@@ -485,7 +529,9 @@ def execute_contextual_shadow(
                     )
                 ):
                     raise ValueError("returned metadata access changed")
-        authorization.recheck(scope, request, contextual_request_digest(request), clock())
+        failure_step = ContextualFailureStep.AUTHORIZATION_RECHECK
+        authorization.recheck(scope, request, bound_request_digest, clock())
+        failure_step = ContextualFailureStep.RELEASE_LATENCY_CHECK
         release_elapsed = monotonic() - release_start
         if not 0 <= release_elapsed * 1000 <= max_release_latency_ms:
             raise ValueError("release deadline exceeded")
@@ -516,7 +562,7 @@ def execute_contextual_shadow(
         try:
             failure_observer(ContextualHostFailure(run_id, tuple(audit_ids), audit_failed))
         except BaseException as secondary:  # noqa: BLE001 - observer never grants authority
-            audit_failed = True
+            observer_failed = True
             if interruption is None:
                 if isinstance(secondary, KeyboardInterrupt):
                     interruption = "keyboard"
@@ -533,7 +579,9 @@ def execute_contextual_shadow(
         raise asyncio.CancelledError
     if result is None:
         message = (
-            "contextual review failed; audit unavailable"
+            "contextual review failed; failure observer unavailable"
+            if observer_failed and not audit_failed
+            else "contextual review failed; audit unavailable"
             if audit_failed
             else "contextual review failed; no output released"
         )

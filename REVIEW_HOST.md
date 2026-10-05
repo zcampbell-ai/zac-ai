@@ -232,3 +232,24 @@ byte ceiling remains 64,000. The real PUBLIC probe with 1,600 output reservation
 matched 11,773 input tokens and completed in about 60 seconds. It proves runtime
 conformance only. Exact proposed private evidence/profile/route approval and
 semantic evaluation are still required; no service is enabled.
+
+
+### D034AK diagnostic audit compatibility
+
+Future contextual RUN_FAILED artifacts can carry a closed failure_step operation
+and a paired strict dispatch_attempted flag. The flag means the host attempted
+the runtime generate() call, not proof of a transport request or model completion.
+Pre-context audits retain their original format and have no operation label.
+Labels are host constants, not exception strings or a root-cause determination.
+Historical contextual audit bytes omit the field and round-trip unchanged.
+Explicit null diagnostics, unpaired fields and impossible packet/dispatch
+combinations are rejected. New labeled records require a reader build supporting this field;
+do not roll audit/recovery readers back below D034AK after a labeled write. An
+older reader rejects the unknown field rather than silently accepting it. Keep
+compatible version-controlled code with recovery material. No new labeled private
+record has been written as part of engineering verification.
+
+The 2026-10-05 candidate-history attempt has PROTECTED_FAILURE_NO_RETRY, no draft,
+and a verified failed-attempt state/journal/artifact receipt. Its original specific
+cause is unavailable. Its consent is consumed. Diagnostic improvements do not
+permit replay; prepare and approve a separate exact processing attempt.

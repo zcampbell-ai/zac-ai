@@ -5790,3 +5790,36 @@ selection is a proposed source scope, not evidence of topical sufficiency. If th
 first draft needs context, return a targeted material question under Zac's
 preference rather than invent history or produce an irrelevant summary. Private
 trial approval and later human semantic/usefulness feedback remain separate.
+
+
+## D034AK — retain private-safe failure operation, preserve historical audit bytes
+
+A real approved candidate-history review failed after DISPATCH_PREPARED. Existing
+sanitization retained failure recovery but discarded the operation that failed.
+Do not reconstruct or guess its cause. Future contextual RUN_FAILED audits may
+carry a closed host-owned failure_step enum. It labels the active operation, not
+a verified root cause, and never grants processing authority or retries.
+
+Keep legacy audit serialization byte-exact by omitting the new field when absent.
+Reject free text and labels on nonfailed stages. The canonical Zac Event contract,
+old encrypted receipts, immutable Source records and processing scope remain
+unchanged. Protect failed attempts even when no useful draft is available. New
+private processing still requires a fresh exact human decision; successful backup
+recovery is not successful product delivery.
+
+
+Diagnostic labels apply only after a contextual request exists. Freshness age,
+request integrity, evidence refresh, route, approval recheck, generation and
+latency checks each set their own constant immediately before the operation.
+Pre-context records are unchanged and remain unlabeled. Labeled audit artifacts
+require D034AK-compatible readers; older builds reject the additive field. Do
+not roll recovery readers back below that floor after the first labeled write.
+
+
+Pair a failure operation with a strict dispatch_attempted flag: it records whether
+the host attempted runtime.generate(), not proof of successful transport. Enforce
+pre/post dispatch and packet binding consistency. Cache validated original audit
+bindings before assigning the live request; a changed request must not destroy its
+own failure audit. Preserve committed packet/audit IDs before session exit so a
+close failure cannot hide durable records. Observer failure has its own fixed
+message rather than falsely claiming the durable audit is unavailable.

@@ -208,7 +208,16 @@ def test_one_attempt_failures_never_release_or_retry(host_setup, failure):  # no
     assert error.value.__context__ is None and error.value.__cause__ is None
     assert "PRIVATE" not in str(error.value)
     assert runtime.calls == (0 if failure in {"route", "compact", "claim"} else 1)
-    assert events(host_setup)[-1]["stage"] == "RUN_FAILED"
+    failed = events(host_setup)[-1]
+    assert failed["stage"] == "RUN_FAILED"
+    expected = {
+        "route": "ROUTE_CHECK", "compact": "ROUTE_CHECK", "claim": "CLAIM",
+        "invalid": "DRAFT_VALIDATION", "runtime": "GENERATION",
+        "protection": "PROTECTION", "late": "GENERATION_LATENCY_CHECK",
+    }
+    assert failed["failure_step"] == expected[failure]
+    assert failed["dispatch_attempted"] == (runtime.calls == 1)
+    assert "PRIVATE" not in json.dumps(failed)
 
 
 @pytest.mark.parametrize("when", ["generate", "protect"])
@@ -238,6 +247,7 @@ def test_changes_during_generation_or_protection_block_delivery(host_setup, when
         run(host_setup, runtime=runtime, protection=protection, authorization=auth)
     assert auth.claimed and runtime.calls == 1
     assert events(host_setup)[-1]["stage"] == "RUN_FAILED"
+    assert events(host_setup)[-1]["dispatch_attempted"] is True
 
 
 def test_commit_failure_prevents_dispatch(host_setup):  # noqa: F811
@@ -495,6 +505,7 @@ def test_interruptions_are_audited_and_rethrown_without_private_context(host_set
     assert error.value.__context__ is None
     assert events(host_setup)[-1]["stage"] == "RUN_FAILED"
     assert runtime.calls == 1
+    assert events(host_setup)[-1]["failure_step"] == "GENERATION"
 
 
 def test_exact_preflight_scope_is_bound_to_claim_rechecks_and_audit(host_setup):  # noqa: F811
@@ -620,3 +631,135 @@ def test_elevated_returned_audit_metadata_is_not_released(host_setup):  # noqa: 
     with pytest.raises(ContextualHostError):
         run(host_setup, protection=protection)
     assert protection.called
+
+
+@pytest.mark.parametrize("operation", ["runtime_preflight", "dispatch_audit", "freshness",
+                                        "route", "authority"])
+def test_fixed_failure_operations_before_generation(host_setup, monkeypatch, operation):  # noqa: F811
+    runtime, auth = Runtime(host_setup), Authorization()
+    original_audit = host.append_contextual_audit
+    original_assemble = host.assemble_contextual_context
+
+    def private_failure(*args, **kwargs):
+        raise ValueError("PRIVATE fixture diagnostic")
+
+    def audit(*args, **kwargs):
+        event = kwargs["event"]
+        if event.stage.value == "DISPATCH_PREPARED":
+            if operation == "dispatch_audit":
+                private_failure()
+            if operation == "route":
+                runtime.model_digest = "b" * 64
+            if operation == "authority":
+                auth.revoked = True
+        return original_audit(*args, **kwargs)
+
+    def assemble(*args, **kwargs):
+        if operation == "freshness" and any(e["stage"] == "DISPATCH_PREPARED" for e in events(host_setup)):
+            private_failure()
+        return original_assemble(*args, **kwargs)
+
+    monkeypatch.setattr(host, "append_contextual_audit", audit)
+    monkeypatch.setattr(host, "assemble_contextual_context", assemble)
+    if operation == "runtime_preflight":
+        runtime.preflight = private_failure
+    with pytest.raises(ContextualHostError):
+        run(host_setup, runtime=runtime, authorization=auth)
+    assert runtime.calls == 0
+    failed = events(host_setup)[-1]
+    expected = {"runtime_preflight": "RUNTIME_PREFLIGHT", "dispatch_audit": "DISPATCH_AUDIT",
+                "freshness": "EVIDENCE_REFRESH", "route": "ROUTE_CHECK",
+                "authority": "AUTHORIZATION_RECHECK"}
+    assert failed["failure_step"] == expected[operation]
+    assert failed["dispatch_attempted"] is False
+    assert "PRIVATE" not in json.dumps(failed)
+    if operation == "dispatch_audit":
+        assert [e["stage"] for e in events(host_setup)] == ["REQUEST_PREPARED", "RUN_FAILED"]
+
+
+def test_mutated_request_retains_original_audit_bindings(host_setup):  # noqa: F811
+    runtime = Runtime(host_setup)
+
+    def mutate(request):
+        object.__setattr__(request, "evidence_json", "PRIVATE modified catalog")
+
+    runtime.preflight = mutate
+    with pytest.raises(ContextualHostError) as error:
+        run(host_setup, runtime=runtime)
+    assert "audit unavailable" not in str(error.value)
+    assert runtime.calls == 0
+    prepared, failed = events(host_setup)
+    assert failed["failure_step"] == "REQUEST_INTEGRITY_CHECK"
+    assert failed["dispatch_attempted"] is False
+    assert failed["request_digest"] == prepared["request_digest"]
+    assert failed["context_digest"] == prepared["context_digest"]
+    assert "PRIVATE" not in json.dumps(failed)
+
+
+def test_failed_observer_does_not_relabel_durable_audit(host_setup):  # noqa: F811
+    runtime = Runtime(host_setup)
+    runtime.fail = True
+    observations = []
+
+    def unavailable(failure):
+        observations.append(failure)
+        raise ValueError("PRIVATE observer data")
+
+    with pytest.raises(ContextualHostError, match="failure observer unavailable"):
+        run(host_setup, runtime=runtime, failure_observer=unavailable)
+    assert observations[0].audit_unavailable is False
+    assert events(host_setup)[-1]["failure_step"] == "GENERATION"
+
+
+def test_capture_commit_survives_session_close_failure_in_audit(host_setup, monkeypatch):  # noqa: F811
+    class CloseFailure(Session):
+        capture_committed = False
+
+        def commit(self):
+            super().commit()
+            self.capture_committed = self.info.pop("packet_written", False)
+
+        def close(self):
+            super().close()
+            if self.capture_committed:
+                self.capture_committed = False
+                raise ValueError("PRIVATE close diagnostic")
+
+    original_capture = host.capture_contextual_packet
+
+    def capture(session, **kwargs):
+        result = original_capture(session, **kwargs)
+        session.info["packet_written"] = True
+        return result
+
+    monkeypatch.setattr(host, "capture_contextual_packet", capture)
+    factory = sessionmaker(bind=host_setup[0].kw["bind"], class_=CloseFailure)
+    alternate = (factory, *host_setup[1:])
+    observed = []
+    with pytest.raises(ContextualHostError):
+        run(alternate, failure_observer=observed.append)
+    failed = events(host_setup)[-1]
+    assert failed["failure_step"] == "CAPTURE_SESSION_CLOSE"
+    assert failed["dispatch_attempted"] is True
+    assert failed["packet_source_id"] and failed["packet_digest"]
+    assert [e["stage"] for e in events(host_setup)] == [
+        "REQUEST_PREPARED", "DISPATCH_PREPARED", "PACKET_CAPTURED", "RUN_FAILED"]
+    assert len(observed[0].audit_source_ids) == 4 and not observed[0].audit_unavailable
+
+
+def test_mutated_task_label_cannot_lower_original_failure_audit_label(host_setup):  # noqa: F811
+    runtime = Runtime(host_setup)
+
+    def mutate(request):
+        object.__setattr__(request.context.task.event, "data_classification", C.PUBLIC)
+
+    runtime.preflight = mutate
+    with pytest.raises(ContextualHostError) as error:
+        run(host_setup, runtime=runtime)
+    assert "audit unavailable" not in str(error.value)
+    assert runtime.calls == 0
+    prepared, failed = events(host_setup)
+    assert failed["failure_step"] == "REQUEST_INTEGRITY_CHECK"
+    assert failed["data_classification"] == prepared["data_classification"] == "CONFIDENTIAL"
+    assert failed["trust_boundary"] == prepared["trust_boundary"] == "BRAINSTORM"
+    assert failed["task_id"] == prepared["task_id"]
