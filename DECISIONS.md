@@ -7072,3 +7072,40 @@ durability, real recovered-key escrow, account authorization, private ingestion
 or useful-output quality. The fresh-process whole-boundary SQL fixture remains
 in engineering workspace staging rather than the ordinary full suite, where
 other committed synthetic Sources can refer to unrelated ephemeral stores.
+
+
+### Native projection preserves original evidence and creates a new task (2026-10-06)
+
+Add one offline native_evidence_context module. Reuse retained native batch
+loading, public provider parsers and the existing contextual serializer; introduce
+no Source schema, memory store, provider route, model call or approval framework.
+Selected context contains only exact provider spans. Host selection/relevance
+and provenance dates belong to a noncitable metadata tuple, never synthetic
+provider headers or omission bridges. Gmail support is exact UTF-8 RFC822, not
+MIME body extraction or authored/sent-mail attestation.
+
+Retain original_task and original_event without rewriting their canonical
+identity. Generate distinct deterministic task/event UUIDs for the derived
+context, binding the original task snapshot, selected text, ordered provenance
+and metadata. Sort capability arrays and normalize all four metadata date fields
+to UTC so equivalent instants and database connection timezones cannot change
+those IDs. Source bytes/timestamps remain unchanged. Derived processing status
+is NEW; original instructions/capabilities/budgets/correlation remain fixed.
+Changing the original task snapshot, including its status, can change the
+derivation identity. No old result or processing approval is adopted for it.
+
+Validate real public inventory and every supplied-scope dependency before its
+artifact read; preserve final callback-free Source/effective-ACL observations.
+Actual serializer packing and quotation limits run before acknowledgement, with
+no substitute parser or truncation. Pure cap negatives are not claimed to
+discriminate every local check from independent serializer checks. The exact250
+catalog positive/251 negative is a standalone serializer test, not a claim that
+native output's64KB capacity can attain that overflow.
+
+Local synthetic acceptance comprises49 new/129 combined pure checks and six
+root-run cases (five actual PostgreSQL plus one smoke) in1.36 seconds. It proves
+projection/inventory/identity checks under those fixtures, not human/account
+authorization, off-device durability, real recovered keys, private import or
+model-output quality. Keep the dedicated copied-tree SQL fixture in engineering
+staging; install its five pure test modules without duplicating conftest or
+standalone committed-store setup into the ordinary suite.

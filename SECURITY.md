@@ -224,3 +224,29 @@ undo a malicious callback commit that is already durable. BaseException and
 cancellation propagate without success acknowledgement. Hosts must disable
 traceback-local capture/showlocals; fixed public messages do not erase private
 Python locals. No account, archive, model or live recovery grant is introduced.
+
+
+### Native quoted-evidence projection (2026-10-06)
+
+The offline projection validates closed selections and actual retained batch
+relationships, checks raw/effective Source access before provider artifact reads,
+and observes the full relevant Source/ACL union after the last artifact callback.
+An unselected dependency can still restrict the projection. Current access
+checks use supplied scope declarations; those declarations are not authenticated
+account permission or protection proof. Existing canonical elevation semantics
+are preserved. Read callbacks remain trusted host code, not a SQL-write sandbox.
+Hosts must suppress traceback-local capture; fixed errors do not erase private
+Python locals. No model/provider/network dispatch is introduced.
+
+Citable context contains exact provider text spans only. Host relevance and
+metadata are kept separate, with permission/recovery/fact flags false. Original
+Source bytes and original task/event provenance remain unchanged. Derived task
+and event identities are distinct; capability ordering and UTC-normalized
+metadata dates make equivalent representations deterministic. A new task does
+not inherit an original processing grant or result. No active model delivery
+or approval path is added for the metadata sidecar in this release.
+
+Five guarded local PostgreSQL cases plus a public-input smoke verify synthetic
+restart/citation/current-ACL/concurrency/timezone behavior. They do not establish
+actual private source access, human approval, encryption/off-device recovery,
+current facts, authored-email ownership or useful model answers.

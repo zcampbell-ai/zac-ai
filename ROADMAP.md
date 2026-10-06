@@ -2232,3 +2232,33 @@ recovered owner key, off-device durability or model-processing consent is proven
 The existing next steps remain authenticated selected capture, complete recovery
 under the real host setup, owner current-fact confirmation and useful retrieval
 with minimal repeated direction.
+
+
+### Explicit native quoted-evidence projection (2026-10-06)
+
+An additive offline projection now selects one exact contiguous UTF-8 RFC822
+span or canonical Slack text span per retained Source. It reuses the actual
+native inventory/preparers and contextual serializer. Host relevance, Source
+dates and other selection metadata remain outside citable provider passages.
+The original task/event are retained exactly; the derived task/event have new
+deterministic identities with sorted capability names and UTC-normalized
+metadata dates. Instruction, capabilities and budgets are preserved, while the
+derived event is NEW. Already-quoted context cannot be silently projected again.
+
+Validation:49 new pure checks and129 combined selected pure checks pass;
+configured Ruff and strict mypy133 pass. Six root-run cases pass in1.36 seconds
+(five actual guarded PostgreSQL cases and one public-input smoke), including
+committed retained proposal/batch restart, real provider-byte projection and
+serializer citations, unselected dependency restriction before its private read,
+separately committed READ COMMITTED elevation during reads, and equivalent
+Source snapshots under two PostgreSQL connection timezones.
+
+This is retained-evidence preparation, not private ingestion, current-fact
+confirmation or a useful-answer trial. The projection does not establish account
+authorization, human permission, recovery or model-processing consent. Its
+metadata remains outside citable passages and is not delivered by an enabled
+model path; a fresh derived task still needs actual host approval/composition.
+A separately staged request/packet sidecar codec is not part of this checkpoint.
+The existing context-first next steps remain authenticated selected capture,
+real recovery readiness, owner confirmation of current facts and useful retrieval
+with minimal repeated direction.
