@@ -39,11 +39,20 @@ work, never correctness.
 from __future__ import annotations
 
 import contextlib
+import ctypes
+import errno
 import hashlib
 import json
+import math
 import os
+import re
+import select as _process_events
+import selectors
+import signal
 import subprocess
+import sys
 import tempfile
+import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -119,9 +128,13 @@ class RestoreTargetUnsafeError(BackupArtifactsError):
 def age_encrypt(plaintext: bytes, recipient: str) -> bytes:
     """Encrypts with only the public recipient - backup never needs a
     private identity (D031A)."""
-    proc = subprocess.run(["age", "-r", recipient], input=plaintext, capture_output=True, check=False)
+    proc = subprocess.run(
+        ["age", "-r", recipient], input=plaintext, capture_output=True, check=False
+    )
     if proc.returncode != 0:
-        raise EncryptionError(f"age encryption failed: {proc.stderr.decode(errors='replace').strip()}")
+        raise EncryptionError(
+            f"age encryption failed: {proc.stderr.decode(errors='replace').strip()}"
+        )
     return proc.stdout
 
 
@@ -133,7 +146,9 @@ def age_decrypt(ciphertext: bytes, identity_path: Path) -> bytes:
         ["age", "-d", "-i", str(identity_path)], input=ciphertext, capture_output=True, check=False
     )
     if proc.returncode != 0:
-        raise DecryptionError(f"age decryption failed: {proc.stderr.decode(errors='replace').strip()}")
+        raise DecryptionError(
+            f"age decryption failed: {proc.stderr.decode(errors='replace').strip()}"
+        )
     return proc.stdout
 
 
@@ -277,14 +292,18 @@ class Manifest:
         except (KeyError, TypeError, ValueError) as exc:
             raise ManifestError(f"manifest is missing required fields: {exc}") from exc
         if version != MANIFEST_VERSION:
-            raise ManifestError(f"unsupported manifest_version {version} (expected {MANIFEST_VERSION})")
+            raise ManifestError(
+                f"unsupported manifest_version {version} (expected {MANIFEST_VERSION})"
+            )
         if not isinstance(raw_entries, list):
             raise ManifestError("manifest 'entries' must be a list")
         entries = {}
         for raw_entry in raw_entries:
             entry = ManifestEntry.from_dict(raw_entry)
             entries[entry.content_hash] = entry
-        return cls(boundary=boundary, generated_at=generated_at, entries=entries, manifest_version=version)
+        return cls(
+            boundary=boundary, generated_at=generated_at, entries=entries, manifest_version=version
+        )
 
     @classmethod
     def empty(cls, trust_boundary: TrustBoundary) -> Manifest:
@@ -342,7 +361,9 @@ class BackupSummary:
         return len(self.failures)
 
 
-def _source_rows_for_boundary(session: Session, *, trust_boundary: TrustBoundary) -> list[tuple[str, str]]:
+def _source_rows_for_boundary(
+    session: Session, *, trust_boundary: TrustBoundary
+) -> list[tuple[str, str]]:
     rows = session.execute(
         select(Source.content_hash, Source.content_location)
         .where(Source.trust_boundary == trust_boundary, Source.content_hash.is_not(None))
@@ -356,7 +377,10 @@ def source_hashes_for_boundary(session: Session, *, trust_boundary: TrustBoundar
     this boundary - the authoritative "what should exist" list used both
     by backup (indirectly, via `_source_rows_for_boundary`) and by
     restore reconciliation."""
-    return {content_hash for content_hash, _ in _source_rows_for_boundary(session, trust_boundary=trust_boundary)}
+    return {
+        content_hash
+        for content_hash, _ in _source_rows_for_boundary(session, trust_boundary=trust_boundary)
+    }
 
 
 def _verify_or_repair(
@@ -406,7 +430,10 @@ def _verify_or_repair(
     backup_store.put_object(key, ciphertext)
     confirmed = backup_store.get_object(key)
     confirmed_hash = hashlib.sha256(confirmed).hexdigest()
-    if len(confirmed) != len(ciphertext) or confirmed_hash != hashlib.sha256(ciphertext).hexdigest():
+    if (
+        len(confirmed) != len(ciphertext)
+        or confirmed_hash != hashlib.sha256(ciphertext).hexdigest()
+    ):
         raise BackupArtifactsError(f"post-upload verification failed for {content_hash}")
 
     entry = ManifestEntry(
@@ -467,7 +494,9 @@ def backup_boundary(
             repaired += 1
 
     new_manifest = Manifest(
-        boundary=trust_boundary.value, generated_at=datetime.now(UTC).isoformat(), entries=new_entries
+        boundary=trust_boundary.value,
+        generated_at=datetime.now(UTC).isoformat(),
+        entries=new_entries,
     )
     _save_local_manifest_cache(local_manifest_cache_path, new_manifest)
     encrypted_manifest = age_encrypt(new_manifest.to_json_bytes(), recipient)
@@ -634,7 +663,9 @@ def restore_boundary_artifacts(
     _assert_restore_target_is_safe(restore_target, live_artifact_root)
 
     encrypted_manifest = backup_store.get_object(manifest_key_for(trust_boundary))
-    manifest_bytes = age_decrypt(encrypted_manifest, identity_path)  # raises DecryptionError on wrong identity
+    manifest_bytes = age_decrypt(
+        encrypted_manifest, identity_path
+    )  # raises DecryptionError on wrong identity
     manifest = Manifest.from_json_bytes(manifest_bytes)
     if manifest.boundary != trust_boundary.value:
         raise ManifestError(
@@ -651,7 +682,9 @@ def restore_boundary_artifacts(
                 raise RestoreIntegrityError(f"ciphertext hash mismatch restoring {content_hash}")
             plaintext = age_decrypt(ciphertext, identity_path)
             if content_hash_of(plaintext) != content_hash:
-                raise RestoreIntegrityError(f"restored artifact {content_hash} failed plaintext hash verification")
+                raise RestoreIntegrityError(
+                    f"restored artifact {content_hash} failed plaintext hash verification"
+                )
             restore_target.put(trust_boundary, content_hash, plaintext)
             restored_hashes.add(content_hash)
         except BackupArtifactsError as exc:
@@ -664,7 +697,312 @@ def restore_boundary_artifacts(
     return RestoreOutcome(
         manifest=manifest,
         reconciliation=ReconciliationResult(
-            verified=frozenset(verified), missing=frozenset(missing), unexpected=frozenset(unexpected)
+            verified=frozenset(verified),
+            missing=frozenset(missing),
+            unexpected=frozenset(unexpected),
         ),
         failures=failures,
     )
+
+
+# Separate explicit resource-bounded variants; legacy helpers remain unchanged.
+def _validate_bounded_age_input(
+    raw: bytes,
+    max_input_bytes: int,
+    max_output_bytes: int,
+    max_stderr_bytes: int,
+    timeout_seconds: float,
+) -> None:
+    if (
+        type(raw) is not bytes
+        or any(
+            type(n) is not int or n <= 0
+            for n in (max_input_bytes, max_output_bytes, max_stderr_bytes)
+        )
+        or len(raw) > max_input_bytes
+        or type(timeout_seconds) not in (int, float)
+        or not math.isfinite(timeout_seconds)
+        or timeout_seconds <= 0
+    ):
+        raise ValueError("bounded age resource contract required")
+
+
+def _darwin_exited_group_is_only_leader(pid: int) -> bool:
+    """Prove the unreaped, exit-observed leader is the group's only member.
+
+    Darwin excludes zombies from killpg's signal candidates and returns EPERM
+    for an otherwise empty zombie group. A fixed two-slot libproc inventory
+    distinguishes that case from a real permission failure with descendants.
+    The caller must still own the unreaped leader and have observed its exit.
+    """
+    try:
+        library = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True)
+        list_pids = library.proc_listpids
+        list_pids.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.c_void_p, ctypes.c_int]
+        list_pids.restype = ctypes.c_int
+        members = (ctypes.c_int * 2)()
+        ctypes.set_errno(0)
+        count = list_pids(2, pid, members, ctypes.sizeof(members))
+        return (
+            ctypes.get_errno() == 0
+            and count == ctypes.sizeof(ctypes.c_int)
+            and members[0] == pid
+            and members[1] == 0
+        )
+    except Exception:  # noqa: BLE001 - unavailable host inventory fails closed
+        return False
+
+
+def _run_bounded_age(
+    argv: list[str],
+    raw: bytes,
+    *,
+    max_output_bytes: int,
+    max_stderr_bytes: int,
+    timeout_seconds: float,
+) -> bytes:
+    started = time.monotonic()
+    deadline = started + timeout_seconds
+    if not math.isfinite(deadline):
+        raise ValueError("finite age deadline required")
+    process: subprocess.Popen[bytes] | None = None
+    selection = selectors.DefaultSelector()
+    exit_watch: _process_events.kqueue | None = None
+    output = bytearray()
+    stderr_size = 0
+    sent = 0
+    view = memoryview(raw)
+    completed = False
+    try:
+        process = subprocess.Popen(
+            argv,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            bufsize=0,
+            shell=False,
+            start_new_session=True,
+        )
+        # Register before writing stdin: age waits for input, so the native
+        # child's normal completion cannot outrun observer registration.
+        if hasattr(_process_events, "kqueue"):
+            exit_watch = _process_events.kqueue()
+            exit_watch.control(
+                [
+                    _process_events.kevent(
+                        process.pid,
+                        filter=_process_events.KQ_FILTER_PROC,
+                        flags=_process_events.KQ_EV_ADD | _process_events.KQ_EV_ONESHOT,
+                        fflags=_process_events.KQ_NOTE_EXIT,
+                    )
+                ],
+                0,
+                0,
+            )
+        if process.stdin is None or process.stdout is None or process.stderr is None:
+            raise ValueError("bounded age pipes required")
+        for name, stream in (
+            ("input", process.stdin),
+            ("output", process.stdout),
+            ("error", process.stderr),
+        ):
+            os.set_blocking(stream.fileno(), False)
+            if name == "input" and not raw:
+                stream.close()
+            else:
+                selection.register(
+                    stream.fileno(),
+                    selectors.EVENT_WRITE if name == "input" else selectors.EVENT_READ,
+                    name,
+                )
+        while selection.get_map():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise ValueError("bounded age deadline elapsed")
+            for key, _ in selection.select(remaining):
+                if time.monotonic() >= deadline:
+                    raise ValueError("bounded age deadline elapsed")
+                if key.data == "input":
+                    try:
+                        count = os.write(key.fd, view[sent : sent + 65_536])
+                    except BlockingIOError:
+                        continue
+                    if count <= 0:
+                        raise ValueError("bounded age input incomplete")
+                    sent += count
+                    if sent == len(raw):
+                        selection.unregister(key.fd)
+                        process.stdin.close()
+                    continue
+                remaining_bytes = (
+                    max_output_bytes - len(output)
+                    if key.data == "output"
+                    else max_stderr_bytes - stderr_size
+                )
+                try:
+                    chunk = os.read(key.fd, min(65_536, remaining_bytes + 1))
+                except BlockingIOError:
+                    continue
+                if not chunk:
+                    selection.unregister(key.fd)
+                    (process.stdout if key.data == "output" else process.stderr).close()
+                    continue
+                if len(chunk) > remaining_bytes:
+                    raise ValueError("bounded age output exceeded")
+                if key.data == "output":
+                    output.extend(chunk)
+                else:
+                    stderr_size += len(chunk)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0 or sent != len(raw):
+            raise ValueError("bounded age completion unavailable")
+        # Observe exit without reaping: the live/zombie PID pins our group.
+        # Darwin Python has kqueue but no os.waitid. Both observers leave reaping
+        # to cleanup, after the last signal to the owned process group.
+        if exit_watch is not None:
+            events = exit_watch.control(None, 1, remaining)
+            if (
+                len(events) != 1
+                or events[0].ident != process.pid
+                or events[0].filter != _process_events.KQ_FILTER_PROC
+                or events[0].flags & _process_events.KQ_EV_ERROR
+                or not events[0].fflags & _process_events.KQ_NOTE_EXIT
+            ):
+                raise ValueError("bounded age exit unavailable")
+        elif hasattr(os, "waitid") and hasattr(os, "WNOWAIT"):
+            while os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise ValueError("bounded age deadline elapsed")
+                time.sleep(min(0.005, remaining))
+        else:
+            raise ValueError("non-reaping age exit observation unavailable")
+        if time.monotonic() >= deadline:
+            raise ValueError("bounded age deadline elapsed")
+        result = bytes(output)
+        completed = True
+        return result
+    finally:
+        cleanup_failed = False
+        try:
+            selection.close()
+        except OSError:
+            cleanup_failed = True
+        if exit_watch is not None:
+            try:
+                exit_watch.close()
+            except OSError:
+                cleanup_failed = True
+        if process is not None:
+            # No poll/wait has reaped the direct child: its live/zombie PID pins
+            # the owned group while we kill descendants. Trusted children must
+            # not escape the group. Only now may we reap the direct child.
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            except OSError as exc:
+                if not (
+                    completed
+                    and exit_watch is not None
+                    and sys.platform == "darwin"
+                    and exc.errno == errno.EPERM
+                    and _darwin_exited_group_is_only_leader(process.pid)
+                ):
+                    cleanup_failed = True
+            for pipe in (process.stdin, process.stdout, process.stderr):
+                if pipe is not None:
+                    try:
+                        pipe.close()
+                    except OSError:
+                        cleanup_failed = True
+            try:
+                status = process.wait(timeout=5)
+                if completed and (status != 0 or time.monotonic() >= deadline):
+                    cleanup_failed = True
+            except (OSError, subprocess.TimeoutExpired):
+                cleanup_failed = True
+        try:
+            view.release()
+        except Exception:  # noqa: BLE001 - cleanup must not skip child reaping
+            cleanup_failed = True
+        if cleanup_failed and completed:
+            raise ValueError("bounded age cleanup unavailable")
+
+
+def age_encrypt_bounded(
+    plaintext: bytes,
+    recipient: str,
+    *,
+    max_input_bytes: int,
+    max_output_bytes: int,
+    max_stderr_bytes: int,
+    timeout_seconds: float,
+) -> bytes:
+    """Resource-bounded age IO only; caller bounds are not permission/profile.
+
+    No inferred cipher overhead, Source/custody proof or legacy-cap change.
+    Process start/OS cleanup cannot promise hard realtime or total RAM bounds.
+    Hosts must disable traceback-local capture and arbitrary-child reapers
+    (SIGCHLD handlers or waitpid(-1)). Trusted age/plugins must not escape the
+    group, change credentials, or leave background descendants. This is cleanup,
+    not process containment. No stderr/key diagnostics escape.
+    """
+    result = None
+    try:
+        _validate_bounded_age_input(
+            plaintext, max_input_bytes, max_output_bytes, max_stderr_bytes, timeout_seconds
+        )
+        if (
+            type(recipient) is not str
+            or re.fullmatch(r"age1[02-9ac-hj-np-z]{58}", recipient) is None
+        ):
+            raise ValueError("host age recipient required")
+        result = _run_bounded_age(
+            ["age", "-r", recipient],
+            plaintext,
+            max_output_bytes=max_output_bytes,
+            max_stderr_bytes=max_stderr_bytes,
+            timeout_seconds=timeout_seconds,
+        )
+    except Exception:  # noqa: BLE001,S110 - fixed public message outside exception context
+        pass
+    if result is None:
+        raise EncryptionError("bounded age encryption unavailable")
+    return result
+
+
+def age_decrypt_bounded(
+    ciphertext: bytes,
+    identity_path: Path,
+    *,
+    max_input_bytes: int,
+    max_output_bytes: int,
+    max_stderr_bytes: int,
+    timeout_seconds: float,
+) -> bytes:
+    """Same bounded IO contract; identity configuration is host-trusted.
+
+    This function does not inspect identity contents. An age plugin identity can
+    execute host code; process-group isolation is not a sandbox or an allowlist.
+    Hosts must validate their declared native identity profile independently.
+    """
+    result = None
+    try:
+        _validate_bounded_age_input(
+            ciphertext, max_input_bytes, max_output_bytes, max_stderr_bytes, timeout_seconds
+        )
+        if not isinstance(identity_path, Path) or "\x00" in str(identity_path):
+            raise ValueError("host age identity required")
+        result = _run_bounded_age(
+            ["age", "-d", "-i", str(identity_path)],
+            ciphertext,
+            max_output_bytes=max_output_bytes,
+            max_stderr_bytes=max_stderr_bytes,
+            timeout_seconds=timeout_seconds,
+        )
+    except Exception:  # noqa: BLE001,S110 - fixed public message outside exception context
+        pass
+    if result is None:
+        raise DecryptionError("bounded age decryption unavailable")
+    return result

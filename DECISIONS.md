@@ -7206,3 +7206,8 @@ consent, canonical claim and useful-answer acceptance remain separate work.
 
 Installed validation additionally passed 120 pure/database checks, with
 configured mypy139 and Ruff clean. No private source was used.
+
+
+### Large-original age resource control and child ownership (2026-10-06)
+
+Keep the original age APIs and production limits unchanged; expose additive bounded helpers only. Own a fresh child session and retain its unreaped PID until the final group signal. On Darwin use kqueue exit observation; accept zombie-only EPERM only with an exact fixed-size libproc inventory proving the unreaped leader is the sole group member. Unknown host inventory, permission errors, output overflow or deadline failure hold. Hosts must exclude arbitrary-child reapers, private traceback-local capture and untrusted plugins that escape groups, change credentials or leave background descendants. Cleanup is not containment. Return fixed public errors while preserving caller exception-context limitations. Whole-original sizes, canonical custody, independent encryption escrow and actual remote artifact/State/journal recovery require separate accepted scopes; this library grants none.

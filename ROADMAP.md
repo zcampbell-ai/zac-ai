@@ -2320,3 +2320,8 @@ and one-use host dispatch. The Claude and PERSONAL custody gates remain open.
 
 Installed validation additionally passed 120 pure/database checks, with
 configured mypy139 and Ruff clean. No private source was used.
+
+
+### Bounded original encryption prerequisite (2026-10-06)
+
+Optional bounded age encryption/decryption helpers are installed for the existing large-original context intake path. They enforce explicit input/output/stderr limits and deadlines, observe child exit without reaping before owned process-group cleanup, and preserve all legacy encryption/backup/restore behavior. Root verified39 invented OS controls and7 actual age controls with disposable keys and original bytes up to100MB; independent Opus accepted the exact cleanup successor. This is resource and cleanup evidence, not whole-original custody, a production ciphertext profile, PERSONAL recovery, or model-processing authority. No active caller or existing8MB/8.5MB selection/cipher guard changed. Actual archive capture, complete selected/full snapshot bounded recovery and owner classification remain next gates.
