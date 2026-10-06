@@ -2111,3 +2111,37 @@ review partitioning before protected capture; do not label an entire mixed accou
 BRAINSTORM or claim comprehensive history from a single archive. Gmail and Slack
 wire/transport preparation is implemented; native account-bound capture, secure
 grants, recovery and measured history coverage remain separate unfinished gates.
+
+
+### Offline context intake preparation checkpoint (2026-10-06)
+
+The context-first slice adds two offline modules without connecting accounts or
+changing runtime routes. `history_archive_inventory` inspects a bounded ZIP
+envelope and preserves its exact archive hash and declared member metadata. It
+never extracts, decompresses, parses conversations or promotes facts. Current
+limits are 8 MB archive bytes, 512 members and 32 MB declared total contents.
+Larger or unsupported vendor archives hold for a separately reviewed intake path;
+there is no truncation or complete-history claim. Mixed-boundary retention,
+account verification and a vendor parser remain unfinished.
+
+`ingestion.native_source_preparation` reuses the installed Gmail/Slack parsers
+and policy to prepare original evidence under a declared BRAINSTORM/CONFIDENTIAL
+scope. Gmail identity binds the observed mailbox; Slack observation views keep
+representations from different users/methods from becoming false edit lineages.
+Decoded MIME and canonical message records retain explicit links to original
+wire bytes. These plans are not authenticated grants, captured Sources, recovered
+receipts, Zac Events or business facts. Personal/restricted intake is not enabled.
+
+Independent code-only Opus review found ZIP pre-parser count/ZIP64 gaps and native
+observation-identity/provenance gaps. Discriminating predecessor failures are
+preserved in engineering staging; corrections retain the existing permission and
+Source contracts. Installed package imports execute the new checks with synthetic
+evidence: 321 selected archive/history/Gmail/Slack tests pass, Ruff passes across
+src/tests and strict mypy passes all 128 source files. SQL, private archives, live
+accounts and useful-output quality were not exercised in this checkpoint.
+
+Next: inventory the actual Claude export once supplied; resolve mixed/large
+archive handling; establish exact read-only account grants; compose reviewed
+native capture with existing Source/artifact/revision/event and recovery paths;
+then verify a concise useful context baseline. The existing Fireflies/research
+approvals cannot authorize Gmail/Slack capture or new model processing.

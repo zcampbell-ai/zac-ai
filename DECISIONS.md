@@ -6931,3 +6931,21 @@ Sent-email examples and direct corrections guide generated delivery. Raw source
 evidence stays intact; historical assistant drafts are not confirmed preferences.
 Claude export intake and other source preparation do not authorize external
 private-model processing, broad imports, outreach or financial actions.
+
+
+Offline context preparation checkpoint (2026-10-06)
+Add bounded ZIP metadata inspection and native Gmail/Slack artifact preparation
+using existing history, policy, wire, SourceSystem and exact-byte hash contracts.
+No new memory store, approval framework, provider grant, parser schema, runtime
+mount or private inference is introduced. Preparation reports fixed-false capture,
+recovery and completeness status. Raw provider evidence is distinguished from
+decoded/canonical representations, and derivations pin exact originating wire
+identities/hashes. Mailbox and Slack observation namespaces avoid false revisions.
+
+Opus's concrete parser-allocation/ZIP64 differential and observation-provenance
+findings were reproduced on predecessors and corrected before integration. Tests
+assert forbidden constructor calls outside swallowed private-safe errors. Package
+import adaptation preserves test function/class ASTs. Root validation:321 selected
+tests, whole src/tests Ruff and strict mypy128 pass. This offline checkpoint does
+not establish actual account authorization, canonical intake, full historical
+coverage, current facts, useful task delivery or production/mobile readiness.
