@@ -2299,3 +2299,10 @@ with full-file integrity and observed-size allocation. Existing history and
 backup limits remain unchanged. Source-specific custody, current rights,
 bounded encrypted recovery and owner classification still gate enrollment.
 This does not connect any source or import the Claude archive.
+
+
+Claude structural whole-original/span companion is available without
+weakening existing history lineage/selection rules. Next: bind original and
+companion to canonical Sources only after reviewed boundary/classification,
+bounded whole-snapshot protection and real recovery. A successful metadata
+inspection never means the archive is imported or current facts confirmed.

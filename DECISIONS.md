@@ -7161,3 +7161,23 @@ Source rights, custody, account ownership, recovery or processing approval.
 Independent Opus review requested size-based allocation; four invented
 predecessor controls failed and the corrected89-case filesystem suite passed.
 No actual archive is imported or read by this change.
+
+
+### Claude whole-original selection metadata, October 6
+
+A closed source-specific companion validates exact whole-original hash and
+length, selected original IDs, roles, dates and UTF-8 byte spans. It does not
+reserialize or truncate the export. Scope is one reviewed private boundary;
+SHARED is refused. Known selected creation/update dates cannot follow the
+declared export date. Account/reference/export dates remain host declarations,
+not verified acquisition or ownership. Incomplete lineage and existing V1
+selection limits stay unchanged. The separate100MB preparation bound does
+not authorize large records or raise existing capture/recovery limits.
+
+All nine inspection permission/proof flags are fixed False under ordinary
+construction/replacement. The object remains forgeable trusted-code metadata,
+not a security capability. No existing processing gate accepts it as approval.
+Opus accepted the narrow corrections; root verified256 combined structural
+and filesystem controls, including47 unchanged V1 history controls. Actual
+whole-original custody, Source enrollment, current ACLs, encryption recovery
+and fact promotion are separate unmet gates. No private export is read here.
