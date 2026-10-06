@@ -95,6 +95,75 @@ coverage/permissions for daily briefing; commitment/open-loop handling; useful
 briefing evaluation; shared text/private mobile access. OCE evaluation remains
 required before custom persistent-agent control-plane work; no adoption now.
 
+## Active Goal execution criteria — Caz AI v1 and context
+
+Zac reaffirmed the existing v1 Goal and requested an explicit memory/context plan
+on 2026-10-05. This section makes the existing D034AC acceptance gates concrete;
+it adds no phase, competing roadmap or broader processing permission. More
+contracts, passing synthetic tests or a visual preview do not complete the Goal.
+
+For the bounded first usable release, demonstrate:
+
+- Actual owner sign-in and private access from Zac's iPhone to the shared canonical
+  state. Text questions produce a useful protected answer, or one focused question
+  when missing context would materially change it. Show relevant evidence in
+  expandable details and reopen the same saved answer without repeating work.
+- A real contextual meeting review and concise current briefing covering decisions,
+  commitments, open loops, reported completion and next steps, with visible source
+  freshness/coverage. A completion report is not proof of completed work.
+- One decision at a time: show the intended result, short approach, relevant evidence
+  and exact authorized scope. Implement the approved choices in the existing
+  canonical contract; preview-only controls or unsupported choices are not enabled
+  behavior. Bring material scope changes back to Zac. Outbound communication and
+  financial actions retain their own existing gates.
+- Representative useful-output, uncertainty, original one-attempt permission,
+  restart/recovery and phone usability checks. Independent Opus engineering review,
+  actual authorized runtime quality and physical phone acceptance are distinct.
+
+Minimum memory/context acceptance is part of those same gates:
+
+1. Inventory each source/account with its access route, selected date range,
+   actual coverage, classification/ACLs, capture/recovery/processing status and
+   known gaps. Connector visibility, research excerpts and model memory are not
+   canonical ingestion or complete history. Keep sensitive inventory outside Git.
+2. Preserve original source IDs, bytes/hashes, dates, revisions and permissions in
+   the existing protected canonical source/event flow before using them as saved
+   knowledge. Store raw history separately from derived interpretation; route
+   personal and business material through their independently verified boundaries.
+3. Distinguish user-reported facts, dated estimates, model/assistant suggestions,
+   inferred links and owner-confirmed current facts. Every derived memory retains
+   its evidence and time. Conflicts, stale evidence and uncertainty stay visible;
+   material promotion or correction comes to Zac as one short confirmation.
+4. Build only the context needed for the first review/briefing/assignment: original
+   meeting and continuing project evidence, relevant earlier decisions, confirmed
+   writing/delivery preferences and appropriate existing exemplars. One account
+   can have many projects and a project can have successive SOWs; an example is
+   not a permanent company-wide standard. Do not treat historical drafts as policy.
+5. Retrieve task-relevant, currently permitted evidence from Zac State. Keep memory
+   independent of provider/model/agent sessions, respect source freshness and ask
+   a targeted question before producing irrelevant work. Feedback changes future
+   retrieval/output while preserving original evidence and case-specific scope.
+6. Demonstrate that a known preference or relevant earlier decision changes a real
+   output, a correction supersedes an old assumption, a missing material link asks
+   for clarification, and unauthorized/stale evidence cannot silently supply fact.
+
+Full-history work continues in the existing Phase 2/3 order: prepare adapters and
+coverage inventories in parallel, then verify scoped read-only access, protected
+intake, pagination/deduplication, incremental freshness and recovery per source.
+Prioritize existing Claude/ChatGPT work and current approved meeting/project
+context; use Brainstorm sent mail and existing proposal/brand examples for voice
+and exemplars when their source gates are verified. Broader Fireflies, Gmail,
+Slack, Drive, ClickUp and other requested systems retain their measured coverage
+and approval requirements. PERSONAL financial sources follow their separate
+protected intake. Complete archives, all connectors and specialist agents are
+not prerequisites for the first bounded v1, and remain explicit unfinished work.
+
+Before calling v1 usable, present a concise context review to Zac: what is actually
+captured and confirmed, what is historical/provisional, what conflicts or is
+missing, and the next one decision. Do not ask settled generic homework again.
+Voice remains the fast follow after text; the larger context-driven delegation
+and artifact-building goal remains authoritative beyond this bounded release.
+
 ## Foundation history through D034L
 
 The following historical progress notes are retained for traceability. The

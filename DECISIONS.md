@@ -6895,3 +6895,22 @@ private serving, live useful results and physical phone trial remain unverified.
 Exact staged secret scan and mandatory commit hook precede the authorized commit;
 Git records commit/push separately. No broader source access, financial ingestion,
 live generation or outreach is enabled by this release.
+
+
+Active Goal delivery/context clarification — 2026-10-05
+Zac requested that the v1 Goal include what is needed to finish and an explicit
+memory/context plan. The existing Goal already includes those categories; the
+ROADMAP Active Goal execution criteria section now makes their acceptance
+concrete inside the existing four D034AC gates. Native Goal editing is not exposed
+by the current agent status-only update tool, so this execution detail is retained
+in the authoritative roadmap already referenced by the active Goal. No new Goal,
+phase, source authority or completion percentage is created.
+
+Usable release evidence must include actual private phone use, useful source-backed
+text/review/briefing, protected retained results and a concise owner context review.
+Source inventory, original evidence, confirmed-versus-provisional facts, time and
+ACL-aware relevant retrieval, corrections and scoped feedback are required minimum
+memory behavior. Full-history preparation continues alongside delivery and imports
+follow existing gates; complete archives and specialist agents do not delay a
+bounded v1 or become silently completed. Sensitive inventories and personal finance
+remain outside engineering Git and in their separately protected boundaries.
