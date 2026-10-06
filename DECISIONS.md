@@ -6949,3 +6949,16 @@ import adaptation preserves test function/class ASTs. Root validation:321 select
 tests, whole src/tests Ruff and strict mypy128 pass. This offline checkpoint does
 not establish actual account authorization, canonical intake, full historical
 coverage, current facts, useful task delivery or production/mobile readiness.
+
+
+Local artifact isolation correction (2026-10-06)
+Preserve the existing opaque ArtifactStore protocol and Source location contract.
+Enforce canonical boundary-relative hash locations and descriptor-relative
+no-follow operations, verify exact stored bytes and deny nonregular or multiply
+linked files. Resolve the trusted configured root once for macOS alias support;
+open directories before creating only missing ones. No schema, provider grant,
+backup receipt, repair policy or orchestration framework changes. Existing
+artifacts are not rewritten on an identical retry. Root installed validation:146 selected filesystem/context-preparation checks
+and46 local encrypted backup/ingestion PostgreSQL regressions pass. Whole
+src/tests Ruff, strict mypy128 and production-source secret scan pass. This is
+local integrity and compatibility evidence, not new live off-device recovery.

@@ -2145,3 +2145,19 @@ archive handling; establish exact read-only account grants; compose reviewed
 native capture with existing Source/artifact/revision/event and recovery paths;
 then verify a concise useful context baseline. The existing Fireflies/research
 approvals cannot authorize Gmail/Slack capture or new model processing.
+
+
+### Context storage isolation correction (2026-10-06)
+
+The context-first dependency order remains unchanged. A bounded correction to
+the existing local artifact store enforces canonical hash paths within the
+explicit boundary, denies link/nonregular/corrupt-file paths and preserves
+exact-byte retry behavior with supported macOS root aliases. The protocol,
+Source schema, source permissions and recovery contracts remain unchanged.
+This checkpoint provides local storage isolation only. It does not complete
+native account capture, historical coverage, protected ingestion, useful context
+acceptance or private phone access. Installed validation:146 selected checks,
+46 actual local encrypted backup/ingestion regressions, whole src/tests Ruff,
+strict mypy128 and production-source secret scan pass. No new live B2 or private
+history import was performed. Independent code-only Opus review was reconciled
+before installation.

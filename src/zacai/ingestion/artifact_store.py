@@ -45,12 +45,14 @@ import contextlib
 import hashlib
 import json
 import os
-import tempfile
+import re
+import secrets
+import stat
+from collections.abc import Iterator
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import Any, Protocol
 
-if TYPE_CHECKING:
-    from zacai.policy import TrustBoundary
+from zacai.policy import TrustBoundary
 
 _DIR_MODE = 0o700
 _FILE_MODE = 0o600
@@ -82,8 +84,9 @@ class ArtifactStore(Protocol):
         `trust_boundary`. Returns the opaque `content_location` to store
         on the `Source` row - boundary-agnostic; the boundary must be
         supplied again on every `get`. Writing the same
-        `(trust_boundary, content_hash)` twice is always a safe no-op -
-        identical hash means identical bytes are already stored."""
+        `(trust_boundary, content_hash)` twice is a safe no-op when the
+        existing artifact is intact. A local corrupt or linked target holds
+        rather than being silently repaired or declared successful."""
         ...
 
     def get(self, trust_boundary: TrustBoundary, content_location: str) -> bytes:
@@ -100,9 +103,12 @@ class LocalFilesystemArtifactStore:
     DECISIONS.md D030/D031."""
 
     def __init__(self, root: Path) -> None:
-        self._root = root
-        self._root.mkdir(parents=True, exist_ok=True, mode=_DIR_MODE)
-        os.chmod(self._root, _DIR_MODE)
+        # Root is trusted host configuration, not an artifact location. Resolve
+        # only this once so macOS /tmp and /var aliases remain compatible. Never
+        # resolve boundary/shard or caller-supplied content_location components.
+        self._root = root.resolve(strict=False)
+        with self._directory_fd((), create=True) as fd:
+            os.fchmod(fd, _DIR_MODE)
 
     @property
     def root(self) -> Path:
@@ -119,6 +125,9 @@ class LocalFilesystemArtifactStore:
         boundary directory so one connector's artifacts never sit in one
         huge flat directory. `trust_boundary` is never derived from
         anything other than this explicit parameter."""
+        if type(trust_boundary) is not TrustBoundary:
+            raise ValueError("exact artifact boundary required")
+        self.location_for(content_hash)
         shard = content_hash[:2]
         return self._root / trust_boundary.value / shard / f"{content_hash}.bin"
 
@@ -128,30 +137,87 @@ class LocalFilesystemArtifactStore:
         a caller (or a test) predict it deterministically. Does not take
         a boundary: `content_location` itself never encodes one (D031A) -
         the boundary is applied only when resolving to an actual path."""
+        if type(content_hash) is not str or re.fullmatch(r"[0-9a-f]{64}", content_hash) is None:
+            raise ValueError("canonical artifact hash required")
         shard = content_hash[:2]
         return str(Path(shard) / f"{content_hash}.bin")
 
-    def put(self, trust_boundary: TrustBoundary, content_hash: str, raw_bytes: bytes) -> str:
-        target = self._path_for(trust_boundary, content_hash)
-        target.parent.mkdir(parents=True, exist_ok=True, mode=_DIR_MODE)
-        os.chmod(target.parent, _DIR_MODE)
-        os.chmod(target.parent.parent, _DIR_MODE)  # the boundary directory itself
+    @contextlib.contextmanager
+    def _directory_fd(self, suffix: tuple[str, ...], *, create: bool = False) -> Iterator[int]:
+        flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        with contextlib.ExitStack() as descriptors:
+            current = os.open("/", flags)
+            descriptors.callback(os.close, current)
+            root_parts = self._root.parts[1:]
+            for index, part in enumerate((*root_parts, *suffix)):
+                if part in (".", ".."):
+                    raise ValueError("canonical local artifact root required")
+                try:
+                    opened = os.open(part, flags, dir_fd=current)
+                except FileNotFoundError:
+                    if not create:
+                        raise
+                    with contextlib.suppress(FileExistsError):
+                        os.mkdir(part, _DIR_MODE, dir_fd=current)
+                    opened = os.open(part, flags, dir_fd=current)
+                current = opened
+                descriptors.callback(os.close, current)
+                if create and index >= len(root_parts):
+                    os.fchmod(current, _DIR_MODE)
+            yield current
 
-        if target.exists():
-            return self.location_for(content_hash)
-
-        fd, tmp_name = tempfile.mkstemp(dir=target.parent, prefix=".tmp-")
+    def _read_at(self, directory: int, digest: str) -> bytes:
+        fd = os.open(digest + ".bin", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                     dir_fd=directory)
         try:
-            with os.fdopen(fd, "wb") as tmp_file:
-                tmp_file.write(raw_bytes)
-            os.chmod(tmp_name, _FILE_MODE)
-            os.replace(tmp_name, target)  # atomic rename on the same filesystem
-        except BaseException:
-            with contextlib.suppress(FileNotFoundError):
-                os.unlink(tmp_name)
-            raise
+            metadata = os.fstat(fd)
+            if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+                raise OSError("regular singly linked local artifact required")
+            with os.fdopen(fd, "rb", closefd=False) as stream:
+                raw = stream.read()
+            if content_hash_of(raw) != digest:
+                raise OSError("local artifact content hash differs")
+            return raw
+        finally:
+            os.close(fd)
+
+    def put(self, trust_boundary: TrustBoundary, content_hash: str, raw_bytes: bytes) -> str:
+        self._path_for(trust_boundary, content_hash)  # Closed validation, no I/O.
+        if type(raw_bytes) is not bytes or content_hash_of(raw_bytes) != content_hash:
+            raise ValueError("exact content-addressed artifact bytes required")
+        with self._directory_fd((trust_boundary.value, content_hash[:2]), create=True) as directory:
+            try:
+                previous = self._read_at(directory, content_hash)
+            except FileNotFoundError:
+                previous = None
+            if previous is not None:
+                if previous != raw_bytes:
+                    raise OSError("existing artifact bytes differ")
+                return self.location_for(content_hash)
+            temporary = ".tmp-" + secrets.token_hex(16)
+            fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                         _FILE_MODE, dir_fd=directory)
+            try:
+                try:
+                    with os.fdopen(fd, "wb", closefd=False) as stream:
+                        os.fchmod(stream.fileno(), _FILE_MODE)
+                        stream.write(raw_bytes)
+                finally:
+                    os.close(fd)
+                os.replace(temporary, content_hash + ".bin",
+                           src_dir_fd=directory, dst_dir_fd=directory)
+            except BaseException:
+                with contextlib.suppress(FileNotFoundError):
+                    os.unlink(temporary, dir_fd=directory)
+                raise
         return self.location_for(content_hash)
 
     def get(self, trust_boundary: TrustBoundary, content_location: str) -> bytes:
-        path = self._root / trust_boundary.value / content_location
-        return path.read_bytes()
+        if type(trust_boundary) is not TrustBoundary or type(content_location) is not str:
+            raise ValueError("exact local artifact boundary/location required")
+        match = re.fullmatch(r"([0-9a-f]{2})/([0-9a-f]{64})\.bin", content_location)
+        if match is None or match[1] != match[2][:2]:
+            raise ValueError("canonical local artifact location required")
+        digest = match[2]
+        with self._directory_fd((trust_boundary.value, match[1])) as directory:
+            return self._read_at(directory, digest)

@@ -160,3 +160,13 @@ Zac retains ultimate control over:
 - Data-sharing policies
 
 When uncertain, fail safely and request approval.
+
+
+Local artifact path isolation (2026-10-06)
+The local artifact store accepts only the canonical hash suffix for an explicit
+trust boundary. Directory and file access uses descriptor-relative no-follow
+operations; nonregular files, hard links, corrupt existing bytes and conflicting
+paths hold. The configured root resolves once so supported macOS path aliases
+remain usable. Exact existing artifacts retain their bytes and inode on retry.
+This enforces local path integrity, not provider authorization, a same-user
+process sandbox, encrypted recovery or a permission to process private content.
