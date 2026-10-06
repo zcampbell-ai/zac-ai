@@ -9,12 +9,13 @@ from __future__ import annotations
 import io
 import json
 import re
-from collections.abc import Buffer
+from collections.abc import Buffer, Callable
 from pathlib import Path
+from typing import Any
 from uuid import UUID
 
-from sqlalchemy import create_engine, select, text
-from sqlalchemy.engine import Engine
+from sqlalchemy import create_engine, event, select, text
+from sqlalchemy.engine import Connection, Engine, make_url
 from sqlalchemy.orm import Session, sessionmaker
 
 from zacai import backup
@@ -63,6 +64,10 @@ _SELECTED_SOURCE_COPY_SQL = (
 
 class ReviewProtectionError(RuntimeError):
     """Fixed errors; never expose state, credentials or provider diagnostics."""
+
+
+class ReviewProtectionCleanupUncertain(ReviewProtectionError):
+    """Fixed operator hold; pending PERSONAL target must not be deleted routinely."""
 
 
 class BoundedStateBuffer(io.BytesIO):
@@ -169,6 +174,146 @@ class DisposableStateRestoreVerifier:
                         admin.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": _DRILL_LOCK})
         except Exception:  # noqa: BLE001 - private state/admin diagnostics
             raise ReviewProtectionError("state restore verification failed") from None
+
+    def verify_personal(
+        self,
+        snapshot: bytes,
+        expected_sources: dict[UUID, str],
+        *,
+        current_selected_sources: Engine,
+        operational_journal: bytes,
+    ) -> None:
+        """Verify PERSONAL recovery mechanics, never owner/key or processing permission.
+
+        Caller must independently establish owner access, authenticated original
+        bytes, recovered-key proof and complete artifact coverage. State64MB and
+        journal4MB limits are unchanged. Full historical frames and exact current
+        selected Source metadata are checked, with no business-state fallback.
+        Only an absent disposable target is created; a different existing or
+        replacement database is never dropped. Use the exclusive operator window.
+        Cleanup uncertainty persists as a shared administrative quarantine;
+        a failed cleanup may mask an interrupt.
+        """
+        failed = False
+        cleanup_uncertain = False
+        try:
+            if type(expected_sources) is not dict:
+                raise TypeError("actual expected Source dictionary required")
+            expected_sources = dict(expected_sources)
+            if (
+                type(snapshot) is not bytes
+                or not 0 < len(snapshot) <= _MAX_STATE_BYTES
+                or type(operational_journal) is not bytes
+                or not 0 < len(operational_journal) <= 4_000_000
+                or type(expected_sources) is not dict
+                or not expected_sources
+                or any(
+                    type(sid) is not UUID
+                    or type(digest) is not str
+                    or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+                    for sid, digest in expected_sources.items()
+                )
+            ):
+                raise ValueError("invalid personal recovery inputs")
+            if not isinstance(current_selected_sources, Engine):
+                raise TypeError("actual current Engine required")
+            assert_local_review_state_engine(current_selected_sources)
+            if make_url(backup.RESTORE_TEST_URL).database != backup.RESTORE_TEST_DATABASE:
+                raise ValueError("restore target name binding differs")
+            assert_safe_restore_target_url(backup.RESTORE_TEST_URL)
+            with backup._admin_connection() as admin:
+                if (
+                    admin.execute(
+                        text("SELECT pg_try_advisory_lock(:key)"), {"key": _DRILL_LOCK}
+                    ).scalar_one()
+                    is not True
+                ):
+                    raise ValueError("exclusive restore window unavailable")
+                owned_oid: int | None = None
+                marker_oid: int | None = None
+                marker_attempted = False
+                try:
+                    if _personal_restore_oid(admin) is not None:
+                        raise ValueError("restore target occupied")
+                    marker_attempted = True
+                    marker_oid = backup._reserve_personal_restore_marker(admin)
+                    admin.execute(text(f"CREATE DATABASE {backup.RESTORE_TEST_DATABASE}"))
+                    owned_oid = _personal_restore_oid(admin)
+                    if owned_oid is None:
+                        raise ValueError("restore target creation unconfirmed")
+                    _assert_personal_restore_owned(admin, owned_oid)
+                    engine = create_engine(backup.RESTORE_TEST_URL, future=True)
+                    try:
+                        event.listen(engine, "connect", _personal_connection_guard(owned_oid))
+                        with engine.connect() as connection:
+                            assert_connected_to_safe_restore_database(
+                                connection.scalar(text("SELECT current_database()"))
+                            )
+                            if (
+                                connection.scalar(
+                                    text(
+                                        "SELECT oid FROM pg_database WHERE datname = current_database()"
+                                    )
+                                )
+                                != owned_oid
+                            ):
+                                raise ValueError("connected restore identity differs")
+                        _assert_personal_restore_owned(admin, owned_oid)
+                        backup._assert_personal_restore_marker_owned(admin, marker_oid)
+                        backup.upgrade_restore_test_schema()
+                        _assert_personal_restore_owned(admin, owned_oid)
+                        backup.restore_boundary_stream(engine, io.BytesIO(snapshot))
+                        backup.verify_restored_boundary_stream(
+                            engine, io.BytesIO(snapshot), boundary=B.PERSONAL
+                        )
+                        _verify_personal_journal(engine, operational_journal)
+                        _verify_personal_selected_source_rows(
+                            engine, current_selected_sources, expected_sources
+                        )
+                        with Session(engine) as session:
+                            for sid, digest in expected_sources.items():
+                                source = session.get(Source, sid)
+                                if (
+                                    source is None
+                                    or source.trust_boundary != B.PERSONAL
+                                    or source.content_hash != digest
+                                ):
+                                    raise ValueError("required personal source missing")
+                        _assert_personal_restore_owned(admin, owned_oid)
+                    finally:
+                        engine.dispose()
+                finally:
+                    try:
+                        if marker_attempted:
+                            cleanup_uncertain = True
+                            if owned_oid is not None and marker_oid is not None:
+                                backup._assert_personal_restore_marker_owned(admin, marker_oid)
+                                _assert_personal_restore_owned(admin, owned_oid)
+                                admin.execute(text(f"DROP DATABASE {backup.RESTORE_TEST_DATABASE}"))
+                                if _personal_restore_oid(admin) is not None:
+                                    raise ValueError("restore target removal unconfirmed")
+                                backup._release_personal_restore_marker(admin, marker_oid)
+                                cleanup_uncertain = False
+                    finally:
+                        try:
+                            if marker_attempted and cleanup_uncertain:
+                                backup._poison_personal_restore_lease(admin)
+                        finally:
+                            if (
+                                admin.execute(
+                                    text("SELECT pg_advisory_unlock(:key)"), {"key": _DRILL_LOCK}
+                                ).scalar_one()
+                                is not True
+                            ):
+                                raise ValueError("restore lease release unconfirmed")
+        except Exception:  # noqa: BLE001 - private database/restoration diagnostics
+            failed = True
+        if cleanup_uncertain:
+            raise ReviewProtectionCleanupUncertain(
+                "personal restoration cleanup requires operator review"
+            )
+        if failed:
+            raise ReviewProtectionError("personal state restore verification failed")
 
 
 def assert_local_review_state_engine(engine: Engine) -> None:
@@ -439,3 +584,122 @@ class BrainstormReviewProtector:
             self._restoration.verify(recovered, hashes)
         except Exception:  # noqa: BLE001
             raise ReviewProtectionError("review protection verification failed") from None
+
+
+def _personal_restore_oid(admin: Connection) -> int | None:
+    # Connection is concrete from backup._admin_connection, not a proof callback.
+    value = admin.scalar(
+        text("SELECT oid FROM pg_database WHERE datname=:name"),
+        {"name": backup.RESTORE_TEST_DATABASE},
+    )
+    if value is None:
+        return None
+    if type(value) is not int or value <= 0:
+        raise ValueError("invalid restore database identity")
+    return value
+
+
+def _assert_personal_restore_owned(admin: Connection, owned_oid: int) -> None:
+    if _personal_restore_oid(admin) != owned_oid:
+        raise ValueError("restore database identity changed")
+
+
+def _verify_personal_selected_source_rows(
+    restored: Engine, current: Engine, expected_sources: dict[UUID, str]
+) -> None:
+    """Historical recovery plus exact current selected provenance, not readiness.
+
+    Full historical frames/journal remain independently restored and verified.
+    Current ACLs and contextual work readiness remain the caller's obligations.
+    No unselected business rows are compared or used as authority here.
+    """
+    assert_local_review_state_engine(current)
+    assert_safe_restore_target_url(restored.url.render_as_string(hide_password=False))
+    ids = sorted(expected_sources, key=str)
+    if set(_SELECTED_SOURCE_COLUMNS) != {column.name for column in Source.__table__.columns}:
+        raise ValueError("selected provenance schema requires review")
+    selected = select(Source.id, Source.content_hash).where(
+        Source.trust_boundary == B.PERSONAL, Source.id.in_(ids)
+    )
+    with current.connect() as live, restored.connect() as recovered:
+        for conn in (live, recovered):
+            conn.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY"))
+            conn.execute(text("SET LOCAL TIME ZONE 'UTC'"))
+            conn.execute(text("SET LOCAL DateStyle = 'ISO, YMD'"))
+            columns = (
+                conn.execute(
+                    text(
+                        "SELECT column_name FROM information_schema.columns "
+                        "WHERE table_schema = current_schema() AND table_schema = 'public' "
+                        "AND table_name = 'source'"
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            if len(columns) != len(_SELECTED_SOURCE_COLUMNS) or set(columns) != set(
+                _SELECTED_SOURCE_COLUMNS
+            ):
+                raise ValueError("actual selected provenance schema requires review")
+        if live.scalar(text("SELECT current_database()")) != current.url.database:
+            raise ValueError("current state target mismatch")
+        assert_connected_to_safe_restore_database(
+            recovered.scalar(text("SELECT current_database()"))
+        )
+        values: list[bytes] = []
+        for conn in (live, recovered):
+            if {sid: digest for sid, digest in conn.execute(selected)} != expected_sources:
+                raise ValueError("selected source inventory mismatch")
+            raw = backup._raw_connection(conn)
+            data = bytearray()
+            with (
+                raw.cursor() as cur,
+                cur.copy(_SELECTED_SOURCE_COPY_SQL, (B.PERSONAL.value, ids)) as copy,
+            ):
+                for chunk in copy:
+                    if len(data) + len(chunk) > _MAX_STATE_BYTES:
+                        raise ValueError("selected provenance outside capacity")
+                    data.extend(chunk)
+            values.append(bytes(data))
+        if values[0] != values[1]:
+            raise ValueError("selected Source changed since historical checkpoint")
+
+
+def _verify_personal_journal(engine: Engine, journal: bytes) -> None:
+    with engine.begin() as connection:
+        raw = backup._raw_connection(connection)
+        backup._restore_table_csv(raw, "artifact_backup_run", journal)
+        backup._verify_table_csv(raw, "artifact_backup_run", journal)
+        if set(
+            connection.execute(
+                text("SELECT DISTINCT trust_boundary FROM artifact_backup_run")
+            ).scalars()
+        ) != {B.PERSONAL.value}:
+            raise ValueError("personal journal boundary mismatch")
+
+
+def _personal_connection_guard(owned_oid: int) -> Callable[[Any, Any], None]:
+    """Verify every new physical connection before restoration/private writes."""
+
+    def connected(connection: Any, record: Any) -> None:
+        cursor = connection.cursor()
+        try:
+            cursor.execute(
+                "SELECT current_database(), oid FROM pg_database WHERE datname=current_database()"
+            )
+            row = cursor.fetchone()
+            if (
+                row is None
+                or len(row) != 2
+                or row[0] != backup.RESTORE_TEST_DATABASE
+                or type(row[1]) is not int
+                or row[1] != owned_oid
+            ):
+                raise ValueError("physical restore identity differs")
+            # This fresh DBAPI connection is not carrying caller work. Clear the
+            # guard SELECT transaction before SQLAlchemy hands it to the host.
+            connection.rollback()
+        finally:
+            cursor.close()
+
+    return connected

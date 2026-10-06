@@ -2339,3 +2339,14 @@ The existing context-first sequence now has source-specific Claude original and 
 The complete Claude archive still needs owner classification, genuine PERSONAL encrypted off-device artifact/State/journal recovery, independently recovered credentials/key proof, and an explicit reviewed large-original MESSAGE profile before useful private retrieval. The legacy 8MB export and128KB conversation selection guards remain unchanged. Next follows the existing roadmap: finish those joins, confirm material current facts, then prove useful minimal-direction task results. UI work remains behind the context baseline.
 
 The canonical reader remains staged while independent review findings on permitted classification elevation and provenance delivery are corrected. It is excluded from this installed checkpoint.
+
+
+### Canonical historical reads and PERSONAL recovery checkpoint (2026-10-06)
+
+The canonical Claude original/companion reader is now installed. It preserves immutable capture bindings separately from current references, the strongest joint sensitivity, declared acquisition/export dates, reported message dates and observed revision state. Each pair observation uses one bounded READ COMMITTED statement. Dated evidence is not promoted to a current fact, and reading does not authenticate the owner or authorize processing. Legacy message selection limits remain unchanged.
+
+PERSONAL full-State restoration now compares the complete selected Source fields and retained journal. A persistent pending marker prevents cooperating legacy cleanup from dropping an uncertain restore target; only the verifier's owned target and marker are cleaned. These are operator-controlled recovery mechanics, with no actual private archive import, backup upload or model route activation.
+
+Root integration validation passed 5,123 main tests, 24 isolated native capture tests and 13 isolated native cold-recovery tests; one project-without-project variant was intentionally skipped. The final atomic reader correction passed 33 actual PostgreSQL controls, including an independently committed classification elevation. Invented data and temporary keys were used throughout.
+
+Next remains the existing context-first path: approve the Claude custody classification, verify complete original/companion PERSONAL encrypted recovery and independent credentials/key retrieval, then join relevant dated evidence to supported requests and prove useful minimal-direction tasks. The larger-message profile, encrypted restricted-custody backup and per-message prompt metadata remain staged for the next acceptance checkpoint. UI work stays secondary.

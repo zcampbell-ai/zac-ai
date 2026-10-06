@@ -55,6 +55,9 @@ def database(monkeypatch):
                 state["held"], owns["value"] = False, False
             state["events"].append("dispose")
 
+        def scalar(query, parameters=None):
+            assert "SELECT oid FROM pg_roles" in str(query)
+        connection.scalar.side_effect = scalar
         connection.execute.side_effect = execute
         engine.dispose.side_effect = dispose
         return engine

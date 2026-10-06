@@ -538,3 +538,12 @@ No secret or current personal financial record is stored in these engineering do
 Claude original custody requires the complete original and its canonical companion; counts, spans, Source types and a readable local file do not prove independent recovery. The separately staged canonical reader is read-only and rechecks current Source rights before each artifact read and afterward. It performs no backup, repair, synchronization, permission grant or fact promotion.
 
 Native preparation protection binds the original retained body and dependency header, complete source inventory, full State and operational journal. Current owner/key checks and exact current backup-run comparison remain separate requirements. Restoring State without the separately protected journal deliberately holds. Disposable invented-key/database tests demonstrate these mechanics only. Actual PERSONAL off-device recovery and independent password-manager retrieval are not established by them.
+
+
+### PERSONAL restore safety checkpoint (2026-10-06)
+
+The installed `DisposableStateRestoreVerifier.verify_personal` is a library operator path, not proof that the owner's personal archive has been protected. It verifies full State, operational journal and exact selected Source columns using a disposable target.
+
+The PostgreSQL role `zacai_personal_restore_pending_v1` records an incomplete or uncertain PERSONAL restore. Cooperating restore helpers refuse destructive reuse while that marker remains. Do not remove it or drop an unknown target merely to retry; reconcile ownership and cleanup first in an exclusive recovery window. These protections do not sandbox a database administrator issuing direct SQL.
+
+The owner reported saving the separate PERSONAL backup reader in 1Password as **Zac AI Personal Backup Reader**. Its vault location, independently recovered copy, Mac Keychain installation, separate uploader and PERSONAL encryption-key recovery are not yet verified here. The existing Brainstorm credentials and encryption key are not a PERSONAL fallback. No keys or private archive contents are stored in Git.

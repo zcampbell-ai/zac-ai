@@ -162,6 +162,7 @@ RESTORE_TEST_URL = f"postgresql+psycopg://127.0.0.1:5432/{RESTORE_TEST_DATABASE}
 # session lease. Non-cooperating SQL/admin actors still require a host-exclusive
 # window; PostgreSQL has no atomic fixed-name OID-conditional DROP DATABASE.
 _RESTORE_TARGET_LOCK = 0x5A414352
+_PERSONAL_RESTORE_MARKER = "zacai_personal_restore_pending_v1"
 
 
 @dataclass
@@ -170,6 +171,7 @@ class _RestoreTargetLease:
     thread_id: int
     task: object | None
     active: bool = True
+    personal_marker_oid: int | None = None
 
 
 _RESTORE_TARGET_LEASE: ContextVar[_RestoreTargetLease | None] = ContextVar(
@@ -528,6 +530,7 @@ def _admin_connection() -> Iterator[Connection]:
             or existing.task is not _current_task_owner()
         ):
             raise RuntimeError("restore target lease owner mismatch")
+        _assert_restore_marker_scope(existing)
         yield existing.connection
         return
     engine = create_engine(_ADMIN_URL, future=True, isolation_level="AUTOCOMMIT")
@@ -542,6 +545,7 @@ def _admin_connection() -> Iterator[Connection]:
             lease = _RestoreTargetLease(conn, get_ident(), _current_task_owner())
             token = _RESTORE_TARGET_LEASE.set(lease)
             try:
+                _assert_restore_marker_scope(lease)
                 yield conn
             finally:
                 lease.active = False
@@ -638,7 +642,103 @@ def main() -> None:
         with _admin_connection():
             recreate_restore_test_database()
             upgrade_restore_test_schema()
-            restore_boundary(args.artifact, RESTORE_TEST_URL, ["age", "-d", "-i", str(args.identity)])
+            restore_boundary(
+                args.artifact, RESTORE_TEST_URL, ["age", "-d", "-i", str(args.identity)]
+            )
+
+
+def _personal_restore_marker_oid(connection: Connection) -> int | None:
+    value = connection.scalar(
+        text("SELECT oid FROM pg_roles WHERE rolname=:name"), {"name": _PERSONAL_RESTORE_MARKER}
+    )
+    if value is None:
+        return None
+    if type(value) is not int or value <= 0:
+        raise RuntimeError("restore quarantine metadata unavailable")
+    return value
+
+
+def _assert_restore_marker_scope(lease: _RestoreTargetLease) -> None:
+    if lease.personal_marker_oid == 0:
+        raise RuntimeError("restore target quarantined for operator review")
+    if _personal_restore_marker_oid(lease.connection) != lease.personal_marker_oid:
+        raise RuntimeError("restore target quarantined for operator review")
+
+
+def _personal_marker_lease(connection: Connection) -> _RestoreTargetLease:
+    lease = _RESTORE_TARGET_LEASE.get()
+    if (
+        lease is None
+        or not lease.active
+        or lease.connection is not connection
+        or lease.thread_id != get_ident()
+        or lease.task is not _current_task_owner()
+    ):
+        raise RuntimeError("owned restore lease required")
+    return lease
+
+
+def _reserve_personal_restore_marker(connection: Connection) -> int:
+    lease = _personal_marker_lease(connection)
+    if (
+        lease.personal_marker_oid is not None
+        or _personal_restore_marker_oid(connection) is not None
+    ):
+        raise RuntimeError("restore target already quarantined")
+    connection.execute(
+        text(
+            f"CREATE ROLE {_PERSONAL_RESTORE_MARKER} NOLOGIN NOSUPERUSER "
+            "NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS"
+        )
+    )
+    oid = _personal_restore_marker_oid(connection)
+    if oid is None:
+        raise RuntimeError("restore quarantine creation unconfirmed")
+    lease.personal_marker_oid = oid
+    _assert_personal_restore_marker_attributes(connection, oid)
+    return oid
+
+
+def _assert_personal_restore_marker_owned(connection: Connection, expected_oid: int) -> None:
+    lease = _personal_marker_lease(connection)
+    if type(expected_oid) is not int or lease.personal_marker_oid != expected_oid:
+        raise RuntimeError("restore quarantine ownership changed")
+    _assert_restore_marker_scope(lease)
+    _assert_personal_restore_marker_attributes(connection, expected_oid)
+
+
+def _release_personal_restore_marker(connection: Connection, expected_oid: int) -> None:
+    _assert_personal_restore_marker_owned(connection, expected_oid)
+    if (
+        connection.scalar(
+            text("SELECT oid FROM pg_database WHERE datname=:name"), {"name": RESTORE_TEST_DATABASE}
+        )
+        is not None
+    ):
+        raise RuntimeError("restore quarantine cannot clear occupied target")
+    connection.execute(text(f"DROP ROLE {_PERSONAL_RESTORE_MARKER}"))
+    if _personal_restore_marker_oid(connection) is not None:
+        raise RuntimeError("restore quarantine release unconfirmed")
+    _personal_marker_lease(connection).personal_marker_oid = None
+
+
+def _poison_personal_restore_lease(connection: Connection) -> None:
+    """Deny all later nested administrative use after uncertain cleanup."""
+    _personal_marker_lease(connection).personal_marker_oid = 0
+
+
+def _assert_personal_restore_marker_attributes(connection: Connection, oid: int) -> None:
+    valid = connection.scalar(
+        text(
+            "SELECT NOT (rolcanlogin OR rolsuper OR rolcreatedb OR rolcreaterole "
+            "OR rolinherit OR rolreplication OR rolbypassrls) AND NOT EXISTS "
+            "(SELECT 1 FROM pg_auth_members WHERE roleid=r.oid OR member=r.oid) "
+            "FROM pg_roles r WHERE r.oid=:oid"
+        ),
+        {"oid": oid},
+    )
+    if valid is not True:
+        raise RuntimeError("restore quarantine role attributes unavailable")
 
 
 if __name__ == "__main__":
