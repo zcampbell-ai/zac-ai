@@ -40,6 +40,8 @@ would just duplicate what `boto3` already does correctly.
 
 from __future__ import annotations
 
+import sys
+
 import boto3
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
@@ -108,9 +110,13 @@ class S3CompatibleBackupObjectStore:
         except ClientError as exc:
             if _is_not_found(exc):
                 return False
-            raise RemoteBackupError(f"could not check existence of {key!r}: {_safe_error_text(exc)}") from exc
+            raise RemoteBackupError(
+                f"could not check existence of {key!r}: {_safe_error_text(exc)}"
+            ) from exc
         except BotoCoreError as exc:
-            raise RemoteBackupError(f"could not check existence of {key!r}: {_safe_error_text(exc)}") from exc
+            raise RemoteBackupError(
+                f"could not check existence of {key!r}: {_safe_error_text(exc)}"
+            ) from exc
         return True
 
     def stat(self, key: str) -> ObjectStat:
@@ -127,6 +133,50 @@ class S3CompatibleBackupObjectStore:
         except (ClientError, BotoCoreError) as exc:
             raise RemoteBackupError(f"could not read {key!r}: {_safe_error_text(exc)}") from exc
         return body
+
+    def get_object_bounded(self, key: str, *, max_bytes: int) -> bytes:
+        """Read one exact declared object with a bounded body and close on every exit.
+
+        The host supplies a ciphertext resource ceiling, not Source access or a
+        plaintext/cipher profile. Existing client timeouts/retries still apply;
+        this method establishes no independent total transport deadline. The
+        bounded EOF probe triggers length/checksum validation only when the
+        SDK attached those validators. Exact ciphertext SHA remains caller-owned.
+        """
+        result = None
+        body = None
+        try:
+            if (
+                type(max_bytes) is not int
+                or not 0 < max_bytes < sys.maxsize
+                or type(key) is not str
+                or not key
+                or "\x00" in key
+            ):
+                raise ValueError("bounded object contract required")
+            response = self._client.get_object(Bucket=self._bucket, Key=key)
+            body = response["Body"]
+            size = response["ContentLength"]
+            if type(size) is not int or not 0 <= size <= max_bytes:
+                raise ValueError("bounded object metadata required")
+            raw = body.read(size + 1)
+            if type(raw) is not bytes or len(raw) != size:
+                raise ValueError("bounded object changed")
+            # Positive bounded EOF triggers SDK length/checksum validation.
+            if body.read(1) != b"":
+                raise ValueError("bounded object trailing bytes")
+            result = raw
+        except Exception:  # noqa: BLE001,S110 - no provider/key diagnostics
+            pass
+        finally:
+            if body is not None:
+                try:
+                    body.close()
+                except Exception:  # noqa: BLE001 - no private transport diagnostics
+                    result = None
+        if result is None:
+            raise RemoteBackupError("bounded remote backup object unavailable")
+        return result
 
     def put_object(self, key: str, data: bytes) -> None:
         try:

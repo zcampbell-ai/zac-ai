@@ -38,7 +38,9 @@ _BOUNDARY = TrustBoundary.SHARED  # see tests/test_backup_artifacts.py for why S
 
 
 @pytest.fixture
-def moto_bucket() -> Iterator[None]:
+def moto_bucket(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    monkeypatch.delenv("AWS_ENDPOINT_URL", raising=False)
+    monkeypatch.delenv("AWS_ENDPOINT_URL_S3", raising=False)
     with mock_aws():
         client = boto3.client("s3", region_name=_REGION)
         client.create_bucket(Bucket=_BUCKET)
@@ -98,7 +100,10 @@ def test_client_error_on_put_is_translated_to_remote_backup_error(
     store: S3CompatibleBackupObjectStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def _raise(*_args: object, **_kwargs: object) -> None:
-        raise ClientError({"Error": {"Code": "InternalError", "Message": "simulated provider failure"}}, "PutObject")
+        raise ClientError(
+            {"Error": {"Code": "InternalError", "Message": "simulated provider failure"}},
+            "PutObject",
+        )
 
     monkeypatch.setattr(store._client, "put_object", _raise)
     with pytest.raises(RemoteBackupError, match="InternalError"):
@@ -109,7 +114,9 @@ def test_client_error_on_get_is_translated_to_remote_backup_error(
     store: S3CompatibleBackupObjectStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def _raise(*_args: object, **_kwargs: object) -> None:
-        raise ClientError({"Error": {"Code": "SlowDown", "Message": "simulated throttling"}}, "GetObject")
+        raise ClientError(
+            {"Error": {"Code": "SlowDown", "Message": "simulated throttling"}}, "GetObject"
+        )
 
     monkeypatch.setattr(store._client, "get_object", _raise)
     with pytest.raises(RemoteBackupError, match="SlowDown"):
@@ -178,24 +185,36 @@ def test_backup_and_restore_round_trip_against_s3_compatible_backend(
     key = _generate_age_keypair(tmp_path, "brainstorm")
     artifact_store = LocalFilesystemArtifactStore(tmp_path / "artifacts")
     backup_store = S3CompatibleBackupObjectStore(
-        bucket=_BUCKET, region=_REGION,
-        access_key_id=_FAKE_ACCESS_KEY_ID, secret_access_key=_FAKE_SECRET_ACCESS_KEY,
+        bucket=_BUCKET,
+        region=_REGION,
+        access_key_id=_FAKE_ACCESS_KEY_ID,
+        secret_access_key=_FAKE_SECRET_ACCESS_KEY,
     )
 
     digests = set()
-    for i, payload in enumerate([b"s3-backend drill artifact one", b"s3-backend drill artifact two"]):
+    for i, payload in enumerate(
+        [b"s3-backend drill artifact one", b"s3-backend drill artifact two"]
+    ):
         digest = content_hash_of(payload)
         location = artifact_store.put(_BOUNDARY, digest, payload)
         record_source(
-            db_session, trust_boundary=_BOUNDARY, data_classification=DataClassification.CONFIDENTIAL,
-            system=SourceSystem.FIREFLIES, content_hash=digest, content_location=location,
+            db_session,
+            trust_boundary=_BOUNDARY,
+            data_classification=DataClassification.CONFIDENTIAL,
+            system=SourceSystem.FIREFLIES,
+            content_hash=digest,
+            content_location=location,
             external_ref=f"s3-backend-{i}",
         )
         digests.add(digest)
 
     backup_boundary(
-        db_session, trust_boundary=_BOUNDARY, artifact_store=artifact_store, backup_store=backup_store,
-        recipient=key.recipient, local_manifest_cache_path=tmp_path / "cache.json",
+        db_session,
+        trust_boundary=_BOUNDARY,
+        artifact_store=artifact_store,
+        backup_store=backup_store,
+        recipient=key.recipient,
+        local_manifest_cache_path=tmp_path / "cache.json",
     )
     all_hashes = source_hashes_for_boundary(db_session, trust_boundary=_BOUNDARY)
     assert digests <= all_hashes
@@ -204,7 +223,10 @@ def test_backup_and_restore_round_trip_against_s3_compatible_backend(
     # the (mocked) remote backend via a fresh client - not merely that
     # backup_boundary's own call happened to succeed.
     verify_client = boto3.client(
-        "s3", region_name=_REGION, aws_access_key_id=_FAKE_ACCESS_KEY_ID, aws_secret_access_key=_FAKE_SECRET_ACCESS_KEY
+        "s3",
+        region_name=_REGION,
+        aws_access_key_id=_FAKE_ACCESS_KEY_ID,
+        aws_secret_access_key=_FAKE_SECRET_ACCESS_KEY,
     )
     for digest in digests:
         key_name = f"{_BOUNDARY.value}/{digest[:2]}/{digest}.age"
@@ -212,8 +234,12 @@ def test_backup_and_restore_round_trip_against_s3_compatible_backend(
 
     restore_target = LocalFilesystemArtifactStore(tmp_path / "restore")
     outcome = restore_boundary_artifacts(
-        trust_boundary=_BOUNDARY, backup_store=backup_store, identity_path=key.identity_path,
-        restore_target=restore_target, live_artifact_root=artifact_store.root, expected_source_hashes=digests,
+        trust_boundary=_BOUNDARY,
+        backup_store=backup_store,
+        identity_path=key.identity_path,
+        restore_target=restore_target,
+        live_artifact_root=artifact_store.root,
+        expected_source_hashes=digests,
     )
     assert outcome.successful
     assert outcome.reconciliation.missing == frozenset()
@@ -231,19 +257,29 @@ def test_wrong_boundary_identity_fails_against_s3_compatible_backend(
     personal_key = _generate_age_keypair(tmp_path, "personal")
     artifact_store = LocalFilesystemArtifactStore(tmp_path / "artifacts")
     backup_store = S3CompatibleBackupObjectStore(
-        bucket=_BUCKET, region=_REGION,
-        access_key_id=_FAKE_ACCESS_KEY_ID, secret_access_key=_FAKE_SECRET_ACCESS_KEY,
+        bucket=_BUCKET,
+        region=_REGION,
+        access_key_id=_FAKE_ACCESS_KEY_ID,
+        secret_access_key=_FAKE_SECRET_ACCESS_KEY,
     )
     digest = content_hash_of(b"wrong identity drill artifact")
     location = artifact_store.put(_BOUNDARY, digest, b"wrong identity drill artifact")
     record_source(
-        db_session, trust_boundary=_BOUNDARY, data_classification=DataClassification.CONFIDENTIAL,
-        system=SourceSystem.FIREFLIES, content_hash=digest, content_location=location,
+        db_session,
+        trust_boundary=_BOUNDARY,
+        data_classification=DataClassification.CONFIDENTIAL,
+        system=SourceSystem.FIREFLIES,
+        content_hash=digest,
+        content_location=location,
         external_ref="s3-backend-wrong-identity",
     )
     backup_boundary(
-        db_session, trust_boundary=_BOUNDARY, artifact_store=artifact_store, backup_store=backup_store,
-        recipient=brainstorm_key.recipient, local_manifest_cache_path=tmp_path / "cache.json",
+        db_session,
+        trust_boundary=_BOUNDARY,
+        artifact_store=artifact_store,
+        backup_store=backup_store,
+        recipient=brainstorm_key.recipient,
+        local_manifest_cache_path=tmp_path / "cache.json",
     )
 
     from zacai.backup_artifacts import DecryptionError
@@ -251,7 +287,10 @@ def test_wrong_boundary_identity_fails_against_s3_compatible_backend(
     restore_target = LocalFilesystemArtifactStore(tmp_path / "restore")
     with pytest.raises(DecryptionError):
         restore_boundary_artifacts(
-            trust_boundary=_BOUNDARY, backup_store=backup_store, identity_path=personal_key.identity_path,
-            restore_target=restore_target, live_artifact_root=artifact_store.root,
+            trust_boundary=_BOUNDARY,
+            backup_store=backup_store,
+            identity_path=personal_key.identity_path,
+            restore_target=restore_target,
+            live_artifact_root=artifact_store.root,
             expected_source_hashes={digest},
         )

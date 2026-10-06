@@ -2325,3 +2325,8 @@ configured mypy139 and Ruff clean. No private source was used.
 ### Bounded original encryption prerequisite (2026-10-06)
 
 Optional bounded age encryption/decryption helpers are installed for the existing large-original context intake path. They enforce explicit input/output/stderr limits and deadlines, observe child exit without reaping before owned process-group cleanup, and preserve all legacy encryption/backup/restore behavior. Root verified39 invented OS controls and7 actual age controls with disposable keys and original bytes up to100MB; independent Opus accepted the exact cleanup successor. This is resource and cleanup evidence, not whole-original custody, a production ciphertext profile, PERSONAL recovery, or model-processing authority. No active caller or existing8MB/8.5MB selection/cipher guard changed. Actual archive capture, complete selected/full snapshot bounded recovery and owner classification remain next gates.
+
+
+### Context runtime and bounded read prerequisite (2026-10-06)
+
+Installed the reviewed native context runtime checks and prompt counter, plus additive bounded local/S3 object reads. Exact candidate validation passed 586 native checks, 153 compatibility checks, 88 bounded backup/age checks and 8 actual age checks using invented data, including a 100 MB original round trip. Fresh provenance closes the backup test evidence gap identified by Opus. Installed validation passed 159 focused checks and 8 actual crypto checks; mypy140 and Ruff are clean. This advances the existing context intake path without enabling a model route, changing production size profiles, importing private history or granting processing authority. Next remains protected Claude original capture, complete recovery and source-backed retrieval.

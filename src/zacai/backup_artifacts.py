@@ -49,6 +49,7 @@ import re
 import select as _process_events
 import selectors
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
@@ -193,6 +194,69 @@ class LocalDirectoryBackupStore:
 
     def get_object(self, key: str) -> bytes:
         return self._path(key).read_bytes()
+
+    def get_object_bounded(self, key: str, *, max_bytes: int) -> bytes:
+        """Read one confined object under an explicit host ciphertext bound.
+
+        No Source permission, plaintext-size policy, hash proof or recovery
+        acknowledgment. No fallback to the unbounded protocol method. The
+        descriptor walk requires directory read permission on root ancestors,
+        including resolved host root aliases; search-only ancestors may hold.
+        """
+        result = None
+        try:
+            if (
+                type(max_bytes) is not int
+                or not 0 < max_bytes < sys.maxsize
+                or type(key) is not str
+                or not key
+                or "\x00" in key
+                or "\\" in key
+                or key.startswith("/")
+                or any(part in ("", ".", "..") for part in key.split("/"))
+            ):
+                raise ValueError("bounded object contract required")
+            parts = key.split("/")
+            # Host root aliases resolve once here; object descendants never do.
+            root = self._root.resolve(strict=True)
+            flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+            with contextlib.ExitStack() as descriptors:
+                directory = os.open("/", flags)
+                descriptors.callback(os.close, directory)
+                for part in (*root.parts[1:], *parts[:-1]):
+                    directory = os.open(part, flags, dir_fd=directory)
+                    descriptors.callback(os.close, directory)
+                fd = os.open(
+                    parts[-1],
+                    os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                    dir_fd=directory,
+                )
+                descriptors.callback(os.close, fd)
+                before = os.fstat(fd)
+                if (
+                    not stat.S_ISREG(before.st_mode)
+                    or before.st_nlink != 1
+                    or not 0 <= before.st_size <= max_bytes
+                ):
+                    raise ValueError("bounded object metadata required")
+                with os.fdopen(fd, "rb", closefd=False) as stream:
+                    raw = stream.read(before.st_size + 1)
+                after = os.fstat(fd)
+                if (
+                    len(raw) != before.st_size
+                    or after.st_size != before.st_size
+                    or not stat.S_ISREG(after.st_mode)
+                    or after.st_nlink != 1
+                    or after.st_mtime_ns != before.st_mtime_ns
+                    or after.st_ctime_ns != before.st_ctime_ns
+                ):
+                    raise ValueError("bounded object changed")
+                result = raw
+        except Exception:  # noqa: BLE001,S110 - fixed message outside exception context
+            pass
+        if result is None:
+            raise BackupArtifactsError("bounded local backup object unavailable")
+        return result
 
     def put_object(self, key: str, data: bytes) -> None:
         target = self._path(key)
