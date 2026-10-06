@@ -432,11 +432,11 @@ def test_original_context_capacity_hold_before_artifact_reads(fixture):
 
 
 def test_existing_contextual_serializer_uses_only_explicit_native_role(fixture):
-    from zacai.intelligence.contextual_generation import prepare_contextual_request
+    from zacai.intelligence.contextual_generation import _prepare_contextual_catalog
 
     _, args, sources, _, _ = fixture
     projected = run(fixture, (choice(sources[-1], "Invented private body"),))
-    prepared = prepare_contextual_request(projected)
+    prepared = _prepare_contextual_catalog(projected)
     assert prepared.context.task.task_id != args["context"].task.task_id
     assert (
         project(fixture, (choice(sources[-1], "Invented private body"),)).original_task
@@ -621,12 +621,12 @@ def test_already_quoted_selected_source_does_not_duplicate_context(fixture):
 
 @pytest.mark.parametrize("fixture", ["unicode_separator"], indirect=True)
 def test_exact_serializer_line_terminator_ceiling_with_positive_subspan(fixture):
-    from zacai.intelligence.contextual_generation import prepare_contextual_request
+    from zacai.intelligence.contextual_generation import _prepare_contextual_catalog
 
     _, _, sources, _, _ = fixture
     value = "x" * 1500 + "\u2028" + "next"
     good = project(fixture, (choice(sources[-1], value, end=1499),))
-    assert prepare_contextual_request(good.context).quotes
+    assert _prepare_contextual_catalog(good.context).quotes
     # Serializer retains U+2028 in passage; 1500+terminator exceeds1500.
     assert len(value.splitlines()[0]) == 1500
     with pytest.raises(m.NativeEvidenceContextError):

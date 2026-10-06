@@ -33,8 +33,10 @@ from zacai.intelligence.contextual_evaluation import ContextualPacket, encode_co
 from zacai.intelligence.contextual_generation import (
     ContextualDraft,
     ContextualRequest,
+    ContextualRequestV2,
     prepare_contextual_request,
     resolve_contextual_draft,
+    validate_native_contextual_request,
 )
 from zacai.intelligence.contextual_storage import capture_contextual_packet, load_contextual_packet
 from zacai.intelligence.contracts import IntelligenceTask, ModelRoute
@@ -64,8 +66,31 @@ from zacai.state import Source, SourceSystem
 from zacai.state_repository import get_effective_source_classification
 
 
-def contextual_request_digest(request: ContextualRequest) -> str:
+def contextual_request_digest(request: ContextualRequest | ContextualRequestV2) -> str:
     """Exact model-visible request/context binding, not an authority token."""
+    if type(request) is ContextualRequestV2:
+        try:
+            validate_native_contextual_request(request)
+            return hashlib.sha256(
+                json.dumps(
+                    {
+                        "format": request.format,
+                        "context_digest": review_context_digest(request.context),
+                        "instruction": request.instruction,
+                        "evidence_json": request.evidence_json,
+                        "schema_json": request.schema_json,
+                        "noncitable_metadata": json.loads(request.sidecar_json),
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=False,
+                ).encode()
+            ).hexdigest()
+        except Exception:  # noqa: BLE001,S110 - private request causes stay private
+            pass
+        raise ValueError("native contextual request unavailable or invalid")
+    if type(request) is not ContextualRequest:
+        raise ValueError("unsupported contextual request family")
     if request != prepare_contextual_request(request.context):
         raise ValueError("contextual request changed")
     raw = json.dumps(
@@ -570,10 +595,14 @@ def execute_contextual_shadow(
     except BaseException as error:  # noqa: BLE001 - sanitized cancellation audit
         if failure_step == ContextualFailureStep.DRAFT_VALIDATION:
             draft_failure_code, draft_rejection = closed_draft_code(error)
-        if failure_step in {ContextualFailureStep.RUNTIME_PREFLIGHT, ContextualFailureStep.GENERATION}:
+        if failure_step in {
+            ContextualFailureStep.RUNTIME_PREFLIGHT,
+            ContextualFailureStep.GENERATION,
+        }:
             runtime_failure_code = closed_runtime_code(error)
             if runtime_failure_code == RuntimeFailureCode.UNSPECIFIED or (
-                failure_step == ContextualFailureStep.RUNTIME_PREFLIGHT and runtime_failure_code not in PREFLIGHT_CODES
+                failure_step == ContextualFailureStep.RUNTIME_PREFLIGHT
+                and runtime_failure_code not in PREFLIGHT_CODES
             ):
                 runtime_failure_code = None
         if isinstance(error, KeyboardInterrupt):

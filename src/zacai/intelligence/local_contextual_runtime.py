@@ -16,8 +16,12 @@ import time
 from zacai.intelligence.contextual_generation import (
     ContextualDraft,
     ContextualRequest,
+    ContextualRequestV2,
+    _prepare_contextual_catalog,
+    _require_legacy_context,
     parse_contextual_draft,
     prepare_contextual_request,
+    validate_native_contextual_request,
 )
 from zacai.intelligence.contracts import ModelRoute, UsageObservation
 from zacai.intelligence.local_review_runtime import (
@@ -27,6 +31,7 @@ from zacai.intelligence.local_review_runtime import (
     verify_model,
 )
 from zacai.intelligence.review_evaluation import review_context_digest
+from zacai.intelligence.review_generation import prepare_review_request
 from zacai.intelligence.runtime_diagnostics import RuntimeDiagnosticError, closed_runtime_code
 from zacai.intelligence.runtime_diagnostics import RuntimeFailureCode as F
 from zacai.policy import Destination
@@ -58,12 +63,20 @@ def _raise_interruption(kind: type[BaseException] | None, exit_code: int) -> Non
 
 
 def prepare_payload(request: ContextualRequest, route: ModelRoute, digest: str) -> bytes:
+    if type(request) is not ContextualRequest or request != prepare_contextual_request(request.context):
+        raise LocalContextualRuntimeError("modified legacy request")
+    return _prepare_payload_body(request, route, digest)
+
+
+def _prepare_payload_body(request: ContextualRequest, route: ModelRoute, digest: str) -> bytes:
     """Verify host-derived catalog and complete serialized character/byte limits.
 
     The adapter separately checks exact tokenizer capacity before dispatch and
     compares reported usage afterward; this serializer alone does neither.
     """
-    if request != prepare_contextual_request(request.context):
+    if type(request) is not ContextualRequest:
+        raise LocalContextualRuntimeError("unsupported contextual request family")
+    if request != _prepare_contextual_catalog(request.context):
         raise LocalContextualRuntimeError("modified review request")
     name = route.identity.model_id
     if (
@@ -87,7 +100,10 @@ def prepare_payload(request: ContextualRequest, route: ModelRoute, digest: str) 
             "keep_alive": 0,
             "format": schema,
             "messages": [
-                {"role": "system", "content": request.instruction + "\nOutput JSON schema: " + request.schema_json},
+                {
+                    "role": "system",
+                    "content": request.instruction + "\nOutput JSON schema: " + request.schema_json,
+                },
                 {"role": "user", "content": request.evidence_json.replace("<", "\\u003c")},
             ],
             "options": {
@@ -106,8 +122,21 @@ def prepare_payload(request: ContextualRequest, route: ModelRoute, digest: str) 
 def dispatch_draft(
     request: ContextualRequest, route: ModelRoute, body: bytes, transport: Transport
 ) -> tuple[ContextualDraft, UsageObservation]:
-    failure = F.TRANSPORT
+    failure = F.REQUEST_PAYLOAD
     try:
+        if type(request) is not ContextualRequest:
+            raise ValueError("unsupported contextual request family")
+        _require_legacy_context(request.context)
+        wire = json.loads(body)
+        for message in wire["messages"]:
+            if message.get("role") == "user":
+                data = json.loads(message["content"])
+                if (
+                    isinstance(data, dict)
+                    and data.get("format") == "zac-native-contextual-request-v2"
+                ):
+                    raise ValueError("native contextual dispatch not enabled")
+        failure = F.TRANSPORT
         started = time.perf_counter()
         reply = transport("POST", "/api/chat", body)
         elapsed = (time.perf_counter() - started) * 1000
@@ -125,16 +154,27 @@ def dispatch_draft(
         if not isinstance(message, dict):
             raise TypeError("invalid message shape")
         failure = F.RESPONSE_AUTHORITY
-        if message.get("role") != "assistant" or message.get("tool_calls") or message.get("thinking"):
+        if (
+            message.get("role") != "assistant"
+            or message.get("tool_calls")
+            or message.get("thinking")
+        ):
             raise ValueError("unexpected response authority")
         if reply.get("done_reason") == "length":
             failure = F.RESPONSE_USAGE
             reported = (reply["prompt_eval_count"], reply["eval_count"])
-            if (any(type(n) is not int or n < 0 for n in reported)
+            if (
+                any(type(n) is not int or n < 0 for n in reported)
                 or reported[1] > request.context.task.max_output_tokens
-                or reported[0] + reported[1] > _context_tokens(route)):
+                or reported[0] + reported[1] > _context_tokens(route)
+            ):
                 raise ValueError("invalid usage")
-            failure = F.OUTPUT_LIMIT if reported[1] == request.context.task.max_output_tokens and sum(reported) < _context_tokens(route) else F.RESPONSE_LENGTH
+            failure = (
+                F.OUTPUT_LIMIT
+                if reported[1] == request.context.task.max_output_tokens
+                and sum(reported) < _context_tokens(route)
+                else F.RESPONSE_LENGTH
+            )
             raise ValueError("length completion")
         failure = F.RESPONSE_STOP_REASON
         if reply.get("done_reason") != "stop":
@@ -144,17 +184,20 @@ def dispatch_draft(
             raise ValueError("late response")
         failure = F.RESPONSE_USAGE
         counts = (reply["prompt_eval_count"], reply["eval_count"])
-        if (any(type(count) is not int or count < 0 for count in counts)
+        if (
+            any(type(count) is not int or count < 0 for count in counts)
             or counts[1] > request.context.task.max_output_tokens
-            or counts[0] + counts[1] > _context_tokens(route)):
+            or counts[0] + counts[1] > _context_tokens(route)
+        ):
             raise ValueError("invalid usage")
         failure = F.RESPONSE_SCHEMA
         content = message["content"]
         if not isinstance(content, str):
             raise TypeError("invalid content shape")
         draft = parse_contextual_draft(content.encode())
-        return draft, UsageObservation(input_tokens=counts[0], output_tokens=counts[1],
-                                       latency_ms=elapsed, cost_usd=0.0)
+        return draft, UsageObservation(
+            input_tokens=counts[0], output_tokens=counts[1], latency_ms=elapsed, cost_usd=0.0
+        )
     except Exception:  # noqa: BLE001, S110 - no raw backend/model diagnostics
         pass
     raise LocalContextualRuntimeError("local contextual response rejected", code=failure)
@@ -162,8 +205,11 @@ def dispatch_draft(
 
 _INNER_CODES = {
     F.TOKEN_COUNT: frozenset({F.MODEL_PIN, F.TOKEN_COUNT, F.TOKEN_CAPACITY}),
-    F.TRANSPORT: frozenset(code for code in F if code == F.TRANSPORT or code == F.OUTPUT_LIMIT
-                         or code.value.startswith("RESPONSE_")),
+    F.TRANSPORT: frozenset(
+        code
+        for code in F
+        if code == F.TRANSPORT or code == F.OUTPUT_LIMIT or code.value.startswith("RESPONSE_")
+    ),
 }
 
 
@@ -218,7 +264,9 @@ class LocalContextualRuntime:
         if type(count) is not int or count <= 0:
             raise LocalContextualRuntimeError("invalid token count", code=F.TOKEN_COUNT)
         if count + request.context.task.max_output_tokens > _context_tokens(self.route):
-            raise LocalContextualRuntimeError("prompt/output token budget exceeded", code=F.TOKEN_CAPACITY)
+            raise LocalContextualRuntimeError(
+                "prompt/output token budget exceeded", code=F.TOKEN_CAPACITY
+            )
         return count
 
     def preflight(self, request: ContextualRequest) -> None:
@@ -301,3 +349,61 @@ class LocalContextualRuntime:
                 exit_code = error.code if type(error.code) is int else 1
         _raise_interruption(interruption, exit_code)
         raise LocalContextualRuntimeError("local contextual generation failed", code=failure)
+
+
+def _prepare_native_payload(request: ContextualRequestV2, route: ModelRoute, digest: str) -> bytes:
+    """Pure byte/character capacity ONLY; actual tokenizer/dispatch not enabled."""
+    validate_native_contextual_request(request)
+    legacy = _prepare_contextual_catalog(request.context)
+    body = json.loads(_prepare_payload_body(legacy, route, digest))
+    body["messages"][0]["content"] = (
+        request.instruction + "\nOutput JSON schema: " + request.schema_json
+    )
+    body["messages"][1]["content"] = json.dumps(
+        {
+            "format": request.format,
+            "provider_passages": json.loads(request.evidence_json),
+            "untrusted_noncitable_metadata": _model_native_metadata(request),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    ).replace("<", "\\u003c")
+    raw = json.dumps(body, ensure_ascii=False).encode()
+    if len(raw.decode()) > route.max_input_characters or len(raw) > 64000:
+        raise LocalContextualRuntimeError("serialized native request outside capacity")
+    return raw
+
+
+def _model_native_metadata(request: ContextualRequestV2) -> dict[str, object]:
+    # Map the actual unfiltered quote catalog, including noncitable passages.
+    # Retained Source/hash/role metadata is not copied into model-visible data.
+    catalog = prepare_review_request(request.context)
+    namespace = review_context_digest(request.context)[:32]
+    visible_ids = {p["id"] for p in json.loads(request.evidence_json)}
+    entries: list[dict[str, object]] = []
+    for entry in request.sidecar.entries:
+        ids = [
+            f"{namespace}:{'meeting' if quote.source_id == request.context.meeting_source_id else 'related'}:{eid}"
+            for eid, quote in catalog.quotes
+            if quote.source_id == entry.reference.source_id
+        ]
+        if not ids or any(eid not in visible_ids for eid in ids):
+            raise ValueError("native metadata passage mapping differs")
+        data = entry.model_dump(mode="json")
+        for key in ("reference", "external_ref", "field_text_hash"):
+            del data[key]
+        data["passage_ids"] = ids
+        entries.append(data)
+    return {"format": request.sidecar.format, "entries": entries}
+
+
+def prepare_native_payload(request: ContextualRequestV2, route: ModelRoute, digest: str) -> bytes:
+    """Pure fullbody serializer for future tokenizer; no dispatch or token-fit grant."""
+    try:
+        return _prepare_native_payload(request, route, digest)
+    except Exception:  # noqa: BLE001,S110 - no private request/metadata causes
+        pass
+    raise LocalContextualRuntimeError(
+        "native contextual request unavailable or invalid", code=F.REQUEST_PAYLOAD
+    )

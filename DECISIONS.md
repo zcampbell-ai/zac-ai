@@ -7109,3 +7109,38 @@ authorization, off-device durability, real recovered keys, private import or
 model-output quality. Keep the dedicated copied-tree SQL fixture in engineering
 staging; install its five pure test modules without duplicating conftest or
 standalone committed-store setup into the ordinary suite.
+
+
+## D034BC - Native context V2 and bounded Claude metadata inspection
+
+2026-10-06. Retain original Task JSON and exact ordered dependency roles in the
+native request/packet derivation. Reconstruct the full identity-preserving
+Source union, reject role/hash conflicts, mirror producer classification and
+UTF-8 capacity bounds, and retain untrusted metadata separately from quotes.
+None-proposal projection remains a structural preparation API; V2 admission
+requires a retained proposal. A Source or supplied original Task does not
+authenticate a human instruction or grant model processing. Genuine V1 bytes
+and one-attempt admission remain separate.
+
+Native assembly rechecks current canonical Source fingerprints, effective ACLs
+and base/project relationships after reads. Concurrent retraction/association
+withdrawal or ProjectHead version change holds. Root416 pure and10 real
+PostgreSQL checks passed; Opus source-only review separately accepted the final
+semantic correction. These checks do not prove useful private output or live
+model readiness.
+
+The Claude indexer is metadata/span inspection only. Preserve exact original
+bytes and whole-file integrity hash; no record hashes as unnecessary guessing
+oracles. Missing nonzero parent IDs remain explicit unresolved gaps. Present
+invalid parent relationships hold. Conversation/message cross-kind collision
+rejection is a conservative closed compatibility rule, not a vendor-wide UUID
+namespace claim. Dates and assistant statements remain historical evidence.
+Byte/lineage gate flags never imply existing selection or account completeness.
+70 invented controls passed; final executable AST equals the independently
+reviewed64-case predecessor. No actual archive application or new processing
+permission occurs in this release.
+
+Large-original custody/selection and native retained binding, consent, runtime
+and protection are still required joins. Do not disguise chunks as complete
+exports, misuse supersedes_source_id for derivation, weaken legacy caps or
+assume a saved reader credential establishes PERSONAL recovery.

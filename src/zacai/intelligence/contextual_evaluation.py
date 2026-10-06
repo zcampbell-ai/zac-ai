@@ -9,20 +9,27 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Literal, Self
 from uuid import UUID
 
 from pydantic import AwareDatetime, ConfigDict, Field, field_validator, model_validator
 
+from zacai.intelligence.contextual_generation import (
+    ContextualRequestV2,
+    _require_legacy_context,
+    rebuild_native_contextual_request,
+    validate_native_contextual_request,
+)
 from zacai.intelligence.contextual_review import (
     ContextualReview,
     render_contextual_preview,
     validate_contextual_review,
 )
-from zacai.intelligence.contracts import Contract, Digest, IntelligenceTask
+from zacai.intelligence.contracts import Contract, Digest, EvidenceReference, IntelligenceTask
 from zacai.intelligence.meeting_review import ReviewContext
+from zacai.intelligence.native_context_metadata import NativeContextSidecar
 from zacai.intelligence.review_evaluation import (
     ReviewJudgment,
     review_context_digest,
@@ -80,6 +87,7 @@ class ContextualPacket(Contract):
         if self.created_at < self.task.event.observed_at:
             raise ValueError("capture precedes observed evidence")
         context = self.context()
+        _require_legacy_context(context)
         review = validate_contextual_review(self.review, context)
         if (
             self.review_digest != _review_digest(review)
@@ -210,3 +218,180 @@ def check_contextual_evaluation(
     except Exception:  # noqa: BLE001, S110 - no private diagnostics in logs or chains
         pass
     raise ValueError("contextual evaluation unavailable or mismatched")
+
+
+class ContextualPacketV2(Contract):
+    """Retained codec only; legacy processor/protector remains V1-only."""
+
+    model_config = ConfigDict(hide_input_in_errors=True)
+    contract_version: Literal[2]
+    format: Literal["zac-native-contextual-packet-v2"]
+    renderer_version: Literal[1]
+    builder_id: UUID
+    created_at: AwareDatetime
+    task: IntelligenceTask
+    meeting_source_id: UUID
+    related_source_ids: frozenset[UUID]
+    review: ContextualReview
+    review_digest: Digest
+    context_digest: Digest
+    rendered_preview: str
+    noncitable_metadata: NativeContextSidecar
+    original_task_json: str = Field(strict=True, min_length=1, max_length=256000)
+    proposal_reference: EvidenceReference
+    batch_reference: EvidenceReference
+    approval_reference: EvidenceReference
+    artifact_references: tuple[tuple[EvidenceReference, ...], ...]
+    prepared_digest: Digest
+    request_digest: Digest
+
+    @field_validator("created_at", mode="after")
+    @classmethod
+    def utc_created_at(cls, value: datetime) -> datetime:
+        return value.astimezone(UTC)
+
+    @field_validator("contract_version", mode="before")
+    @classmethod
+    def exact_version(cls, value: object) -> object:
+        if type(value) is not int or value != 2:
+            raise ValueError("native packet contract version must be exact2")
+        return value
+
+    @field_validator("renderer_version", mode="before")
+    @classmethod
+    def exact_renderer_version(cls, value: object) -> object:
+        if type(value) is not int or value != 1:
+            raise ValueError("native packet renderer version must be exact1")
+        return value
+
+    def context(self) -> ReviewContext:
+        return ReviewContext(self.task, self.meeting_source_id, self.related_source_ids)
+
+    def request(self) -> ContextualRequestV2:
+        return rebuild_native_contextual_request(self.context(), self.noncitable_metadata,
+            original_task_json=self.original_task_json, proposal_reference=self.proposal_reference, batch_reference=self.batch_reference, approval_reference=self.approval_reference, artifact_references=self.artifact_references)
+
+    @model_validator(mode="after")
+    def exact_components(self) -> Self:
+        from zacai.contextual_authorization import prepared_native_contextual_digest
+        from zacai.intelligence.contextual_host import contextual_request_digest
+
+        context = self.context()
+        review = validate_contextual_review(self.review, context)
+        request = self.request()
+        if (
+            self.created_at < self.task.event.observed_at
+            or self.review_digest != _review_digest(review)
+            or self.context_digest != review_context_digest(context)
+            or self.rendered_preview != render_contextual_preview(review, context)
+            or self.prepared_digest != prepared_native_contextual_digest(request)
+            or self.request_digest != contextual_request_digest(request)
+        ):
+            raise ValueError("native contextual packet component mismatch")
+        return self
+
+
+def _encode_native_contextual_packet(
+    review: ContextualReview,
+    request: ContextualRequestV2,
+    *,
+    builder_id: UUID,
+    created_at: datetime,
+) -> bytes:
+    from zacai.contextual_authorization import prepared_native_contextual_digest
+    from zacai.intelligence.contextual_host import contextual_request_digest
+
+    validate_native_contextual_request(request)
+    context = request.context
+    review = validate_contextual_review(review, context)
+    packet = ContextualPacketV2(
+        contract_version=2,
+        format="zac-native-contextual-packet-v2",
+        renderer_version=1,
+        builder_id=builder_id,
+        created_at=created_at,
+        task=context.task,
+        meeting_source_id=context.meeting_source_id,
+        related_source_ids=context.related_source_ids,
+        review=review,
+        review_digest=_review_digest(review),
+        context_digest=review_context_digest(context),
+        rendered_preview=render_contextual_preview(review, context),
+        noncitable_metadata=request.sidecar,
+        original_task_json=request.original_task_json,
+        proposal_reference=request.proposal_reference, batch_reference=request.batch_reference, approval_reference=request.approval_reference, artifact_references=request.artifact_references,
+        prepared_digest=prepared_native_contextual_digest(request),
+        request_digest=contextual_request_digest(request),
+    )
+    data = packet.model_dump(mode="json")
+    data["related_source_ids"] = sorted(data["related_source_ids"])
+    data["task"]["required_capabilities"] = sorted(data["task"]["required_capabilities"])
+    raw = _canonical(data)
+    if len(raw) > 8 * 1024 * 1024:
+        raise ValueError("native packet byte capacity")
+    return raw
+
+
+def _decode_native_contextual_packet(raw: bytes) -> ContextualPacketV2:
+    if type(raw) is not bytes or not 0 < len(raw) <= 8 * 1024 * 1024:
+        raise ValueError("bounded native contextual packet required")
+    packet = ContextualPacketV2.model_validate(
+        json.loads(raw.decode("utf-8"), object_pairs_hook=_unique_object)
+    )
+    if (
+        encode_native_contextual_packet(
+            packet.review,
+            packet.request(),
+            builder_id=packet.builder_id,
+            created_at=packet.created_at,
+        )
+        != raw
+    ):
+        raise ValueError("noncanonical native contextual packet")
+    return packet
+
+
+def _decode_contextual_packet_any(raw: bytes) -> ContextualPacket | ContextualPacketV2:
+    """Explicit closed codec union; old decode_contextual_packet stays V1-only."""
+    if type(raw) is not bytes or not 0 < len(raw) <= 8 * 1024 * 1024:
+        raise ValueError("bounded contextual packet required")
+    data = json.loads(raw.decode("utf-8"), object_pairs_hook=_unique_object)
+    if type(data) is not dict:
+        raise ValueError("closed contextual packet object required")
+    if data.get("format") == "zac-contextual-packet-v1":
+        return decode_contextual_packet(raw)
+    if data.get("format") == "zac-native-contextual-packet-v2":
+        return decode_native_contextual_packet(raw)
+    raise ValueError("unsupported contextual packet family")
+
+
+def encode_native_contextual_packet(
+    review: ContextualReview,
+    request: ContextualRequestV2,
+    *,
+    builder_id: UUID,
+    created_at: datetime,
+) -> bytes:
+    try:
+        return _encode_native_contextual_packet(
+            review, request, builder_id=builder_id, created_at=created_at
+        )
+    except Exception:  # noqa: BLE001,S110 - suppress private review/metadata chains
+        pass
+    raise ValueError("native contextual packet unavailable or invalid")
+
+
+def decode_native_contextual_packet(raw: bytes) -> ContextualPacketV2:
+    try:
+        return _decode_native_contextual_packet(raw)
+    except Exception:  # noqa: BLE001,S110 - suppress private raw packet chains
+        pass
+    raise ValueError("native contextual packet unavailable or invalid")
+
+
+def decode_contextual_packet_any(raw: bytes) -> ContextualPacket | ContextualPacketV2:
+    try:
+        return _decode_contextual_packet_any(raw)
+    except Exception:  # noqa: BLE001,S110 - suppress private raw union chains
+        pass
+    raise ValueError("contextual packet unavailable or invalid")

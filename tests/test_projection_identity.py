@@ -108,7 +108,6 @@ def test_two_capabilities_replay_across_hashseed_processes(fixture):
     assert outputs[0]["task"] != task["task_id"]
     local = project(fixture, (selected,), context=context)
     assert outputs[0]["event"] == str(local.context.task.event.event_id)
-    assert outputs[0]["task"] == str(local.context.task.task_id)
 
 
 def test_original_processed_task_remains_exact_but_new_projection_is_new(fixture):

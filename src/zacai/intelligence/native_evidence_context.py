@@ -14,16 +14,21 @@ from datetime import UTC, datetime
 from typing import Annotated, Any, Literal, Self
 from uuid import UUID, uuid5
 
-from pydantic import AwareDatetime, Field, StringConstraints, field_validator, model_validator
+from pydantic import Field, StringConstraints, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from zacai.ingestion.artifact_store import ArtifactStore, canonical_bytes, content_hash_of
 from zacai.ingestion.native_batch_inventory import (
     load_native_batch_inventory,
+    prepare_native_batch_recovery_selection,
     verify_native_batch_inventory_rows,
 )
-from zacai.intelligence.contextual_generation import prepare_contextual_request
+from zacai.ingestion.native_proposal_retention import load_retained_native_proposal
+from zacai.intelligence.contextual_generation import (
+    _native_dependency_roles,
+    _prepare_contextual_catalog,
+)
 from zacai.intelligence.contracts import (
     ContextItem,
     Contract,
@@ -34,6 +39,12 @@ from zacai.intelligence.contracts import (
     ZacEvent,
 )
 from zacai.intelligence.meeting_review import ReviewContext
+from zacai.intelligence.native_context_metadata import (
+    NativeContextSidecar,
+    NativeEvidenceMetadata,
+    NativeEvidenceSpan,
+    encode_native_sidecar,
+)
 from zacai.policy import (
     AccessRequest,
     DataClassification,
@@ -51,19 +62,6 @@ class NativeEvidenceContextError(ValueError):
     """Fixed private-safe hold with no exception cause/context."""
 
 
-class NativeEvidenceSpan(Contract):
-    """Python Unicode offsets into the entire exact selected field."""
-
-    start: int = Field(ge=0, le=100_000, strict=True)
-    end: int = Field(gt=0, le=100_000, strict=True)
-
-    @model_validator(mode="after")
-    def bounded(self) -> Self:
-        if not 0 < self.end - self.start <= 4_000:
-            raise ValueError("bounded nonempty span required")
-        return self
-
-
 class NativeEvidenceSelection(Contract):
     source_id: UUID
     content_hash: Digest
@@ -79,42 +77,16 @@ class NativeEvidenceSelection(Contract):
         return self
 
 
-class NativeEvidenceMetadata(Contract):
-    """Host-derived observation/selection metadata; never a provider citation."""
-
-    reference: EvidenceReference
-    source_system: SourceSystem
-    external_ref: str
-    field: Literal["rfc822_utf8", "text"]
-    field_text_hash: Digest
-    source_span: NativeEvidenceSpan
-    provider_occurred_at: AwareDatetime
-    source_captured_at: AwareDatetime
-    batch_observed_at: AwareDatetime
-    projection_observed_at: AwareDatetime
-    relevance_reason: str
-    project_link: Literal["UNCONFIRMED"] = "UNCONFIRMED"
-    current_fact: Literal[False] = False
-    authorship_verified: Literal[False] = False
-    sent_approval_verified: Literal[False] = False
-
-    @field_validator(
-        "provider_occurred_at",
-        "source_captured_at",
-        "batch_observed_at",
-        "projection_observed_at",
-    )
-    @classmethod
-    def utc_dates(cls, value: datetime) -> datetime:
-        return value.astimezone(UTC)
-
-
 @dataclass(frozen=True, repr=False)
 class NativeEvidenceProjection:
     context: ReviewContext
     original_task: IntelligenceTask
     original_event: ZacEvent
     metadata: tuple[NativeEvidenceMetadata, ...]
+    proposal_reference: EvidenceReference | None = None
+    batch_reference: EvidenceReference | None = None
+    approval_reference: EvidenceReference | None = None
+    artifact_references: tuple[tuple[EvidenceReference, ...], ...] | None = None
     processing_authorized: Literal[False] = field(default=False, init=False)
     recovery_verified: Literal[False] = field(default=False, init=False)
     facts_confirmed: Literal[False] = field(default=False, init=False)
@@ -299,6 +271,7 @@ def append_native_evidence_context(
     authorized_boundaries: frozenset[B],
     allowed_classifications: frozenset[C],
     observed_at: datetime,
+    proposal_reference: EvidenceReference | None = None,
 ) -> NativeEvidenceProjection:
     """Read-only caller transaction; returned snapshot grants no model/action use.
 
@@ -333,6 +306,7 @@ def append_native_evidence_context(
             authorized_boundaries,
             allowed_classifications,
             observed_at,
+            proposal_reference,
         )
     except Exception:  # noqa: BLE001,S110 - provider/SQL/body diagnostics remain private
         pass
@@ -352,6 +326,7 @@ def _append(
     authorized: frozenset[B],
     allowed: frozenset[C],
     observed: datetime,
+    proposal_reference: EvidenceReference | None,
 ) -> NativeEvidenceProjection:
     _scope(authorized, allowed)
     if (
@@ -383,6 +358,15 @@ def _append(
         raise ValueError("projection capacity/ambiguity")
     if any(s.source_id in {i.reference.source_id for i in task.context} for s in chosen):
         raise ValueError("source already quoted")
+    if proposal_reference is not None and (
+        task.event.event_type == "native.evidence.selected"
+        or task.event.producer == "native-evidence-projection-v1"
+        or observed < task.event.observed_at
+        or proposal_reference.source_id in {i.reference.source_id for i in task.context}
+        or any(i.reference not in task.event.provenance for i in task.context)
+        or context.meeting_source_id in context.related_source_ids
+    ):
+        raise ValueError("V2 eligible original relationship required")
     initial = {r.source_id: r for r in task.event.provenance}
     for selected in chosen:
         ref = EvidenceReference(
@@ -394,7 +378,10 @@ def _append(
         if ref.source_id in initial and initial[ref.source_id] != ref:
             raise ValueError("initial conflicting reference")
         initial[ref.source_id] = ref
-    for control in (batch_reference, approval_reference):
+    controls = (batch_reference, approval_reference) + (
+        (proposal_reference,) if proposal_reference is not None else ()
+    )
+    for control in controls:
         if type(control) is not EvidenceReference:
             raise ValueError("exact control reference required")
         ref = EvidenceReference.model_validate(control)
@@ -430,10 +417,35 @@ def _append(
         approved_proposal_raw=approved_proposal_raw,
         as_of=observed,
     )
+    if (
+        inventory.batch_reference != batch_reference
+        or inventory.approval_reference != approval_reference
+    ):
+        raise ValueError("native inventory control references changed")
+    if proposal_reference is not None:
+        retained = load_retained_native_proposal(
+            session,
+            artifacts=scoped,
+            proposal_reference=proposal_reference,
+            batch_id=inventory.batch_id,
+            expected_proposal_hash=inventory.proposal_digest,
+            as_of=observed,
+        )
+        if retained != approved_proposal_raw:
+            raise ValueError("retained proposal differs")
+        prepare_native_batch_recovery_selection(
+            session,
+            artifacts=scoped,
+            inventory=inventory,
+            proposal_reference=proposal_reference,
+            approved_proposal_raw=retained,
+            as_of=observed,
+        )
     references = {ref.source_id: ref for ref in task.event.provenance}
     for ref in (
         inventory.batch_reference,
         inventory.approval_reference,
+        *((proposal_reference,) if proposal_reference is not None else ()),
         *(r for g in inventory.artifact_references for r in g),
     ):
         if ref.source_id in references and references[ref.source_id] != ref:
@@ -498,6 +510,9 @@ def _append(
                 field=choice.field,
                 field_text_hash=choice.field_text_hash,
                 source_span=span,
+                field_length_codepoints=len(value),
+                omitted_before_codepoints=span.start,
+                omitted_after_codepoints=len(value) - span.end,
                 provider_occurred_at=datetime.fromisoformat(role["provider_occurred_at"]),
                 source_captured_at=row["captured_at"],
                 batch_observed_at=inventory.original_observed_at,
@@ -523,6 +538,18 @@ def _append(
             "metadata": [m.model_dump(mode="json") for m in metadata],
             "provenance": [r.model_dump(mode="json") for r in union],
             "selected_text": [i.untrusted_text for i in items[len(task.context) :]],
+            **(
+                {
+                    "native_dependency_roles": _native_dependency_roles(
+                        batch_reference,
+                        approval_reference,
+                        proposal_reference,
+                        inventory.artifact_references,
+                    )
+                }
+                if proposal_reference is not None
+                else {}
+            ),
         }
     )
     data["event"]["event_id"] = uuid5(
@@ -544,7 +571,7 @@ def _append(
     )
     # Exact existing line terminators/packing/250-passage ceiling, no truncation.
     # Passing preparation does not authorize or dispatch this new task.
-    prepare_contextual_request(derived)
+    _prepare_contextual_catalog(derived)
     # LAST external artifact callback belongs to public verifier; scalar union
     # after it covers old context, all dependencies, exact rows and current ACL.
     verify_native_batch_inventory_rows(
@@ -552,4 +579,16 @@ def _append(
     )
     if _snapshot(session, union, authorized, allowed, observed) != rows:
         raise ValueError("final source snapshot changed")
-    return NativeEvidenceProjection(derived, task, task.event, tuple(metadata))
+    encode_native_sidecar(
+        NativeContextSidecar(format="zac-native-context-sidecar-v1", entries=tuple(metadata))
+    )
+    return NativeEvidenceProjection(
+        derived,
+        task,
+        task.event,
+        tuple(metadata),
+        proposal_reference,
+        batch_reference,
+        approval_reference,
+        inventory.artifact_references,
+    )

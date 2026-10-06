@@ -2262,3 +2262,33 @@ A separately staged request/packet sidecar codec is not part of this checkpoint.
 The existing context-first next steps remain authenticated selected capture,
 real recovery readiness, owner confirmation of current facts and useful retrieval
 with minimal repeated direction.
+
+
+### Native context contracts and Claude history inspection (2026-10-06)
+
+Native preparation now retains exact original task identity and explicit batch,
+approval, proposal and artifact roles in its closed V2 request/packet family.
+Untrusted source dates, selection rationales and omissions remain NONCITABLE.
+Legacy V1 consent, host and runtime entrypoints reject the native family; no
+model dispatch, processing approval or source connection is enabled here.
+Canonical assembly rechecks full12/13-Source inventories and base/project
+relationships, including concurrent withdrawal and ProjectHead advancement.
+Root verified416 pure checks and10 actual PostgreSQL cases on the corrected
+135-source graph; independent code-only Opus review found no blocker.
+
+An additive Claude member-history indexer preserves original UTF-8 byte offsets,
+explicit missing-parent gaps and reported dates without promoting facts. Its
+100MB input-byte ceiling is not a memory guarantee. Existing history-selection
+8MB export,128KB record and64-record limits remain unchanged.70 invented parser
+checks pass; reviewed executable code is unchanged by the final coverage update.
+No actual private export has been indexed, imported or passed to a model.
+
+Next existing-context joins: retain/reload canonical native preparation without
+reminting its observation; exact owner processing consent and one canonical
+claim; reviewed full-body LOCAL token fit and final pre-POST recheck; closed V2
+packet retention and complete recovery. Large Claude originals also need an
+explicit whole-original custody/span-selection companion and compatible
+boundary protection before canonical enrollment. The BRAINSTORM full-snapshot
+8.5MB ciphertext reader bound must not be silently bypassed by a large archive.
+PERSONAL classification and recovered encryption/credential readiness remain
+separate owner gates. These additions preserve the context-first roadmap.

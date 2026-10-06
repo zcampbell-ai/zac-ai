@@ -19,7 +19,12 @@ from pydantic import AwareDatetime, ConfigDict, Field, TypeAdapter, field_valida
 from sqlalchemy.orm import Session, sessionmaker
 
 from zacai.ingestion.artifact_store import ArtifactStore, canonical_bytes, content_hash_of
-from zacai.intelligence.contextual_generation import ContextualRequest, prepare_contextual_request
+from zacai.intelligence.contextual_generation import (
+    ContextualRequest,
+    ContextualRequestV2,
+    encode_native_contextual_request,
+    prepare_contextual_request,
+)
 from zacai.intelligence.contextual_host import ContextualRunScope, contextual_request_digest
 from zacai.intelligence.contracts import Contract, Digest, ModelRoute
 from zacai.intelligence.research_context import ResearchReviewSelection
@@ -102,14 +107,18 @@ class ContextualRecoveryGate(Protocol):
         ...
 
 
-def prepared_contextual_digest(request: ContextualRequest) -> str:
+def prepared_contextual_digest(request: ContextualRequest | ContextualRequestV2) -> str:
     """Bind reviewed content/schema/limits across fresh task/event identities.
 
     Only host-generated ID namespaces are normalized, never passage text. The
     actual claim separately binds all actual identities and the exact request.
     """
+    if type(request) is ContextualRequestV2:
+        return prepared_native_contextual_digest(request)
     result: str | None = None
     try:
+        if type(request) is not ContextualRequest:
+            raise ValueError("unsupported contextual request family")
         if request != prepare_contextual_request(request.context):
             raise ValueError("modified request")
         namespace = review_context_digest(request.context)[:32] + ":"
@@ -288,6 +297,8 @@ def _scope_matches(consent: ContextualConsent, scope: ContextualRunScope) -> boo
 
 
 def _request_matches(consent: ContextualConsent, request: ContextualRequest) -> bool:
+    if type(request) is not ContextualRequest:
+        return False  # V2 needs its own actual selected scope/approval/recovery.
     selected = consent.selection.selected
     related = {item.source_id for item in consent.selection.earlier} | {
         item.source_id for item in consent.selection.projects
@@ -505,3 +516,28 @@ class BrainstormContextualRecoveryGate:
             failed = True
         if failed:
             raise ContextualAuthorizationError("contextual recovery prerequisites unavailable")
+
+
+def _prepared_native_contextual_digest(request: ContextualRequestV2) -> str:
+    """Exact retained V2 request, including observation, task and event identities."""
+    raw = encode_native_contextual_request(request)
+    return content_hash_of(
+        canonical_bytes(
+            {
+                "format": "zac-native-contextual-prepared-v2",
+                "exact_retained_request_digest": content_hash_of(raw),
+            }
+        )
+    )
+
+
+def prepared_native_contextual_digest(request: ContextualRequestV2) -> str:
+    """Structural consistency only; exact retained observation needs new approval.
+
+    This digest does not authenticate full-field hashes or a supplied sidecar.
+    """
+    try:
+        return _prepared_native_contextual_digest(request)
+    except Exception:  # noqa: BLE001,S110 - fixed public error, no private causes
+        pass
+    raise ContextualAuthorizationError("native contextual request unavailable or invalid")
