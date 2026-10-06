@@ -438,3 +438,43 @@ def test_final_row_adapter_dependency_relabel_withholds_ack(fixture, dependency)
     with pytest.raises(m.NamedDecisionCaptureError):
         load(s, first)
     assert calls == 2
+
+
+def test_resolver_advancing_shared_clock_uses_actual_later_bound_time(fixture, monkeypatch):
+    s = fixture
+    initial = s.now
+    original = s.capture._admission.resolve
+
+    def later_bound(*args):
+        assert s.active_sessions == 0
+        s.now = initial + timedelta(seconds=2)
+        s.decision = s.decision.model_copy(update={"bound_at": s.now})
+        return original(*args)
+
+    monkeypatch.setattr(s.capture._admission, "resolve", later_bound)
+    saved = s.capture.capture(**s.capture_inputs)
+    assert saved.decision.bound_at == initial + timedelta(seconds=2)
+    assert saved.decision.original_observed_at < saved.decision.bound_at
+    assert saved.decision.processing_expires_at == s.decision.processing_expires_at
+    assert s.decision_protects == 1
+
+
+@pytest.mark.parametrize("timing", ["future", "rollback"])
+def test_resolver_future_bound_or_clock_rollback_never_commits(fixture, monkeypatch, timing):
+    s = fixture
+    initial = s.now
+
+    def invalid_bound(*args):
+        assert s.active_sessions == 0
+        if timing == "future":
+            s.now = initial + timedelta(seconds=1)
+            return s.decision.model_copy(update={"bound_at": initial + timedelta(seconds=2)})
+        s.now = initial - timedelta(seconds=1)
+        return s.decision
+
+    monkeypatch.setattr(s.capture._admission, "resolve", invalid_bound)
+    with pytest.raises(m.NamedDecisionCaptureError):
+        s.capture.capture(**s.capture_inputs)
+    assert s.decision_protects == 0
+    assert not any(row.external_ref.startswith("packet-followup-named-decision/")
+                   for row in s.sources.values())

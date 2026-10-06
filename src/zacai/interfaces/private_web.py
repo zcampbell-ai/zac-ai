@@ -10,11 +10,12 @@ No route dispatches actions or interprets client claims as identity/permission.
 
 from __future__ import annotations
 
+import json
 import re
 import secrets
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from html import escape
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlsplit
@@ -32,6 +33,7 @@ from zacai.interfaces.session_store import Identity, SessionStore, UserSession
 from zacai.policy import DataClassification, TrustBoundary
 
 if TYPE_CHECKING:
+    from zacai.interfaces.named_followup_web import NamedFollowupWeb
     from zacai.interfaces.work_choice_web import WorkChoiceWeb
 
 _LOGIN = "__Host-zac-login"
@@ -134,6 +136,7 @@ def create_private_web(
     view: Callable[[InterfacePrincipal], Awaitable[str]],
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     work_choices: WorkChoiceWeb | None = None,
+    named_questions: NamedFollowupWeb | None = None,
 ) -> FastAPI:
     """Create an isolated app, never mount/run it or alter existing service binding.
 
@@ -149,6 +152,14 @@ def create_private_web(
 
         if type(work_choices) is not WorkChoiceWeb:
             raise ValueError("private work choice configuration unavailable")
+    if named_questions is not None:
+        from zacai.interfaces.named_followup_web import NamedFollowupWeb
+        if (type(named_questions) is not NamedFollowupWeb or clock is not named_questions.host_clock
+            or named_questions._continuity._sessions is not sessions
+            or named_questions._continuity._owner is not owner
+            or json.loads(named_questions._continuity._context)["origin"] != origin
+            or named_questions._store._context != named_questions._continuity._context):
+            raise ValueError("private named question configuration unavailable")
     target = urlsplit(origin)
     if (
         target.scheme != "https"
@@ -401,5 +412,112 @@ def create_private_web(
                 return Response(
                     "Preference not acknowledged. Retry or request a review.", status_code=503
                 )
+
+    if named_questions is not None:
+        named_controller = named_questions
+        pointer_cookie = "__Host-zac-named-action"
+
+        def original_session(before: tuple[UserSession, InterfacePrincipal],
+                             after: tuple[UserSession, InterfacePrincipal] | None) -> bool:
+            return (after is not None and before[1] == after[1]
+                and before[0].identity == after[0].identity
+                and before[0].issued_at == after[0].issued_at
+                and before[0].expires_at == after[0].expires_at
+                and secrets.compare_digest(before[0].csrf, after[0].csrf))
+
+        def browser_pointer(request: Request) -> str | None:
+            values = [part.strip().split("=", 1)[1]
+                for raw in request.headers.getlist("cookie") for part in raw.split(";")
+                if part.strip().startswith(pointer_cookie + "=")]
+            if len(values) > 1:
+                raise ValueError("ambiguous browser pointer")
+            return values[0] if values else None
+
+        def named_document(content: str) -> str:
+            return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
+                '<meta name="viewport" content="width=device-width, initial-scale=1">'
+                '<title>Caz AI · Local question</title><style>' + CAZ_STYLE + '</style></head>'
+                '<body><main>' + content + '<p><a href="/">Back to your review</a></p></main></body></html>')
+
+        @app.get("/ask-caz-locally")
+        async def named_question_page(request: Request) -> Response:
+            try:
+                if not valid_host(request) or request.scope.get("query_string", b""):
+                    return Response(status_code=400)
+                before = authenticated(request)
+                if before is None:
+                    return RedirectResponse("/login", status_code=303)
+                pointer = browser_pointer(request)
+                operation = named_controller.for_cookie(_cookie(request, _USER))
+                page = await run_in_threadpool(named_controller.page,
+                    operation=operation, pointer=pointer, csrf=before[0].csrf)
+                if not original_session(before, authenticated(request)):
+                    return Response("Private local question unavailable", status_code=403)
+                # Last external session callback precedes final actual row gate.
+                page = await run_in_threadpool(named_controller.recheck_page, operation=operation, page=page)
+                now = clock()
+                if now >= min(before[0].expires_at, page.deadline):
+                    return Response("Private local question unavailable", status_code=403)
+                response = HTMLResponse(named_document(page.html))
+                manifest = page.reused.record.manifest
+                maximum = min(before[0].expires_at, manifest.admission_expires_at +
+                    timedelta(seconds=manifest.processing_ttl_seconds))
+                response.set_cookie(pointer_cookie, page.reused.sealed_pointer,
+                    max_age=max(0, int((maximum - now).total_seconds())), secure=True,
+                    httponly=True, samesite="strict", path="/")
+                return response
+            except Exception:  # noqa: BLE001 - no private fields/backend locals in response
+                return Response("Private local question unavailable", status_code=503)
+
+        if named_controller.submission_enabled:
+            @app.post("/ask-caz-locally")
+            async def named_question_submit(request: Request) -> Response:
+                try:
+                    if (not valid_host(request) or request.headers.getlist("origin") != [origin]
+                        or request.scope.get("query_string", b"")):
+                        return Response(status_code=403)
+                    before = authenticated(request)
+                    if before is None:
+                        return Response(status_code=401)
+                    if request.headers.getlist("content-type") != ["application/x-www-form-urlencoded"]:
+                        return Response(status_code=403)
+                    pointer = browser_pointer(request)
+                    if pointer is None:
+                        return Response(status_code=403)
+                    body = b""
+                    async for chunk in request.stream():
+                        if len(body) + len(chunk) > 32768:
+                            return Response(status_code=413)
+                        body += chunk
+                    if not original_session(before, authenticated(request)):
+                        return Response("Private local question unavailable", status_code=403)
+                    from zacai.interfaces.named_followup_web import (
+                        parse_named_question_form,
+                    )
+                    try:
+                        question_form = parse_named_question_form(body, before[0].csrf)
+                    except ValueError:
+                        return Response(status_code=403)
+                    operation = named_controller.for_cookie(_cookie(request, _USER))
+                    # Starlette awaits the blocking worker; no client-triggered retry or
+                    # background dispatch is created here. Durable one-shot claim is
+                    # mandatory inside the concrete host pipeline.
+                    result = await run_in_threadpool(named_controller.submit,
+                        operation=operation, pointer=pointer, original_utf8=question_form.original_utf8,
+                        manifest_digest=question_form.manifest_digest)
+                    if not original_session(before, authenticated(request)):
+                        return Response("Private local reply unavailable", status_code=403)
+                    saved = await run_in_threadpool(named_controller.recheck_result,
+                        operation=operation, result=result)
+                    expiry = result.admitted.processing_expires_at
+                    if expiry is None or clock() >= min(before[0].expires_at, expiry):
+                        return Response("Private local reply unavailable", status_code=403)
+                    citations = ''.join('<li>Source ' + escape(str(c.reference.source_id))
+                        + ', characters ' + str(c.quote.start) + '–' + str(c.quote.end) + '</li>'
+                        for c in saved.reply.citations)
+                    html = '<section class="decision-card"><h1>Caz reply</h1><p style="white-space:pre-wrap">' + escape(saved.reply.display_text) + '</p><details><summary>Source evidence</summary><ul>' + citations + '</ul></details></section>'
+                    return HTMLResponse(named_document(html))
+                except Exception:  # noqa: BLE001 - no claims, request text or private exceptions
+                    return Response("Local question not acknowledged. Review request status.", status_code=503)
 
     return app

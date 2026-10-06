@@ -13,7 +13,7 @@ import hmac
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Literal
 from urllib.parse import urlsplit
 
@@ -54,7 +54,11 @@ class NamedSessionOperation:
     """Host-created per-operation closure, not client supplied authentication."""
 
     def __init__(self, source: NamedSessionContinuity, cookie: str) -> None:
-        if type(source) is not NamedSessionContinuity or type(cookie) is not str or _TOKEN.fullmatch(cookie) is None:
+        if (
+            type(source) is not NamedSessionContinuity
+            or type(cookie) is not str
+            or _TOKEN.fullmatch(cookie) is None
+        ):
             raise NamedSessionBindingError("named session operation unavailable")
         self._read: Callable[[], VerifiedNamedSession] = lambda: source._current(cookie)
         self._host_clock: Callable[[], HostObservedClock] = lambda: source._clock
@@ -106,23 +110,44 @@ class NamedSessionOperation:
 
 
 class NamedSessionContinuity:
-    def __init__(self, *, sessions: SqliteSessionStore, owner: Callable[[], OwnerGrant],
-                 clock: HostObservedClock, key: bytes, origin: str, client_id: str) -> None:
+    def __init__(
+        self,
+        *,
+        sessions: SqliteSessionStore,
+        owner: Callable[[], OwnerGrant],
+        clock: HostObservedClock,
+        key: bytes,
+        origin: str,
+        client_id: str,
+    ) -> None:
         okay = False
         try:
             target = urlsplit(origin)
             if (
-                type(sessions) is not SqliteSessionStore or not callable(owner)
-                or type(clock) is not HostObservedClock or type(key) is not bytes or len(key) != 32
-                or type(origin) is not str or target.scheme != "https" or not target.hostname
-                or target.netloc != target.hostname or target.path or target.query or target.fragment
-                or type(client_id) is not str or re.fullmatch(r"[A-Za-z0-9._-]{1,255}", client_id) is None
+                type(sessions) is not SqliteSessionStore
+                or not callable(owner)
+                or type(clock) is not HostObservedClock
+                or type(key) is not bytes
+                or len(key) != 32
+                or type(origin) is not str
+                or target.scheme != "https"
+                or not target.hostname
+                or target.netloc != target.hostname
+                or target.path
+                or target.query
+                or target.fragment
+                or type(client_id) is not str
+                or re.fullmatch(r"[A-Za-z0-9._-]{1,255}", client_id) is None
             ):
                 raise ValueError("trusted host dependencies required")
             self._sessions, self._owner, self._clock = sessions, owner, clock
             self._context = canonical_bytes({"origin": origin, "client_id": client_id})
-            self._key = HKDF(algorithm=hashes.SHA256(), length=32, salt=b"zac-named-session-binding-key-v1",
-                             info=b"zac-named-session-binding-v1\x00" + self._context).derive(key)
+            self._key = HKDF(
+                algorithm=hashes.SHA256(),
+                length=32,
+                salt=b"zac-named-session-binding-key-v1",
+                info=b"zac-named-session-binding-v1\x00" + self._context,
+            ).derive(key)
             okay = True
         except Exception:  # noqa: BLE001,S110
             pass
@@ -142,33 +167,64 @@ class NamedSessionContinuity:
                 raise ValueError("actual browser cookie required")
             before = self._grant()  # owner FIRST: denied cookies cannot idle-refresh
             now = self._clock()
-            session = self._sessions.user(cookie, now)
+            session = self._sessions.peek_user(cookie, now)
             after = self._grant()
             # Owner callbacks finish before the final actual session lookup;
             # a revocation during the post-call owner check cannot pass.
             second_now = self._clock()
-            refreshed = self._sessions.user(cookie, second_now) if before == after else None
+            refreshed = self._sessions.peek_user(cookie, second_now) if before == after else None
             checked_now = self._clock()
             if (
-                type(session) is not UserSession or type(refreshed) is not UserSession
-                or before != after or session.identity != before.identity
-                or (session.identity, session.issued_at, session.expires_at, session.csrf) !=
-                   (refreshed.identity, refreshed.issued_at, refreshed.expires_at, refreshed.csrf)
-                or not session.issued_at <= session.last_seen_at <= now <= second_now
-                <= refreshed.last_seen_at <= checked_now < session.expires_at
-                or type(session.csrf) is not str or _TOKEN.fullmatch(session.csrf) is None
+                type(session) is not UserSession
+                or type(refreshed) is not UserSession
+                or before != after
+                or session.identity != before.identity
+                or (session.identity, session.issued_at, session.expires_at, session.csrf)
+                != (refreshed.identity, refreshed.issued_at, refreshed.expires_at, refreshed.csrf)
+                or not session.issued_at
+                <= session.last_seen_at
+                <= now
+                <= second_now
+                <= checked_now
+                < session.expires_at
+                or not session.last_seen_at <= refreshed.last_seen_at <= second_now
+                or checked_now - refreshed.last_seen_at
+                >= timedelta(microseconds=self._sessions._idle)
+                or type(session.csrf) is not str
+                or _TOKEN.fullmatch(session.csrf) is None
             ):
                 raise ValueError("current browser session unavailable")
-            binding = hmac.new(self._key, b"zac-named-session-correlation-v1\x00" + self._context + canonical_bytes({
-                "cookie": cookie, "issuer": session.identity.issuer, "subject": session.identity.subject,
-                "issued_at": session.issued_at.isoformat(), "expires_at": session.expires_at.isoformat(),
-                "csrf": session.csrf,
-                "scopes": [{"boundary": scope.boundary.value,
-                            "classifications": sorted(c.value for c in scope.classifications)}
-                           for scope in sorted(before.scopes, key=lambda scope: scope.boundary.value)],
-            }), "sha256").hexdigest()
-            result = VerifiedNamedSession(InterfacePrincipal(after.identity, after.scopes), binding,
-                                          session.issued_at, session.expires_at)
+            binding = hmac.new(
+                self._key,
+                b"zac-named-session-correlation-v1\x00"
+                + self._context
+                + canonical_bytes(
+                    {
+                        "cookie": cookie,
+                        "issuer": session.identity.issuer,
+                        "subject": session.identity.subject,
+                        "issued_at": session.issued_at.isoformat(),
+                        "expires_at": session.expires_at.isoformat(),
+                        "csrf": session.csrf,
+                        "scopes": [
+                            {
+                                "boundary": scope.boundary.value,
+                                "classifications": sorted(c.value for c in scope.classifications),
+                            }
+                            for scope in sorted(
+                                before.scopes, key=lambda scope: scope.boundary.value
+                            )
+                        ],
+                    }
+                ),
+                "sha256",
+            ).hexdigest()
+            result = VerifiedNamedSession(
+                InterfacePrincipal(after.identity, after.scopes),
+                binding,
+                session.issued_at,
+                session.expires_at,
+            )
         except Exception:  # noqa: BLE001,S110
             pass
         if result is None:

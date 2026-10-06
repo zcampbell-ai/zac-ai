@@ -6655,3 +6655,180 @@ legacy-consumption/cache regressions and explicit read-only restart semantics.
 The exact staged scan passes without secrets; commit/push are verified separately.
 Workspace-staged native submission, concrete bindings and worker lifecycle are
 not installed by this checkpoint and remain required for an actual owner trial.
+
+
+## D034AY — original scope, concrete proof lookup and actual host lifetime
+Status: Implementation direction retained; release validation in progress.
+
+Use exact independently retained packet/question/decision proof references and
+actual canonical rows, not callback return shapes, as evidence. Runtime pins
+cover the concrete reviewed local profile and serializer/tokenizer inventory.
+Question-free display must use metadata-only profile verification, never an
+invented FollowupRequest. Historical integrity permits receipt preservation
+only; active original-session admission must be checked around long processing.
+
+A native owner POST includes the exact displayed manifest digest. A shared
+cookie changed by another tab cannot silently change the scope being approved.
+New question admission is one-shot; an exception or reload does not redispatch.
+
+Foreground owner-mode composition owns concrete sessions, grant, key and shared
+clock. Worker lifetime drains before the existing retained mode lease is
+released; an in-memory registration or shaped drain record grants no processing
+permission. Enrollment stays isolated and cannot mount the question route.
+
+Dated first-release acceptance remains distinct from current source access and
+recovery proof. The progress bar counts accepted gates, never token effort or
+completion of the broader vision. Physical iPhone acceptance remains required.
+
+
+D034AY review reconciliation in progress: receipt-only history uses the concrete
+canonical adapter's recorded pins, retained proofs and final canonical ACLs,
+without probing today's runtime. Active processing still uses current runtime
+verification and original admission; it cannot consume historical checks as
+permission. Original question observation and processing deadline stay fixed.
+Internal session proof checks use read-only authenticated observations rather
+than refreshing idle activity; normal browser requests remain activity.
+
+The process-wide submit lock covers only publication and atomic admission, not
+long processing. Thread shutdown remains fail closed: no abandoned Python
+worker or timeout releases the foreground lease early. Capacity/start failures
+remain consumed held attempts requiring status review, not automatic retry.
+A missing, malformed or expired POST pointer cannot issue a replacement action.
+Historical read-only reply delivery, concrete production semantic validation,
+actual processing deadlines and physical phone behavior remain subsequent
+composition/acceptance gates.
+
+
+D034AY corrected integration evidence: actual enrolled-owner store and native
+HTTP GET composition pass together with disposable PostgreSQL/local-age full
+State/journal restoration in 177.42 seconds. Invented Google identity and
+runtime metadata remain explicit; no live identity, generation, cloud recovery
+or phone usability claim follows from this fixture. Whole-tree Ruff, strict
+mypy (124 source files) and diff checks pass; final serial suite and narrow
+independent review remain running.
+
+Display observations are bounded per-record digests and expiry only; decoded
+parent text is fingerprinted transiently, never retained in that cache. Every
+fresh display check performs actual recovery/runtime/session validation and
+final canonical rows; a cache hit is not permission. The host requires the
+concrete display gate and exact shared stores/clock. Expensive display checks
+occur outside the short admission lock; the lock still rechecks original
+pointer, actual ISSUED record, final rows and atomically consumes admission.
+Completed worker retirement requires actual physical thread termination and
+original expiry plus the authenticated operational-store cleanup acknowledgement.
+
+Historical receipt integrity still depends on supported current serializers,
+contracts and owner grants. Changes to those require explicit migration or a
+hold, not silent compatibility assumptions. Before initial decision commit,
+trusted construction supplies the original prepared request observation;
+post-commit reconstruction preserves the stored observation. Pre-commit crash
+reconciliation never authorizes automatic inference retry. Independent pipeline
+capacity reservation, saved historical reply delivery, production semantic
+release validation, representative latency and physical iPhone acceptance
+remain subsequent gates in the existing roadmap.
+
+
+D034AY further review findings reproduced before correction: ten regressions
+failed for capacity consumption, cache-lock latency, foreign host bindings and
+shutdown ordering; two existing host context faults already denied. Corrected
+installed focused tests pass 112 cases in 5.15 seconds. The previous unchanged
+serial baseline passed 3,671 tests in 616.54 seconds; corrected full-suite and
+independent Opus review remain running, so this is not yet release evidence.
+
+Native concrete worker composition now reserves bounded capacity before actual
+SQLite admission. The reservation is transient correlation, never authority;
+actual admitted scope/window transfers once. Failed admission releases capacity
+only after an authenticated unchanged ISSUED read. Committed or unknown outcomes
+remain held, never refunded/retried. Shutdown joins all physically started
+threads before reporting any unstarted or reserved ambiguity. Display cache
+locks cover bounded digest/expiry correlation only; recovery uses its separate
+lease and final actual canonical bytes/ACL checks remain mandatory. Exact host
+store/pointer key, context, clock and storage location are checked without
+exposing secrets or initializing a comparison database.
+
+
+D034AY lifecycle availability reconciliation: five additional regressions
+reproduced known-unused expiry, admission-expiry reservation leakage, unrelated
+cleanup denial, dispatch interruption and foreign-wrapper reservation transfer.
+Two startup regressions reproduced lost-handle capacity and release of the
+operator lock before a factory-created native worker terminated. Corrected
+merged worker/store/host/operator focused tests pass 191 cases in 3.81 seconds;
+installed display/helper concurrency tests pass 28 cases in 3.31 seconds. Ruff,
+strict mypy (124 source files) and diff checks pass. Final serial regression and
+independent lifecycle review remain running; this is not final release evidence.
+
+The authenticated status API exposes original sealed operational metadata after
+expiry solely for outcome reconciliation. It does not relax active get/admit or
+return source text. An expired known reserved placeholder with no job can be
+retired under the registry lock; uncertain Thread.start outcomes remain held.
+Failed cleanup retains its exact slot rather than denying other free capacity.
+Successful reservation dispatch does not perform unrelated retirement, and a
+foreign wrapper cannot reconstruct missing original retained binding.
+
+Graceful cleanup follows actual physical drain. Restart cleanup is private to
+the actual owner-mode foreground operator after acquiring its retained flock,
+validating current owner/key/context and requiring an empty open worker registry,
+before exposing the app. Bounded authenticated expired rows matching the exact
+current owner grant may be reclaimed by persisted digest. Active/unknown-scope
+records remain, while corruption or oversized input aborts cleanup. Canonical
+Sources, decisions, consumed claims and recovery proofs remain untouched. Deleted
+expired operational metadata cannot dispatch, renew permission or replay work.
+Failed startup joins newly created physical threads with logging/signals held
+before releasing the actual lock; unrelated pre-existing threads are preserved.
+This is controlled-process operational availability, not a same-user attacker
+security boundary or a proof that production phone access is ready.
+
+D034AY final lifecycle corrections: independent review exposed registration/
+retirement clock ordering, generic calls consuming reserved placeholders, and
+foreign-wrapper retention after denied dispatch. Original expiry is checked
+under the registry guard; reserved-only transfer cannot allocate a missing job;
+legacy wrapper retention and placeholder insertion are atomic. Generic direct
+run/shielded-run cannot take a reserved placeholder. Read continuation accepts
+authenticated question/decision attachments only when every original immutable
+scope field and exact retained wrapper binding still matches.
+
+Expired unchanged ISSUED outcomes are authenticated atomically inside admission
+without a write. Missing, corrupt, consumed or uncertain outcomes never refund
+capacity based on absence. Operator shutdown repeats the actual paired lifecycle
+gate after physical thread drain so swallowed server-lifespan failure cannot
+become success. Failure to install signal suppression cannot skip physical
+drain; startup preserves unknown handlers and restores known ones separately.
+
+The previous integrated serial baseline passed 3,733 tests in 615.67 seconds.
+After the final reproduced lifecycle corrections, 261 focused integration tests
+pass in 8.95 seconds; Ruff, strict mypy (124 sources) and diff checks pass.
+A separate actual native-join interruption check passes against the existing
+interrupt-safe drain helper. Final frozen-tree serial validation is still
+running; independent conditional drain review is being reconciled against its
+actual helper implementation. These are interim checks, not a release receipt
+or evidence of live answers, source connections, Google credentials or iPhone
+acceptance. D034AX remains the last committed validated release.
+
+Final D034AY independent evidence reconciliation: Opus reviewed the actual
+interrupt-safe physical drain helper and withdrew the conditional residual
+shutdown finding (20.84 seconds, code review with tools disabled). A hypothetical
+replacement helper that raises cannot reproduce the installed helper, which
+re-enumerates actual native threads and catches interrupted joins/inventory.
+The actual native-join interruption test passes. Independent lifecycle findings
+are reconciled; frozen-tree serial validation and final secret scanning/commit
+evidence still remain before release. No processing permission is granted by
+this engineering review.
+
+D034AY final release validation complete: the frozen integrated source passes
+3,739 serial tests in 612.09 seconds (three existing dependency deprecations),
+Ruff and strict mypy for 124 sources, plus diff checks. Independent Opus reviews
+reconciled reproduced dispatch reservation, retention, expiry and shutdown
+findings; the last conditional drain finding was withdrawn after inspection of
+the actual helper and a passing native-join interruption check. Exact staged
+secret scanning and the mandatory commit hook precede the authorized commit;
+Git verifies commit/push separately. Earlier in-progress evidence above is
+historical and is superseded by this validation result.
+
+This engineering release supplies concrete host/runtime/source/recovery adapters,
+optional native original-input question controls, the dated acceptance-gate bar
+and actual bounded worker lifetime. Production question/semantic composition is
+not mounted, Google client credential approval/setup and private serving remain
+pending, and no physical iPhone trial has passed. No new live generation, broader
+source import, personal financial intake, outbound message or credential was
+enabled by this checkpoint. The existing first-usable gates and full roadmap
+remain authoritative.

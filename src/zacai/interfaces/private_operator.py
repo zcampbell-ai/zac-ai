@@ -53,6 +53,7 @@ from fastapi import FastAPI
 from zacai.interfaces.oidc_identity import IdentityProvider
 from zacai.interfaces.owner_enrollment import PendingOwner
 from zacai.interfaces.private_host import (
+    NamedOwnerHostFactory,
     PreparedEnrollmentHost,
     PreparedOwnerHost,
     prepare_enrollment_host,
@@ -232,11 +233,34 @@ class PrivateOperatorWindow:
                     for sig in handlers:
                         signal.signal(sig, signal.SIG_IGN)
                     server(self._prepared.app)
-                    okay = True
                 finally:
                     for sig in handlers:
-                        signal.signal(sig, signal.SIG_IGN)
+                        try:
+                            signal.signal(sig, signal.SIG_IGN)
+                        except BaseException:  # noqa: BLE001,S110 - never skip actual drain on suppression failure.
+                            pass
                     _drain_threads(baseline)
+                    # Uvicorn can report lifespan.shutdown.failed only to its
+                    # logger and return normally. Repeat the actual paired
+                    # lifecycle gate while lease/log/signal protection is held.
+                    if type(self._prepared) is PreparedOwnerHost and self._prepared.named is not None:
+                        from zacai.interfaces.named_worker_lifecycle import (
+                            NamedWorkerRegistry,
+                            ThreadBoundNamedAskPipeline,
+                        )
+                        pair = self._prepared.named
+                        if type(pair.workers) is not NamedWorkerRegistry:
+                            raise ValueError("actual worker registry required")
+                        pipeline = pair.controller._pipeline
+                        if pipeline is None:
+                            pair.workers.close_and_drain()
+                        else:
+                            if (type(pipeline) is not ThreadBoundNamedAskPipeline
+                                or pipeline._workers is not pair.workers
+                                or pipeline._store is not pair.controller._store):
+                                raise ValueError("actual paired worker lifecycle required")
+                            pipeline.close_and_retire()
+                okay = True
             finally:
                 # All private worker jobs are now finished. Restore logging/state
                 # before SIGINT last, so an immediate subsequent interrupt cannot
@@ -341,6 +365,7 @@ def open_private_operator(
     escrow_confirmed_by_operator: bool,
     view: Callable[[InterfacePrincipal], Awaitable[str]] | None = None,
     work_choices: WorkChoiceWeb | None = None,
+    named_factory: NamedOwnerHostFactory | None = None,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     startup_loader: StartupLoader = load_owner_startup,
     identities: IdentityProvider | None = None,
@@ -354,6 +379,7 @@ def open_private_operator(
     fd: int | None = None
     window: PrivateOperatorWindow | None = None
     prepared: PreparedOwnerHost | PreparedEnrollmentHost | None = None
+    startup_threads = set(threading.enumerate()) | {threading.current_thread()}
     try:
         _configuration(client_id, origin)
         if (
@@ -368,7 +394,7 @@ def open_private_operator(
             or (mode == PrivateOperatorMode.OWNER and not callable(view))
             or (
                 mode == PrivateOperatorMode.ENROLLMENT
-                and (view is not None or work_choices is not None)
+                and (view is not None or work_choices is not None or named_factory is not None)
             )
         ):
             raise ValueError("invalid operator inputs")
@@ -396,7 +422,20 @@ def open_private_operator(
                 clock=clock,
                 identities=identities,
                 work_choices=work_choices,
+                named_factory=named_factory,
             )
+        if type(prepared) is PreparedOwnerHost and prepared.named is not None:
+            # Actual retained flock is acquired above and not released until
+            # final physical thread drain. Reconcile before app exposure only.
+            if any(t is not threading.main_thread() for t in threading.enumerate()):
+                raise ValueError("dedicated startup process required")
+            workers = prepared.named.workers
+            with workers._lock:
+                if workers._closed or workers._entries or workers._reservations:
+                    raise ValueError("fresh unstarted worker registry required")
+                prepared.named.controller._store._reconcile_expired_for_owner(
+                    prepared.owners.load()
+                )
         window = PrivateOperatorWindow(prepared, mode=mode, origin=origin, clock=clock)
     except BaseException:  # noqa: BLE001,S110 - close acquired lease on startup interrupts.
         pass
@@ -408,7 +447,35 @@ def open_private_operator(
             pass
         finally:
             if fd is not None:
-                os.close(fd)
+                # Even failed construction may have started native private work.
+                # Preserve unrelated pre-existing threads, but never release the
+                # actual mode lease while a newly created worker is alive.
+                disabled = logging.root.manager.disable
+                handlers = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
+                try:
+                    try:
+                        logging.disable(sys.maxsize)
+                        for sig, handler in handlers.items():
+                            if handler is not None:
+                                try:
+                                    signal.signal(sig, signal.SIG_IGN)
+                                except BaseException:  # noqa: BLE001,S110 - finish actual drain before sanitized failure.
+                                    pass
+                    finally:
+                        _drain_threads(startup_threads)
+                    os.close(fd)
+                    fd = None
+                finally:
+                    try:
+                        logging.disable(disabled)
+                    finally:
+                        for sig in reversed(handlers):
+                            handler = handlers[sig]
+                            if handler is not None:
+                                try:
+                                    signal.signal(sig, handler)
+                                except BaseException:  # noqa: BLE001,S110 - restore other known handlers.
+                                    pass
         raise PrivateOperatorError("private operator window unavailable")
     try:
         yield window

@@ -336,7 +336,14 @@ class CanonicalNamedDecisionCapture:
         handle: str | None,
     ) -> None:
         self._session(principal, decision, now, handle)
-        if self._binding.verify_fresh(decision, now) is not None:
+        # Only the concrete canonical adapter provides runtime-independent
+        # receipt-only history. Active capture/load retain current runtime pins.
+        from zacai.interfaces.named_decision_binding import CanonicalNamedDecisionBinding
+
+        check = self._binding.verify_fresh
+        if handle is None and type(self._binding) is CanonicalNamedDecisionBinding:
+            check = self._binding.verify_historical
+        if check(decision, now) is not None:
             raise ValueError("named decision binding held")
         self._session(principal, decision, self._clock(), handle)
 
@@ -415,7 +422,10 @@ class CanonicalNamedDecisionCapture:
             candidate = decode_named_decision(encode_named_decision(candidate))
             if candidate.prepared_request_digest != original_request.digest or candidate.original_observed_at != original_request.context.task.event.observed_at:
                 raise ValueError("resolved request changed")
-            self._outside(principal, candidate, now, admission_handle)
+            resolved_now = self._clock()
+            if resolved_now < now:
+                raise ValueError("clock moved backwards during admission resolution")
+            self._outside(principal, candidate, resolved_now, admission_handle)
             with self._factory() as session:
                 _lock(session, candidate.manifest.request_id)
                 locked_now = self._clock()

@@ -378,3 +378,58 @@ def test_version_zero_existing_objects_are_never_reinitialized(fixture):
     with sqlite3.connect(directory / "admissions.sqlite") as conn:
         assert conn.execute("PRAGMA user_version").fetchone()[0] == 0
         assert conn.execute("SELECT name FROM sqlite_master").fetchall() == [("unrelated",)]
+
+
+def test_original_sealed_status_can_read_expired_issued_without_admit_permission(fixture):
+    s=fixture;issued=s.issue();s.now=issued.record.manifest.admission_expires_at
+    assert s.store.status(handle=issued.handle,session_binding=s.session)==issued.record
+    with pytest.raises(m.NamedAdmissionStoreError):s.store.get(handle=issued.handle,session_binding=s.session)
+    with pytest.raises(m.NamedAdmissionStoreError):admit(s,issued)
+    with pytest.raises(m.NamedAdmissionStoreError):
+        s.store.status(handle=issued.handle,session_binding='b'*64)
+
+
+def test_status_of_expired_consumed_record_never_reports_unused_or_renews(fixture):
+    s=fixture;issued=s.issue();record=admit(s,issued);s.now=record.processing_expires_at
+    status=s.store.status(handle=issued.handle,session_binding=s.session)
+    assert status==record and status.phase=='ADMITTED'
+    with pytest.raises(m.NamedAdmissionStoreError):s.store.get(handle=issued.handle,session_binding=s.session)
+    with pytest.raises(m.NamedAdmissionStoreError):admit(s,issued)
+
+
+@pytest.mark.parametrize('corrupt',['missing','ciphertext','phase','expiry','nonce'])
+def test_status_requires_complete_original_authenticated_record(fixture,corrupt):
+    import sqlite3
+    s=fixture;issued=s.issue();s.now=issued.record.manifest.admission_expires_at
+    handle=issued.handle
+    if corrupt=='nonce':handle='x'*43
+    else:
+        with sqlite3.connect(s.store._path) as conn:
+            if corrupt=='missing':conn.execute('DELETE FROM admissions')
+            elif corrupt=='ciphertext':conn.execute("UPDATE admissions SET sealed=?",(b'x'*50,))
+            elif corrupt=='phase':conn.execute("UPDATE admissions SET phase='ADMITTED'")
+            else:conn.execute('UPDATE admissions SET expires=expires+1')
+    with pytest.raises(m.NamedAdmissionStoreError) as caught:
+        s.store.status(handle=handle,session_binding=s.session)
+    assert caught.value.__context__ is None
+
+
+def test_reserved_outcome_exact_expired_issued_is_atomic_no_write(fixture):
+    s = fixture; issued = s.issue()
+    s.now = issued.record.manifest.admission_expires_at
+    assert s.store.admit_reserved_outcome(expected_issued=issued.record, handle=issued.handle,
+        session_binding=s.session, question_digest='a'*64, question_bytes=12) == issued.record
+    with pytest.raises(m.NamedAdmissionStoreError): s.store.get(handle=issued.handle, session_binding=s.session)
+    with pytest.raises(m.NamedAdmissionStoreError): s.store.admit(handle=issued.handle, session_binding=s.session,
+        question_digest='a'*64, question_bytes=12)
+
+
+def test_reserved_outcome_rejects_wrong_session_and_already_admitted(fixture):
+    s = fixture; issued = s.issue()
+    with pytest.raises(m.NamedAdmissionStoreError):
+        s.store.admit_reserved_outcome(expected_issued=issued.record, handle=issued.handle,
+            session_binding='b'*64, question_digest='a'*64, question_bytes=12)
+    s.store.admit(handle=issued.handle, session_binding=s.session, question_digest='a'*64, question_bytes=12)
+    with pytest.raises(m.NamedAdmissionStoreError):
+        s.store.admit_reserved_outcome(expected_issued=issued.record, handle=issued.handle,
+            session_binding=s.session, question_digest='a'*64, question_bytes=12)

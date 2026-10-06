@@ -2,6 +2,7 @@
 
 from dataclasses import FrozenInstanceError, replace
 from datetime import UTC, datetime, timedelta
+from html.parser import HTMLParser
 
 import pytest
 
@@ -37,7 +38,17 @@ def test_counts_only_explicitly_verified_existing_four_gates():
     assert "1 of 4 acceptance gates verified" in html and 'value="1" max="4"' in html
     assert "Needs your input" in html and "In progress" in html
     assert "Built/tested fixture; not live acceptance" in html
-    assert "%" not in html and "Full product complete" not in html
+    class VisibleText(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.text = []
+
+        def handle_data(self, data):
+            self.text.append(data)
+
+    visible = VisibleText()
+    visible.feed(html)
+    assert "%" not in "".join(visible.text) and "Full product complete" not in html
     assert "Broader roadmap</a>" not in html
 
 
@@ -92,3 +103,20 @@ def test_immutable_snapshot_no_alternate_memory_or_runtime_clock():
     assert render_build_progress(current) == render_build_progress(current)
     with pytest.raises(TypeError):
         render_build_progress(object())
+
+
+def test_compact_acceptance_bar_keeps_history_and_currentness_distinct():
+    original = snapshot(S.CURRENT)
+    records = list(original.gates)
+    records[0] = replace(records[0], status=S.VERIFIED)
+    html = render_build_progress(replace(original,gates=tuple(records)))
+    collapsed, expanded = html.split('<details>',1)
+    assert 'value="1" max="4"' in collapsed
+    assert 'style="display:block;width:100%;max-width:100%"' in collapsed
+    assert 'aria-describedby="caz-build-currentness"' in collapsed
+    assert 'id="caz-build-currentness"' in collapsed
+    assert 'Past acceptance does not verify current source access or recovery.' in collapsed
+    assert 'broader vision' not in collapsed and 'broader vision' in expanded
+    assert all(record.next_step in expanded for record in records)
+    assert html.endswith('</details></section>')
+    assert '<form' not in html and '<script' not in html and 'decision-card' not in html

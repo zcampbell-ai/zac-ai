@@ -250,7 +250,7 @@ class SqliteNamedAdmissionStore:
             pass
         raise NamedAdmissionStoreError("named admission operation unavailable")
 
-    def _read(self, conn: sqlite3.Connection, digest: str, now: datetime) -> NamedAdmissionRecord:
+    def _read(self, conn: sqlite3.Connection, digest: str, now: datetime, *, active: bool = True) -> NamedAdmissionRecord:
         row = conn.execute("SELECT phase,issued,expires,sealed FROM admissions WHERE digest=?", (digest,)).fetchone()
         if row is None:
             raise ValueError("admission missing")
@@ -261,7 +261,7 @@ class SqliteNamedAdmissionStore:
         expiry = record.manifest.admission_expires_at if record.phase == "ISSUED" else record.processing_expires_at
         if (record.manifest.nonce_digest != digest or row[0] != record.phase
             or row[1] != _stamp(record.manifest.issued_at) or expiry is None or row[2] != _stamp(expiry)
-            or not record.manifest.issued_at <= now < expiry):
+            or record.manifest.issued_at > now or (active and now >= expiry)):
             raise ValueError("expired or mismatched admission")
         return record
 
@@ -319,6 +319,21 @@ class SqliteNamedAdmissionStore:
             return record
         return self._run(read)
 
+    def status(self, *, handle: str, session_binding: str) -> NamedAdmissionRecord:
+        """Authenticate original sealed operational status, including expiry.
+
+        Trusted outcome reconciliation only: no active admission/processing grant,
+        no source reads and no deletion. Exact handle, original session binding,
+        ciphertext/AAD/canonical metadata and host clock checks remain required.
+        Active get/admit/attach continue using the unchanged default expiry gate.
+        """
+        digest = named_admission_nonce_digest(handle)
+        def read(conn: sqlite3.Connection, now: datetime) -> NamedAdmissionRecord:
+            record = self._read(conn, digest, now, active=False)
+            self._session(record, session_binding)
+            return record
+        return self._run(read)
+
     def admit(self, *, handle: str, session_binding: str, question_digest: str,
               question_bytes: int) -> NamedAdmissionRecord:
         digest = named_admission_nonce_digest(handle)
@@ -334,6 +349,35 @@ class SqliteNamedAdmissionStore:
                 "question_digest": question_digest, "question_bytes": question_bytes}, strict=True)
             self._write(conn, digest, record)
             return record
+        return self._run(admit)
+
+    def admit_reserved_outcome(self, *, expected_issued: NamedAdmissionRecord,
+                               handle: str, session_binding: str, question_digest: str,
+                               question_bytes: int) -> NamedAdmissionRecord:
+        """Atomic host reservation outcome; expired unchanged ISSUED grants nothing.
+
+        Authenticate the retained row under the actual admission transaction.
+        Only exact expired ISSUED can return a known no-write result. Missing,
+        corrupt or changed rows hold; active get/admit behavior is unchanged.
+        """
+        if type(expected_issued) is not NamedAdmissionRecord:
+            raise NamedAdmissionStoreError("original issued admission required")
+        expected_issued = NamedAdmissionRecord.model_validate(expected_issued, strict=True)
+        if expected_issued.phase != "ISSUED":
+            raise NamedAdmissionStoreError("original issued admission required")
+        digest = named_admission_nonce_digest(handle)
+        def admit(conn: sqlite3.Connection, now: datetime) -> NamedAdmissionRecord:
+            record = self._read(conn, digest, now, active=False)
+            self._session(record, session_binding)
+            if record != expected_issued:
+                raise ValueError("original issued admission changed")
+            if now >= record.manifest.admission_expires_at:
+                return record  # Exact authenticated unchanged no-write outcome.
+            admitted = NamedAdmissionRecord.model_validate({**record.model_dump(), "phase": "ADMITTED",
+                "admitted_at": now, "processing_expires_at": now + timedelta(seconds=record.manifest.processing_ttl_seconds),
+                "question_digest": question_digest, "question_bytes": question_bytes}, strict=True)
+            self._write(conn, digest, admitted)
+            return admitted
         return self._run(admit)
 
     def _attach(self, *, handle: str, session_binding: str, reference: EvidenceReference,
@@ -407,3 +451,67 @@ class SqliteNamedAdmissionStore:
             if deleted != 1:
                 raise ValueError("terminal record changed")
         self._run(retire)
+
+
+    def _reconcile_expired_for_owner(self, owner: object) -> int:
+        """Trusted foreground STARTUP only, while actual mode flock is held.
+
+        Caller must be the dedicated owner operator before yielding/mounting its
+        fresh app, with no background threads or existing worker registrations.
+        This private operational seam does not itself prove that exclusion.
+        It authenticates retained metadata using the configured host cipher;
+        active APIs still require original session/handle and deny expired rows.
+        Canonical Sources, claims, receipts and processing permission are untouched.
+        Unknown owner/scope records remain; corrupt records abort all cleanup.
+        """
+        from zacai.interfaces.followup_authorization import _owner_digest
+        from zacai.interfaces.private_web import OwnerGrant
+
+        if type(owner) is not OwnerGrant:
+            raise NamedAdmissionStoreError("startup reconciliation unavailable")
+        owner = OwnerGrant(owner.identity, owner.scopes)
+        owner_digest = _owner_digest(owner)
+
+        def reconcile(conn: sqlite3.Connection, now: datetime) -> int:
+            eligible = []
+            rows = conn.execute(
+                "SELECT digest,phase,issued,expires,sealed FROM admissions WHERE expires<=? LIMIT ?",
+                (_stamp(now), self._capacity + 1),
+            ).fetchall()
+            if len(rows) > self._capacity:
+                raise ValueError("operational capacity differs")
+            for digest, phase, issued, expires, sealed in rows:
+                if type(digest) is not str or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+                    raise ValueError("invalid operational digest")
+                raw = self._open(sealed, self._aad(digest, phase, issued, expires))
+                record = NamedAdmissionRecord.model_validate_json(raw, strict=True)
+                expiry = (record.manifest.admission_expires_at if record.phase == "ISSUED"
+                          else record.processing_expires_at)
+                if (
+                    canonical_bytes(record.model_dump(mode="json")) != raw
+                    or record.manifest.nonce_digest != digest or record.phase != phase
+                    or issued != _stamp(record.manifest.issued_at) or expiry is None
+                    or expires != _stamp(expiry)
+                    or not record.manifest.issued_at <= expiry <= now
+                ):
+                    raise ValueError("expired operational metadata differs")
+                manifest = record.manifest
+                if (
+                    (manifest.actor_issuer, manifest.actor_subject)
+                    != (owner.identity.issuer, owner.identity.subject)
+                    or manifest.owner_grant_digest != owner_digest
+                ):
+                    continue  # Never discard unknown owner/scope histories.
+                refs = (manifest.packet_reference, *manifest.evidence_references,
+                        *(parent.reference for parent in manifest.parents))
+                if not all(any(scope.boundary is ref.trust_boundary
+                               and ref.effective_classification in scope.classifications
+                               for scope in owner.scopes) for ref in refs):
+                    continue
+                eligible.append((digest, sealed))
+            for digest, sealed in eligible:
+                if conn.execute("DELETE FROM admissions WHERE digest=? AND sealed=?",
+                                (digest, sealed)).rowcount != 1:
+                    raise ValueError("operational row changed during reconciliation")
+            return len(eligible)
+        return self._run(reconcile)

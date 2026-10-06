@@ -288,6 +288,19 @@ class SqliteSessionStore:
         )
 
     def user(self, token: str, now: datetime) -> UserSession | None:
+        """Actual browser activity: observe and refresh this valid session."""
+        return self._user(token, now, touch=True)
+
+    def peek_user(self, token: str, now: datetime) -> UserSession | None:
+        """Internal observation only; never refresh, reseal or delete a row.
+
+        Idle/absolute expiry, revocation and authenticated metadata remain checked.
+        An expired row is retained for ordinary browser lookup/purge to remove.
+        Observing it confers no activity or ability to resume processing.
+        """
+        return self._user(token, now, touch=False)
+
+    def _user(self, token: str, now: datetime, *, touch: bool) -> UserSession | None:
         stamp, digest = _stamp(now), _digest(token)
         if digest is None:
             return None
@@ -309,16 +322,18 @@ class SqliteSessionStore:
             ):
                 raise ValueError("invalid user payload")
             if stamp < row[2] or stamp >= row[3] or stamp - row[2] >= self._idle:
-                connection.execute("DELETE FROM sessions WHERE digest=?", (digest,))
+                if touch:
+                    connection.execute("DELETE FROM sessions WHERE digest=?", (digest,))
                 return None
-            sealed = self._seal(data, self._aad(digest, "user", row[1], stamp, row[3]))
-            connection.execute(
-                "UPDATE sessions SET seen=?,sealed=? WHERE digest=?", (stamp, sealed, digest)
-            )
+            if touch:
+                sealed = self._seal(data, self._aad(digest, "user", row[1], stamp, row[3]))
+                connection.execute(
+                    "UPDATE sessions SET seen=?,sealed=? WHERE digest=?", (stamp, sealed, digest)
+                )
             return UserSession(
                 Identity(issuer, subject),
                 _time(row[1]),
-                _time(stamp),
+                _time(stamp if touch else row[2]),
                 _time(row[3]),
                 csrf,
             )

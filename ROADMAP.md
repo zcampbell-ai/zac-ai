@@ -11,8 +11,8 @@ This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position — reconciled 2026-10-05
 
-Current validated engineering checkpoint: D034AX. Commit/push evidence is
-verified separately against Git; D034AW is its committed and pushed parent.
+Current validated engineering checkpoint: D034AY. Commit/push evidence is
+verified separately against Git; D034AX is its committed and pushed parent.
 Private iPhone acceptance and live conversation remain unverified; code completion
 must not stand in for those release gates.
 Zac confirmed the protected
@@ -1916,3 +1916,56 @@ and representative quality; physical iPhone acceptance. Workspace-staged adapter
 are not part of this installed checkpoint or proof of a usable app. Existing
 D034AC acceptance gates and context provenance/confirmation requirements remain
 unchanged; no broad history or personal-finance intake is enabled.
+
+
+## D034AY — concrete named host adapters and native question wiring
+
+Implementation and release validation complete. Final serial suite: 3,739 tests
+pass in 612.09 seconds; Ruff, strict mypy (124 sources) and diff checks pass.
+Independent Opus lifecycle findings are reproduced, corrected and reconciled.
+Commit/push evidence is verified separately against Git.
+
+Installed canonical admission and retained-proof lookup resolve the original
+protected question, selected packet receipt and named decision without a
+constructor cycle. Concrete runtime binding pins the local model, tokenizer
+inventory and reviewed serializer implementation. Candidate row validation
+resolves actual canonical bytes and effective ACLs after outside callbacks.
+Separate historical consent integrity and active original-session permission
+remain mandatory: preserved history never renews processing. The concrete historical binding checks recorded pins and original protected inputs without probing today's runtime; active binding still requires the current runtime and unchanged original admission. Internal session observations no longer refresh idle activity; actual browser requests retain activity behavior.
+
+Native optional Ask Caz routes preserve raw question UTF-8 and bind POST to the
+exact manifest displayed in that tab. Missing production pipeline leaves the
+question controls disabled. Actual worker registration and drain preserve a
+one-attempt lifetime; the dedicated foreground operator's lease and final
+thread drain remain authoritative. Owner-only host injection now shares the actual enrolled owner loader, session store, seal key and shared clock; it mounts the optional controller and drains workers before the existing foreground lease releases. Enrollment rejects the injection and the default remains disabled.
+
+The actual disposable PostgreSQL/local-age graph passes in 180.11 seconds:
+original authenticated admission, protected question, named decision, v2
+consent/claim, saved reply/reload, restart continuity, revoked-original-session
+denial and historical receipt-only preservation. Runtime metadata, semantic
+output and independent escrow assertions are explicitly invented fixture
+inputs; this is not live model, B2, authentication or phone acceptance evidence.
+Independent Opus review also exposed a post-callback dependency ACL gap; eleven regressions reproduced it and final full candidate rows/effective decision ACL/unique provenance now follow every external callback. An actual advancing-clock issue found by the graph was corrected: decision
+capture observes the host clock after resolution rather than comparing a later
+valid binding against an earlier observation. Future binding and clock rollback
+remain denied. Focused capture and adapter regressions pass.
+
+First-release progress remains one of four dated acceptance gates. The protected
+bar now fills the available width and keeps broader details expandable; this
+count does not estimate full engineering effort or current source/recovery access.
+
+Concrete published display, exact host/store/pointer wiring and actual-thread
+shutdown are now installed. Reproduced capacity and restart-availability gaps
+are corrected: capacity before admission, authenticated status-only outcomes,
+known-unused expiry, isolated cleanup failure, graceful physical drain and
+bounded startup reconciliation under the actual operator flock. Final lifecycle
+checks enforce atomic wrapper retention and reserved-only dispatch, coherent
+registration/expiry observation and physical drain even after signal-suppression
+failure. The actual interrupt-safe helper and its native-join check reconcile
+the final conditional review concern.
+
+Remaining order: compose actual one-shot question/runtime/
+semantic/reply pipeline; approved Google credential setup and private serving;
+current bounded briefing, representative quality and actual iPhone acceptance.
+No listener, new credential, live generation or broader source import is enabled
+by this implementation checkpoint.

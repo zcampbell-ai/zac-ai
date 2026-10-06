@@ -117,12 +117,14 @@ def render_build_progress(snapshot: BuildProgressSnapshot) -> str:
     total = len(_GATE_ORDER)
     text = f"{count} of {total} acceptance gates verified"
     parts = [
-        '<section aria-labelledby="caz-build-heading"><h2 id="caz-build-heading">'
+        '<section class="caz-build-status" aria-labelledby="caz-build-heading"><h2 id="caz-build-heading">'
         'First usable iPhone version</h2><p class="meta">Evidence as of '
         + escape(snapshot.as_of.isoformat()) + "</p>",
         '<label for="caz-build-progress">' + text + '</label><progress id="caz-build-progress" '
-        + f'value="{count}" max="{total}">{text}</progress>',
-        '<p class="meta">This counts accepted release gates, not estimated effort or the full vision.</p>',
+        + f'value="{count}" max="{total}" aria-describedby="caz-build-currentness" '
+        + f'style="display:block;width:100%;max-width:100%">{text}</progress>',
+        '<p class="meta">Accepted release gates, not estimated effort or the full vision.</p>',
+        '<p class="meta" id="caz-build-currentness">Past acceptance does not verify current source access or recovery.</p>',
         '<details><summary>What is done and what comes next</summary><ol>',
     ]
     for record in snapshot.gates:
@@ -140,11 +142,11 @@ def render_build_progress(snapshot: BuildProgressSnapshot) -> str:
         else:
             parts.append("<p><small>Completion evidence not yet recorded.</small></p>")
         parts.append("</li>")
-    parts.append("</ol></details><p>The broader vision: relevant context, planning, model delegation, "
+    parts.append("</ol><p>The broader vision: relevant context, planning, model delegation, "
                  "delivery and verified completion. Personal/financial access and persistent-agent "
                  "control remain separately gated.</p>")
     if snapshot.broader_roadmap_href is not None:
         parts.append('<p><a href="' + escape(snapshot.broader_roadmap_href, quote=True)
                      + '">Broader roadmap</a></p>')
-    parts.append("</section>")
+    parts.append("</details></section>")
     return "".join(parts)
