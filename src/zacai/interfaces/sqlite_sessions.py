@@ -291,6 +291,11 @@ class SqliteSessionStore:
         """Actual browser activity: observe and refresh this valid session."""
         return self._user(token, now, touch=True)
 
+    @property
+    def user_idle_timeout(self) -> timedelta:
+        """Configured idle bound only, never a session/authentication grant."""
+        return timedelta(microseconds=self._idle)
+
     def peek_user(self, token: str, now: datetime) -> UserSession | None:
         """Internal observation only; never refresh, reseal or delete a row.
 

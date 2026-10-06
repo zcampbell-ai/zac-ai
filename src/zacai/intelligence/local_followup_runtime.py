@@ -13,7 +13,11 @@ import hashlib
 import json
 import re
 import time
-from typing import Protocol
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from zacai.interfaces.named_runtime_binding import FixedLocalNamedRuntimeBinding
 
 from zacai.intelligence.contracts import ModelRoute, UsageObservation
 from zacai.intelligence.followup_generation import (
@@ -26,7 +30,10 @@ from zacai.intelligence.local_review_runtime import (
     Transport,
     verify_model,
 )
-from zacai.intelligence.runtime_diagnostics import RuntimeDiagnosticError, closed_runtime_code
+from zacai.intelligence.runtime_diagnostics import (
+    RuntimeDiagnosticError,
+    closed_runtime_code,
+)
 from zacai.intelligence.runtime_diagnostics import RuntimeFailureCode as F
 from zacai.intelligence.text_followup import FollowupDraft
 from zacai.policy import Destination
@@ -257,6 +264,15 @@ class LocalFollowupRuntime:
     def usage(self) -> UsageObservation | None:
         return self._usage
 
+    def _operation_started(self) -> float:
+        return time.perf_counter()
+
+    def _operation_transport(self, request: FollowupRequest, started: float) -> Transport:
+        return _deadline_transport(request, started)
+
+    def _check_profile_pins(self) -> None:
+        pass
+
     def _token_count(self, body: bytes, request: FollowupRequest) -> int:
         if self._token_counter.model_digest != self.model_digest:
             raise LocalFollowupRuntimeError("tokenizer model pin mismatch", code=F.MODEL_PIN)
@@ -272,7 +288,7 @@ class LocalFollowupRuntime:
         exit_code: int | None = 1
         failure = F.PREFLIGHT_BINDING
         try:
-            started = time.perf_counter()
+            started = self._operation_started()
             if self._attempted:
                 raise ValueError("attempt consumed")
             # Never retain a successful stale preflight after a failed new one.
@@ -282,11 +298,12 @@ class LocalFollowupRuntime:
             failure = F.TOKEN_COUNT
             count = self._token_count(body, request)
             failure = F.RUNTIME_VERSION
-            transport = _deadline_transport(request, started)
+            transport = self._operation_transport(request, started)
             metadata = _metadata_transport(transport)
             self._token_counter.verify_runtime_with_transport(metadata)
             failure = F.MODEL_PIN
             verify_model(self.route.identity.model_id, self.model_digest, metadata)
+            self._check_profile_pins()
             failure = F.TOTAL_LATENCY
             if not 0 <= (time.perf_counter() - started) * 1000 <= request.context.task.max_latency_ms:
                 raise ValueError("late preflight")
@@ -305,12 +322,13 @@ class LocalFollowupRuntime:
         _raise_interruption(interruption, exit_code)
         raise LocalFollowupRuntimeError("local follow-up preflight failed", code=failure)
 
-    def generate(self, request: FollowupRequest) -> FollowupDraft:
+    def generate(self, request: FollowupRequest, *,
+                 before_dispatch: Callable[[FollowupRequest], None] | None = None) -> FollowupDraft:
         interruption = None
         exit_code: int | None = 1
         failure = F.PREFLIGHT_BINDING
         try:
-            started = time.perf_counter()
+            started = self._operation_started()
             if self._attempted:
                 raise ValueError("attempt consumed")
             self._attempted = True
@@ -326,17 +344,35 @@ class LocalFollowupRuntime:
             if self._prepared is None or self._prepared != expected:
                 raise ValueError("preflight missing or changed")
             failure = F.RUNTIME_VERSION
-            transport = _deadline_transport(request, started)
+            transport = self._operation_transport(request, started)
             metadata = _metadata_transport(transport)
             self._token_counter.verify_runtime_with_transport(metadata)
             failure = F.MODEL_PIN
             verify_model(self.route.identity.model_id, self.model_digest, metadata)
+            failure = F.PREFLIGHT_BINDING
+            self._check_profile_pins()
+            if before_dispatch is not None and (
+                not callable(before_dispatch) or before_dispatch(request) is not None
+            ):
+                raise ValueError("actual final dispatch gate held")
+            # Callback-free reserialization binds the actual outgoing bytes again.
+            # Frozen contracts do not excuse malicious nested/counter mutations.
+            final_body = prepare_payload(request, self.route, self.model_digest)
+            if (final_body != body or self._prepared != hashlib.sha256(
+                final_body + request.digest.encode("ascii") + str(count).encode()
+            ).digest()):
+                raise ValueError("final request changed")
+            failure = F.TOTAL_LATENCY
+            if (before_dispatch is not None and not
+                    0 <= (time.perf_counter() - started) * 1000 < request.context.task.max_latency_ms):
+                raise ValueError("final gate exhausted original runtime budget")
             failure = F.TRANSPORT
             draft, usage = dispatch_draft(request, self.route, body, transport)
             failure = F.POST_RUNTIME_VERSION
             self._token_counter.verify_runtime_with_transport(metadata)
             failure = F.POST_MODEL_PIN
             verify_model(self.route.identity.model_id, self.model_digest, metadata)
+            self._check_profile_pins()
             failure = F.PROMPT_COUNT_MISMATCH
             if usage.input_tokens != count:
                 raise ValueError("runtime prompt usage disagrees with tokenizer")
@@ -355,3 +391,56 @@ class LocalFollowupRuntime:
                 exit_code = error.code if error.code is None or type(error.code) is int else 1
         _raise_interruption(interruption, exit_code)
         raise LocalFollowupRuntimeError("local follow-up generation failed", code=failure)
+
+
+class NamedLocalFollowupRuntime(LocalFollowupRuntime):
+    """Named lane requires an actual host dispatch gate; construction grants nothing.
+
+    The exact reviewed fixed runtime profile supplies counter/route/model. Legacy
+    separately authorized runtime users retain their existing API. Recovery time
+    consumes the original overall attempt budget; no timer or expiry is renewed.
+    """
+
+    def __init__(self, *, profile: FixedLocalNamedRuntimeBinding) -> None:
+        from zacai.interfaces.named_runtime_binding import FixedLocalNamedRuntimeBinding
+
+        if type(profile) is not FixedLocalNamedRuntimeBinding:
+            raise LocalFollowupRuntimeError("actual fixed named profile required")
+        super().__init__(route=profile.route, model_digest=profile.model_digest,
+                         token_counter=profile._counter)
+        self._profile = profile
+        self._named_transport_factory = profile._transport_factory
+        self._named_pins = profile.pins()
+        self._named_started: float | None = None
+
+    def _operation_started(self) -> float:
+        if self._named_started is None:
+            raise LocalFollowupRuntimeError("named preflight anchor required", code=F.PREFLIGHT_BINDING)
+        return self._named_started
+
+    def _operation_transport(self, request: FollowupRequest, started: float) -> Transport:
+        self._check_profile_pins()
+        return self._named_transport_factory(request, started)
+
+    def _check_profile_pins(self) -> None:
+        if (self._profile._transport_factory is not self._named_transport_factory
+            or self._profile._counter is not self._token_counter
+            or self._profile.route != self.route or self._profile.model_digest != self.model_digest
+            or self._profile.pins() != self._named_pins):
+            raise LocalFollowupRuntimeError("named profile changed", code=F.PREFLIGHT_BINDING)
+
+    def preflight(self, request: FollowupRequest) -> None:
+        if self._named_started is not None:
+            raise LocalFollowupRuntimeError("named preflight already attempted", code=F.PREFLIGHT_BINDING)
+        self._named_started = time.perf_counter()
+        self._check_profile_pins()
+        super().preflight(request)
+
+    # Closed exact-type lane; never substitute for legacy runtime callers.
+    def generate(self, request: FollowupRequest, *,  # type: ignore[override]
+                 before_dispatch: Callable[[FollowupRequest], None]) -> FollowupDraft:
+        if not callable(before_dispatch):
+            self._attempted = True
+            self._usage = None
+            raise LocalFollowupRuntimeError("actual final dispatch gate required", code=F.PREFLIGHT_BINDING)
+        return super().generate(request, before_dispatch=before_dispatch)

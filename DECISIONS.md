@@ -6832,3 +6832,66 @@ pending, and no physical iPhone trial has passed. No new live generation, broade
 source import, personal financial intake, outbound message or credential was
 enabled by this checkpoint. The existing first-usable gates and full roadmap
 remain authoritative.
+
+
+D034AZ interim integration — not a release receipt
+The unmounted named question composition now binds the actual fixed local
+profile/counter and performs its final combined canonical permission snapshot
+after runtime/session/recovery callbacks. The final original session idle deadline
+is carried through callback-free dispatch and result checks; no new expiry or
+attempt is issued. Retained historical answers use current authenticated owner,
+ACLs and original encrypted proof without new processing permission.
+
+Integrated focused checks pass (176 dispatch/authorization, 148 history/session),
+Ruff and strict mypy for 125 sources. Staged actual PostgreSQL concurrent elevation
+and cancellation checks pass; the attempted deletion is correctly prohibited by
+canonical Source append-only enforcement, and its corrected invariant test passes.
+Combined final reply SQL checks pass (four actual concurrent elevation/revocation
+cases plus the full encrypted graph); canonical pipeline reconciliation also
+passes its actual current-session encrypted graph after original permission
+expiry. Final Opus reconciliation review identified a pre-decode question
+reference check and negative-test instrumentation gap; corrections precede
+frozen full-suite validation.
+D034AY remains the committed validated checkpoint. The separate reviewer-purpose
+prototype is not mounted or authorized; independent findings about concrete proof
+and single-dispatch ownership remain under correction. No live answers, new source
+access, personal finance ingestion or phone acceptance is established here.
+
+
+D034AZ reviewer recovery and historical-read review evidence (interim)
+The dormant separate reviewer authority passes both actual local SQL/cold-encrypted
+recovery cases, including protection failure followed by original-claim receipt
+repair (2 tests, 90.65 seconds). The initial copied validation tree omitted the
+unchanged canonical Alembic files; including those exact files corrected the
+fixture rather than weakening restoration. This is disposable local recovery,
+not live model invocation, owner review-purpose approval or off-device acceptance.
+
+Historical reads retain the existing distinction between processing cancellation
+and current owner data access: a retained, verified reply can carry an explicit
+original-permission-revoked label only under the freshly authenticated original
+owner grant, current canonical ACLs and exact protected provenance. Missing reply
+proof returns text-free status, corrupt proof holds, and neither grants processing.
+Named-only mode continues to reject new/active V1 processing while preserving the
+previously recorded V1 history contract; canonical named reconciliation itself
+requires exact V2 consent. Independent conditional V1-history concerns therefore
+do not justify silently changing the existing historical ledger policy.
+
+
+D034AZ final installed engineering validation
+The frozen source passes 3,870 serial tests in 902.05 seconds, including actual
+concurrent canonical ACL/cancellation checks and encrypted current-session
+history/reconciliation. Three existing dependency deprecations remain. Ruff,
+strict mypy for 126 sources and diff checks pass. Opus's reproduced pre-decode
+question reference/ACL issue is corrected through the canonical turn reader;
+negative retry tests explicitly record forbidden callback calls rather than let
+caught AssertionError conceal them. Actual reconciliation asserts unchanged
+Source count and backup-object hashes and denies a revoked replacement session.
+
+This supersedes earlier interim validation status, not the remaining live release
+gates. The production semantic pipeline remains unmounted; separate full-parent,
+reviewer-child and genuine invocation capability work is staged and still requires
+integration, independent review and actual acceptance. Google credential approval,
+private serving, live useful results and physical phone trial remain unverified.
+Exact staged secret scan and mandatory commit hook precede the authorized commit;
+Git records commit/push separately. No broader source access, financial ingestion,
+live generation or outreach is enabled by this release.

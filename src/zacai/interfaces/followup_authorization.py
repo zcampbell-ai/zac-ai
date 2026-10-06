@@ -912,6 +912,183 @@ class CanonicalFollowupAuthorization:
         if failed:
             raise FollowupAuthorizationError("follow-up authority no longer active")
 
+    def recheck_dispatch_rows(self, claimed: ClaimedFollowup, request: FollowupRequest) -> None:
+        """Final V2 canonical read AFTER all external callbacks, before dispatch.
+
+        No session/owner/recovery/runtime/semantic callback or writes occur here.
+        This does not replace fresh protected recheck or original authenticated
+        admission checks; caller must finish those first and dispatch only the
+        already consumed exact request, without any intervening callbacks.
+        """
+        from sqlalchemy import func, or_, select
+
+        from zacai.interfaces.named_candidate_rows import verify_named_candidate_rows
+        from zacai.state import SourceClassificationElevation
+
+        failed = True
+        try:
+            if type(claimed) is not ClaimedFollowup or type(self._clock) is not HostObservedClock:
+                raise ValueError("exact consumed named request required")
+            claim = FollowupClaim.model_validate(claimed.claim)
+            start = self._now()
+            if (
+                claim.request_digest != request.digest
+                or followup_content_digest(request) != claim.run_scope.content_digest
+                or not request.context.task.event.occurred_at
+                <= request.context.task.event.observed_at
+                <= claim.claimed_at
+                <= start
+            ):
+                raise ValueError("consumed request differs")
+            with self._factory() as session:
+                _assert_ledger_isolation(session)
+                _lock(session, claim.consent_reference.source_id)
+                source, raw = _source(
+                    session,
+                    self._store,
+                    claim.consent_reference.source_id,
+                    SourceSystem.USER_INSTRUCTION,
+                    "packet-followup-consent/",
+                )
+                consent = decode_followup_consent(raw)
+                if (
+                    type(consent) is not FollowupConsentV2
+                    or _raw(consent) != raw
+                    or _reference(source) != claim.consent_reference
+                    or source.external_ref != f"packet-followup-consent/{consent.id}"
+                    or source.captured_at != consent.approved_at
+                    or consent.scope != claim.run_scope
+                    or not consent.approved_at <= claim.claimed_at < consent.expires_at
+                    or not claim.claimed_at <= start < consent.expires_at
+                    or _find(
+                        session,
+                        f"packet-followup-revocation/{source.id}",
+                        SourceSystem.USER_INSTRUCTION,
+                    )
+                    is not None
+                ):
+                    raise ValueError("original named consent inactive")
+                _refs(session, consent.scope)
+                inventory = load_named_consent_inventory(
+                    session, artifacts=self._store, consent=consent, as_of=start
+                )
+                candidate = verify_named_candidate_rows(
+                    session, artifacts=self._store, decision=inventory.decision, as_of=start
+                )
+                if (
+                    inventory.decision.prepared_request_digest != request.digest
+                    or inventory.decision.original_observed_at
+                    != request.context.task.event.observed_at
+                    or not inventory.decision.bound_at <= claim.claimed_at
+                ):
+                    raise ValueError("canonical named decision changed")
+                consumed, consumed_raw = _source(
+                    session,
+                    self._store,
+                    claimed.reference.source_id,
+                    SourceSystem.MANUAL,
+                    "packet-followup-claim/",
+                )
+                if (
+                    _reference(consumed) != claimed.reference
+                    or consumed.external_ref != f"packet-followup-claim/{source.id}"
+                    or consumed.captured_at != claim.claimed_at
+                    or consumed_raw != _raw(claim)
+                ):
+                    raise ValueError("canonical consumed claim changed")
+                # READ COMMITTED: preceding detailed reads can span snapshots.
+                # One final SQL statement observes ALL selected Source metadata,
+                # their effective ACLs and cancellation together. Source content
+                # hashes bind the already checked immutable artifact bytes.
+                hashes: dict[UUID, str] = {}
+                # Scope references are mandatory even when a subordinate
+                # inventory accidentally omits one; no overwrite hides conflict.
+                selected = (
+                    *inventory.hashes,
+                    *candidate.hashes,
+                    (
+                        consent.scope.packet_reference.source_id,
+                        consent.scope.packet_reference.content_hash,
+                    ),
+                    *((r.source_id, r.content_hash) for r in consent.scope.context_references),
+                    (
+                        consent.scope.user_reference.source_id,
+                        consent.scope.user_reference.content_hash,
+                    ),
+                    *((r.source_id, r.content_hash) for r in consent.scope.parent_references),
+                    (consent.decision_reference.source_id, consent.decision_reference.content_hash),
+                    (source.id, claim.consent_reference.content_hash),
+                    (consumed.id, claimed.reference.content_hash),
+                )
+                for source_id, digest in selected:
+                    if source_id in hashes and hashes[source_id] != digest:
+                        raise ValueError("dependency inventories differ")
+                    hashes[source_id] = digest
+                expected = {}
+                for source_id, digest in hashes.items():
+                    row = session.get(Source, source_id)
+                    if (
+                        row is None
+                        or row.content_hash != digest
+                        or row.trust_boundary != B.BRAINSTORM
+                        or row.data_classification != C.CONFIDENTIAL
+                    ):
+                        raise ValueError("selected canonical Source differs")
+                    expected[source_id] = (
+                        row.id,
+                        row.system,
+                        row.external_ref,
+                        row.content_hash,
+                        row.content_location,
+                        row.captured_at,
+                        row.trust_boundary,
+                        row.data_classification,
+                        C.CONFIDENTIAL,
+                    )
+                latest = (
+                    select(SourceClassificationElevation.new_classification)
+                    .where(SourceClassificationElevation.source_id == Source.id)
+                    .order_by(SourceClassificationElevation.elevated_at.desc())
+                    .limit(1)
+                    .correlate(Source)
+                    .scalar_subquery()
+                )
+                revoked_ref = f"packet-followup-revocation/{source.id}"
+                combined = session.execute(
+                    select(
+                        Source.id,
+                        Source.system,
+                        Source.external_ref,
+                        Source.content_hash,
+                        Source.content_location,
+                        Source.captured_at,
+                        Source.trust_boundary,
+                        Source.data_classification,
+                        func.coalesce(latest, Source.data_classification),
+                    ).where(
+                        or_(
+                            Source.id.in_(tuple(hashes)),
+                            (Source.system == SourceSystem.USER_INSTRUCTION)
+                            & (Source.external_ref == revoked_ref),
+                        )
+                    )
+                ).all()
+                if len(combined) != len(expected):
+                    raise ValueError("final canonical inventory or cancellation changed")
+                for observed_row in combined:
+                    if observed_row[2] == revoked_ref or expected.get(observed_row[0]) != tuple(
+                        observed_row
+                    ):
+                        raise ValueError("final combined canonical snapshot held")
+            final = self._now()  # Clock only after final canonical rows.
+            if not start <= final < consent.expires_at:
+                raise ValueError("original consent expired during final rows")
+            failed = False
+        except Exception:  # noqa: BLE001,S110 - fixed private-safe hold.
+            pass
+        if failed:
+            raise FollowupAuthorizationError("final named dispatch rows unavailable")
+
     def revoke(self, *, approval_id: UUID, human_reference: str) -> UUID:
         """Append explicit human cancellation; never delete or renew authority."""
         result: UUID | None = None

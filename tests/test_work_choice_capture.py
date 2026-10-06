@@ -71,12 +71,54 @@ def fixture(monkeypatch):
             assert str(statement) == "SHOW transaction_isolation"
             return getattr(state, "isolation", "read committed")
 
-        def execute(self, statement, parameters):
-            assert str(statement) == "SELECT pg_advisory_xact_lock(:key)"
-            assert type(parameters["key"]) is int
-            lock.acquire()
-            self.locked = True
-            state.locks += 1
+        def execute(self, statement, parameters=None):
+            if parameters is not None:
+                assert str(statement) == "SELECT pg_advisory_xact_lock(:key)"
+                assert type(parameters["key"]) is int
+                lock.acquire()
+                self.locked = True
+                state.locks += 1
+                return None
+            # Invented single-statement Source/effective-ACL projection. This
+            # observes the actual requested IDs/cancellation predicate, never
+            # unconditional success or a replacement for the production helper.
+            sql = str(statement)
+            assert "coalesce" in sql and "source_classification_elevation" in sql
+            assert "elevated_at DESC" in sql
+            params = statement.compile().params
+            selected = next(value for value in params.values() if isinstance(value, list))
+            cancelled = next(
+                value
+                for value in params.values()
+                if isinstance(value, str) and value.startswith("packet-followup-revocation/")
+            )
+            if getattr(state, "before_final_snapshot", None):
+                state.before_final_snapshot()
+            rows = [
+                row
+                for row in state.sources.values()
+                if row.id in selected
+                or (
+                    row.system == module.SourceSystem.USER_INSTRUCTION
+                    and row.external_ref == cancelled
+                )
+            ]
+            return SimpleNamespace(
+                all=lambda: [
+                    (
+                        row.id,
+                        row.system,
+                        row.external_ref,
+                        row.content_hash,
+                        row.content_location,
+                        row.captured_at,
+                        row.trust_boundary,
+                        row.data_classification,
+                        getattr(row, "effective", row.data_classification),
+                    )
+                    for row in rows
+                ]
+            )
 
         def commit(self):
             state.sources.update(self.pending)

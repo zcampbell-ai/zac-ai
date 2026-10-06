@@ -11,24 +11,23 @@ from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import func, select
+from sqlalchemy import delete, event, insert, select, text
+from sqlalchemy.exc import ProgrammingError
 
 from tests.test_contextual_storage import stored
 from tests.test_fireflies_protection import keypair
 from tests.test_local_followup_runtime import route
 from tests.test_ollama_token_counter import installed as installed  # noqa: PLC0414
 from tests.test_private_web import InventedProvider
-from tests.test_text_followup import Gate
 from zacai import backup_artifacts, contextual_protection
 from zacai.backup_artifacts import LocalDirectoryBackupStore
 from zacai.contextual_protection import BrainstormContextualProtector
 from zacai.contextual_recovery_record import encode_recovery_receipt
 from zacai.ingestion.artifact_store import canonical_bytes, content_hash_of
 from zacai.intelligence.contextual_storage import load_contextual_packet
-from zacai.intelligence.contracts import EvidenceReference, UsageObservation
+from zacai.intelligence.contracts import EvidenceReference
 from zacai.intelligence.followup_generation import prepare_followup_request
 from zacai.intelligence.followup_prompt_counter import OllamaQwenFollowupTokenCounter
-from zacai.intelligence.text_followup import FollowupDraft, UnsupportedReason, release_text_followup
 from zacai.interfaces import named_runtime_binding as runtime_module
 from zacai.interfaces.followup_authority_recovery import BrainstormFollowupAuthorityRecovery
 from zacai.interfaces.followup_authorization import (
@@ -46,16 +45,13 @@ from zacai.interfaces.named_browser_pointer import (
 )
 from zacai.interfaces.named_consent_binding import (
     CanonicalNamedFollowupConsentBinding,
-    NamedConsentBindingError,
 )
 from zacai.interfaces.named_decision_admission import (
     CanonicalNamedDecisionAdmission,
-    NamedDecisionAdmissionError,
 )
 from zacai.interfaces.named_decision_binding import CanonicalNamedDecisionBinding
 from zacai.interfaces.named_decision_capture import (
     CanonicalNamedDecisionCapture,
-    NamedDecisionCaptureError,
 )
 from zacai.interfaces.named_decision_inventory import load_named_decision_inventory
 from zacai.interfaces.named_decision_recovery import BrainstormNamedDecisionRecovery
@@ -65,16 +61,12 @@ from zacai.interfaces.named_followup_decision import (
 )
 from zacai.interfaces.named_followup_web import NamedFollowupWeb
 from zacai.interfaces.named_published_display import CanonicalNamedPublishedDisplayGate
-from zacai.interfaces.named_question_pipeline import (
-    CanonicalNamedAskPipeline,
-    NamedQuestionPipelineError,
-)
 from zacai.interfaces.named_recovery_inputs import (
     RetainedNamedDecisionProofs,
     RetainedQuestionRecoveryInputs,
 )
 from zacai.interfaces.named_runtime_binding import FixedLocalNamedRuntimeBinding
-from zacai.interfaces.named_session_binding import NamedSessionBindingError, NamedSessionContinuity
+from zacai.interfaces.named_session_binding import NamedSessionContinuity
 from zacai.interfaces.named_worker_lifecycle import NamedWorkerRegistry
 from zacai.interfaces.oidc_identity import GOOGLE_ISSUER
 from zacai.interfaces.owner_enrollment import OwnerEnrollment
@@ -85,17 +77,17 @@ from zacai.interfaces.private_web import BoundaryScope, InterfacePrincipal, Owne
 from zacai.interfaces.session_store import Identity
 from zacai.interfaces.sqlite_sessions import SqliteSessionStore
 from zacai.interfaces.text_followup_context import CanonicalFollowupAssembler
-from zacai.interfaces.text_reply_capture import CanonicalTextReplyCapture, TextReplyCaptureError
-from zacai.interfaces.text_reply_protection import BrainstormTextReplyProtection
 from zacai.interfaces.text_turn_capture import CanonicalTextTurnCapture
 from zacai.interfaces.text_turn_protection import BrainstormTextTurnProtection
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 from zacai.review_protection import DisposableStateRestoreVerifier
-from zacai.state import Source
+from zacai.state import Source, SourceClassificationElevation, SourceSystem
 
 
-def test_actual_published_admission_question_named_recovery_v2_reply_graph(
+@pytest.mark.parametrize("dispatch_mutation", ["delete", "elevation", "revocation"])
+def test_actual_final_dispatch_combined_snapshot_rejects_concurrent_mutation(
+    dispatch_mutation,
     test_session_factory,
     tmp_path,
     monkeypatch,
@@ -323,31 +315,60 @@ def test_actual_published_admission_question_named_recovery_v2_reply_graph(
     assert display.verify_rows(issued.record, clock()) is None
     # Real enrolled host/session/native GET composition over actual canonical
     # SQL and encrypted restore. Identity provider + local pairing remain invented.
-    owner_store = OwnerGrantStore(tmp_path / "owner", key=host_key, origin=origin, client_id=client_id)
+    owner_store = OwnerGrantStore(
+        tmp_path / "owner", key=host_key, origin=origin, client_id=client_id
+    )
     enrollment = OwnerEnrollment(opened_at=clock())
     pending = enrollment.capture(owner.identity, clock(), origin=origin)
-    assert owner_store.confirm_and_save(
-        enrollment=enrollment, candidate_id=pending.candidate_id,
-        pairing_code=pending.pairing_code, origin=origin, identity=owner.identity,
-        scopes=owner.scopes, now=clock(),
-    ) == owner
+    assert (
+        owner_store.confirm_and_save(
+            enrollment=enrollment,
+            candidate_id=pending.candidate_id,
+            pairing_code=pending.pairing_code,
+            origin=origin,
+            identity=owner.identity,
+            scopes=owner.scopes,
+            now=clock(),
+        )
+        == owner
+    )
 
     def native_factory(inputs):
         actual_continuity = NamedSessionContinuity(
-            sessions=inputs.sessions, owner=inputs.owner, clock=inputs.clock,
-            key=inputs.session_key, origin=inputs.origin, client_id=inputs.client_id,
+            sessions=inputs.sessions,
+            owner=inputs.owner,
+            clock=inputs.clock,
+            key=inputs.session_key,
+            origin=inputs.origin,
+            client_id=inputs.client_id,
         )
-        codec = NamedBrowserPointerCodec(key=inputs.session_key, origin=inputs.origin,
-            client_id=inputs.client_id, clock=inputs.clock)
+        codec = NamedBrowserPointerCodec(
+            key=inputs.session_key,
+            origin=inputs.origin,
+            client_id=inputs.client_id,
+            clock=inputs.clock,
+        )
+
         def manifest_builder(actual, nonce_digest, now):
             assert actual.principal == principal
-            return published(nonce_digest, now).model_copy(update={
-                "request_id": uuid4(), "run_id": uuid4(), "builder_id": uuid4(),
-            })
-        coordinator = NamedAdmissionReuseCoordinator(store=admissions, codec=codec,
-            clock=inputs.clock, manifest_builder=manifest_builder)
-        controller = NamedFollowupWeb(coordinator=coordinator, continuity=actual_continuity,
-            store=admissions, clock=inputs.clock, display_gate=display)
+            return published(nonce_digest, now).model_copy(
+                update={
+                    "request_id": uuid4(),
+                    "run_id": uuid4(),
+                    "builder_id": uuid4(),
+                }
+            )
+
+        coordinator = NamedAdmissionReuseCoordinator(
+            store=admissions, codec=codec, clock=inputs.clock, manifest_builder=manifest_builder
+        )
+        controller = NamedFollowupWeb(
+            coordinator=coordinator,
+            continuity=actual_continuity,
+            store=admissions,
+            clock=inputs.clock,
+            display_gate=display,
+        )
         return PreparedNamedOwnerHost(controller, NamedWorkerRegistry(clock=inputs.clock))
 
     async def selected_view(actor):
@@ -356,15 +377,20 @@ def test_actual_published_admission_question_named_recovery_v2_reply_graph(
 
     host = prepare_owner_host(
         configuration=OwnerStartupConfiguration(client_id, origin, "invented-secret", host_key),
-        directory=tmp_path, view=selected_view, clock=clock,
-        identities=InventedProvider(owner.identity), named_factory=native_factory,
+        directory=tmp_path,
+        view=selected_view,
+        clock=clock,
+        identities=InventedProvider(owner.identity),
+        named_factory=native_factory,
     )
     with TestClient(host.app, base_url=origin, follow_redirects=False) as browser:
         browser.cookies.set("__Host-zac-session", cookie)
         page = browser.get("/ask-caz-locally")
         assert page.status_code == 200
         assert "Ask Caz locally" in page.text and "disabled" in page.text
-        assert str(packet_id) in page.text and "__Host-zac-named-action" in page.headers["set-cookie"]
+        assert (
+            str(packet_id) in page.text and "__Host-zac-named-action" in page.headers["set-cookie"]
+        )
         assert browser.post("/ask-caz-locally").status_code == 405
     recovery = BrainstormNamedDecisionRecovery(
         protector=protector,
@@ -472,175 +498,109 @@ def test_actual_published_admission_question_named_recovery_v2_reply_graph(
     approval = authorization.record(consent)
     claimed = authorization.claim(approval_id=approval, scope=consent.scope, request=request)
     authorization.recheck(claimed, request)
-    gate = Gate()  # explicitly synthetic unsupported reply, no useful/model claim
-    draft = FollowupDraft(
-        task_id=request.context.task.task_id,
-        user_source_id=saved_turn.source_id,
-        user_content_hash=saved_turn.turn_digest,
-        packet_digest=packet_digest,
-        unsupported=UnsupportedReason.OUTSIDE_PACKET,
+    # New final callback-free seam must pass BEFORE the injected mutation.
+    authorization.recheck_dispatch_rows(claimed, request)
+    engine = factory.kw["bind"]
+    fired = []
+    writer_errors = []
+    mutation_id = uuid4()
+    revocation_raw = canonical_bytes(
+        {
+            "format": "zac-packet-followup-revocation-v1",
+            "approval_id": str(approval),
+            "human_reference": "invented SQL cancellation mutation",
+            "revoked_at": clock().isoformat(),
+        }
     )
-    released = release_text_followup(request.context, draft, gate=gate)
-    replies = CanonicalTextReplyCapture(
-        assembler=assembler,
-        authorization=authorization,
-        release_gate=gate,
-        protection=BrainstormTextReplyProtection(
-            protector=protector, clock=clock, named_binding=named_binding
-        ),
-    )
-    saved_reply = replies.capture(
-        principal=principal,
-        request=request,
-        claimed=claimed,
-        release=released,
-        usage=UsageObservation(input_tokens=10, output_tokens=20, latency_ms=5, cost_usd=0),
-        retained_receipt=packet_receipt,
-        text_receipt=saved_turn.recovery_receipt,
-    )
-    reply_args = {
-        "principal": principal,
-        "source_id": saved_reply.source_id,
-        "expected_reply_digest": saved_reply.reply_digest,
-        "retained_receipt": packet_receipt,
-        "text_receipt": saved_turn.recovery_receipt,
-        "recovery_receipt": saved_reply.recovery_receipt,
-    }
-    assert replies.load(**reply_args) == saved_reply
-    assert all(path in ("/api/version", "/api/tags", "/api/show") for _, path, _ in metadata_calls)
-    # Actual session-store restart preserves original continuity exactly.
-    reopened = SqliteSessionStore(tmp_path / "sessions", key=host_key)
-    restarted = NamedSessionContinuity(
-        sessions=reopened,
-        owner=lambda: owner,
-        clock=clock,
-        key=host_key,
-        origin=origin,
-        client_id=client_id,
-    )
-    assert restarted.for_cookie(cookie).recheck(verified.binding_digest).principal == principal
-    reopened.revoke(cookie)
-    with pytest.raises(NamedSessionBindingError):
-        operation.recheck(verified.binding_digest)
-    replacement_cookie = reopened.start_user(owner.identity, clock())
-    replacement_operation = restarted.for_cookie(replacement_cookie)
-    with pytest.raises(NamedSessionBindingError):
-        replacement_operation.recheck(verified.binding_digest)
-    replacement_admission = CanonicalNamedDecisionAdmission(
-        store=admissions,
-        operation=replacement_operation,
-        assembler=assembler,
-        clock=clock,
-        recovery_inputs=question_inputs,
-        snapshot_builder=snapshot_builder,
-    )
-    replacement_binding = CanonicalNamedFollowupConsentBinding(
-        admission=replacement_admission,
-        recovery_inputs=question_inputs,
-        decision_proofs=decision_proofs,
-        clock=clock,
-    )
-    with pytest.raises(NamedConsentBindingError):
-        replacement_binding.verify_active(handle=issued.handle, consent=consent, now=clock())
-    with pytest.raises(NamedDecisionAdmissionError):
-        replacement_admission.prepare_original(issued.handle, principal)
-    # Fresh current owner session may preserve already committed exact history.
-    # It cannot renew the original session/admission/processing window.
-    clock_offset = timedelta(minutes=16)
-    receipt_capture = CanonicalNamedDecisionCapture(
-        factory=factory,
-        artifacts=artifacts,
-        owner=lambda: owner,
-        admission=replacement_admission,
-        binding=binding,
-        protection=recovery,
-        clock=clock,
-    )
-    assert (
-        receipt_capture.protect_pending(
-            principal=principal,
-            source_id=saved.reference.source_id,
-            expected_decision_digest=saved.reference.content_hash,
-        )
-        == saved.recovery_receipt
-    )
-    assert replacement_binding.verify_fresh(consent, clock()) is None
-    with pytest.raises(NamedConsentBindingError):
-        replacement_binding.verify_active(handle=issued.handle, consent=consent, now=clock())
-    with pytest.raises(NamedDecisionCaptureError):
-        receipt_capture.capture(
-            admission_handle=issued.handle, principal=principal, original_request=request
-        )
-    with pytest.raises(FollowupAuthorizationError):
-        authorization.recheck(claimed, request)
-    with pytest.raises(TextReplyCaptureError):
-        replies.load(**reply_args)
-    # Actual V2 Sources and encrypted recovery remain readable through a fresh
-    # same-owner session after original processing expiry; no generation renewal.
-    metadata_before_history = tuple(metadata_calls)
-    # Reconstruct the actual graph for the CURRENT cookie. The old protection
-    # binding rightly rejects the revoked original session; never strip it.
-    historical_recovery = BrainstormFollowupAuthorityRecovery(
-        protector=protector, clock=clock, refresh=snapshot, owner=lambda: owner,
-        recovered_key_receipt=proof_path,
-        expected_key_proof_digest=content_hash_of(proof),
-        named_binding=replacement_binding,
-    )
-    historical_authorization = CanonicalFollowupAuthorization(
-        factory=factory, store=artifacts, owner=lambda: owner, refresh=snapshot,
-        recovery=historical_recovery, clock=clock,
-        named_binding=replacement_binding, named_only=True,
-    )
-    historical_reader = CanonicalTextReplyCapture(
-        assembler=assembler, authorization=historical_authorization,
-        release_gate=gate,
-        protection=BrainstormTextReplyProtection(
-            protector=protector, clock=clock, named_binding=replacement_binding
-        ),
-    )
-    def no_new_attempt(*args):
-        raise AssertionError("historical reconciliation must not build a runtime")
+    revoked_hash = content_hash_of(revocation_raw)
+    revoked_location = artifacts.put(B.BRAINSTORM, revoked_hash, revocation_raw)
 
-    pipeline = CanonicalNamedAskPipeline(
-        store=admissions, clock=clock, turns=turns, assembler=assembler,
-        display=display, question_inputs=question_inputs,
-        build_attempt=no_new_attempt,
-        build_history=lambda current_operation, canonical_record: historical_reader,
-    )
+    def before_final_statement(conn, statement, multiparams, params, execution_options):
+        sql = str(statement)
+        if fired or "coalesce" not in sql or "source_classification_elevation" not in sql:
+            return
+        # A separate commit must really succeed. Reader error sanitization must
+        # not turn a failed writer/deadlock into apparent mutation coverage.
+        try:
+            with engine.begin() as writer:
+                writer.execute(text("SET LOCAL lock_timeout = '2s'"))
+                if dispatch_mutation == "delete":
+                    assert (
+                        writer.execute(
+                            delete(Source).where(Source.id == saved_turn.source_id)
+                        ).rowcount
+                        == 1
+                    )
+                elif dispatch_mutation == "elevation":
+                    writer.execute(
+                        insert(SourceClassificationElevation).values(
+                            id=mutation_id,
+                            source_id=saved_turn.source_id,
+                            trust_boundary=B.BRAINSTORM,
+                            previous_classification=C.CONFIDENTIAL,
+                            new_classification=C.HIGHLY_RESTRICTED,
+                            reason="invented concurrent dispatch-boundary elevation",
+                            elevated_by="invented test owner",
+                            elevated_at=clock(),
+                        )
+                    )
+                else:
+                    writer.execute(
+                        insert(Source).values(
+                            id=mutation_id,
+                            trust_boundary=B.BRAINSTORM,
+                            data_classification=C.CONFIDENTIAL,
+                            system=SourceSystem.USER_INSTRUCTION,
+                            external_ref=f"packet-followup-revocation/{approval}",
+                            content_hash=revoked_hash,
+                            content_location=revoked_location,
+                            captured_at=clock(),
+                        )
+                    )
+            fired.append(dispatch_mutation)  # Only AFTER successful commit.
+        except Exception as error:  # noqa: BLE001 - asserted outside private reader boundary.
+            writer_errors.append(error)
+
+    event.listen(engine, "before_execute", before_final_statement)
+    held = False
+    try:
+        authorization.recheck_dispatch_rows(claimed, request)
+    except FollowupAuthorizationError:
+        held = True
+    finally:
+        event.remove(engine, "before_execute", before_final_statement)
+    if dispatch_mutation == "delete":
+        # Actual canonical Sources are append-only. A forbidden deletion is
+        # blocked by the database, not successful concurrent reader coverage.
+        assert len(writer_errors) == 1
+        error = writer_errors[0]
+        assert isinstance(error, ProgrammingError)
+        assert getattr(error.orig, "sqlstate", None) == "P0001"
+        assert "source is append-only; DELETE is not permitted" in str(error.orig)
+        assert not fired and not held
+        with factory() as observer:
+            source = observer.get(Source, saved_turn.source_id)
+            assert source is not None
+            assert source.content_hash == saved_turn.reference.content_hash
+            assert observer.get(Source, claimed.reference.source_id) is not None
+        authorization.recheck_dispatch_rows(claimed, request)
+        return
+    assert not writer_errors, f"invented concurrent writer failed: {writer_errors!r}"
+    assert fired == [dispatch_mutation]
+    # Verify the mutation independently from the reader's swallowed diagnostics.
     with factory() as observer:
-        source_count_before_history = observer.scalar(select(func.count()).select_from(Source))
-    objects_before_history = {
-        path.relative_to(tmp_path / "objects"): content_hash_of(path.read_bytes())
-        for path in (tmp_path / "objects").rglob("*") if path.is_file()
-    }
-    reconciled = pipeline.reconcile(
-        operation=replacement_operation, decision_reference=saved.reference
-    )
-    assert reconciled.saved == saved_reply
-    assert reconciled.original_permission_expired
-    assert not reconciled.processing_authorized and not reconciled.execution_authorized
-    assert tuple(metadata_calls) == metadata_before_history
-    with factory() as observer:
-        assert observer.scalar(select(func.count()).select_from(Source)) == source_count_before_history
-    assert {
-        path.relative_to(tmp_path / "objects"): content_hash_of(path.read_bytes())
-        for path in (tmp_path / "objects").rglob("*") if path.is_file()
-    } == objects_before_history
-    historical = historical_reader.load_history(operation=replacement_operation, **reply_args)
-    assert historical.saved == saved_reply
-    assert historical.original_permission_expired
-    assert not historical.original_permission_revoked
-    assert not historical.processing_authorized and not historical.execution_authorized
-    assert tuple(metadata_calls) == metadata_before_history
-    pending = historical_reader.load_history(
-        operation=replacement_operation, **{**reply_args, "recovery_receipt": None}
-    )
-    assert pending.source_id == saved_reply.source_id
-    assert pending.original_permission_expired
-    assert not pending.processing_authorized and not pending.execution_authorized
-    assert not hasattr(pending, "saved")
-    reopened.revoke(replacement_cookie)
-    with pytest.raises(NamedQuestionPipelineError):
-        pipeline.reconcile(operation=replacement_operation, decision_reference=saved.reference)
-    with pytest.raises(TextReplyCaptureError):
-        historical_reader.load_history(operation=replacement_operation, **reply_args)
+        if dispatch_mutation == "elevation":
+            elevated = observer.get(SourceClassificationElevation, mutation_id)
+            assert elevated is not None
+            assert elevated.source_id == saved_turn.source_id
+            assert elevated.new_classification == C.HIGHLY_RESTRICTED
+        else:
+            revoked = observer.get(Source, mutation_id)
+            assert revoked is not None
+            assert revoked.external_ref == f"packet-followup-revocation/{approval}"
+            assert revoked.content_hash == revoked_hash
+            assert revoked.trust_boundary == B.BRAINSTORM
+    assert held, "successful visible concurrent mutation must hold final dispatch"
+    # Existing consumed claim survives; there is no second claim or model call.
+    with factory() as session:
+        assert session.get(Source, claimed.reference.source_id) is not None

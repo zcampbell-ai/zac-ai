@@ -21,7 +21,9 @@ def fixture(tmp_path):
         now=datetime(2026, 10, 5, 12, tzinfo=UTC),
         key=b"x" * 32,
         path=tmp_path / "sessions",
-        owner=OwnerGrant(identity, (BoundaryScope(B.BRAINSTORM, frozenset({C.CONFIDENTIAL})),)),
+        owner=OwnerGrant(
+            identity, (BoundaryScope(B.BRAINSTORM, frozenset({C.CONFIDENTIAL})),)
+        ),
     )
     s.clock = HostObservedClock(lambda: s.now)
     s.sessions = SqliteSessionStore(s.path, key=s.key)
@@ -62,7 +64,10 @@ def test_same_owner_new_cookie_cannot_resume_original_admission(fixture):
     with pytest.raises(m.NamedSessionBindingError):
         replacement.recheck(original.binding_digest)
     recovered = replacement.receipt_only(original.principal)
-    assert recovered.principal == original.principal and not recovered.processing_authorized
+    assert (
+        recovered.principal == original.principal
+        and not recovered.processing_authorized
+    )
 
 
 @pytest.mark.parametrize("revocation", ["one", "all"])
@@ -92,7 +97,9 @@ def test_current_enrolled_owner_or_grant_change_denies(fixture, kind):
     operation = s.helper.for_cookie(s.cookie)
     original = operation.establish()
     if kind == "identity":
-        s.owner = OwnerGrant(Identity("https://accounts.google.com", "other-owner"), s.owner.scopes)
+        s.owner = OwnerGrant(
+            Identity("https://accounts.google.com", "other-owner"), s.owner.scopes
+        )
     else:
         s.owner = OwnerGrant(
             s.owner.identity, (BoundaryScope(B.BRAINSTORM, frozenset({C.INTERNAL})),)
@@ -163,7 +170,9 @@ def test_forged_or_malformed_correlation_digest_grants_nothing(fixture, digest):
         s.helper.for_cookie(s.cookie).recheck(digest)
 
 
-@pytest.mark.parametrize("cookie", [None, True, "", "x" * 42, "x" * 44, "a b", "é" * 43])
+@pytest.mark.parametrize(
+    "cookie", [None, True, "", "x" * 42, "x" * 44, "a b", "é" * 43]
+)
 def test_invalid_cookie_shapes_denied(fixture, cookie):
     with pytest.raises(m.NamedSessionBindingError):
         fixture.helper.for_cookie(cookie)
@@ -176,7 +185,11 @@ def test_unknown_but_wellformed_cookie_denied_without_identity_lookup(fixture):
 
 @pytest.mark.parametrize(
     "field,value",
-    [("origin", "https://other.example"), ("client_id", "other-client"), ("key", b"y" * 32)],
+    [
+        ("origin", "https://other.example"),
+        ("client_id", "other-client"),
+        ("key", b"y" * 32),
+    ],
 )
 def test_binding_is_key_and_host_config_separated(fixture, field, value):
     s = fixture
@@ -199,7 +212,9 @@ def _sealed_session_rows(state):
     import sqlite3
 
     with sqlite3.connect(state.path / "sessions.sqlite") as connection:
-        return connection.execute("SELECT kind,issued,seen,expires,sealed FROM sessions").fetchall()
+        return connection.execute(
+            "SELECT kind,issued,seen,expires,sealed FROM sessions"
+        ).fetchall()
 
 
 def test_internal_checks_never_refresh_or_reseal_browser_activity(fixture):
@@ -238,7 +253,14 @@ def test_real_browser_activity_refreshes_idle_but_internal_checks_do_not(fixture
     assert browser.last_seen_at == s.now
     after_browser = _sealed_session_rows(s)
     s.now = original.issued_at + timedelta(minutes=49)
-    assert operation.recheck(original.binding_digest) == original
+    from dataclasses import replace
+
+    refreshed = operation.recheck(original.binding_digest)
+    assert refreshed == replace(
+        original,
+        effective_expires_at=browser.last_seen_at + s.sessions.user_idle_timeout,
+    )
+    assert refreshed.binding_digest == original.binding_digest
     assert _sealed_session_rows(s) == after_browser
     s.now += timedelta(minutes=1)
     with pytest.raises(m.NamedSessionBindingError):
@@ -262,3 +284,50 @@ def test_idle_deadline_crossed_by_last_clock_read_cannot_be_acknowledged(fixture
         helper.for_cookie(s.cookie).establish()
     assert observed == 3
     assert _sealed_session_rows(s) == original_rows
+
+
+def test_public_effective_deadline_from_actual_idle_snapshot_without_touch(fixture):
+    s = fixture
+    operation = s.helper.for_cookie(s.cookie)
+    first = operation.establish()
+    assert s.sessions.user_idle_timeout == timedelta(minutes=30)
+    assert first.effective_expires_at == s.now + timedelta(minutes=30)
+    assert first.expires_at == s.now + timedelta(hours=8)
+    s.now = first.effective_expires_at - timedelta(microseconds=1)
+    final = operation.recheck(first.binding_digest)
+    assert final.effective_expires_at == first.effective_expires_at
+    s.now += timedelta(microseconds=1)
+    assert s.sessions.peek_user(s.cookie, s.now) is None
+
+
+def test_effective_deadline_tracks_real_browser_touch_not_internal_peek(fixture):
+    s = fixture
+    operation = s.helper.for_cookie(s.cookie)
+    first = operation.establish()
+    s.now += timedelta(minutes=1)
+    assert s.sessions.user(s.cookie, s.now) is not None
+    second = operation.recheck(first.binding_digest)
+    assert second.binding_digest == first.binding_digest
+    assert second.expires_at == first.expires_at
+    assert second.effective_expires_at == first.effective_expires_at + timedelta(
+        minutes=1
+    )
+    assert (
+        operation.recheck(first.binding_digest).effective_expires_at
+        == second.effective_expires_at
+    )
+
+
+def test_effective_deadline_uses_earlier_absolute_expiry(fixture):
+    s = fixture
+    s.sessions = SqliteSessionStore(
+        s.path, key=s.key, lifetime=timedelta(minutes=20), idle=timedelta(minutes=20)
+    )
+    cookie = s.sessions.start_user(s.owner.identity, s.now)
+    helper = m.NamedSessionContinuity(**{**s.args, "sessions": s.sessions})
+    operation = helper.for_cookie(cookie)
+    first = operation.establish()
+    s.now += timedelta(minutes=1)
+    assert s.sessions.user(cookie, s.now) is not None
+    verified = operation.recheck(first.binding_digest)
+    assert verified.effective_expires_at == verified.expires_at == first.expires_at

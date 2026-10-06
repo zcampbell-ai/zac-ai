@@ -13,7 +13,7 @@ import hmac
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Literal
 from urllib.parse import urlsplit
 
@@ -40,6 +40,7 @@ class VerifiedNamedSession:
     binding_digest: str = field(repr=False)
     issued_at: datetime
     expires_at: datetime
+    effective_expires_at: datetime
 
     @property
     def processing_authorized(self) -> Literal[False]:
@@ -189,7 +190,7 @@ class NamedSessionContinuity:
                 < session.expires_at
                 or not session.last_seen_at <= refreshed.last_seen_at <= second_now
                 or checked_now - refreshed.last_seen_at
-                >= timedelta(microseconds=self._sessions._idle)
+                >= self._sessions.user_idle_timeout
                 or type(session.csrf) is not str
                 or _TOKEN.fullmatch(session.csrf) is None
             ):
@@ -224,6 +225,8 @@ class NamedSessionContinuity:
                 binding,
                 session.issued_at,
                 session.expires_at,
+                min(refreshed.expires_at,
+                    refreshed.last_seen_at + self._sessions.user_idle_timeout),
             )
         except Exception:  # noqa: BLE001,S110
             pass

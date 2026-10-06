@@ -49,6 +49,7 @@ from zacai.interfaces.followup_authorization import (
 )
 from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.private_web import InterfacePrincipal, OwnerGrant
+from zacai.interfaces.reply_final_snapshot import verify_reply_final_snapshot
 from zacai.interfaces.text_followup_context import CanonicalFollowupAssembler
 from zacai.interfaces.text_turn_capture import TextTurnRecoveryReceipt
 from zacai.policy import DataClassification as C
@@ -266,12 +267,55 @@ class SavedTextReply:
         return False
 
 
+@dataclass(frozen=True)
+class HistoricalReplyStatus:
+    """Canonical committed record status only; contains no reply text."""
+
+    source_id: UUID = field(repr=False)
+    reply_digest: str = field(repr=False)
+    recorded_at: datetime
+    checked_at: datetime
+    original_permission_expired: bool
+    original_permission_revoked: bool
+    protection_pending: Literal[True] = True
+
+    @property
+    def processing_authorized(self) -> Literal[False]:
+        return False
+
+    @property
+    def execution_authorized(self) -> Literal[False]:
+        return False
+
+
+@dataclass(frozen=True)
+class SavedHistoricalTextReply:
+    """Protected original answer as recorded, never a current-truth assertion."""
+
+    saved: SavedTextReply = field(repr=False)
+    checked_at: datetime
+    original_permission_expired: bool
+    original_permission_revoked: bool
+
+    @property
+    def recorded_at(self) -> datetime:
+        return self.saved.reply.recorded_at
+
+    @property
+    def processing_authorized(self) -> Literal[False]:
+        return False
+
+    @property
+    def execution_authorized(self) -> Literal[False]:
+        return False
+
+
 class CanonicalTextReplyCapture:
     """Protected initial-result retention; historical display is a separate gate.
 
     Initial capture/load retain strict processing expiry/cancellation. Expiry
-    does not delete canonical history; a future named historical-read gate must
-    check owner/ACL/recovery without extending processing authority. This class
+    does not delete canonical history; load_history checks current authenticated
+    owner/session, ACL and recovery without extending processing authority. This class
     mounts no route and authenticates no supplied Python principal by itself.
     """
 
@@ -510,6 +554,40 @@ class CanonicalTextReplyCapture:
             raise ValueError("reply active permission ended")
         return consent
 
+    def _final_reply_snapshot(
+        self,
+        session: Session,
+        reply: TextReply,
+        source_id: UUID,
+        digest: str,
+        consent: FollowupConsentRecord,
+        *,
+        active: bool,
+    ) -> bool:
+        scope = reply.claim.run_scope
+        references = (
+            EvidenceReference(
+                source_id=source_id,
+                content_hash=digest,
+                trust_boundary=B.BRAINSTORM,
+                effective_classification=C.CONFIDENTIAL,
+            ),
+            reply.claim_reference,
+            reply.claim.consent_reference,
+            scope.packet_reference,
+            *scope.context_references,
+            scope.user_reference,
+            *scope.parent_references,
+        )
+        if type(consent) is FollowupConsentV2:
+            references = (*references, consent.decision_reference)
+        return verify_reply_final_snapshot(
+            session,
+            references=references,
+            consent_source_id=reply.claim.consent_reference.source_id,
+            active=active,
+        )
+
     def _final_named_rows(
         self, reply: TextReply, source_id: UUID, digest: str, *, active: bool
     ) -> None:
@@ -524,6 +602,7 @@ class CanonicalTextReplyCapture:
             )
             if type(consent) is not FollowupConsentV2:
                 raise ValueError("named reply version changed")
+            self._final_reply_snapshot(session, reply, source_id, digest, consent, active=active)
         if active and not consent.approved_at <= self._capture._now() < consent.expires_at:
             raise ValueError("named reply expired during final rows")
 
@@ -768,6 +847,146 @@ class CanonicalTextReplyCapture:
             pass
         if result is None:
             raise TextReplyCaptureError("reply unavailable or pending protection")
+        return result
+
+    def load_history(
+        self,
+        *,
+        operation: object,
+        principal: InterfacePrincipal,
+        source_id: UUID,
+        expected_reply_digest: str,
+        retained_receipt: ContextualRecoveryReceipt,
+        text_receipt: TextTurnRecoveryReceipt,
+        recovery_receipt: TextReplyRecoveryReceipt | None,
+    ) -> SavedHistoricalTextReply | HistoricalReplyStatus:
+        """Read original protected history using a current authenticated session.
+
+        No processing renewal, generation, semantic inference or recovery repair.
+        A missing retained reply receipt yields canonical status only. Protected
+        answers are labelled as originally recorded, not newly confirmed truth.
+        Recorded runtime pins remain historical provenance; today's runtime
+        is not probed or required. Current canonical decoding/serialization must
+        still reproduce the original immutable request, so an incompatible code
+        upgrade may conservatively hold pending a reviewed versioned reader.
+        This seam does not strip proof requirements or mount a route.
+        """
+        from zacai.interfaces.named_session_binding import NamedSessionOperation
+
+        result: SavedHistoricalTextReply | HistoricalReplyStatus | None = None
+        try:
+            if (
+                type(operation) is not NamedSessionOperation
+                or type(self._capture._clock) is not HostObservedClock
+                or operation.host_clock is not self._capture._clock
+                or type(source_id) is not UUID
+                or type(expected_reply_digest) is not str
+                or re.fullmatch(r"[0-9a-f]{64}", expected_reply_digest) is None
+            ):
+                raise ValueError("actual historical session and record required")
+            verified = operation.establish()
+            if verified.principal != principal:
+                raise ValueError("historical principal differs")
+            start = self._capture._now()
+            self._capture._principal(principal, start)
+            with self._capture._factory() as session:
+                _assert_ledger_isolation(session)
+                source = session.get(Source, source_id)
+                if source is None:
+                    raise ValueError("historical reply missing")
+                reply, digest = self._read(session, source)
+                consent = self._reply_authority_rows(session, reply, start, active=False)
+            declared = reply.claim.run_scope
+            if (
+                digest != expected_reply_digest
+                or declared.actor_issuer != principal.identity.issuer
+                or declared.actor_subject != principal.identity.subject
+                or declared.owner_grant_digest
+                != _owner_digest(OwnerGrant(principal.identity, principal.scopes))
+                or reply.recorded_at > start
+            ):
+                raise ValueError("historical record owner/time differs")
+            receipt: TextReplyRecoveryReceipt | None = None
+            if recovery_receipt is not None:
+                receipt = TextReplyRecoveryReceipt.model_validate(recovery_receipt)
+                if (
+                    receipt.source_id != source_id
+                    or receipt.reply_digest != digest
+                    or receipt.captured_at != reply.recorded_at
+                    or receipt.verified_at > start
+                ):
+                    raise ValueError("historical reply receipt differs")
+                scope = TextReplyCheckpointScope(source_id, digest, reply.recorded_at)
+                if self._protection.recheck(scope, receipt) is not None:
+                    raise ValueError("historical reply proof held")
+                assembled = self._assembler.assemble(
+                    principal=principal,
+                    source_id=declared.user_reference.source_id,
+                    expected_turn_digest=declared.user_reference.content_hash,
+                    retained_receipt=retained_receipt,
+                    expected_receipt_digest=declared.packet_receipt_digest,
+                    recovery_receipt=text_receipt,
+                )
+                if (
+                    assembled.saved_turn.turn.conversation_id != declared.conversation_id
+                    or content_hash_of(canonical_bytes(text_receipt.model_dump(mode="json")))
+                    != declared.text_receipt_digest
+                    or followup_content_digest(prepare_followup_request(assembled.context))
+                    != declared.content_digest
+                ):
+                    raise ValueError("historical context proof differs")
+                event = assembled.context.task.event.model_copy(
+                    update={"observed_at": reply.original_observed_at}
+                )
+                original = replace(
+                    assembled.context,
+                    task=assembled.context.task.model_copy(update={"event": event}),
+                )
+                if prepare_followup_request(original).digest != reply.claim.request_digest:
+                    raise ValueError("historical prepared request differs")
+                self._fresh_named_reply(reply)
+            # All external session/owner/proof callbacks precede final fresh rows.
+            self._capture._principal(principal, self._capture._now())
+            rechecked = operation.recheck(verified.binding_digest)
+            if rechecked.principal != principal:
+                raise ValueError("historical principal changed during checks")
+            final = self._capture._now()
+            with self._capture._factory() as session:
+                _assert_ledger_isolation(session)
+                source = session.get(Source, source_id)
+                if source is None or self._read(session, source) != (reply, digest):
+                    raise ValueError("historical reply changed during checks")
+                if self._reply_authority_rows(session, reply, final, active=False) != consent:
+                    raise ValueError("historical authority changed during checks")
+                revoked = self._final_reply_snapshot(
+                    session,
+                    reply,
+                    source_id,
+                    digest,
+                    consent,
+                    active=False,
+                )
+            checked = self._capture._now()  # No arbitrary callbacks after rows.
+            if (
+                checked < final
+                or final < start
+                or checked < reply.recorded_at
+                or checked >= rechecked.effective_expires_at
+            ):
+                raise ValueError("historical read clock invalid")
+            expired = checked >= consent.expires_at
+            if receipt is None:
+                result = HistoricalReplyStatus(
+                    source_id, digest, reply.recorded_at, checked, expired, revoked
+                )
+            else:
+                result = SavedHistoricalTextReply(
+                    SavedTextReply(source_id, digest, reply, receipt), checked, expired, revoked
+                )
+        except Exception:  # noqa: BLE001,S110 - no private bytes or callback diagnostics.
+            pass
+        if result is None:
+            raise TextReplyCaptureError("historical reply unavailable or held")
         return result
 
     def load(

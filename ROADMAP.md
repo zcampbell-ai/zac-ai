@@ -11,8 +11,8 @@ This roadmap defines implementation order, not a reduction in scope.
 
 ## Current Position — reconciled 2026-10-05
 
-Current validated engineering checkpoint: D034AY. Commit/push evidence is
-verified separately against Git; D034AX is its committed and pushed parent.
+Current validated engineering checkpoint: D034AZ. Commit/push evidence is
+verified separately against Git; D034AY is its committed and pushed parent.
 Private iPhone acceptance and live conversation remain unverified; code completion
 must not stand in for those release gates.
 Zac confirmed the protected
@@ -1969,3 +1969,39 @@ semantic/reply pipeline; approved Google credential setup and private serving;
 current bounded briefing, representative quality and actual iPhone acceptance.
 No listener, new credential, live generation or broader source import is enabled
 by this implementation checkpoint.
+
+
+## D034AZ — final named dispatch and protected historical reconciliation
+
+Frozen integrated serial validation: 3,870 tests pass in 902.05 seconds;
+three existing dependency warnings. Ruff, strict mypy (126 sources) and diff
+checks pass. Independent Opus pipeline/history findings were reproduced and
+corrected against actual helpers; speculative findings are distinguished from
+confirmed changes. Exact staged secret scanning and Git commit/push establish
+release preservation separately.
+
+The unmounted concrete question pipeline binds original admission, actual local
+runtime transport/profile/counter, original overall budget and final session idle
+deadline. Mandatory final dispatch validates consumed V2 authority and original
+source inventory with a combined current ACL/cancellation snapshot after external
+callbacks. Retained answer reading uses a current authenticated original owner
+and exact original protected provenance, without model probes, renewed processing,
+new claims or backup repair. Canonical reconciliation finds the retained answer
+from the original decision after restart or permission expiry. Question bytes are
+checked against the exact reference and canonical turn ACLs before proof callbacks.
+A final combined reply/history snapshot closes split-query permission races.
+
+Actual PostgreSQL concurrency cases and encrypted full history graph pass in the
+serial suite. Reconciliation verifies no added Source or changed backup object,
+no runtime call and denial of a revoked replacement session. Synthetic runtime,
+identity and semantic fixtures are labelled and do not establish live quality.
+
+Separate reviewed-human-parent, generated candidate and reviewer authority remain
+workspace staging. Local reviewer recovery passes its separate actual cold-recovery
+checks but is not installed production composition or owner permission. The first
+usable gates remain unchanged: finish genuine invocation-backed semantic/reply
+integration; approved Google credential/private access; current useful briefing
+coverage; representative model quality and physical iPhone acceptance. No live
+source/model/credential connection or private app listener is enabled by this
+checkpoint. A separately labelled sample-content visual walkthrough does not
+change those acceptance gates.
