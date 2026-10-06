@@ -825,3 +825,17 @@ and capabilities; evaluate task fitness without creating accounts or spending
 by assumption. Preserve provider neutrality and the existing roadmap order.
 No new account, API credential, subscription or private model disclosure occurred
 from this preference.
+
+
+## Current owner direction (2026-10-06)
+
+Settled: context baseline and intelligent minimal-direction task delivery come
+before further interface/prototype work. The existing roadmap and dependencies
+remain authoritative. All newly authored delivery uses Zac's concise voice and
+no em dashes; retain raw originals unchanged for evidence. Do not repeat generic
+questions about whether full context or prior assets are wanted.
+
+Pending setup: Zac is obtaining the Claude export and will supply its local path
+or attachment when available. Verify actual archive/account coverage and mixed
+boundaries before intake. Bring each other source's specific secure login/grant
+step when ready; do not ask him to log into everything blindly or share passwords.

@@ -2074,3 +2074,40 @@ coverage; representative model quality and physical iPhone acceptance. No live
 source/model/credential connection or private app listener is enabled by this
 checkpoint. A separately labelled sample-content visual walkthrough does not
 change those acceptance gates.
+
+
+## Owner priority clarification: context baseline first (2026-10-06)
+
+Zac explicitly clarified that the interface and prototype are premature for his
+current needs. The immediate priority is a verified personal and Brainstorm
+context baseline that helps Caz understand a short assignment and deliver useful
+work with minimal repeated direction. Premium interface quality remains required
+later. This changes emphasis within the existing phases and acceptance criteria;
+it does not create a competing roadmap or remove recovery/security gates.
+
+Continue in dependency order: protected recoverable data; scoped source access
+and original history; provenance-aware context and current-fact reconciliation;
+real task-relevant retrieval and useful delivery; then broader approved delegation
+and the interface around working capabilities. Prepare independent source adapters
+in parallel, but do not count connector visibility, offline inspection, synthetic
+tests or visual previews as complete ingestion or personal intelligence.
+
+Historical conversation exports, proposals, branding and authored mail are starting
+evidence. Preserve original bytes, identities, dates, revisions and permissions;
+keep personal, business and restricted material separately governed. Existing
+assistant suggestions and dated estimates cannot silently become current facts.
+Use one targeted owner question when ambiguity changes the task. Judge progress
+by representative real assignments, relevant evidence, useful results and fewer
+repeated instructions, not the number of imported records or engineering tests.
+
+All newly authored owner-facing prose must be concise, use Zac's conversational
+and sent-email style, and contain no em dashes. Preserve raw original source text
+as evidence rather than rewriting it to match a delivery preference. Current
+owner corrections supersede historical style examples without erasing them.
+
+The owner is gathering the Claude organization export. Its actual account scope,
+format, size, included history and attachments remain unverified. Inventory and
+review partitioning before protected capture; do not label an entire mixed account
+BRAINSTORM or claim comprehensive history from a single archive. Gmail and Slack
+wire/transport preparation is implemented; native account-bound capture, secure
+grants, recovery and measured history coverage remain separate unfinished gates.

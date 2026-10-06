@@ -6914,3 +6914,20 @@ memory behavior. Full-history preparation continues alongside delivery and impor
 follow existing gates; complete archives and specialist agents do not delay a
 bounded v1 or become silently completed. Sensitive inventories and personal finance
 remain outside engineering Git and in their separately protected boundaries.
+
+
+Context-first delivery priority and writing direction (2026-10-06)
+Zac explicitly prioritizes a verified context baseline and intelligent task
+completion with minimal direction ahead of further prototype/interface work.
+Continue the existing roadmap, preserving canonical Zac State/Zac Events,
+provider neutrality, the external approval/credential gateway and separate
+PERSONAL/BRAINSTORM recovery and permissions. Do not replace them with provider
+memories or a competing context store. Native Goal objective editing is not
+exposed by the available status-only tool; this current owner direction governs
+execution and is retained in ROADMAP's priority clarification.
+
+Current writing instruction: concise prose in Zac's voice, with no em dashes.
+Sent-email examples and direct corrections guide generated delivery. Raw source
+evidence stays intact; historical assistant drafts are not confirmed preferences.
+Claude export intake and other source preparation do not authorize external
+private-model processing, broad imports, outreach or financial actions.
