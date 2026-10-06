@@ -59,15 +59,18 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
 
-from sqlalchemy import select
+from sqlalchemy import UUID, DateTime, Enum, Text, case, func, select, true
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.sql import ColumnElement, SQLColumnExpression
 
 from zacai.ingestion.artifact_store import ArtifactStore, content_hash_of
-from zacai.policy import TrustBoundary
-from zacai.state import ArtifactBackupRun, Source
+from zacai.policy import DataClassification, TrustBoundary
+from zacai.state import ArtifactBackupRun, Source, SourceClassificationElevation
 from zacai.state_repository import (
     complete_artifact_backup_run,
     fail_artifact_backup_run,
+    source_classification_elevation_strength,
     start_artifact_backup_run,
 )
 
@@ -520,11 +523,22 @@ def backup_boundary(
     backup_store: BackupObjectStore,
     recipient: str,
     local_manifest_cache_path: Path,
+    personal_plan: PersonalFullOriginalBackupPlan | None = None,
 ) -> BackupSummary:
     """The D031A incremental/idempotent backup algorithm: driven entirely
     by `Source` rows, never by scanning the filesystem. Orphan artifacts
     (no `Source` reference) are never backed up - they cannot be
     assigned a trust boundary for encryption without guessing."""
+    if personal_plan is not None:
+        return _backup_personal_full_original(
+            session,
+            trust_boundary=trust_boundary,
+            artifact_store=artifact_store,
+            backup_store=backup_store,
+            recipient=recipient,
+            local_manifest_cache_path=local_manifest_cache_path,
+            plan=personal_plan,
+        )
     previous = _load_local_manifest_cache(local_manifest_cache_path, trust_boundary)
 
     rows = _source_rows_for_boundary(session, trust_boundary=trust_boundary)
@@ -584,6 +598,7 @@ def run_artifact_backup(
     backup_store: BackupObjectStore,
     recipient: str,
     local_manifest_cache_path: Path,
+    personal_plan: PersonalFullOriginalBackupPlan | None = None,
 ) -> ArtifactBackupRun:
     """Wraps `backup_boundary` with the `artifact_backup_run` audit
     lifecycle (D031A) - `STARTED` committed immediately, a fresh
@@ -599,6 +614,7 @@ def run_artifact_backup(
 
     try:
         with session_factory() as data_session:
+            options = {} if personal_plan is None else {"personal_plan": personal_plan}
             summary = backup_boundary(
                 data_session,
                 trust_boundary=trust_boundary,
@@ -606,6 +622,7 @@ def run_artifact_backup(
                 backup_store=backup_store,
                 recipient=recipient,
                 local_manifest_cache_path=local_manifest_cache_path,
+                **options,
             )
     except Exception as exc:
         with session_factory() as fail_session:
@@ -1070,3 +1087,369 @@ def age_decrypt_bounded(
     if result is None:
         raise DecryptionError("bounded age decryption unavailable")
     return result
+
+
+# Closed, dormant engineering profile. It never establishes owner/key permission.
+_PERSONAL_PLAIN_LIMIT = 100_000_000
+_PERSONAL_CIPHER_LIMIT = 101_000_000
+_PERSONAL_ARTIFACT_LIMIT = 128
+_PERSONAL_AGGREGATE_LIMIT = 512_000_000
+_PERSONAL_METADATA_LIMIT = 1_000_000
+
+
+@dataclass(frozen=True)
+class PersonalFullOriginalBackupPlan:
+    """Complete canonical PERSONAL selection, not authority or a receipt.
+
+    Closed profiles hold above128 Source rows as well as128 unique artifacts.
+    Explicit v2 admits HR for encrypted PERSONAL custody, never model processing.
+    Host owner/access and reviewed recipient custody remain caller prerequisites.
+    """
+
+    engine: Engine = field(repr=False, compare=False)
+    rows: bytes = field(repr=False)
+    artifacts: tuple[tuple[str, str], ...] = field(repr=False)
+    profile: str = "personal-full-original-backup-v1"
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.engine, Engine)
+            or type(self.rows) is not bytes
+            or not 0 < len(self.rows) <= _PERSONAL_METADATA_LIMIT
+            or type(self.profile) is not str
+            or self.profile
+            not in (
+                "personal-full-original-backup-v1",
+                "personal-encrypted-custody-backup-v2",
+            )
+            or type(self.artifacts) is not tuple
+            or not 0 < len(self.artifacts) <= _PERSONAL_ARTIFACT_LIMIT
+            or any(
+                type(item) is not tuple
+                or len(item) != 2
+                or type(item[0]) is not str
+                or re.fullmatch(r"[0-9a-f]{64}", item[0]) is None
+                or type(item[1]) is not str
+                or item[1] != f"{item[0][:2]}/{item[0]}.bin"
+                for item in self.artifacts
+            )
+            or tuple(sorted(set(self.artifacts))) != self.artifacts
+        ):
+            raise ValueError("exact closed PERSONAL backup plan required")
+
+
+def _personal_backup_rows(
+    session: Session, *, profile: str = "personal-full-original-backup-v1"
+) -> tuple[bytes, tuple[tuple[str, str], ...]]:
+    if type(profile) is not str or profile not in (
+        "personal-full-original-backup-v1",
+        "personal-encrypted-custody-backup-v2",
+    ):
+        raise ValueError("closed encrypted PERSONAL backup profile required")
+    admitted_labels: tuple[DataClassification, ...] = (
+        DataClassification.PUBLIC,
+        DataClassification.INTERNAL,
+        DataClassification.CONFIDENTIAL,
+    )
+    if profile == "personal-encrypted-custody-backup-v2":
+        admitted_labels += (DataClassification.HIGHLY_RESTRICTED,)
+    if not isinstance(session, Session) or session.new or session.dirty or session.deleted:
+        raise ValueError("clean actual canonical Session required")
+    _assert_personal_backup_backend(session)
+    if tuple(Source.__table__.columns.keys()) != (
+        "id",
+        "trust_boundary",
+        "data_classification",
+        "system",
+        "external_ref",
+        "captured_at",
+        "excerpt",
+        "content_hash",
+        "content_location",
+        "supersedes_source_id",
+    ):
+        raise ValueError("reviewed bounded canonical Source columns required")
+    expected_types = (UUID, Enum, Enum, Enum, Text, DateTime, Text, Text, Text, UUID)
+    if tuple(type(column.type) for column in Source.__table__.columns) != expected_types:
+        raise ValueError("reviewed bounded canonical Source types required")
+    date_type = Source.__table__.c.captured_at.type
+    if not isinstance(date_type, DateTime) or date_type.timezone is not True:
+        raise ValueError("reviewed canonical UTC Source date required")
+    latest = (
+        select(SourceClassificationElevation.new_classification)
+        .where(SourceClassificationElevation.source_id == Source.id)
+        .order_by(
+            source_classification_elevation_strength().desc(),
+            SourceClassificationElevation.elevated_at.desc(),
+        )
+        .limit(1)
+        .correlate(Source)
+        .scalar_subquery()
+    )
+    labels = (
+        DataClassification.PUBLIC,
+        DataClassification.INTERNAL,
+        DataClassification.CONFIDENTIAL,
+        DataClassification.HIGHLY_RESTRICTED,
+    )
+    if set(labels) != set(DataClassification):
+        raise ValueError("reviewed classification policy required")
+
+    def strength(expression: SQLColumnExpression[DataClassification]) -> ColumnElement[int]:
+        return case(*((expression == label, rank) for rank, label in enumerate(labels)), else_=4)
+
+    observed_elevation = func.coalesce(latest, Source.data_classification)
+    effective = case(
+        (strength(observed_elevation) > strength(Source.data_classification), observed_elevation),
+        else_=Source.data_classification,
+    )
+    # One statement: the server computes complete-boundary text widths and
+    # refuses ALL result rows before materializing any unbounded text in Python.
+    # Never select a permitted subset or fetch text before checking the cap.
+    candidates = (
+        select(Source.external_ref, Source.excerpt, Source.content_hash, Source.content_location)
+        .where(Source.trust_boundary == TrustBoundary.PERSONAL)
+        .limit(_PERSONAL_ARTIFACT_LIMIT + 1)
+        .cte("personal_backup_candidates")
+    )
+    width = sum(
+        func.octet_length(func.coalesce(column, ""))
+        for column in (
+            candidates.c.external_ref,
+            candidates.c.excerpt,
+            candidates.c.content_hash,
+            candidates.c.content_location,
+        )
+    )
+    sizes = (
+        select(
+            func.count().label("row_count"),
+            func.coalesce(func.sum(width), 0).label("text_bytes"),
+            func.coalesce(func.max(width), 0).label("max_text_bytes"),
+        )
+        .select_from(candidates)
+        .cte("personal_backup_sizes")
+    )
+    rows = list(
+        session.execute(
+            select(
+                *Source.__table__.columns,
+                effective.label("effective"),
+            )
+            .select_from(Source)
+            .join(sizes, true())
+            .where(
+                Source.trust_boundary == TrustBoundary.PERSONAL,
+                sizes.c.row_count > 0,
+                sizes.c.row_count <= _PERSONAL_ARTIFACT_LIMIT,
+                sizes.c.text_bytes <= _PERSONAL_METADATA_LIMIT,
+                sizes.c.max_text_bytes <= _PERSONAL_METADATA_LIMIT,
+            )
+            .order_by(Source.id)
+            .limit(_PERSONAL_ARTIFACT_LIMIT + 1)
+        ).mappings()
+    )
+    if not rows or len(rows) > _PERSONAL_ARTIFACT_LIMIT:
+        raise ValueError("bounded complete PERSONAL Source selection required")
+    items: dict[str, str] = {}
+    for row in rows:
+        digest, location = row["content_hash"], row["content_location"]
+        if (
+            type(digest) is not str
+            or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            or type(location) is not str
+            or location != f"{digest[:2]}/{digest}.bin"
+            or row["effective"] not in admitted_labels
+            or row["data_classification"] not in admitted_labels
+            or (digest in items and items[digest] != location)
+        ):
+            raise ValueError("closed PERSONAL artifact and classification profile required")
+        items[digest] = location
+    # Exact complete scalar metadata, including effective classification. No text
+    # is exposed in repr or uploaded by the plan; no cached permission is inferred.
+    raw = json.dumps(
+        [dict(row) for row in rows], sort_keys=True, separators=(",", ":"), default=str
+    ).encode()
+    if len(raw) > _PERSONAL_METADATA_LIMIT:
+        raise ValueError("PERSONAL metadata plan capacity exceeded")
+    return raw, tuple(sorted(items.items()))
+
+
+def prepare_personal_full_original_backup_plan(session: Session) -> PersonalFullOriginalBackupPlan:
+    """Snapshot exact whole boundary rows; never authorizes processing or backup."""
+    result = None
+    try:
+        rows, artifacts = _personal_backup_rows(session)
+        engine = session.get_bind()
+        if not isinstance(engine, Engine):
+            raise TypeError("actual canonical Engine required")
+        result = PersonalFullOriginalBackupPlan(engine, rows, artifacts)
+    except Exception:  # noqa: BLE001,S110 - fixed private-safe boundary
+        pass
+    if result is None:
+        raise BackupArtifactsError("PERSONAL full-original backup plan unavailable")
+    return result
+
+
+def prepare_personal_encrypted_custody_backup_plan(
+    session: Session,
+) -> PersonalFullOriginalBackupPlan:
+    """Explicit v2 HR-capable encrypted custody; no access or processing grant.
+
+    This closed profile changes backup classification admission only. It never
+    changes Source labels, model policy, owner approval or independent key proof.
+    """
+    result = None
+    try:
+        rows, artifacts = _personal_backup_rows(
+            session, profile="personal-encrypted-custody-backup-v2"
+        )
+        engine = session.get_bind()
+        if not isinstance(engine, Engine):
+            raise TypeError("actual canonical Engine required")
+        result = PersonalFullOriginalBackupPlan(
+            engine, rows, artifacts, profile="personal-encrypted-custody-backup-v2"
+        )
+    except Exception:  # noqa: BLE001,S110 - fixed private-safe boundary
+        pass
+    if result is None:
+        raise BackupArtifactsError("PERSONAL encrypted-custody backup plan unavailable")
+    return result
+
+
+def _backup_personal_full_original(
+    session: Session,
+    *,
+    trust_boundary: TrustBoundary,
+    artifact_store: ArtifactStore,
+    backup_store: BackupObjectStore,
+    recipient: str,
+    local_manifest_cache_path: Path,
+    plan: PersonalFullOriginalBackupPlan,
+) -> BackupSummary:
+    # No unbounded fallback or cache-as-proof. All new path failures are fixed;
+    # uploaded objects or a manifest may remain after a late hold. They never
+    # constitute success/current access without subsequent independent checks.
+    result = None
+    try:
+        if (
+            type(plan) is not PersonalFullOriginalBackupPlan
+            or plan.profile
+            not in ("personal-full-original-backup-v1", "personal-encrypted-custody-backup-v2")
+            or trust_boundary is not TrustBoundary.PERSONAL
+            or session.get_bind() is not plan.engine
+        ):
+            raise ValueError("exact explicit PERSONAL plan required")
+        plan.__post_init__()
+        transaction = None
+
+        def current() -> None:
+            nonlocal transaction
+            if plan.profile == "personal-encrypted-custody-backup-v2":
+                rows, artifacts = _personal_backup_rows(session, profile=plan.profile)
+            else:
+                rows, artifacts = _personal_backup_rows(session)
+            actual = session.get_transaction()
+            if transaction is None:
+                transaction = actual
+            if (
+                actual is None
+                or actual is not transaction
+                or rows != plan.rows
+                or artifacts != plan.artifacts
+            ):
+                raise ValueError("PERSONAL Source plan or transaction changed")
+
+        current()
+        local_read = getattr(artifact_store, "get_bounded", None)
+        object_read = getattr(backup_store, "get_object_bounded", None)
+        if not callable(local_read) or not callable(object_read):
+            raise TypeError("actual bounded IO required without fallback")
+        entries: dict[str, ManifestEntry] = {}
+        total = 0
+        for digest, location in plan.artifacts:
+            current()
+            raw = local_read(trust_boundary, location, max_bytes=_PERSONAL_PLAIN_LIMIT)
+            current()
+            if (
+                type(raw) is not bytes
+                or not 0 < len(raw) <= _PERSONAL_PLAIN_LIMIT
+                or content_hash_of(raw) != digest
+            ):
+                raise ValueError("complete bounded plaintext hash required")
+            total += len(raw)
+            if total > _PERSONAL_AGGREGATE_LIMIT:
+                raise ValueError("PERSONAL aggregate capacity exceeded")
+            cipher = age_encrypt_bounded(
+                raw,
+                recipient,
+                max_input_bytes=_PERSONAL_PLAIN_LIMIT,
+                max_output_bytes=_PERSONAL_CIPHER_LIMIT,
+                max_stderr_bytes=65_536,
+                timeout_seconds=30.0,
+            )
+            current()
+            if type(cipher) is not bytes or not 0 < len(cipher) <= _PERSONAL_CIPHER_LIMIT:
+                raise ValueError("bounded complete ciphertext required")
+            total += len(cipher)
+            if total > _PERSONAL_AGGREGATE_LIMIT:
+                raise ValueError("PERSONAL aggregate capacity exceeded")
+            key = backup_object_key_for(trust_boundary, digest)
+            backup_store.put_object(key, cipher)
+            current()
+            confirmed = object_read(key, max_bytes=_PERSONAL_CIPHER_LIMIT)
+            current()
+            if type(confirmed) is not bytes or confirmed != cipher:
+                raise ValueError("complete uploaded ciphertext readback differs")
+            entries[digest] = ManifestEntry(
+                digest,
+                location,
+                key,
+                len(cipher),
+                hashlib.sha256(cipher).hexdigest(),
+                datetime.now(UTC).isoformat(),
+            )
+        manifest = Manifest(trust_boundary.value, datetime.now(UTC).isoformat(), entries)
+        body = manifest.to_json_bytes()
+        total += len(body)
+        if total > _PERSONAL_AGGREGATE_LIMIT or len(body) > _PERSONAL_METADATA_LIMIT:
+            raise ValueError("bounded manifest capacity exceeded")
+        current()
+        encrypted = age_encrypt_bounded(
+            body,
+            recipient,
+            max_input_bytes=_PERSONAL_METADATA_LIMIT,
+            max_output_bytes=2_000_000,
+            max_stderr_bytes=65_536,
+            timeout_seconds=30.0,
+        )
+        current()
+        if type(encrypted) is not bytes or not 0 < len(encrypted) <= 2_000_000:
+            raise ValueError("bounded manifest ciphertext required")
+        total += len(encrypted)
+        if total > _PERSONAL_AGGREGATE_LIMIT:
+            raise ValueError("PERSONAL aggregate capacity exceeded")
+        key = manifest_key_for(trust_boundary)
+        backup_store.put_object(key, encrypted)
+        current()
+        confirmed = object_read(key, max_bytes=2_000_000)
+        current()
+        if type(confirmed) is not bytes or confirmed != encrypted:
+            raise ValueError("bounded manifest readback differs")
+        # Local cache is convenience only and never consulted as proof here.
+        _save_local_manifest_cache(local_manifest_cache_path, manifest)
+        current()
+        result = BackupSummary(trust_boundary, len(entries), 0, len(entries), 0, [])
+    except Exception:  # noqa: BLE001,S110 - never expose private SQL/object/process diagnostics
+        pass
+    if result is None:
+        raise BackupArtifactsError("PERSONAL full-original bounded backup unavailable")
+    return result
+
+
+def _assert_personal_backup_backend(session: Session) -> None:
+    from zacai.review_authorization import _assert_ledger_isolation
+
+    if session.get_bind().dialect.name != "postgresql":
+        raise ValueError("canonical PostgreSQL metadata bounds required")
+    _assert_ledger_isolation(session)
