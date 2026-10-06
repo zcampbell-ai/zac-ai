@@ -7037,3 +7037,38 @@ PostgreSQL cases, including four deliberately guarded administrative corruption
 controls. The separate full encrypted reviewer trial failed before evaluation
 retention after 952.59 seconds; one synthetic reviewer call succeeded, but final
 retention/recovery acknowledgement remains unverified. No private source was imported and no live grant or route was enabled.
+
+
+Complete native recovery selection (2026-10-06)
+Add prepare_native_batch_recovery_selection to the existing native inventory
+module; preserve every original module function and class AST and existing public
+loader/verifier signatures. No schema, backup engine, native protection receipt,
+permission framework or Source promotion is introduced. A recovery-labelled
+selection must require the separately retained proposal Source; it cannot
+silently use the earlier proposal-omitting native inventory alone. The proposal
+may be retained later without restamping historical provider evidence.
+
+Early closed tuple, UUID and bounded digest checks precede dictionary
+materialization or private proposal reads. The proposal first binds supplied
+batch/digest claims; the retained envelope subsequently verifies their actual
+relationship. Complete final scalar observations include proposal and batch
+namespace ambiguity, exact selected hashes, all Source columns and effective
+ACLs. Same-system historical provider revisions remain legitimate. Fingerprints
+compare current rows with the supplied loader snapshot; they are not unforgeable
+original-load provenance or human authority.
+
+Reuse the existing Source-driven artifact backup and State/journal restore
+engines. Committed proposal Sources are already selected by boundary backup.
+The complete selection specifies required exact UUID/hash/column coverage,
+while byte presence and cryptographic restoration remain engine checks. The
+metadata type retains false permission/recovery/fact/completeness flags even
+when a synthetic recovery trial succeeds. No ambient registry or passing
+protection callback is added.
+
+Validation:76 pure controls and seven actual guarded PostgreSQL cases pass; the
+latter include genuine local age-encrypted artifact/State/journal restore of
+nine selected Sources. This is local synthetic acceptance, not off-device
+durability, real recovered-key escrow, account authorization, private ingestion
+or useful-output quality. The fresh-process whole-boundary SQL fixture remains
+in engineering workspace staging rather than the ordinary full suite, where
+other committed synthetic Sources can refer to unrelated ephemeral stores.

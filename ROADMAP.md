@@ -2199,3 +2199,36 @@ commit the transaction and separately prove encrypted recovery of the complete
 selected inventory. The retained proposal Source is not yet included in the
 native inventory's recovery union. Current-fact confirmation and useful
 retrieval/answer acceptance remain next dependencies in the existing plan.
+
+
+### Retained proposal recovery selection (2026-10-06)
+
+The earlier native evidence checkpoint's proposal-union omission is preserved
+as historical status. An additive composition now requires the retained proposal
+reference and exact approved bytes alongside the native inventory. It verifies
+the supplied proposal claims, then their retained batch-envelope relationship,
+and observes the complete selected Source/ACL union after the last artifact
+callback. The existing ordinary native loader and its 74-reference bound are
+unchanged; the complete selection permits at most 75 references. Original
+provider observation and later proposal retention dates remain distinct.
+
+Release validation:76 selected pure checks, configured Ruff and strict mypy132
+pass. Seven root-run guarded PostgreSQL cases pass in1.07 seconds, including
+genuine committed restart and local age-encrypted artifact, State and operational
+journal cold readback/restore with all nine selected Source columns compared.
+The dedicated fresh-process trial uses the actual whole-boundary Source-driven
+backup inventory, excludes an unreferenced artifact and confirms disposable
+restore-target cleanup. It also exercises missing/corrupt proposal bytes, current
+and late classification denial, and last-callback Session transaction changes.
+This native recovery trial is separate from the unfinished reviewer pipeline
+trial described above.
+
+The metadata selection is not a recovery receipt, authentication or permission.
+It does not prove that every provider/approval blob remains available; the actual
+backup/restore engines establish required byte coverage. The trial uses invented
+Gmail/Slack/instruction evidence, an ephemeral key and local directories on the
+same Mac. No private source import, actual read-only account grant, independently
+recovered owner key, off-device durability or model-processing consent is proven.
+The existing next steps remain authenticated selected capture, complete recovery
+under the real host setup, owner current-fact confirmation and useful retrieval
+with minimal repeated direction.

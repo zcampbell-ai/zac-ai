@@ -18,13 +18,14 @@ from typing import Any, Literal
 from uuid import UUID
 
 from sqlalchemy import or_, select
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import Session, SessionTransaction, aliased
 from sqlalchemy.sql.elements import ColumnElement
 
 from zacai.connectors.gmail_wire import GmailScope
 from zacai.connectors.slack_wire import HistorySelection, RepliesSelection
 from zacai.ingestion.artifact_store import ArtifactStore, canonical_bytes, content_hash_of
 from zacai.ingestion.native_batch_envelope import compose_native_batch_envelope
+from zacai.ingestion.native_proposal_retention import load_retained_native_proposal
 from zacai.ingestion.native_source_capture import (
     GmailCaptureInput,
     SlackCaptureInput,
@@ -802,3 +803,186 @@ def verify_native_batch_inventory_rows(
         pass
     if not verified:
         raise NativeBatchInventoryError("native retained inventory held")
+
+
+@dataclass(frozen=True, repr=False)
+class NativeBatchRecoverySelection:
+    """Complete metadata selection, never a protected receipt or read authority.
+
+    Native batch integrity plus REQUIRED retained proposal. No private bytes are
+    returned. Caller owns authentication, commit and actual encrypted recovery.
+    Existing ordinary inventory signatures and 74-reference semantics are unchanged.
+    """
+
+    inventory: NativeBatchInventory
+    proposal_reference: EvidenceReference
+    hashes: tuple[tuple[UUID, str], ...]
+    source_fingerprints: tuple[tuple[UUID, str], ...]
+    processing_authorized: Literal[False] = field(default=False, init=False)
+    recovery_verified: Literal[False] = field(default=False, init=False)
+    facts_confirmed: Literal[False] = field(default=False, init=False)
+    complete_history_verified: Literal[False] = field(default=False, init=False)
+
+
+def _selection_transactions(session: Session) -> tuple[SessionTransaction, ...]:
+    outer = session.get_transaction()
+    if outer is None or not outer.is_active:
+        raise ValueError("live caller transaction required")
+    observed = [outer]
+    nested = session.get_nested_transaction()
+    while nested is not None and nested is not outer:
+        if not nested.is_active or nested in observed:
+            raise ValueError("live nested transaction required")
+        observed.append(nested)
+        nested = nested.parent
+    return tuple(observed)
+
+
+def prepare_native_batch_recovery_selection(
+    session: Session,
+    *,
+    artifacts: ArtifactStore,
+    inventory: NativeBatchInventory,
+    proposal_reference: EvidenceReference,
+    approved_proposal_raw: bytes,
+    as_of: datetime,
+) -> NativeBatchRecoverySelection:
+    """Bind an already loaded native inventory to its exact retained proposal.
+
+    Read-only metadata preparation with a final combined full-column/ACL query
+    after all store callbacks. Fingerprints compare current rows with the supplied
+    loader snapshot; they are not unforgeable original-load provenance or authority.
+    Proposal reads bind the supplied batch/digest claims; the later retained
+    envelope verifier establishes their relationship, never owner authentication.
+    Provider/approval blob presence and byte recovery remain backup/restore checks.
+    The proposal's later retention time is preserved;
+    it does not change original provider observation or approve processing.
+    Generic Source-driven backup includes these committed Sources; no backup,
+    encryption, restoration, receipt or commit occurs here. Trusted callbacks
+    must not issue SQL or control the caller transaction. Session-API identity/
+    liveness changes hold; Core/driver commits are not portably detected, and an
+    already durable callback commit cannot be undone. Read-only intent does not
+    sandbox callback writes. BaseException propagates; hosts must disable traceback
+    local capture/showlocals. No callback sandbox.
+    """
+    result = None
+    try:
+        _clean(session)
+        _assert_ledger_isolation(session)
+        now = _time(as_of)
+        if type(inventory) is not NativeBatchInventory:
+            raise ValueError("exact inventory metadata required")
+        if (
+            type(inventory.batch_id) is not UUID
+            or type(inventory.hashes) is not tuple
+            or not 2 <= len(inventory.hashes) <= MAX_REFERENCES
+        ):
+            raise ValueError("closed bounded claimed inventory required")
+        _digest(inventory.proposal_digest)
+        for item in inventory.hashes:
+            if type(item) is not tuple or len(item) != 2 or type(item[0]) is not UUID:
+                raise ValueError("closed claimed source hash required")
+            _digest(item[1])
+        if (
+            type(approved_proposal_raw) is not bytes
+            or not 0 < len(approved_proposal_raw) <= 32_000
+            or content_hash_of(approved_proposal_raw) != inventory.proposal_digest
+        ):
+            raise ValueError("exact original approved bytes required")
+        ref = _reference(proposal_reference)
+        external = f"native-source-proposal/{inventory.batch_id}"
+        if ref.source_id in dict(inventory.hashes) or ref.content_hash != inventory.proposal_digest:
+            raise ValueError("distinct exact proposal required")
+        proposal = _row(session, ref, SourceSystem.MANUAL, now)
+        if proposal["external_ref"] != external or proposal["supersedes_source_id"] is not None:
+            raise ValueError("exact proposal family required")
+        proposal_fingerprint = _fingerprint(proposal)
+        raw = load_retained_native_proposal(
+            session,
+            artifacts=artifacts,
+            proposal_reference=ref,
+            batch_id=inventory.batch_id,
+            expected_proposal_hash=inventory.proposal_digest,
+            as_of=now,
+        )
+        if raw != approved_proposal_raw or content_hash_of(raw) != inventory.proposal_digest:
+            raise ValueError("original proposal differs")
+        # New composition guards every Session-API transaction boundary around
+        # legacy verifier callbacks without changing that verifier's semantics.
+        transactions = _selection_transactions(session)
+        _verify_rows(session, artifacts=artifacts, inventory=inventory, as_of=now)
+        after = _selection_transactions(session)
+        if len(after) != len(transactions) or any(
+            left is not right for left, right in zip(transactions, after, strict=True)
+        ):
+            raise ValueError("store changed caller transaction")
+        hashes = dict(inventory.hashes)
+        fingerprints = dict(inventory.source_fingerprints)
+        hashes[ref.source_id] = ref.content_hash
+        fingerprints[ref.source_id] = proposal_fingerprint
+        provenance = dict(inventory.provenance)
+        if external in provenance:
+            raise ValueError("conflicting proposal provenance")
+        provenance[external] = SourceSystem.MANUAL
+        if len(hashes) > MAX_REFERENCES + 1 or set(hashes) != set(fingerprints):
+            raise ValueError("bounded complete union required")
+        other = aliased(Source)
+        foreign = (
+            select(other.id)
+            .where(
+                or_(
+                    *[
+                        (other.external_ref == name)
+                        & or_(other.system != kind, other.trust_boundary != B.BRAINSTORM)
+                        for name, kind in provenance.items()
+                    ]
+                )
+            )
+            .exists()
+            .label("foreign_provenance")
+        )
+        with session.no_autoflush:
+            rows = list(
+                session.execute(
+                    select(*Source.__table__.columns, _effective(), foreign)
+                    .where(
+                        or_(
+                            Source.id.in_(tuple(hashes)),
+                            Source.external_ref == external,
+                            Source.external_ref == f"native-source-batch/{inventory.batch_id}",
+                        )
+                    )
+                    .limit(MAX_REFERENCES + 2)
+                ).mappings()
+            )
+        if len(rows) != len(hashes) or {row["id"] for row in rows} != set(hashes):
+            raise ValueError("missing or ambiguous complete selection")
+        actual_provenance: dict[str, SourceSystem] = {}
+        for actual in rows:
+            row = dict(actual)
+            if (
+                row["foreign_provenance"] is not False
+                or row["trust_boundary"] is not B.BRAINSTORM
+                or row["data_classification"] is not C.CONFIDENTIAL
+                or row["effective_classification"] is not C.CONFIDENTIAL
+                or row["content_hash"] != hashes[row["id"]]
+                or _fingerprint(row) != fingerprints[row["id"]]
+                or _time(row["captured_at"])
+                > (now if row["id"] == ref.source_id else inventory.original_observed_at)
+            ):
+                raise ValueError("final complete selection changed")
+            actual_provenance[row["external_ref"]] = row["system"]
+        if actual_provenance != provenance:
+            raise ValueError("complete selected provenance differs")
+        _clean(session)
+        result = NativeBatchRecoverySelection(
+            inventory,
+            ref,
+            tuple(sorted(hashes.items(), key=lambda item: str(item[0]))),
+            tuple(sorted(fingerprints.items(), key=lambda item: str(item[0]))),
+        )
+    except Exception:  # noqa: BLE001,S110 - fixed failure outside private handler
+        pass
+    if result is None:
+        raise NativeBatchInventoryError("native complete recovery selection held")
+    return result

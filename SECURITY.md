@@ -196,3 +196,31 @@ must disable traceback-local capture/showlocals; message sanitization does not
 erase private Python locals. Cancellation and BaseException must propagate
 without success acknowledgement. Retained-read byte limits are checked after
 the trusted store returns bytes, and are not a preallocation sandbox.
+
+
+Complete native selection boundaries (2026-10-06)
+The additive recovery-selection composition requires the exact retained proposal
+reference and approved bytes, closed bounded metadata, raw/effective
+BRAINSTORM/CONFIDENTIAL checks before proposal access, retained-envelope
+relationship checks and a complete callback-free Source/ACL observation after
+the last store callback. At most75 selected Sources and76 final query rows allow
+the first extra proposal/batch row to deny acknowledgement. Existing ordinary
+provider revision semantics and canonical classification policy are unchanged.
+
+Metadata consistency is not original-load attestation, human authentication,
+processing consent or encrypted protection. A missing provider blob can leave
+metadata selection successful with its recovery flag stillFalse; actual
+Source-driven artifact backup and cold byte restoration must establish coverage.
+The verified local trial used invented evidence and an ephemeral age key, not
+real owner key recovery or off-device retention.
+
+The new composition checks all observed outer/nested Session transaction
+identities and liveness around its legacy verifier callback sequence; the legacy
+verifier itself is unchanged. Artifact callbacks remain trusted host code and
+must not issue direct SQL or commit, roll back or switch transactions. Read-only
+intent is not a callback-write sandbox. Session-API changes hold, but Core, SQL
+or driver transaction control is not portably detected, and detection cannot
+undo a malicious callback commit that is already durable. BaseException and
+cancellation propagate without success acknowledgement. Hosts must disable
+traceback-local capture/showlocals; fixed public messages do not erase private
+Python locals. No account, archive, model or live recovery grant is introduced.
