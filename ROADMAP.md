@@ -2292,3 +2292,10 @@ boundary protection before canonical enrollment. The BRAINSTORM full-snapshot
 8.5MB ciphertext reader bound must not be silently bypassed by a large archive.
 PERSONAL classification and recovered encryption/credential readiness remain
 separate owner gates. These additions preserve the context-first roadmap.
+
+
+Historical intake prerequisite: bounded local filesystem reads are available
+with full-file integrity and observed-size allocation. Existing history and
+backup limits remain unchanged. Source-specific custody, current rights,
+bounded encrypted recovery and owner classification still gate enrollment.
+This does not connect any source or import the Claude archive.

@@ -57,6 +57,9 @@ from zacai.policy import TrustBoundary
 _DIR_MODE = 0o700
 _FILE_MODE = 0o600
 
+# Separate explicit preparation ceiling; unchanged get/put impose no new cap.
+MAX_BOUNDED_ARTIFACT_BYTES = 100_000_000
+
 
 def canonical_bytes(payload: dict[str, Any]) -> bytes:
     """The one function that produces the bytes both hashed and stored
@@ -167,8 +170,7 @@ class LocalFilesystemArtifactStore:
             yield current
 
     def _read_at(self, directory: int, digest: str) -> bytes:
-        fd = os.open(digest + ".bin", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
-                     dir_fd=directory)
+        fd = os.open(digest + ".bin", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
         try:
             metadata = os.fstat(fd)
             if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
@@ -195,8 +197,12 @@ class LocalFilesystemArtifactStore:
                     raise OSError("existing artifact bytes differ")
                 return self.location_for(content_hash)
             temporary = ".tmp-" + secrets.token_hex(16)
-            fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
-                         _FILE_MODE, dir_fd=directory)
+            fd = os.open(
+                temporary,
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                _FILE_MODE,
+                dir_fd=directory,
+            )
             try:
                 try:
                     with os.fdopen(fd, "wb", closefd=False) as stream:
@@ -204,8 +210,9 @@ class LocalFilesystemArtifactStore:
                         stream.write(raw_bytes)
                 finally:
                     os.close(fd)
-                os.replace(temporary, content_hash + ".bin",
-                           src_dir_fd=directory, dst_dir_fd=directory)
+                os.replace(
+                    temporary, content_hash + ".bin", src_dir_fd=directory, dst_dir_fd=directory
+                )
             except BaseException:
                 with contextlib.suppress(FileNotFoundError):
                     os.unlink(temporary, dir_fd=directory)
@@ -221,3 +228,49 @@ class LocalFilesystemArtifactStore:
         digest = match[2]
         with self._directory_fd((trust_boundary.value, match[1])) as directory:
             return self._read_at(directory, digest)
+
+    def _read_bounded_at(self, directory: int, digest: str, max_bytes: int) -> bytes:
+        fd = os.open(digest + ".bin", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+        try:
+            metadata = os.fstat(fd)
+            if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+                raise OSError("regular singly linked local artifact required")
+            if not 0 <= metadata.st_size <= max_bytes:
+                raise OSError("local artifact outside bounded capacity")
+            with os.fdopen(fd, "rb", closefd=False) as stream:
+                raw = stream.read(metadata.st_size + 1)
+            after = os.fstat(fd)
+            if (
+                len(raw) > max_bytes
+                or len(raw) != metadata.st_size
+                or after.st_size != metadata.st_size
+                or not stat.S_ISREG(after.st_mode)
+                or after.st_nlink != 1
+            ):
+                raise OSError("bounded local artifact changed")
+            if content_hash_of(raw) != digest:
+                raise OSError("local artifact content hash differs")
+            return raw
+        finally:
+            os.close(fd)
+
+    def get_bounded(
+        self, trust_boundary: TrustBoundary, content_location: str, *, max_bytes: int
+    ) -> bytes:
+        """Read one complete hash-verified artifact within an explicit byte limit.
+
+        Separate preparation API: no Source ACL, custody, capture permission or
+        encrypted recovery is verified. The 100MB ceiling is an input-byte bound,
+        not a total memory guarantee. No fallback to unbounded get is performed.
+        Host configuration/root alias and descriptor confinement match get.
+        """
+        if type(max_bytes) is not int or not 0 < max_bytes <= MAX_BOUNDED_ARTIFACT_BYTES:
+            raise ValueError("exact bounded artifact limit required")
+        if type(trust_boundary) is not TrustBoundary or type(content_location) is not str:
+            raise ValueError("exact local artifact boundary/location required")
+        match = re.fullmatch(r"([0-9a-f]{2})/([0-9a-f]{64})\.bin", content_location)
+        if match is None or match[1] != match[2][:2]:
+            raise ValueError("canonical local artifact location required")
+        digest = match[2]
+        with self._directory_fd((trust_boundary.value, match[1])) as directory:
+            return self._read_bounded_at(directory, digest, max_bytes)

@@ -7144,3 +7144,20 @@ Large-original custody/selection and native retained binding, consent, runtime
 and protection are still required joins. Do not disguise chunks as complete
 exports, misuse supersedes_source_id for derivation, weaken legacy caps or
 assume a saved reader credential establishes PERSONAL recovery.
+
+
+### Bounded local artifact reads for historical intake, October 6
+
+The concrete local filesystem store exposes an optional exact bounded read.
+It validates caller bounds, confined location, regular file, single link and
+observed size before reading at most observed size plus one byte. Complete
+length, post-read metadata and content hash must match. Growth, truncation,
+links and cancellation never fall back to the existing unbounded read.
+Existing store methods and protocol retain their executable behavior.
+
+The separate100MB ceiling does not raise history selection or encrypted
+recovery limits. This method proves point-in-time byte integrity only, not
+Source rights, custody, account ownership, recovery or processing approval.
+Independent Opus review requested size-based allocation; four invented
+predecessor controls failed and the corrected89-case filesystem suite passed.
+No actual archive is imported or read by this change.
