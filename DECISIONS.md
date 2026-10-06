@@ -7181,3 +7181,28 @@ Opus accepted the narrow corrections; root verified256 combined structural
 and filesystem controls, including47 unchanged V1 history controls. Actual
 whole-original custody, Source enrollment, current ACLs, encryption recovery
 and fact promotion are separate unmet gates. No private export is read here.
+
+
+### Retained native preparation and complete recovery inventory, October 6
+
+Retain the exact preparation body and a separate closed dependency header,
+using canonical Sources and existing artifacts. Header selectors contain no
+question, instruction or relevance prose. Recheck current dependency rights
+before body reads, and bind full canonical rows, original task/observation,
+both own records and base/project relationships. A missing or changed pair
+holds without repair or reminting. Caller owns the outer transaction and rolls
+back after HOLD. READ COMMITTED checks are observation windows, not a claim
+that concurrent administrative changes are impossible.
+
+Genuine meeting/project selections contain 14/15 Sources: existing 12/13 plus
+the preparation body and dependency header. Neither own record is processing
+consent. Inventory flags remain false and no existing host treats it as an
+approval or cold-recovery receipt. Current Claude indexer/companion and bounded
+artifact reader are preserved; no schema, legacy limit or active route changes.
+Independent Opus accepted the exact delta. Root current 139-source acceptance
+passed 476 native/legacy pure, 153 installed compatibility pure and 12 actual
+PostgreSQL cases. Full encrypted artifact/State/journal/key recovery and native
+consent, canonical claim and useful-answer acceptance remain separate work.
+
+Installed validation additionally passed 120 pure/database checks, with
+configured mypy139 and Ruff clean. No private source was used.

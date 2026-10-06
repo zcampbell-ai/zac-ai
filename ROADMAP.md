@@ -2306,3 +2306,17 @@ weakening existing history lineage/selection rules. Next: bind original and
 companion to canonical Sources only after reviewed boundary/classification,
 bounded whole-snapshot protection and real recovery. A successful metadata
 inspection never means the archive is imported or current facts confirmed.
+
+
+Native preparation can now be retained as an exact original body paired with a
+closed dependency header. Current rights and relationships are checked before
+opening the body. Both records join the complete 14/15-Source recovery inventory.
+Root verified the current 139-source composition with 476 native/legacy pure
+checks, 153 installed compatibility checks and 12 actual PostgreSQL cases;
+independent Opus review accepted the exact three-file production change.
+This is a library checkpoint, with no enabled model path or private import.
+Next: actual complete encrypted cold recovery, exact native processing consent
+and one-use host dispatch. The Claude and PERSONAL custody gates remain open.
+
+Installed validation additionally passed 120 pure/database checks, with
+configured mypy139 and Ruff clean. No private source was used.

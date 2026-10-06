@@ -137,6 +137,7 @@ class NativeContextualPreparation:
     hashes: tuple[tuple[UUID, str], ...]
     source_fingerprints: tuple[tuple[UUID, str], ...]
     binding_bytes: bytes
+    relationship_fingerprint: str
     processing_authorized: Literal[False] = field(default=False, init=False)
     recovery_verified: Literal[False] = field(default=False, init=False)
     facts_confirmed: Literal[False] = field(default=False, init=False)
@@ -175,8 +176,12 @@ def _session_unchanged(session: Session, transaction: object) -> None:
         raise ValueError("native read transaction changed")
 
 
-def _base_relationships(session: Session, selection: NativeContextualSelection) -> str:
+def _base_relationships(
+    session: Session, selection: NativeContextualSelection | ReviewSelection
+) -> str:
     # Callback-free current canonical reads; no retained/private artifact text.
+    if type(selection) not in {NativeContextualSelection, ReviewSelection}:
+        raise ValueError("exact canonical relationship selection")
     session.expire_all()
     ids = tuple(item.meeting_id for item in (selection.selected, *selection.earlier))
     meetings = list(
@@ -459,19 +464,6 @@ def assemble_native_contextual_selection(
             original["required_capabilities"] = sorted(
                 projection.original_task.required_capabilities
             )
-            binding = canonical_bytes(
-                {
-                    "format": "zac-native-contextual-assembly-binding-v1",
-                    "selection": selected.model_dump(mode="json"),
-                    "original_task": original,
-                    "request": json.loads(request_raw),
-                    "request_digest": contextual_request_digest(request),
-                    "prepared_digest": prepared_native_contextual_digest(request),
-                    "hashes": [[str(ref.source_id), ref.content_hash] for ref in full_refs],
-                }
-            )
-            if len(binding) > 512_000:
-                raise ValueError("bounded retained binding required")
             # Final external reads rebind the original complete native envelope.
             prepare_native_batch_recovery_selection(
                 session,
@@ -500,6 +492,24 @@ def assemble_native_contextual_selection(
             final = _rows(session, full_refs, observed)
             if before != final:
                 raise ValueError("final complete canonical dependency changed")
+            binding = canonical_bytes(
+                {
+                    "format": "zac-native-contextual-assembly-binding-v2",
+                    "selection": selected.model_dump(mode="json"),
+                    "original_task": original,
+                    "request": json.loads(request_raw),
+                    "request_digest": contextual_request_digest(request),
+                    "prepared_digest": prepared_native_contextual_digest(request),
+                    "relationship_fingerprint": relationships,
+                    "source_fingerprints": [
+                        [str(sid), digest]
+                        for sid, digest in sorted(final.items(), key=lambda item: str(item[0]))
+                    ],
+                    "hashes": [[str(ref.source_id), ref.content_hash] for ref in full_refs],
+                }
+            )
+            if len(binding) > 512_000:
+                raise ValueError("bounded retained binding required")
             prepared = NativeContextualPreparation(
                 selected,
                 projection,
@@ -508,6 +518,7 @@ def assemble_native_contextual_selection(
                 tuple((ref.source_id, ref.content_hash) for ref in full_refs),
                 tuple(sorted(final.items(), key=lambda item: str(item[0]))),
                 binding,
+                relationships,
             )
         result = prepared
     except Exception:  # noqa: BLE001,S110 - no private diagnostics or chained input

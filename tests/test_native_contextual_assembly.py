@@ -103,7 +103,7 @@ def prepared(fixture, monkeypatch):
 
     monkeypatch.setattr(m, "assemble_contextual_context", base)
     monkeypatch.setattr(m, "_native_window", sqlite_window)
-    monkeypatch.setattr(m, "_base_relationships", lambda *args: "mock-base-relationships")
+    monkeypatch.setattr(m, "_base_relationships", lambda *args: content_hash_of(b"mock-base-relationships"))
     selection = m.NativeContextualSelection(
         format="zac-native-contextual-selection-v1",
         selected=MeetingEvidence(uuid4(), meeting.id),
