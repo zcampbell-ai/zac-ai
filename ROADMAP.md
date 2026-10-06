@@ -418,6 +418,17 @@ For each phase:
   boundary ingestion cursor, retry-safe batch transactions, and an
   `ingestion_run` status lifecycle - implemented and tested against
   synthetic data only.)
+- [ ] Add optional provider-neutral event subscription capabilities alongside
+  read adapters (D032A), using push when supported and scheduled polling plus
+  reconciliation when unavailable or incomplete. Preserve the existing ZacEvent
+  v1 and Source contracts. Scope subscriptions to the connected account and
+  boundary; retain subscription status, stable delivery IDs, cursors and original
+  occurrence/observation dates. Authenticate ingress, recheck access, deduplicate
+  retries, handle unordered delivery and reconcile missed updates before useful
+  workflow dispatch. Incoming payloads do not grant processing or action rights.
+  MCP Events is one candidate transport, not the canonical event bus. Implement
+  with the first connector that needs it after the current context/recovery gates;
+  this does not reopen completed D032 or authorize subscriptions/public hosting.
 - [ ] Preserve source permissions, provenance, and processing status.
   (D030 implemented provenance and processing-status tracking for the
   synthetic pipeline; preserving a real connector's actual granted
@@ -2161,3 +2172,30 @@ acceptance or private phone access. Installed validation:146 selected checks,
 strict mypy128 and production-source secret scan pass. No new live B2 or private
 history import was performed. Independent code-only Opus review was reconciled
 before installation.
+
+
+### Selected native evidence checkpoint candidate (2026-10-06)
+
+Four additive ingestion modules compose selected Gmail/Slack evidence into
+uncommitted canonical Sources, retain exact proposal bytes for restart and
+reconstruct a bounded source-backed inventory. Identical replay preserves the
+original UUID and observation time; later provider revisions do not promote dated
+evidence into current facts. Proposal retention is separate from the human
+instruction and does not authenticate that instruction.
+
+Release validation:195 selected pure checks and 39 root-run guarded PostgreSQL
+cases pass (24 writer,2 inventory,4 proposal,9 public inventory forgery controls), including committed restart,
+rollback and final Source/ACL mutation controls. The final documentation/family-test successor preserves the reviewed executable
+inventory AST. The separate full encrypted reviewer trial failed before evaluation
+retention after 952.59 seconds. It reached one synthetic review call, with 149.58
+seconds total invocation time and 2.59ms simulated runtime; this is not live model
+quality or completed recovery acceptance. The later failure is being diagnosed.
+
+This checkpoint does not fetch accounts, import a private Claude archive, grant
+processing authority, commit on behalf of the host, produce a recovery receipt
+or establish current business facts. The host must authenticate the exact
+read-only account selection and human instruction, retain the approved proposal,
+commit the transaction and separately prove encrypted recovery of the complete
+selected inventory. The retained proposal Source is not yet included in the
+native inventory's recovery union. Current-fact confirmation and useful
+retrieval/answer acceptance remain next dependencies in the existing plan.

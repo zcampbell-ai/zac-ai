@@ -3308,6 +3308,52 @@ Supersedes:
 None. Extends D001/D004/D008/D023/D024/D026/D030; preserves D031B and all
 existing roadmap phases. Updates immediate sequencing to D032 before Fireflies.
 
+## D032A - Provider-Neutral Connector Event Capability (Design Follow-Up)
+Status: Accepted design direction; not implemented or live-enabled
+Date: 2026-10-06
+
+Context:
+The owner supplied the MCP Events development and asked whether it belongs in
+Caz AI. Official OpenAI documentation confirms webhook subscriptions in supported
+ChatGPT Work/cloud and dot surfaces, using a draft protocol with delivery-control
+limitations. This availability does not connect the local Caz host or any account.
+The existing D032 ZacEvent v1 is a Source-backed declaration, not an event bus.
+
+Decision:
+- Preserve canonical Zac State, ZacEvent v1 and the existing roadmap order. Add
+  an optional companion event capability to read connectors when first needed:
+  discovery, authorized subscribe/refresh/unsubscribe, scoped external delivery
+  ingestion, and polling/reconciliation fallback. These are design responsibilities,
+  not new callable interfaces or a live service in this checkpoint.
+- Route external delivery through authenticated, boundary-scoped ingress and the
+  existing permitted Source/artifact pipeline before constructing a Source-backed
+  ZacEvent. Policy/router/workflow admission remains outside connectors/agents.
+  Signed delivery verifies transport origin, not current fact, model permission,
+  owner approval, source access or execution authority. Re-resolve current rights.
+- Keep durable subscription ownership/filter/status/expiry/revocation and sync
+  cursors separate from canonical business memory and credentials. Gateway owns
+  signing secrets and tokens. Namespace delivery IDs by provider/account/boundary,
+  preserve IDs across retries, and distinguish external occurrence from host
+  observation. Deduplicate and accept that delivery can be unordered or missed.
+  Reconciliation uses authorized source reads and advances cursors only after
+  accepted durable ingestion; define restart, retry, truncation and loop controls.
+- MCP Events, native webhooks and provider push are replaceable transports. Poll
+  or reconcile when delivery, replay or subscription health is incomplete. No
+  protocol-wide perfect delivery or cost/latency improvement is assumed.
+- Implement and measure with a needed connector after current protected context
+  intake/recovery gates. Cover invalid signature, revoked access, duplicate/out-of-
+  order deliveries, restart/expiry/gaps, PERSONAL/BRAINSTORM isolation and retries
+  before live adoption. No public endpoint, cloud/private-data transfer, new
+  credentials, subscription or account scope is authorized by this design note.
+
+Sources and limits:
+Verified 2026-10-06: [OpenAI MCP Events](https://developers.openai.com/plugins/build/mcp-events).
+OpenAI currently supports webhook delivery from the draft; its integration does
+not support polling, streaming, gap or terminated control notifications. Caz's
+polling fallback would be owned by its connector host, independent of that feature.
+Completed D032 remains unchanged. This extends Phase 3, not a competing milestone
+sequence or claim that Caz has a production event bus.
+
 ## D033A - Selected Fireflies Transcript Wire Preparation (Offline Only)
 Status: Accepted; offline implementation independently reviewed
 Date: 2026-10-02
@@ -6962,3 +7008,32 @@ artifacts are not rewritten on an identical retry. Root installed validation:146
 and46 local encrypted backup/ingestion PostgreSQL regressions pass. Whole
 src/tests Ruff, strict mypy128 and production-source secret scan pass. This is
 local integrity and compatibility evidence, not new live off-device recovery.
+
+
+Selected native evidence and retained proposal candidate (2026-10-06)
+Reuse ArtifactStore, record_source, existing Source revisions and public native
+wire/preparation codecs. Add no schema, memory store, provider grant or approval
+framework. Writer results acknowledge successful nested savepoint exit only;
+they remain uncommitted evidence references. Identical historical replay keeps
+original dates and does not replace the current provider tip. A 32KB retained
+proposal has its own MANUAL namespace and supports restart without original
+caller input tuples. The subsequent inventory loader reconstructs provider
+inputs from exact retained artifacts against the host-supplied approved bytes.
+
+Public inventory recheck binds the hash-pinned batch envelope's control roles,
+family identities, dates, ordered groups and false status flags, followed by
+fresh complete Source/ACL scalar observations. It does not reparse provider
+bodies or reread the approval body; complete original reconstruction belongs to
+the loader. Matching hashes or caller-forged fingerprints cannot establish
+authentication, processing permission, protected storage or current truth.
+
+Retain existing bounds and canonical classification policy. A 256000-byte batch
+envelope pre-put invariant is defense in depth; actual installed Gmail IDs are
+bounded to 200 ASCII characters, so the previously proposed 3000-character-label
+reachability example is invalid. No input widening or truncation is accepted.
+
+Release evidence comprises 195 selected pure checks and 39 actual guarded
+PostgreSQL cases, including four deliberately guarded administrative corruption
+controls. The separate full encrypted reviewer trial failed before evaluation
+retention after 952.59 seconds; one synthetic reviewer call succeeded, but final
+retention/recovery acknowledgement remains unverified. No private source was imported and no live grant or route was enabled.

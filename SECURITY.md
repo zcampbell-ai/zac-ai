@@ -170,3 +170,29 @@ paths hold. The configured root resolves once so supported macOS path aliases
 remain usable. Exact existing artifacts retain their bytes and inode on retry.
 This enforces local path integrity, not provider authorization, a same-user
 process sandbox, encrypted recovery or a permission to process private content.
+
+
+Selected native evidence transaction boundary (2026-10-06 candidate)
+Native capture and proposal retention require clean caller-owned SQLAlchemy
+units of work, explicit BRAINSTORM/CONFIDENTIAL Sources and raw/effective ACL
+checks before private reads, then callback-free complete scalar revalidation
+after the final artifact callback. A failed nested transaction cannot return a
+successful receipt. ArtifactStore callbacks are trusted host code and must not
+commit, roll back, switch transactions or execute direct SQL. The transaction
+tripwire detects Session-API identity/liveness changes; it does not portably
+detect Core, SQL or driver commits, sandbox callbacks or undo an already durable
+malicious commit. A hold must not be represented as uncommitted success.
+
+Returned references and exact proposal bytes carry no account authentication,
+human permission, commit, recovery or model-processing authority. A matching
+USER_INSTRUCTION Source supplies integrity only; the trusted host authenticates
+the actual owner instruction and account scope. Mixed personal/restricted
+archive intake remains unresolved and cannot be assigned an arbitrary shared
+boundary. Local artifact storage is distinct from independently verified
+encrypted recovery.
+
+Fixed public errors omit private details and exception chaining. Host diagnostics
+must disable traceback-local capture/showlocals; message sanitization does not
+erase private Python locals. Cancellation and BaseException must propagate
+without success acknowledgement. Retained-read byte limits are checked after
+the trusted store returns bytes, and are not a preallocation sandbox.
