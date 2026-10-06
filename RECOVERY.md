@@ -531,3 +531,10 @@ The disposable SQL/local-age drill uses actual encrypted objects and cold restor
 with invented admission/session and key-escrow flags. Production credentials, independently
 recovered identity and live off-device availability require their existing operator gates.
 No secret or current personal financial record is stored in these engineering documents.
+
+
+## Historical context recovery mechanics (2026-10-06)
+
+Claude original custody requires the complete original and its canonical companion; counts, spans, Source types and a readable local file do not prove independent recovery. The separately staged canonical reader is read-only and rechecks current Source rights before each artifact read and afterward. It performs no backup, repair, synchronization, permission grant or fact promotion.
+
+Native preparation protection binds the original retained body and dependency header, complete source inventory, full State and operational journal. Current owner/key checks and exact current backup-run comparison remain separate requirements. Restoring State without the separately protected journal deliberately holds. Disposable invented-key/database tests demonstrate these mechanics only. Actual PERSONAL off-device recovery and independent password-manager retrieval are not established by them.

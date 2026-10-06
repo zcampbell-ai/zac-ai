@@ -2330,3 +2330,12 @@ Optional bounded age encryption/decryption helpers are installed for the existin
 ### Context runtime and bounded read prerequisite (2026-10-06)
 
 Installed the reviewed native context runtime checks and prompt counter, plus additive bounded local/S3 object reads. Exact candidate validation passed 586 native checks, 153 compatibility checks, 88 bounded backup/age checks and 8 actual age checks using invented data, including a 100 MB original round trip. Fresh provenance closes the backup test evidence gap identified by Opus. Installed validation passed 159 focused checks and 8 actual crypto checks; mypy140 and Ruff are clean. This advances the existing context intake path without enabling a model route, changing production size profiles, importing private history or granting processing authority. Next remains protected Claude original capture, complete recovery and source-backed retrieval.
+
+
+### Canonical historical custody and recovery mechanics (2026-10-06)
+
+The existing context-first sequence now has source-specific Claude original and companion capture, exact bounded selected text, and retained native preparation cold-recovery mechanics. Original Source identity, export role/date claims and selection offsets remain intact. A shared strongest-elevation policy prevents equal or reversed timestamps from choosing weaker classifications. These library additions do not connect an account, import private history, enable a model route or confirm current facts.
+
+The complete Claude archive still needs owner classification, genuine PERSONAL encrypted off-device artifact/State/journal recovery, independently recovered credentials/key proof, and an explicit reviewed large-original MESSAGE profile before useful private retrieval. The legacy 8MB export and128KB conversation selection guards remain unchanged. Next follows the existing roadmap: finish those joins, confirm material current facts, then prove useful minimal-direction task results. UI work remains behind the context baseline.
+
+The canonical reader remains staged while independent review findings on permitted classification elevation and provenance delivery are corrected. It is excluded from this installed checkpoint.

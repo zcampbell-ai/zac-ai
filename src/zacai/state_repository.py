@@ -44,9 +44,10 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import cast
 
-from sqlalchemy import Table, func, select, update
+from sqlalchemy import Table, case, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
 
 from zacai.policy import DataClassification, TrustBoundary
 from zacai.state import (
@@ -220,18 +221,42 @@ def _assert_evidence_matches_boundary(
             )
 
 
+def source_classification_elevation_strength() -> ColumnElement[int]:
+    """Canonical D030 upward-only rank; timestamps never weaken sensitivity.
+
+    Multiple legitimate elevations can share a transaction timestamp. Sorting
+    by explicit policy strength keeps all readers on the strongest elevation;
+    timestamps may break equal-strength ties, which have identical labels.
+    """
+    if set(_CLASSIFICATION_ORDER) != set(DataClassification):
+        raise RuntimeError("classification policy order requires review")
+    return case(
+        *(
+            (SourceClassificationElevation.new_classification == label, rank)
+            for label, rank in _CLASSIFICATION_ORDER.items()
+        ),
+        # An unexpected server-side enum label must win and fail enum decoding,
+        # never be hidden beneath a known weaker classification.
+        else_=max(_CLASSIFICATION_ORDER.values()) + 1,
+    )
+
+
 def get_effective_source_classification(session: Session, *, source_id: uuid.UUID) -> DataClassification:
-    """The Source's own classification, elevated by its most recent
+    """The Source's own classification, elevated by its strongest
     `source_classification_elevation` row if one exists (D030). Elevation
     is enforced strictly upward-only (`elevate_source_classification`),
-    so "most recent" and "maximum" always agree. This is the only correct
+    so the strongest elevation is authoritative, including timestamp ties.
+    This is the only correct
     way to ask how sensitive a Source currently is anywhere downstream -
     never read `Source.data_classification` directly for a policy/access
     decision."""
     latest = session.execute(
         select(SourceClassificationElevation.new_classification)
         .where(SourceClassificationElevation.source_id == source_id)
-        .order_by(SourceClassificationElevation.elevated_at.desc())
+        .order_by(
+            source_classification_elevation_strength().desc(),
+            SourceClassificationElevation.elevated_at.desc(),
+        )
         .limit(1)
     ).scalar_one_or_none()
     if latest is not None:

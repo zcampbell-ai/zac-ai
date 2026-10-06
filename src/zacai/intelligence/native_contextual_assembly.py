@@ -64,7 +64,10 @@ from zacai.state import (
     Source,
     SourceClassificationElevation,
 )
-from zacai.state_repository import get_meeting_project_context
+from zacai.state_repository import (
+    get_meeting_project_context,
+    source_classification_elevation_strength,
+)
 
 MAX_REFERENCES = 96
 
@@ -302,7 +305,10 @@ def _rows(
     latest = (
         select(SourceClassificationElevation.new_classification)
         .where(SourceClassificationElevation.source_id == Source.id)
-        .order_by(SourceClassificationElevation.elevated_at.desc())
+        .order_by(
+            source_classification_elevation_strength().desc(),
+            SourceClassificationElevation.elevated_at.desc(),
+        )
         .limit(1)
         .correlate(Source)
         .scalar_subquery()

@@ -7216,3 +7216,12 @@ Keep the original age APIs and production limits unchanged; expose additive boun
 ### Dormant context runtime and bounded object reads (2026-10-06)
 
 Retain separate native preparation checks and the existing gateway. Runtime validation rejects reentrant attempts, unexpected metadata and payload/schema mismatches; prompt counting uses the existing renderer/tokenizer contract. Local object reads enforce descriptor confinement, regular single-link files and stable bounded size. S3 reads validate length, force final EOF verification and close bodies on every exit. All existing callers, permissions, profiles and canonical State/Event authority remain unchanged. Opus accepted the exact code subject to backup-run provenance, now recorded against the same source/test manifests. Test counts demonstrate these library controls only, not owner readiness or complete context coverage.
+
+
+### Historical custody and strongest existing classification policy (2026-10-06)
+
+Preserve complete Claude originals and a closed provenance companion as canonical Sources. Artifact custody acknowledgments use an additive durable local write with file sync before publication and directory sync afterward. POSIX fsync is not a physical power-loss guarantee; failed sync or ambiguous orphan/link states require operator verification or replacement, never an automatic retry claim. Hosts retain the trusted exclusive writer and separately pinned private root.
+
+All classification-elevation readers select the strongest existing policy rank before timestamp. Equal transaction timestamps and later weaker labels cannot reduce existing sensitivity. Unknown policy labels hold rather than hide beneath a known weaker label. This enforces the established upward-only D030 policy; it grants no new access.
+
+Native preparation cold recovery checks the exact encrypted artifact/State/operational-journal evidence and compares the current ArtifactBackupRun as a deny-only dependency. The operational journal remains excluded from State export, so rebuilding State alone does not recreate that dependency. A missing or changed run holds until the exact separately protected journal is restored. No reminting or receipt repair occurs on read.

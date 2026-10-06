@@ -53,6 +53,7 @@ from zacai.policy import (
     evaluate_access,
 )
 from zacai.state import Source, SourceClassificationElevation, SourceSystem
+from zacai.state_repository import source_classification_elevation_strength
 
 B = TrustBoundary
 C = DataClassification
@@ -206,7 +207,7 @@ def _snapshot(
     allowed: frozenset[C],
     observed: datetime,
 ) -> dict[UUID, dict[str, Any]]:
-    """Actual callback-free scalar metadata, canonical latest-elevation policy."""
+    """Actual callback-free scalar metadata, canonical strongest-elevation policy."""
     if session.new or session.dirty or session.deleted or not 1 <= len(refs) <= 96:
         raise ValueError("clean bounded read required")
     expected = {r.source_id: r for r in refs}
@@ -215,7 +216,10 @@ def _snapshot(
     latest = (
         select(SourceClassificationElevation.new_classification)
         .where(SourceClassificationElevation.source_id == Source.id)
-        .order_by(SourceClassificationElevation.elevated_at.desc())
+        .order_by(
+            source_classification_elevation_strength().desc(),
+            SourceClassificationElevation.elevated_at.desc(),
+        )
         .limit(1)
         .correlate(Source)
         .scalar_subquery()

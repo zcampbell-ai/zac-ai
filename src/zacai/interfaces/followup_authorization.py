@@ -33,7 +33,10 @@ from zacai.policy import Destination
 from zacai.policy import TrustBoundary as B
 from zacai.review_authorization import _assert_ledger_isolation, _bytes, _find, _lock, _write
 from zacai.state import Source, SourceSystem
-from zacai.state_repository import get_effective_source_classification
+from zacai.state_repository import (
+    get_effective_source_classification,
+    source_classification_elevation_strength,
+)
 
 
 class FollowupAuthorizationError(RuntimeError):
@@ -1048,7 +1051,10 @@ class CanonicalFollowupAuthorization:
                 latest = (
                     select(SourceClassificationElevation.new_classification)
                     .where(SourceClassificationElevation.source_id == Source.id)
-                    .order_by(SourceClassificationElevation.elevated_at.desc())
+                    .order_by(
+                        source_classification_elevation_strength().desc(),
+                        SourceClassificationElevation.elevated_at.desc(),
+                    )
                     .limit(1)
                     .correlate(Source)
                     .scalar_subquery()

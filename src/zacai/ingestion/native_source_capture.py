@@ -32,6 +32,7 @@ from zacai.state import Source, SourceClassificationElevation, SourceSystem
 from zacai.state_repository import (
     get_effective_source_classification,
     record_source,
+    source_classification_elevation_strength,
 )
 
 
@@ -361,7 +362,10 @@ def _final_snapshot(session: Session, expected: dict[UUID, SnapshotValues],
     """
     latest = (select(SourceClassificationElevation.new_classification)
         .where(SourceClassificationElevation.source_id == Source.id)
-        .order_by(SourceClassificationElevation.elevated_at.desc()).limit(1).correlate(Source).scalar_subquery())
+        .order_by(
+            source_classification_elevation_strength().desc(),
+            SourceClassificationElevation.elevated_at.desc(),
+        ).limit(1).correlate(Source).scalar_subquery())
     effective = func.coalesce(latest, Source.data_classification).label('effective_classification')
     provenance = {p.external_ref:p.system for p in plans}
     provenance[metadata_ref] = SourceSystem.MANUAL

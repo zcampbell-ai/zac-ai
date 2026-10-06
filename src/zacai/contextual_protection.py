@@ -359,7 +359,7 @@ class BrainstormContextualProtector:
         """Shared verified checkpoint mechanics; callers bind their own record."""
         if (
             not re.fullmatch(
-                r"BRAINSTORM/state/(?:contextual-(?:packet|attempt|research)|work-choice|text-turn|text-reply|followup-authority|named-decision)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+                r"BRAINSTORM/state/(?:contextual-(?:packet|attempt|research)|work-choice|text-turn|text-reply|followup-authority|named-decision|native-preparation)-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
                 prefix,
             )
             or not hashes

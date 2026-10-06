@@ -44,6 +44,7 @@ from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 from zacai.review_authorization import _assert_ledger_isolation
 from zacai.state import Source, SourceClassificationElevation
+from zacai.state_repository import source_classification_elevation_strength
 
 
 class NativePreparationRecoveryInventoryError(ValueError):
@@ -98,7 +99,10 @@ def _rows(
     effective = (
         select(SourceClassificationElevation.new_classification)
         .where(SourceClassificationElevation.source_id == Source.id)
-        .order_by(SourceClassificationElevation.elevated_at.desc())
+        .order_by(
+            source_classification_elevation_strength().desc(),
+            SourceClassificationElevation.elevated_at.desc(),
+        )
         .limit(1)
         .correlate(Source)
         .scalar_subquery()

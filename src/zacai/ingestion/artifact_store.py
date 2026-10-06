@@ -274,3 +274,187 @@ class LocalFilesystemArtifactStore:
         digest = match[2]
         with self._directory_fd((trust_boundary.value, match[1])) as directory:
             return self._read_bounded_at(directory, digest, max_bytes)
+
+    @contextlib.contextmanager
+    def _durable_directories(
+        self, boundary: TrustBoundary, shard: str
+    ) -> Iterator[tuple[list[tuple[int, str | None, int, tuple[int, int]]], int]]:
+        flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+        with contextlib.ExitStack() as descriptors:
+            fd = os.open("/", flags)
+            descriptors.callback(os.close, fd)
+            info = os.fstat(fd)
+            chain: list[tuple[int, str | None, int, tuple[int, int]]] = [
+                (fd, None, fd, (info.st_dev, info.st_ino))
+            ]
+            root_index = len(self._root.parts) - 1
+            for index, part in enumerate((*self._root.parts[1:], boundary.value, shard), 1):
+                if part in (".", ".."):
+                    raise ValueError("canonical durable root required")
+                parent = fd
+                try:
+                    fd = os.open(part, flags, dir_fd=parent)
+                except FileNotFoundError:
+                    if index <= root_index:
+                        raise
+                    with contextlib.suppress(FileExistsError):
+                        os.mkdir(part, _DIR_MODE, dir_fd=parent)
+                    fd = os.open(part, flags, dir_fd=parent)
+                descriptors.callback(os.close, fd)
+                info = os.fstat(fd)
+                chain.append((parent, part, fd, (info.st_dev, info.st_ino)))
+                # Pin/check root before creating any boundary/shard directory.
+                if index == root_index:
+                    self._assert_durable_directories(chain, root_index)
+            self._assert_durable_directories(chain, root_index)
+            yield chain, root_index
+
+    def _assert_durable_directories(
+        self, chain: list[tuple[int, str | None, int, tuple[int, int]]], root_index: int
+    ) -> None:
+        for index, (parent, name, fd, identity) in enumerate(chain):
+            opened = os.fstat(fd)
+            current = os.stat("/" if name is None else name, dir_fd=parent, follow_symlinks=False)
+            if (
+                not stat.S_ISDIR(opened.st_mode)
+                or not stat.S_ISDIR(current.st_mode)
+                or (opened.st_dev, opened.st_ino) != identity
+                or (current.st_dev, current.st_ino) != identity
+                or (
+                    index >= root_index
+                    and (opened.st_uid != os.getuid() or stat.S_IMODE(opened.st_mode) != _DIR_MODE)
+                )
+            ):
+                raise OSError("durable artifact directory changed or unsafe")
+
+    def _durable_file(self, fd: int, digest: str, max_bytes: int) -> bytes:
+        before = os.fstat(fd)
+        if (
+            not stat.S_ISREG(before.st_mode)
+            or before.st_nlink != 1
+            or before.st_uid != os.getuid()
+            or stat.S_IMODE(before.st_mode) != _FILE_MODE
+            or not 0 <= before.st_size <= max_bytes
+        ):
+            raise OSError("bounded durable artifact file unsafe")
+        os.lseek(fd, 0, os.SEEK_SET)
+        with os.fdopen(fd, "rb", closefd=False) as stream:
+            raw = stream.read(before.st_size + 1)
+        after = os.fstat(fd)
+        if (
+            len(raw) != before.st_size
+            or after.st_size != before.st_size
+            or after.st_uid != before.st_uid
+            or after.st_mode != before.st_mode
+            or after.st_nlink != 1
+            or content_hash_of(raw) != digest
+        ):
+            raise OSError("durable artifact bytes changed")
+        return raw
+
+    def _assert_durable_file_path(self, directory: int, digest: str, fd: int) -> None:
+        current = os.stat(digest + ".bin", dir_fd=directory, follow_symlinks=False)
+        opened = os.fstat(fd)
+        if (
+            not stat.S_ISREG(current.st_mode)
+            or (current.st_dev, current.st_ino) != (opened.st_dev, opened.st_ino)
+            or current.st_uid != os.getuid()
+            or stat.S_IMODE(current.st_mode) != _FILE_MODE
+            or current.st_nlink != 1
+        ):
+            raise OSError("durable artifact path changed")
+
+    def put_durable(
+        self,
+        trust_boundary: TrustBoundary,
+        content_hash: str,
+        raw_bytes: bytes,
+        *,
+        max_bytes: int,
+    ) -> str:
+        """Optional concrete atomic write/reuse with local fsync acknowledgment.
+
+        Entire verified file and shard/boundary/root/ancestor directories are
+        fsynced, including exact reuse. The observed root inode is stability,
+        not authority: the trusted host must independently pin configured root
+        identity before/after this call. No Protocol or legacy put/get changes.
+        No F_FULLFSYNC, power-loss, encrypted/off-device recovery or Source ACL
+        guarantee. On any hold, a new unreferenced artifact may remain; caller
+        must not acknowledge/commit its Source from a failed call. A failed
+        sync poisons the capture acknowledgment until operator verification or
+        replacement; later successful reuse is not proof the prior write survived
+        a one-shot writeback error. No retry-until-success or automatic repair.
+        Host contract: exclusive durable writer, no concurrent legacy put and
+        trusted same-UID/ACL custody. SIGKILL between final link and temp unlink
+        can leave a double-linked orphan; operator must verify both names refer
+        to the same inode before removing the temp. This method holds, not repairs.
+        """
+        self._path_for(trust_boundary, content_hash)
+        if (
+            type(max_bytes) is not int
+            or not 0 < max_bytes <= MAX_BOUNDED_ARTIFACT_BYTES
+            or type(raw_bytes) is not bytes
+            or len(raw_bytes) > max_bytes
+            or content_hash_of(raw_bytes) != content_hash
+        ):
+            raise ValueError("exact bounded durable artifact bytes required")
+        starting_root = self._root
+        with self._durable_directories(trust_boundary, content_hash[:2]) as (chain, root_index):
+            directory = chain[-1][2]
+            flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+            temporary = None
+            try:
+                fd = os.open(content_hash + ".bin", flags, dir_fd=directory)
+            except FileNotFoundError:
+                temporary = ".tmp-" + secrets.token_hex(16)
+                fd = os.open(
+                    temporary,
+                    os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW,
+                    _FILE_MODE,
+                    dir_fd=directory,
+                )
+            try:
+                if temporary is not None:
+                    with os.fdopen(fd, "wb", closefd=False) as stream:
+                        os.fchmod(fd, _FILE_MODE)
+                        stream.write(raw_bytes)
+                    self._assert_durable_directories(chain, root_index)
+                    if self._durable_file(fd, content_hash, max_bytes) != raw_bytes:
+                        raise OSError("durable temporary artifact bytes differ")
+                    # A complete buffered write is not a durable inode. Sync it
+                    # before exposing the final name, then sync again afterward.
+                    os.fsync(fd)
+                    # Install the complete inode without replacing a target
+                    # concurrently created after the first bounded lookup.
+                    os.link(
+                        temporary,
+                        content_hash + ".bin",
+                        src_dir_fd=directory,
+                        dst_dir_fd=directory,
+                        follow_symlinks=False,
+                    )
+                    os.unlink(temporary, dir_fd=directory)
+                    temporary = None
+                if self._durable_file(fd, content_hash, max_bytes) != raw_bytes:
+                    raise OSError("durable artifact reuse bytes differ")
+                self._assert_durable_file_path(directory, content_hash, fd)
+                self._assert_durable_directories(chain, root_index)
+                os.fsync(fd)
+                for _, _, opened, _ in reversed(chain):
+                    os.fsync(opened)
+                # Last fsync can span legitimate host changes; no acknowledgment
+                # until complete bytes and every anchored path are rechecked.
+                self._assert_durable_directories(chain, root_index)
+                self._assert_durable_file_path(directory, content_hash, fd)
+                if self._durable_file(fd, content_hash, max_bytes) != raw_bytes:
+                    raise OSError("durable artifact final bytes differ")
+                self._assert_durable_directories(chain, root_index)
+                self._assert_durable_file_path(directory, content_hash, fd)
+            finally:
+                os.close(fd)
+                if temporary is not None:
+                    with contextlib.suppress(FileNotFoundError):
+                        os.unlink(temporary, dir_fd=directory)
+        if self._root != starting_root:
+            raise OSError("durable artifact configured root changed")
+        return self.location_for(content_hash)
