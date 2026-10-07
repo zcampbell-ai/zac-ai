@@ -714,8 +714,8 @@ def test_private_selector_audits_both_lock_cleanup_boundaries(tmp_path, monkeypa
 
     @contextmanager
     def locked(authority):
-        with original(authority):
-            yield
+        with original(authority) as lock_current:
+            yield lock_current
         exits.append(True)
         if len(exits) == (1 if stage == "selection_cleanup" else 2):
             replacement = f.directory / "invented-replacement"

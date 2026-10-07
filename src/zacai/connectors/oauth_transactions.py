@@ -19,6 +19,7 @@ import json
 import os
 import re
 import secrets
+import sys
 import tempfile
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -166,21 +167,70 @@ class OAuthTransactionAuthority:
         _guard(self._lock_path)
 
     @contextmanager
-    def _locked(self) -> Iterator[None]:
-        _guard(self._directory, directory=True)
-        expected = _guard(self._lock_path)
-        fd = os.open(self._lock_path, os.O_RDWR | os.O_NOFOLLOW)
+    def _locked(self) -> Iterator[Callable[[], None]]:
+        """Original lock plus a private duplicate retaining its acquired flock.
+
+        Composed callers check the yielded local witness after trusted callbacks.
+        It detects foreign-inode fd reuse and never closes such a descriptor.
+        This is not portable proof against malicious same-UID Python closing
+        both descriptors and reopening the same inode; that remains outside the
+        existing host-isolation threat boundary. No lock bytes are modified.
+        """
+        directory, lock_path = self._directory, self._lock_path
+        _guard(directory, directory=True)
+        expected = _guard(lock_path)
+        identity = (expected.st_dev, expected.st_ino)
+        fd = os.open(lock_path, os.O_RDWR | os.O_NOFOLLOW)
+        anchor: int | None = None
+        live = True
+
+        def current() -> None:
+            if not live or self._directory != directory or self._lock_path != lock_path:
+                raise ValueError("original lock scope changed")
+            for retained in (fd, anchor):
+                if retained is None:
+                    raise ValueError("original retained lock required")
+                opened = os.fstat(retained)
+                if (opened.st_dev, opened.st_ino) != identity:
+                    raise ValueError("original retained lock changed")
+            final = _guard(lock_path)
+            if (final.st_dev, final.st_ino) != identity:
+                raise ValueError("original lock pathname changed")
+
         try:
             opened = os.fstat(fd)
-            if (opened.st_ino, opened.st_dev) != (expected.st_ino, expected.st_dev):
+            if (opened.st_dev, opened.st_ino) != identity:
                 raise ValueError("lock changed")
+            anchor = os.dup(fd)
+            current()
             fcntl.flock(fd, fcntl.LOCK_EX)
-            final = _guard(self._lock_path)
-            if (final.st_ino, final.st_dev) != (opened.st_ino, opened.st_dev):
-                raise ValueError("lock replaced")
-            yield
+            current()
+            yield current
+            current()
         finally:
-            os.close(fd)
+            body = sys.exc_info()[1]
+            cancelled = body is not None and not isinstance(body, Exception)
+            cleanup_failed = False
+            live = False
+            # Ownership denial cannot prevent cleanup of the other genuine
+            # descriptor. The private anchor retains flock until its own close.
+            for retained in (fd, anchor):
+                if retained is None:
+                    continue
+                try:
+                    actual = os.fstat(retained)
+                    if (actual.st_dev, actual.st_ino) != identity:
+                        cleanup_failed = True
+                        continue
+                    os.close(retained)
+                except Exception:  # noqa: BLE001 - no foreign/retried cleanup
+                    cleanup_failed = True
+                except BaseException:  # noqa: BLE001 - preserve interruption
+                    cleanup_failed = cancelled = True
+            if cleanup_failed:
+                if cancelled:
+                    raise KeyboardInterrupt("OAuth lock cleanup interrupted") from None
+                raise ValueError("OAuth lock cleanup unavailable") from None
 
     def _read(self) -> dict[str, Any]:
         expected = _guard(self._path)

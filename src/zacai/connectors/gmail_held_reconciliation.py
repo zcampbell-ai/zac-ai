@@ -240,10 +240,12 @@ class HeldGmailReconciliation:
         self._current()
         if self._files() != before_files:
             raise ValueError("operational storage changed")
-        with authority._locked():
+        with authority._locked() as lock_current:
+            lock_current()
             self._current()
             if self._files() != before_files:
                 raise ValueError("operational storage changed")
+            lock_current()
             ledger = authority._read()  # concrete authenticated bounded parser, no writes
             matches = [
                 (state_hash, row)
@@ -265,15 +267,19 @@ class HeldGmailReconciliation:
             ):
                 raise ValueError("exact consumed held correlation required")
             observed = authority._continuity._clock()
+            lock_current()
             if observed < authority._time(ledger["watermark"]):
                 raise ValueError("observed host clock rollback")
             authority._scope(operation, verified.binding_digest)
+            lock_current()
             final = operation.recheck(verified.binding_digest)
+            lock_current()
             if final.principal != verified.principal:
                 raise ValueError("current enrolled owner changed")
             self._current()  # pure audit after all trusted host callbacks
             if self._files() != before_files:
                 raise ValueError("operational storage changed")
+            lock_current()
             reference = object.__new__(HeldGmailReference)
             object.__setattr__(reference, "_generation", generation)
             object.__setattr__(reference, "_state_hash", state_hash)
@@ -304,10 +310,12 @@ class HeldGmailReconciliation:
         self._current()
         if self._files() != before_files:
             raise ValueError("operational storage changed")
-        with authority._locked():
+        with authority._locked() as lock_current:
+            lock_current()
             self._current()
             if self._files() != before_files:
                 raise ValueError("operational storage changed")
+            lock_current()
             ledger = authority._read()
             matches = [
                 (state_hash, row)
@@ -329,10 +337,13 @@ class HeldGmailReconciliation:
             generation = hashlib.sha256(_DOMAIN + state_hash.encode("ascii")).hexdigest()[:32]
             original_row = _json(row)
             observed = authority._continuity._clock()
+            lock_current()
             if observed < authority._time(ledger["watermark"]):
                 raise ValueError("observed host clock rollback")
             authority._scope(operation, verified.binding_digest)
+            lock_current()
             final = operation.recheck(verified.binding_digest)
+            lock_current()
             if final.principal != verified.principal:
                 raise ValueError("current enrolled owner changed")
             self._current()

@@ -2500,3 +2500,27 @@ processing permission. Root reproduced 17 Python and 23 executable JavaScript
 controls before the actual metadata-only run. No record was selected or imported.
 Connected-source cataloging remains dated evidence with explicit coverage gaps.
 Task closure, signature status and delivery acceptance must remain separate.
+
+### 2026-10-07: Reviewed connection recovery foundation and dated business context
+
+Integrated the bounded Gmail quarantine record, encrypted intent journal and
+foreground diagnostic/intent hosts with retained transaction-lock checks. The
+intent records a review request only; it does not clear the old hold or authorize
+credentials, fresh consent, processing or execution. Exact source bytes retain
+the independent code-only Opus acceptance. Root verified the six-source slice
+against the current private interfaces and reproduced 4,023 installed pure checks,
+with strict mypy for all 175 sources and source/test Ruff passing. Extracted test
+helpers avoid importing an unsupported native host. No live connection started.
+
+The private catalog now includes 3,827 distinct Slack channel/timestamp records
+across 24 observed channels and 339 observed native ClickUp task IDs. A reusable
+project/personnel map separates account, project, SOW and task identity and keeps
+dated responsibilities distinct from current authority. Management and maintenance
+examples retain source dates and exact evidence; unread channels, threads and
+retention remain coverage gaps. These are restricted catalog observations, not
+canonical import or complete historical knowledge.
+
+Next live connection work still requires the startup-format join, genuine owner
+scope bound to the original held domain, and a separately reviewed recovery
+consumer before a read-only profile request. PERSONAL enrollment and protected
+history capture remain separate owner-attended steps on the existing roadmap.
