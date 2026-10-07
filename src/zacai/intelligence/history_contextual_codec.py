@@ -176,9 +176,14 @@ def _validate_components(request: HistoryContextualRequestV1) -> None:
     original = request.original_context()
     context = request.context()
     if (
-        original.task.event.event_type in {"native.evidence.selected", "history.evidence.selected"}
+        original.task.event.event_type
+        in {"native.evidence.selected", "history.evidence.selected", "history.fragment.selected"}
         or original.task.event.producer
-        in {"native-evidence-projection-v1", "history-context-projection-v1"}
+        in {
+            "native-evidence-projection-v1",
+            "history-context-projection-v1",
+            "history-fragment-projection-v1",
+        }
         or request.meeting_source_id != request.original_meeting_source_id
         or len(context.task.context) != len(original.task.context) + 1
     ):

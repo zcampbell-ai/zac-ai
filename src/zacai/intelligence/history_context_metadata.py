@@ -308,9 +308,11 @@ def prepare_claude_history_context_preview(
         if original.task.event.event_type in (
             "native.evidence.selected",
             "history.evidence.selected",
+            "history.fragment.selected",
         ) or original.task.event.producer in (
             "native-evidence-projection-v1",
             "history-context-projection-v1",
+            "history-fragment-projection-v1",
         ):
             raise ValueError("initial original context required")
         if any(
@@ -554,9 +556,13 @@ def derive_history_context(
         type(original) is not ReviewContext
         or len(profiles) != len(sidecar.entries)
         or original.task.event.event_type
-        in {"native.evidence.selected", "history.evidence.selected"}
+        in {"native.evidence.selected", "history.evidence.selected", "history.fragment.selected"}
         or original.task.event.producer
-        in {"native-evidence-projection-v1", "history-context-projection-v1"}
+        in {
+            "native-evidence-projection-v1",
+            "history-context-projection-v1",
+            "history-fragment-projection-v1",
+        }
     ):
         raise ValueError("single declared history derivation required")
     first = ClaudeMessageMetadata.model_validate(sidecar.entries[0])
