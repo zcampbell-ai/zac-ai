@@ -96,7 +96,11 @@ def test_complete_file_positive_and_exact_bounded_io(fixture):
     }
     assert f["calls"][1][1]["max_input_bytes"] == 1_000_000
     assert (
-        f["remote"].get_object(b.backup_object_key_for(B.PERSONAL, f["digest"]))
+        f["remote"].get_object(
+            b.Manifest.from_json_bytes(f["cache"].read_bytes())
+            .entries[f["digest"]]
+            .backup_object_key
+        )
         == b"invented cipher:" + f["raw"]
     )
     assert f["cache"].exists()

@@ -1394,7 +1394,10 @@ def _backup_personal_full_original(
             total += len(cipher)
             if total > _PERSONAL_AGGREGATE_LIMIT:
                 raise ValueError("PERSONAL aggregate capacity exceeded")
-            key = backup_object_key_for(trust_boundary, digest)
+            # Explicit PERSONAL objects are immutable by ciphertext identity. A failed rerun
+            # must not replace ciphertext referenced by an earlier manifest.
+            cipher_hash = hashlib.sha256(cipher).hexdigest()
+            key = f"{trust_boundary.value}/{digest[:2]}/{digest}/{cipher_hash}.age"
             backup_store.put_object(key, cipher)
             current()
             confirmed = object_read(key, max_bytes=_PERSONAL_CIPHER_LIMIT)
@@ -1406,7 +1409,7 @@ def _backup_personal_full_original(
                 location,
                 key,
                 len(cipher),
-                hashlib.sha256(cipher).hexdigest(),
+                cipher_hash,
                 datetime.now(UTC).isoformat(),
             )
         manifest = Manifest(trust_boundary.value, datetime.now(UTC).isoformat(), entries)

@@ -13,24 +13,24 @@ __all__ = ["CAZ_STYLE", "render_sign_in"]
 
 
 CAZ_STYLE = """
-/* ---- Tokens ---- */
+/* ---- Tokens: owner-approved cream/ink direction, local font fallback ---- */
 :root {
-  color-scheme: dark;
-  --caz-ink: #0a0e13;
-  --caz-text: #ecefe9;
-  --caz-muted: #a7b2ad;
+  color-scheme: light;
+  --caz-ink: #f6f3ed;
+  --caz-text: #222520;
+  --caz-muted: #62665e;
   --caz-surface: #f7f3ec;
   --caz-surface-sunk: #efe9de;
   --caz-card-ink: #171b20;
   --caz-card-muted: #4d5551;
-  --caz-accent: #9fd8c0;
+  --caz-accent: #27624b;
   --caz-accent-deep: #1d6a54;
   --caz-hairline: rgba(23, 27, 32, 0.12);
-  --caz-radius: clamp(18px, 0.9rem + 1vw, 28px);
+  --caz-radius: clamp(20px, 1rem + 1vw, 28px);
   --caz-gutter: clamp(1rem, 0.6rem + 2.4vw, 2.5rem);
   --caz-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-  --caz-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI', system-ui, Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --caz-display: ui-serif, 'New York', 'Iowan Old Style', Charter, Georgia, serif;
+  --caz-sans: 'Geist', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI', system-ui, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --caz-display: var(--caz-sans);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -60,32 +60,8 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* ---- Ambient architecture: fixed, behind content, never interactive ---- */
-body::before,
-body::after {
-  content: '';
-  position: fixed;
-  z-index: -1;
-  pointer-events: none;
-}
-
-body::before {
-  inset: -20vmax;
-  background:
-    radial-gradient(circle 42vmax at 80% 22%, rgba(159, 216, 192, 0.18), transparent 62%),
-    radial-gradient(circle 34vmax at 12% 72%, rgba(118, 146, 206, 0.11), transparent 64%),
-    radial-gradient(circle 46vmax at 52% 108%, rgba(214, 196, 160, 0.07), transparent 70%);
-}
-
-body::after {
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(236, 239, 233, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(236, 239, 233, 0.045) 1px, transparent 1px);
-  background-size: 56px 56px;
-  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 72% 18%, #000 0%, transparent 76%);
-  mask-image: radial-gradient(ellipse 70% 60% at 72% 18%, #000 0%, transparent 76%);
-}
+/* Warm, quiet page surface; no decorative layer competes with evidence. */
+body::before, body::after { content: none; }
 
 ::selection { background: rgba(159, 216, 192, 0.38); color: inherit; }
 
@@ -108,7 +84,7 @@ main {
 h1 {
   margin: clamp(1rem, 4vw, 3rem) 0 0.75rem;
   font-family: var(--caz-display);
-  font-size: clamp(2.1rem, 1.5rem + 3vw, 3.4rem);
+  font-size: clamp(1.8rem, 1.45rem + 1.7vw, 2.5rem);
   font-weight: 500;
   line-height: 1.06;
   letter-spacing: -0.022em;
@@ -189,8 +165,8 @@ main:not(:has(.card-radio:checked)) .card-radio + .decision-card { display: bloc
   box-shadow:
     0 0 0 1px rgba(159, 216, 192, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 40px 90px -40px rgba(0, 0, 0, 0.8),
-    0 12px 30px -18px rgba(0, 0, 0, 0.5);
+    0 40px 90px -40px rgba(40, 35, 25, 0.12),
+    0 12px 30px -18px rgba(40, 35, 25, 0.10);
   overflow-wrap: anywhere;
 }
 
@@ -261,7 +237,7 @@ main:not(:has(.card-radio:checked)) .card-radio + .decision-card { display: bloc
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  min-height: 44px;
+  min-height: 48px;
   padding: 0.7rem 1rem;
   border-radius: 15px;
   font-weight: 600;
@@ -324,7 +300,7 @@ main:not(:has(.card-radio:checked)) .card-radio + .decision-card { display: bloc
 .decision-card .choices li::marker { content: none; }
 
 .decision-card button {
-  min-height: 44px;
+  min-height: 48px;
   padding: 0.65rem 1.15rem;
   border: 1px solid var(--caz-card-ink);
   border-radius: 999px;
@@ -367,8 +343,8 @@ main:not(:has(.card-radio:checked)) .card-radio + .decision-card { display: bloc
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
+  min-width: 48px;
+  min-height: 48px;
   padding: 0.6rem 1.15rem;
   border: 1px solid rgba(23, 27, 32, 0.18);
   border-radius: 999px;
@@ -404,7 +380,7 @@ main:not(:has(.card-radio:checked)) .card-radio + .decision-card { display: bloc
 /* ---- Host session control ---- */
 .caz-session-control { margin-top: 2rem; }
 .caz-session-control button {
-  min-height: 44px; padding: 0.6rem 1rem; border: 1px solid var(--caz-muted);
+  min-height: 48px; padding: 0.6rem 1rem; border: 1px solid var(--caz-muted);
   border-radius: 999px; background: transparent; color: var(--caz-text);
   font: inherit; cursor: pointer;
 }
@@ -428,7 +404,7 @@ main:not(:has(.card-radio:checked)) .card-radio + .decision-card { display: bloc
   box-shadow:
     0 0 0 1px rgba(159, 216, 192, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 40px 90px -40px rgba(0, 0, 0, 0.8);
+    0 40px 90px -40px rgba(40, 35, 25, 0.12);
   animation: caz-enter 420ms var(--caz-ease) both;
 }
 
@@ -512,7 +488,7 @@ main:not(:has(.card-radio:checked)) .card-radio + .decision-card { display: bloc
 /* ---- Higher contrast preference ---- */
 @media (prefers-contrast: more) {
   :root {
-    --caz-muted: #d3dbd7;
+    --caz-muted: #40463e;
     --caz-card-muted: #2c322f;
     --caz-hairline: rgba(23, 27, 32, 0.4);
   }
@@ -567,7 +543,7 @@ _SIGN_IN_HEAD = """<!DOCTYPE html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark">
+<meta name="color-scheme" content="light">
 <title>Caz AI</title>
 <style>"""
 
