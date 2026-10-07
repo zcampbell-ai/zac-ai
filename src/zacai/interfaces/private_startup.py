@@ -305,10 +305,12 @@ def _explicit_keychain_secret(name: str, path: Path, timeout: int) -> str:
         if len(value) % 2 == 0 and all(char in "0123456789abcdef" for char in value):
             raise ValueError("ambiguous client secret output")
     elif name == _SESSION_KEY:
-        # New host items use tagged printable text, never raw binary or an
-        # untagged hex value indistinguishable from SecurityTool conversion.
-        if re.fullmatch(r"hex:[0-9a-fA-F]{64}", value) is None:
-            raise ValueError("tagged session key required")
+        # Same fixed session-key item supports the legacy 64-hex representation
+        # and explicit hex:64-hex text. Untagged output cannot prove stored-text
+        # provenance versus SecurityTool binary conversion; both decode to the
+        # same 32 key bytes. This is compatibility, not native ACL/readiness proof.
+        if re.fullmatch(r"(?:hex:)?[0-9a-fA-F]{64}", value) is None:
+            raise ValueError("exact session key representation required")
     else:
         raise ValueError("fixed credential role required")
     checked = get_secret(name, TrustBoundary.SHARED, env={name: value})
@@ -391,5 +393,5 @@ class OwnerStartupLoader:
         if _path_witness(path, policy) != witness:
             raise ValueError("keychain changed during session key load")
         return OwnerStartupConfiguration(
-            client_id, origin, client_secret, bytes.fromhex(key_text[4:])
+            client_id, origin, client_secret, bytes.fromhex(key_text.removeprefix("hex:"))
         )

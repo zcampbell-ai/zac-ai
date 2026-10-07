@@ -202,7 +202,6 @@ def test_owner_client_secret_native_binary_hex_ambiguity_is_refused(
 @pytest.mark.parametrize(
     "raw",
     [
-        _KEY.encode(),
         b"0" * 63,
         b"0" * 65,
         b"g" * 64,
@@ -212,9 +211,7 @@ def test_owner_client_secret_native_binary_hex_ambiguity_is_refused(
         b"hex:" + _KEY.encode() + b"\n\n",
     ],
 )
-def test_session_key_requires_explicit_text_tag_and_exact_32_byte_hex(
-    runner: Any, raw: bytes
-) -> None:
+def test_session_key_requires_supported_exact_32_byte_hex(runner: Any, raw: bytes) -> None:
     runner[1][1] = raw
     with pytest.raises(module.PrivateStartupError) as error:
         load()

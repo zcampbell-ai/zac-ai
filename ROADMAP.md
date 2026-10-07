@@ -2524,3 +2524,22 @@ Next live connection work still requires the startup-format join, genuine owner
 scope bound to the original held domain, and a separately reviewed recovery
 consumer before a read-only profile request. PERSONAL enrollment and protected
 history capture remain separate owner-attended steps on the existing roadmap.
+
+### 2026-10-07: Startup compatibility and canonical host binding
+
+The explicit owner startup loader now accepts the existing bare 64-hex session
+key representation as well as tagged hex text. Both decode to the same 32 bytes;
+the legacy loader and client-secret ambiguity checks remain unchanged. This
+closes the format mismatch without migrating credentials or reading live keys.
+Code-only Opus review accepted the bounded change; 223 installed focused checks,
+whole-source strict mypy175 and source/test Ruff pass. Untagged output does not
+prove native item text provenance, ACL correctness or connection readiness.
+
+A root-operated read-only metadata check verified the documented canonical
+zacai_dev database at schema 0005 and the existing private artifact root. All 75
+non-null Source artifact locators resolved to regular private files under the
+BRAINSTORM partition. No artifact body was read and no State was written. This
+pins a genuine host-binding candidate for the existing attended custody consumer;
+it does not grant PERSONAL capture, verify content hashes or extend recovery
+coverage. Genuine PERSONAL owner enrollment, selected proposal affirmation and
+canonical recovery remain the next attended history-intake gates.
