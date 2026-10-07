@@ -35,9 +35,11 @@ from zacai.backup_artifacts import (
     run_artifact_backup,
 )
 from zacai.backup_artifacts_s3 import S3CompatibleBackupObjectStore
+from zacai.claude_historical_fragment import prepare_claude_historical_fragment
+from zacai.claude_literal_presentation import render_historical_literal
 from zacai.claude_local_custody import _SCOPE
 from zacai.claude_original_capture import ClaudeArtifactRootIdentity, observe_claude_artifact_root
-from zacai.claude_original_read import load_claude_original
+from zacai.claude_original_read import ReadClaudeCustody, load_claude_original
 from zacai.contextual_protection import ProtectedState
 from zacai.ingestion.artifact_store import LocalFilesystemArtifactStore, content_hash_of
 from zacai.intelligence.contracts import EvidenceReference
@@ -187,7 +189,7 @@ def _journal(connection: Connection) -> bytes:
     return bytes(value)
 
 
-def run_local_claude_protection_drill(
+def _run_local_claude_protection(
     *,
     configuration: OwnerStartupConfiguration,
     owner_directory: Path,
@@ -206,7 +208,8 @@ def run_local_claude_protection_drill(
     recovered_identity_path: Path,
     manifest_cache: Path,
     cold_artifacts: LocalFilesystemArtifactStore,
-) -> ProtectedState:
+    _literal: tuple[UUID, int, int, str | None] | None = None,
+) -> tuple[ProtectedState, str | None]:
     """Explicit attended mechanics; external scope/key proof remains REQUIRED.
 
     Concrete clients are supplied by trusted host, never constructed from ambient
@@ -215,7 +218,9 @@ def run_local_claude_protection_drill(
     source ancestry/current facts, model approval or processing permissions.
     """
     result = None
+    literal_html = None
     baseline = None
+    protected_plan = None
     try:
         if (
             type(configuration) is not OwnerStartupConfiguration
@@ -236,6 +241,28 @@ def run_local_claude_protection_drill(
             or not isinstance(factory.kw.get("bind"), Engine)
         ):
             raise ValueError("actual configured host required")
+        if _literal is not None and (
+            type(_literal) is not tuple
+            or len(_literal) != 4
+            or type(_literal[0]) is not UUID
+            or _literal[0].int == 0
+            or type(_literal[1]) is not int
+            or type(_literal[2]) is not int
+            or not 0 <= _literal[1] < _literal[2]
+            or _literal[2] - _literal[1] > 8_000
+            or (
+                _literal[3] is not None
+                and (
+                    type(_literal[3]) is not str
+                    or not 0 < len(_literal[3]) <= 300
+                    or len(_literal[3].encode("utf-8")) > 1_200
+                    or "\n" in _literal[3]
+                    or "\r" in _literal[3]
+                    or _literal[3] != _literal[3].strip()
+                )
+            )
+        ):
+            raise ValueError("closed literal selector required")
         engine = factory.kw["bind"]
         if factory.kw.get("binds") or factory.class_.__bases__ != (Session,):
             raise ValueError("actual canonical factory binding required")
@@ -307,8 +334,9 @@ def run_local_claude_protection_drill(
                 return value
 
             def action() -> None:
-                nonlocal result
+                nonlocal result, literal_html, protected_plan
                 current()
+                pre_read_plan = plan_now() if _literal is not None else None
                 with factory() as session, session.begin():
                     custody = load_claude_original(
                         session,
@@ -323,6 +351,23 @@ def run_local_claude_protection_drill(
                     )
                 current()
                 plan = plan_now()
+                if _literal is not None:
+                    if plan != pre_read_plan:
+                        raise ValueError("Source observation changed during literal read")
+                    if (
+                        type(custody) is not ReadClaudeCustody
+                        or custody.original_reference != original_reference
+                        or custody.companion_reference != companion_reference
+                    ):
+                        raise ValueError("exact canonical custody required")
+                    fragment = prepare_claude_historical_fragment(
+                        custody,
+                        message_id=_literal[0],
+                        character_start=_literal[1],
+                        character_end=_literal[2],
+                    )
+                    literal_html = render_historical_literal(fragment, owner_question=_literal[3])
+                protected_plan = plan
                 proposed = json.loads(plan.rows)
                 expected = {UUID(row["id"]): row["content_hash"] for row in proposed}
                 if (
@@ -455,8 +500,117 @@ def run_local_claude_protection_drill(
             window.run_local(action=action)
             current()
         current()
+        if _literal is not None:
+            # All lifecycle/key/owner/root callbacks have finished. Only fresh
+            # canonical scalars follow, then pure result construction.
+            if literal_html is None or protected_plan is None:
+                raise ValueError("protected literal incomplete")
+            with factory() as session:
+                if prepare_personal_encrypted_custody_backup_plan(session) != protected_plan:
+                    raise ValueError("protected Source observation changed before release")
     except BaseException:  # noqa: BLE001 - fixed interrupted/uncertain hold; no retry.
         result = None
+        literal_html = None
+        protected_plan = None
     if result is None:
         raise LocalClaudeProtectionError("LOCAL PERSONAL protection held; reconcile before retry")
-    return result
+    return result, literal_html
+
+
+def run_local_claude_protection_drill(
+    *,
+    configuration: OwnerStartupConfiguration,
+    owner_directory: Path,
+    expected_identity: Identity,
+    escrow_confirmed_by_operator: bool,
+    factory: sessionmaker[Session],
+    artifacts: LocalFilesystemArtifactStore,
+    expected_root: ClaudeArtifactRootIdentity,
+    original_reference: EvidenceReference,
+    companion_reference: EvidenceReference,
+    expected_account_ref: str,
+    expected_exported_at: datetime | None,
+    writer: Store,
+    independent_reader: Store,
+    recipient: str,
+    recovered_identity_path: Path,
+    manifest_cache: Path,
+    cold_artifacts: LocalFilesystemArtifactStore,
+) -> ProtectedState:
+    """Existing attended protection drill, unchanged public return and defaults."""
+    state, _ = _run_local_claude_protection(
+        configuration=configuration,
+        owner_directory=owner_directory,
+        expected_identity=expected_identity,
+        escrow_confirmed_by_operator=escrow_confirmed_by_operator,
+        factory=factory,
+        artifacts=artifacts,
+        expected_root=expected_root,
+        original_reference=original_reference,
+        companion_reference=companion_reference,
+        expected_account_ref=expected_account_ref,
+        expected_exported_at=expected_exported_at,
+        writer=writer,
+        independent_reader=independent_reader,
+        recipient=recipient,
+        recovered_identity_path=recovered_identity_path,
+        manifest_cache=manifest_cache,
+        cold_artifacts=cold_artifacts,
+    )
+    return state
+
+
+def run_local_claude_protected_literal(
+    *,
+    configuration: OwnerStartupConfiguration,
+    owner_directory: Path,
+    expected_identity: Identity,
+    escrow_confirmed_by_operator: bool,
+    factory: sessionmaker[Session],
+    artifacts: LocalFilesystemArtifactStore,
+    expected_root: ClaudeArtifactRootIdentity,
+    original_reference: EvidenceReference,
+    companion_reference: EvidenceReference,
+    expected_account_ref: str,
+    expected_exported_at: datetime | None,
+    writer: Store,
+    independent_reader: Store,
+    recipient: str,
+    recovered_identity_path: Path,
+    manifest_cache: Path,
+    cold_artifacts: LocalFilesystemArtifactStore,
+    message_id: UUID,
+    character_start: int,
+    character_end: int,
+    owner_question: str | None = None,
+) -> str:
+    """One attended protection-and-literal action, no supplied-state proof.
+
+    Entire original/companion and PERSONAL boundary are protected by the actual
+    same operation before this quoted-evidence HTML is returned. Host must
+    separately approve credential geography/scopes and genuine recovered key;
+    no model processing or current-fact authority is established.
+    """
+    _, html = _run_local_claude_protection(
+        configuration=configuration,
+        owner_directory=owner_directory,
+        expected_identity=expected_identity,
+        escrow_confirmed_by_operator=escrow_confirmed_by_operator,
+        factory=factory,
+        artifacts=artifacts,
+        expected_root=expected_root,
+        original_reference=original_reference,
+        companion_reference=companion_reference,
+        expected_account_ref=expected_account_ref,
+        expected_exported_at=expected_exported_at,
+        writer=writer,
+        independent_reader=independent_reader,
+        recipient=recipient,
+        recovered_identity_path=recovered_identity_path,
+        manifest_cache=manifest_cache,
+        cold_artifacts=cold_artifacts,
+        _literal=(message_id, character_start, character_end, owner_question),
+    )
+    if html is None:
+        raise LocalClaudeProtectionError("LOCAL PERSONAL literal held; stop and reconcile")
+    return html
