@@ -82,7 +82,7 @@ def render_selected_briefing(
             '<!doctype html><html lang="en"><head><meta charset="utf-8">',
             '<meta name="viewport" content="width=device-width, initial-scale=1">',
             '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; style-src &#39;unsafe-inline&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;">',
-            "<title>Zac AI — selected meeting briefing</title>",
+            "<title>Caz AI: selected meeting briefing</title>",
             "<style>" + _STYLE + "</style></head><body><main>",
             '<p class="meta">Selected review • ' + review.data_classification.value + "</p>",
             "<h1>Work briefing</h1>" if work_view else "<h1>Selected meeting briefing</h1>",

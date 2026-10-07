@@ -63,7 +63,7 @@ def test_full_history_preserved_with_reported_completion_then_reopen():
         journal = append(journal, status)
     html = display(packet, journal)
     assert "Work status:</strong> Reported reopened" in html
-    assert "Reported complete — outcome still unverified" in html
+    assert "Reported complete. Outcome still unverified" in html
     assert "Previous reports remain historical" in html
     for observation in journal.observations:
         assert observation.observed_at.isoformat() in html

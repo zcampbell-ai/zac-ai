@@ -131,7 +131,7 @@ def render_decision_cards(
             '<meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; style-src &#39;unsafe-inline&#39;; base-uri &#39;none&#39;; form-action &#39;'
             + form_action
             + '&#39;">',
-            "<title>Caz AI — draft decision cards</title><style>"
+            "<title>Caz AI: draft decision cards</title><style>"
             + _STYLE
             + "</style></head><body><main>",
             '<h1>One thing at a time</h1><p class="meta">'

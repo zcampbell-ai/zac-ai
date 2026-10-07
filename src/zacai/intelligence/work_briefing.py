@@ -28,7 +28,7 @@ _STATUS_LABELS = {
     WorkStatus.BLOCKED_REPORTED: "Reported blocked",
     WorkStatus.REVIEW_READY_REPORTED: "Reported ready for review",
     WorkStatus.USER_HANDLING_REPORTED: "Reported being handled by you",
-    WorkStatus.COMPLETION_REPORTED: "Reported complete — outcome still unverified",
+    WorkStatus.COMPLETION_REPORTED: "Reported complete. Outcome still unverified",
     WorkStatus.REOPENED: "Reported reopened",
 }
 
