@@ -13,9 +13,11 @@ storage roots, filesystem rollback or a direct factory that bypasses this runner
 Trusted parents/storage and exclusion of agents remain deployment requirements.
 
 Stop foreground enrollment serving before local pairing/identity confirmation;
-then close the setup window before opening owner mode. Only fixed explicit
-BRAINSTORM/CONFIDENTIAL enrollment is available here. No inferred email/domain,
-admin, PERSONAL permission, source release, model or execution authority.
+then close the setup window before opening owner mode. Default enrollment is fixed
+BRAINSTORM/CONFIDENTIAL. The closed opt-in
+PERSONAL/HIGHLY_RESTRICTED mode requires a newly created, separate host directory
+and its own exact local confirmation. No inferred email/domain,
+admin, automatic PERSONAL permission, source release, model or execution authority.
 
 Python logging is globally suppressed while this dedicated foreground server
 runs, including third-party OAuth/HTTP logs. Canonical audit/state writes remain
@@ -76,6 +78,8 @@ _HOST = "127.0.0.1"
 _PORT = 8766  # Separate from the D025 health service on 8000.
 _CONFIRMATION = "CONFIRM BRAINSTORM / CONFIDENTIAL"
 _SCOPE = (BoundaryScope(B.BRAINSTORM, frozenset({C.CONFIDENTIAL})),)
+_PERSONAL_CONFIRMATION = "CONFIRM PERSONAL / HIGHLY_RESTRICTED"
+_PERSONAL_SCOPE = (BoundaryScope(B.PERSONAL, frozenset({C.HIGHLY_RESTRICTED})),)
 
 
 class PrivateOperatorError(RuntimeError):
@@ -84,6 +88,7 @@ class PrivateOperatorError(RuntimeError):
 
 class PrivateOperatorMode(str, Enum):
     ENROLLMENT = "enrollment"
+    PERSONAL_ENROLLMENT = "personal-enrollment"
     OWNER = "owner"
 
 
@@ -167,6 +172,64 @@ def _lease(directory: Path) -> int:
         raise
 
 
+def _fresh_personal_directory(directory: Path) -> tuple[int, int]:
+    """Atomic fresh leaf admission, not an owner or filesystem sandbox proof.
+
+    Existing directories are never reusable, including empty or previous failed
+    setup directories. The trusted host supplies a separate reviewed location;
+    no saved enrollment file is read to infer or expand another grant.
+    """
+    if directory.parent.resolve(strict=True) != directory.parent:
+        raise ValueError("noncanonical personal setup parent")
+    directory.mkdir(mode=0o700, exist_ok=False)
+    info = directory.lstat()
+    if (
+        not stat.S_ISDIR(info.st_mode)
+        or stat.S_IMODE(info.st_mode) != 0o700
+        or info.st_uid != os.getuid()
+    ):
+        raise ValueError("unsafe fresh personal directory")
+    return info.st_dev, info.st_ino
+
+
+def _personal_directory_unchanged(
+    directory: Path, pin: tuple[int, int], *, fresh: bool = True
+) -> None:
+    info = directory.lstat()
+    if (
+        directory.resolve(strict=True) != directory
+        or not stat.S_ISDIR(info.st_mode)
+        or stat.S_IMODE(info.st_mode) != 0o700
+        or info.st_uid != os.getuid()
+        or (info.st_dev, info.st_ino) != pin
+        or (fresh and {entry.name for entry in directory.iterdir()} != {"private-mode.lock"})
+    ):
+        raise ValueError("fresh personal setup directory changed")
+
+
+def _personal_clock(
+    directory: Path, pin: tuple[int, int], clock: Callable[[], datetime]
+) -> Callable[[], datetime]:
+    """Recheck the same admitted directory across every trusted clock call.
+
+    Before the first enrollment clock returns, no owner/session stores may yet
+    exist. Later legitimate store creation is allowed, but changing directory
+    identity, owner, mode or canonical path always holds. This does not undo any
+    filesystem side effect performed by the trusted callback itself.
+    """
+    first = True
+
+    def guarded() -> datetime:
+        nonlocal first
+        _personal_directory_unchanged(directory, pin, fresh=first)
+        observed = clock()
+        _personal_directory_unchanged(directory, pin, fresh=first)
+        first = False
+        return observed
+
+    return guarded
+
+
 class PrivateOperatorWindow:
     """Host-only lifecycle handle; retaining it after close grants nothing."""
 
@@ -243,11 +306,15 @@ class PrivateOperatorWindow:
                     # Uvicorn can report lifespan.shutdown.failed only to its
                     # logger and return normally. Repeat the actual paired
                     # lifecycle gate while lease/log/signal protection is held.
-                    if type(self._prepared) is PreparedOwnerHost and self._prepared.named is not None:
+                    if (
+                        type(self._prepared) is PreparedOwnerHost
+                        and self._prepared.named is not None
+                    ):
                         from zacai.interfaces.named_worker_lifecycle import (
                             NamedWorkerRegistry,
                             ThreadBoundNamedAskPipeline,
                         )
+
                         pair = self._prepared.named
                         if type(pair.workers) is not NamedWorkerRegistry:
                             raise ValueError("actual worker registry required")
@@ -255,9 +322,11 @@ class PrivateOperatorWindow:
                         if pipeline is None:
                             pair.workers.close_and_drain()
                         else:
-                            if (type(pipeline) is not ThreadBoundNamedAskPipeline
+                            if (
+                                type(pipeline) is not ThreadBoundNamedAskPipeline
                                 or pipeline._workers is not pair.workers
-                                or pipeline._store is not pair.controller._store):
+                                or pipeline._store is not pair.controller._store
+                            ):
                                 raise ValueError("actual paired worker lifecycle required")
                             pipeline.close_and_retire()
                 okay = True
@@ -306,13 +375,14 @@ class PrivateOperatorWindow:
         result: OwnerGrant | None = None
         try:
             pending = self.pending_owner()
+            personal = self._mode == PrivateOperatorMode.PERSONAL_ENROLLMENT
             if (
                 type(self._prepared) is not PreparedEnrollmentHost
                 or type(expected_identity) is not Identity
                 or expected_identity != pending.identity
                 or type(pairing_code) is not str
                 or not secrets.compare_digest(pairing_code, pending.pairing_code)
-                or confirmation != _CONFIRMATION
+                or confirmation != (_PERSONAL_CONFIRMATION if personal else _CONFIRMATION)
             ):
                 raise ValueError("local confirmation mismatch")
             self._active = False  # No serving/retry after confirmation or persistence failure.
@@ -322,7 +392,7 @@ class PrivateOperatorWindow:
                 pairing_code=pairing_code,
                 origin=self._origin,
                 identity=expected_identity,
-                scopes=_SCOPE,
+                scopes=_PERSONAL_SCOPE if personal else _SCOPE,
                 now=self._clock(),
             )
         except BaseException:  # noqa: BLE001 - no pairing/identity/backend or interrupt diagnostic
@@ -379,6 +449,8 @@ def open_private_operator(
     fd: int | None = None
     window: PrivateOperatorWindow | None = None
     prepared: PreparedOwnerHost | PreparedEnrollmentHost | None = None
+    personal_pin: tuple[int, int] | None = None
+    host_clock = clock
     startup_threads = set(threading.enumerate()) | {threading.current_thread()}
     try:
         _configuration(client_id, origin)
@@ -393,12 +465,16 @@ def open_private_operator(
             or not callable(startup_loader)
             or (mode == PrivateOperatorMode.OWNER and not callable(view))
             or (
-                mode == PrivateOperatorMode.ENROLLMENT
+                mode in (PrivateOperatorMode.ENROLLMENT, PrivateOperatorMode.PERSONAL_ENROLLMENT)
                 and (view is not None or work_choices is not None or named_factory is not None)
             )
         ):
             raise ValueError("invalid operator inputs")
+        if mode == PrivateOperatorMode.PERSONAL_ENROLLMENT:
+            personal_pin = _fresh_personal_directory(directory)
         fd = _lease(directory)
+        if personal_pin is not None:
+            _personal_directory_unchanged(directory, personal_pin)
         configuration = startup_loader(client_id=client_id, origin=origin)
         if (
             type(configuration) is not OwnerStartupConfiguration
@@ -406,11 +482,14 @@ def open_private_operator(
             or configuration.origin != origin
         ):
             raise ValueError("startup configuration changed")
-        if mode == PrivateOperatorMode.ENROLLMENT:
+        if personal_pin is not None:
+            _personal_directory_unchanged(directory, personal_pin)
+            host_clock = _personal_clock(directory, personal_pin, clock)
+        if mode in (PrivateOperatorMode.ENROLLMENT, PrivateOperatorMode.PERSONAL_ENROLLMENT):
             prepared = prepare_enrollment_host(
                 configuration=configuration,
                 directory=directory,
-                clock=clock,
+                clock=host_clock,
                 identities=identities,
             )
         else:
@@ -436,7 +515,7 @@ def open_private_operator(
                 prepared.named.controller._store._reconcile_expired_for_owner(
                     prepared.owners.load()
                 )
-        window = PrivateOperatorWindow(prepared, mode=mode, origin=origin, clock=clock)
+        window = PrivateOperatorWindow(prepared, mode=mode, origin=origin, clock=host_clock)
     except BaseException:  # noqa: BLE001,S110 - close acquired lease on startup interrupts.
         pass
     if window is None:
