@@ -19,7 +19,7 @@ from zacai.intelligence.contextual_evaluation import (
 from zacai.intelligence.contextual_evaluation import (
     encode_contextual_packet as _encode,
 )
-from zacai.intelligence.contextual_review import Clarification
+from zacai.intelligence.contextual_review import Clarification, EvidenceConflict
 from zacai.intelligence.review_evaluation import ReviewJudgment
 
 
@@ -73,23 +73,72 @@ def test_reports_supplied_independent_judgments_without_permission(judgment, out
     assert not hasattr(record, "approved")
 
 
-def test_unresolved_question_cannot_become_pass_even_with_all_pass_judgments():
-    context, review, current, _ = fixture()
-    gap = Clarification(
+@pytest.mark.parametrize("gap_field", ["clarifications", "conflicts"])
+def test_unresolved_question_cannot_become_pass_even_with_all_pass_judgments(gap_field):
+    context, review, current, earlier = fixture()
+    gap_type = Clarification if gap_field == "clarifications" else EvidenceConflict
+    gap = gap_type(
         text="Project is uncertain.",
-        quotes=(current,),
+        quotes=(current,) if gap_field == "clarifications" else (current, earlier),
         question="Which project?",
         reason="This changes the relevant history.",
     )
-    payload = encode_contextual_packet(
-        review.model_copy(update={"clarifications": (gap,)}), context
-    )
+    payload = encode_contextual_packet(review.model_copy(update={gap_field: (gap,)}), context)
     restored = decode_contextual_packet(payload)
     assert restored.rendered_preview.startswith("Context clarification needed")
     assert (
         check_contextual_evaluation(evaluation(payload, context, ReviewJudgment.PASS), payload)
         == ContextualOutcome.NEEDS_CLARIFICATION
     )
+
+
+@pytest.mark.parametrize("unreviewed_criterion", list(ContextualCriterion))
+@pytest.mark.parametrize("gap_field", ["clarifications", "conflicts"])
+def test_unreviewed_question_waits_for_every_review_criterion(unreviewed_criterion, gap_field):
+    context, review, current, earlier = fixture()
+    gap_type = Clarification if gap_field == "clarifications" else EvidenceConflict
+    gap = gap_type(
+        text="Project is uncertain.",
+        quotes=(current,) if gap_field == "clarifications" else (current, earlier),
+        question="Which project?",
+        reason="This changes the relevant history.",
+    )
+    payload = encode_contextual_packet(review.model_copy(update={gap_field: (gap,)}), context)
+    record = evaluation(payload, context, ReviewJudgment.PASS)
+    record = record.model_copy(
+        update={
+            "assessments": tuple(
+                item.model_copy(update={"judgment": ReviewJudgment.UNREVIEWED})
+                if item.criterion == unreviewed_criterion
+                else item
+                for item in record.assessments
+            )
+        }
+    )
+    assert check_contextual_evaluation(record, payload) == ContextualOutcome.NEEDS_REVIEW
+
+
+@pytest.mark.parametrize("gap_field", ["clarifications", "conflicts"])
+def test_failed_question_still_precedes_unfinished_review(gap_field):
+    context, review, current, earlier = fixture()
+    gap_type = Clarification if gap_field == "clarifications" else EvidenceConflict
+    gap = gap_type(
+        text="Project is uncertain.",
+        quotes=(current,) if gap_field == "clarifications" else (current, earlier),
+        question="Which project?",
+        reason="This changes the relevant history.",
+    )
+    payload = encode_contextual_packet(review.model_copy(update={gap_field: (gap,)}), context)
+    record = evaluation(payload, context)
+    record = record.model_copy(
+        update={
+            "assessments": (
+                record.assessments[0].model_copy(update={"judgment": ReviewJudgment.FAIL}),
+                *record.assessments[1:],
+            )
+        }
+    )
+    assert check_contextual_evaluation(record, payload) == ContextualOutcome.NEEDS_REVISION
 
 
 @pytest.mark.parametrize(

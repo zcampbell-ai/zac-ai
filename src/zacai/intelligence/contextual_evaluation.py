@@ -194,7 +194,11 @@ class ContextualOutcome(str, Enum):
 def check_contextual_evaluation(
     evaluation: ContextualEvaluation, payload: bytes
 ) -> ContextualOutcome:
-    """Report supplied judgments for these bytes; never authorize or infer PASS."""
+    """Report supplied judgments for these bytes; never authorize or infer PASS.
+
+    An unfinished assessment takes precedence over a clarification or conflict.
+    Hosts still authenticate reviewers and check current delivery authority.
+    """
     try:
         if type(payload) is not bytes:
             raise ValueError("immutable payload required")
@@ -210,10 +214,10 @@ def check_contextual_evaluation(
         judgments = {item.judgment for item in evaluation.assessments}
         if ReviewJudgment.FAIL in judgments:
             return ContextualOutcome.NEEDS_REVISION
-        if packet.review.conflicts or packet.review.clarifications:
-            return ContextualOutcome.NEEDS_CLARIFICATION
         if ReviewJudgment.UNREVIEWED in judgments:
             return ContextualOutcome.NEEDS_REVIEW
+        if packet.review.conflicts or packet.review.clarifications:
+            return ContextualOutcome.NEEDS_CLARIFICATION
         return ContextualOutcome.REVIEWED_PASS
     except Exception:  # noqa: BLE001, S110 - no private diagnostics in logs or chains
         pass
@@ -268,8 +272,15 @@ class ContextualPacketV2(Contract):
         return ReviewContext(self.task, self.meeting_source_id, self.related_source_ids)
 
     def request(self) -> ContextualRequestV2:
-        return rebuild_native_contextual_request(self.context(), self.noncitable_metadata,
-            original_task_json=self.original_task_json, proposal_reference=self.proposal_reference, batch_reference=self.batch_reference, approval_reference=self.approval_reference, artifact_references=self.artifact_references)
+        return rebuild_native_contextual_request(
+            self.context(),
+            self.noncitable_metadata,
+            original_task_json=self.original_task_json,
+            proposal_reference=self.proposal_reference,
+            batch_reference=self.batch_reference,
+            approval_reference=self.approval_reference,
+            artifact_references=self.artifact_references,
+        )
 
     @model_validator(mode="after")
     def exact_components(self) -> Self:
@@ -319,7 +330,10 @@ def _encode_native_contextual_packet(
         rendered_preview=render_contextual_preview(review, context),
         noncitable_metadata=request.sidecar,
         original_task_json=request.original_task_json,
-        proposal_reference=request.proposal_reference, batch_reference=request.batch_reference, approval_reference=request.approval_reference, artifact_references=request.artifact_references,
+        proposal_reference=request.proposal_reference,
+        batch_reference=request.batch_reference,
+        approval_reference=request.approval_reference,
+        artifact_references=request.artifact_references,
         prepared_digest=prepared_native_contextual_digest(request),
         request_digest=contextual_request_digest(request),
     )
