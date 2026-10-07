@@ -15,7 +15,7 @@ Trusted parents/storage and exclusion of agents remain deployment requirements.
 Stop foreground enrollment serving before local pairing/identity confirmation;
 then close the setup window before opening owner mode. Default enrollment is fixed
 BRAINSTORM/CONFIDENTIAL. The closed opt-in
-PERSONAL/HIGHLY_RESTRICTED mode requires a newly created, separate host directory
+PERSONAL/HIGHLY_RESTRICTED and BRAINSTORM/HIGHLY_RESTRICTED modes each require a newly created, separate host directory
 and its own exact local confirmation. No inferred email/domain,
 admin, automatic PERSONAL permission, source release, model or execution authority.
 
@@ -80,6 +80,8 @@ _HOST = "127.0.0.1"
 _PORT = 8766  # Separate from the D025 health service on 8000.
 _CONFIRMATION = "CONFIRM BRAINSTORM / CONFIDENTIAL"
 _SCOPE = (BoundaryScope(B.BRAINSTORM, frozenset({C.CONFIDENTIAL})),)
+_BRAINSTORM_HR_CONFIRMATION = "CONFIRM BRAINSTORM / HIGHLY_RESTRICTED"
+_BRAINSTORM_HR_SCOPE = (BoundaryScope(B.BRAINSTORM, frozenset({C.HIGHLY_RESTRICTED})),)
 _PERSONAL_CONFIRMATION = "CONFIRM PERSONAL / HIGHLY_RESTRICTED"
 _PERSONAL_SCOPE = (BoundaryScope(B.PERSONAL, frozenset({C.HIGHLY_RESTRICTED})),)
 
@@ -91,6 +93,7 @@ class PrivateOperatorError(RuntimeError):
 class PrivateOperatorMode(str, Enum):
     ENROLLMENT = "enrollment"
     PERSONAL_ENROLLMENT = "personal-enrollment"
+    BRAINSTORM_HR_ENROLLMENT = "brainstorm-hr-enrollment"
     OWNER = "owner"
 
 
@@ -179,7 +182,8 @@ def _fresh_personal_directory(directory: Path) -> tuple[int, int]:
 
     Existing directories are never reusable, including empty or previous failed
     setup directories. The trusted host supplies a separate reviewed location;
-    no saved enrollment file is read to infer or expand another grant.
+    no saved enrollment file is read to infer or expand another grant. This same
+    boundary-independent directory guard is used for explicit BRAINSTORM HR mode.
     """
     if directory.parent.resolve(strict=True) != directory.parent:
         raise ValueError("noncanonical personal setup parent")
@@ -407,13 +411,21 @@ class PrivateOperatorWindow:
         try:
             pending = self.pending_owner()
             personal = self._mode == PrivateOperatorMode.PERSONAL_ENROLLMENT
+            brainstorm_hr = self._mode == PrivateOperatorMode.BRAINSTORM_HR_ENROLLMENT
             if (
                 type(self._prepared) is not PreparedEnrollmentHost
                 or type(expected_identity) is not Identity
                 or expected_identity != pending.identity
                 or type(pairing_code) is not str
                 or not secrets.compare_digest(pairing_code, pending.pairing_code)
-                or confirmation != (_PERSONAL_CONFIRMATION if personal else _CONFIRMATION)
+                or confirmation
+                != (
+                    _PERSONAL_CONFIRMATION
+                    if personal
+                    else _BRAINSTORM_HR_CONFIRMATION
+                    if brainstorm_hr
+                    else _CONFIRMATION
+                )
             ):
                 raise ValueError("local confirmation mismatch")
             self._active = False  # No serving/retry after confirmation or persistence failure.
@@ -423,7 +435,13 @@ class PrivateOperatorWindow:
                 pairing_code=pairing_code,
                 origin=self._origin,
                 identity=expected_identity,
-                scopes=_PERSONAL_SCOPE if personal else _SCOPE,
+                scopes=(
+                    _PERSONAL_SCOPE
+                    if personal
+                    else _BRAINSTORM_HR_SCOPE
+                    if brainstorm_hr
+                    else _SCOPE
+                ),
                 now=self._clock(),
             )
         except BaseException:  # noqa: BLE001 - no pairing/identity/backend or interrupt diagnostic
@@ -501,7 +519,12 @@ def open_private_operator(
                 and (not callable(gmail_factory) or type(clock) is not HostObservedClock)
             )
             or (
-                mode in (PrivateOperatorMode.ENROLLMENT, PrivateOperatorMode.PERSONAL_ENROLLMENT)
+                mode
+                in (
+                    PrivateOperatorMode.ENROLLMENT,
+                    PrivateOperatorMode.PERSONAL_ENROLLMENT,
+                    PrivateOperatorMode.BRAINSTORM_HR_ENROLLMENT,
+                )
                 and (
                     view is not None
                     or work_choices is not None
@@ -511,7 +534,10 @@ def open_private_operator(
             )
         ):
             raise ValueError("invalid operator inputs")
-        if mode == PrivateOperatorMode.PERSONAL_ENROLLMENT:
+        if mode in (
+            PrivateOperatorMode.PERSONAL_ENROLLMENT,
+            PrivateOperatorMode.BRAINSTORM_HR_ENROLLMENT,
+        ):
             personal_pin = _fresh_personal_directory(directory)
         fd = _lease(directory)
         if personal_pin is not None:
@@ -526,7 +552,11 @@ def open_private_operator(
         if personal_pin is not None:
             _personal_directory_unchanged(directory, personal_pin)
             host_clock = _personal_clock(directory, personal_pin, clock)
-        if mode in (PrivateOperatorMode.ENROLLMENT, PrivateOperatorMode.PERSONAL_ENROLLMENT):
+        if mode in (
+            PrivateOperatorMode.ENROLLMENT,
+            PrivateOperatorMode.PERSONAL_ENROLLMENT,
+            PrivateOperatorMode.BRAINSTORM_HR_ENROLLMENT,
+        ):
             prepared = prepare_enrollment_host(
                 configuration=configuration,
                 directory=directory,

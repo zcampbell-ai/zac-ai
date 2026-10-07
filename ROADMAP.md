@@ -2481,3 +2481,22 @@ rewrite the shared session-key item, edit an owner grant manually or reset a hel
 attempt. Resolve those joins before an attended live trial. Native source capture,
 canonical context protection, useful task acceptance and iPhone readiness remain
 separate gates on the existing context-first roadmap.
+
+### 2026-10-07: Explicit restricted business enrollment and context selection
+
+Added an opt-in BRAINSTORM/HIGHLY_RESTRICTED enrollment mode over the existing
+owner operator. It requires a fresh reviewed directory, genuine identity and
+pairing confirmation, and the exact local phrase. It grants only that boundary
+and classification. Default CONFIDENTIAL and PERSONAL enrollment, existing owner
+records and startup credential formats remain unchanged. Independent code-only
+Opus review accepted the source; root passed 1,722 focused installed pure checks,
+whole-source strict mypy171 and source/test Ruff. No live enrollment was started.
+Credential-format coexistence and held-attempt reconciliation remain separate.
+
+The approved Claude holding now has an owner-only local title/date selector for
+72 conversations. Structural selection preserves original byte hashes, incomplete
+ancestry and whole-file/record gate observations; it is not canonical capture or
+processing permission. Root reproduced 17 Python and 23 executable JavaScript
+controls before the actual metadata-only run. No record was selected or imported.
+Connected-source cataloging remains dated evidence with explicit coverage gaps.
+Task closure, signature status and delivery acceptance must remain separate.
