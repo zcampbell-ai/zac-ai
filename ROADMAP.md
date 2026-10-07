@@ -2597,3 +2597,30 @@ runtime successor; no review verdict or fallback approval exists. Independent
 local checks can advance while that review waits. A fresh attended PERSONAL
 enrollment attempt still requires its separate owner approval. None of these
 dependencies changes the context-first roadmap or makes a prototype usable.
+
+### 2026-10-07: Reviewed Gmail recovery and restart integration
+
+The owner explicitly selected the completed local independent review for the
+frozen Gmail pipeline instead of waiting for Claude's quota. Root verified and
+integrated its 28-file delta into current main, preserving unrelated work and
+the original owner root. The code provides explicit recovery/install and
+authenticated load-only restart paths, separate original CONFIDENTIAL and new
+BRAINSTORM HR owner scope, strict retained payload validation, terminal expiry
+checks and a fresh owner-reviewed profile-only gateway operation. Code review
+acceptance does not authorize credentials, owner enrollment or provider access.
+
+Root reproduced the exact 794 invented pipeline and affected regression checks.
+Whole-source checking exposed an existing host type-narrowing incompatibility
+in the expanded import graph. The additional host correction retained every
+exact-class, owner, session, key, clock, ledger and readiness check; independent
+local review accepted it, and 185 host regression checks passed. The installed
+186-source graph matches the corrected staged graph, with strict mypy and Ruff
+passing. These checks use simulated provider/native bindings and temporary
+encrypted/SQLite sessions, not real Gmail access or canonical mail import.
+
+Gmail remains inactive. A concrete foreground proposal still needs current
+reviewed registration and private ingress, actual separate owner roots and the
+owner's specific one-attempt approval. No automatic renewal, unattended reader
+policy or scope upgrade is introduced. The separate fragment storage candidate
+passed seven actual guarded PostgreSQL cases and 330 combined invented runtime
+and storage checks, but remains staged pending its required independent review.

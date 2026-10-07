@@ -369,3 +369,125 @@ class HeldGmailReconciliation:
         if self._files() != before_files:
             raise ValueError("operational storage changed")
         return reference
+
+    @_closed
+    def select_only_held_recovery(self, *, action: Any) -> HeldGmailReference:
+        """Dedicated dual-current recovery selection; ordinary HR selection unchanged."""
+        from zacai.connectors.gmail_recovery_authorization import GmailRecoveryAction
+
+        if (
+            type(action) is not GmailRecoveryAction
+            or action._authority is not self._authority
+            or action._configuration.configuration_digest != self._digest
+        ):
+            raise ValueError("actual original-domain recovery action required")
+        action.current()
+        self._current()
+        before = self._files()
+        authority = self._authority
+        with authority._locked() as lock_current:
+            action.current()
+            lock_current()
+            self._current()
+            if self._files() != before:
+                raise ValueError("original metadata changed")
+            ledger = authority._read()
+            rows = [
+                (key, row) for key, row in ledger["rows"].items() if row["account"] == self._account
+            ]
+            if len(rows) != 1:
+                raise ValueError("one original held attempt required")
+            state_hash, row = rows[0]
+            if (
+                row["configuration"] != self._digest
+                or row["state"] != "held"
+                or row["loaded"] is not True
+                or row["rotation"] is not None
+                or type(row["execution"]) is not str
+                or _DIGEST.fullmatch(row["execution"]) is None
+            ):
+                raise ValueError("consumed original held row required")
+            observed = authority._continuity._clock()
+            lock_current()
+            if observed < authority._time(ledger["watermark"]):
+                raise ValueError("original clock rollback")
+            action.current()
+            lock_current()
+            self._current()
+            if self._files() != before:
+                raise ValueError("original metadata changed")
+            reference = object.__new__(HeldGmailReference)
+            for name, value in (
+                (
+                    "_generation",
+                    hashlib.sha256(_DOMAIN + state_hash.encode("ascii")).hexdigest()[:32],
+                ),
+                ("_state_hash", state_hash),
+                ("_row", _json(row)),
+                ("_issuer", self._issuer),
+            ):
+                object.__setattr__(reference, name, value)
+        action.current()
+        self._current()
+        if self._files() != before:
+            raise ValueError("original metadata changed")
+        return reference
+
+    @_closed
+    def inspect_fresh_recovery(self, *, admission: Any) -> HeldGmailReference:
+        """Only the privately admitted fresh, consumed, durably held recovery row."""
+        from zacai.connectors.gmail_recovery_consumer import GmailRecoveryAdmission
+
+        if (
+            type(admission) is not GmailRecoveryAdmission
+            or admission._authority is not self._authority
+            or admission._configuration.configuration_digest != self._digest
+            or not admission._callback_started
+            or not admission._fresh_published
+            or admission._fresh_state is None
+        ):
+            raise ValueError("actual fresh recovery admission required")
+        admission.current()
+        self._current()
+        before = self._files()
+        with self._authority._locked() as current:
+            admission.current()
+            current()
+            self._current()
+            if self._files() != before:
+                raise ValueError("original fresh metadata changed")
+            ledger = self._authority._read()
+            admission.check_ledger(ledger)
+            row = ledger["rows"].get(admission._fresh_state)
+            if (
+                row is None
+                or row["configuration"] != self._digest
+                or row["account"] != self._account
+                or row["state"] != "held"
+                or row["loaded"] is not True
+                or row["rotation"] is not None
+                or row["execution"] != admission._execution
+                or row["binding"] != admission._action._hr_binding
+                or admission._execution is None
+            ):
+                raise ValueError("exact consumed fresh held row required")
+            admission.current()
+            current()
+            reference = object.__new__(HeldGmailReference)
+            for name, value in (
+                (
+                    "_generation",
+                    hashlib.sha256(_DOMAIN + admission._fresh_state.encode("ascii")).hexdigest()[
+                        :32
+                    ],
+                ),
+                ("_state_hash", admission._fresh_state),
+                ("_row", _json(row)),
+                ("_issuer", self._issuer),
+            ):
+                object.__setattr__(reference, name, value)
+        admission.current()
+        self._current()
+        if self._files() != before:
+            raise ValueError("original fresh metadata changed")
+        return reference

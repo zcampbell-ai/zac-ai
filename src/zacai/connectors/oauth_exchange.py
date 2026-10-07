@@ -12,11 +12,13 @@ are separate missing gates. An unconfirmed hold requires durable host-wide halt.
 
 from __future__ import annotations
 
+import hashlib
 import http.client
 import re
 import ssl
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import datetime
 from functools import wraps
 from typing import Literal, Protocol
 from urllib.parse import urlencode
@@ -214,9 +216,165 @@ class _CheckedConnection:
         self._connection.close()
 
 
+def _profile_operation(operation: OAuthExchangeOperation) -> tuple[object, ...]:
+    return (
+        operation._authority,
+        operation._configuration,
+        operation._operation,
+        operation._authority._continuity,
+        operation._authority._backend,
+        getattr(operation, "_recovery_admission", None),
+        getattr(operation, "_original_recovery_admission", None),
+        operation._state_hash,
+        operation._capability,
+        operation._configuration.configuration_digest,
+    )
+
+
+def _same_profile_operation(
+    operation: OAuthExchangeOperation, original: tuple[object, ...]
+) -> None:
+    current = _profile_operation(operation)
+    if (
+        any(a is not b for a, b in zip(current[:7], original[:7], strict=True))
+        or current[7:] != original[7:]
+    ):
+        raise ValueError("original profile operation composition required")
+
+
+def _profile_candidate(candidate: UninstalledOAuthCandidate) -> tuple[object, ...]:
+    if (
+        type(candidate) is not UninstalledOAuthCandidate
+        or type(candidate.access_token) is not SecretStr
+    ):
+        raise ValueError("original checked Gmail candidate required")
+    return (
+        candidate.provider,
+        candidate.configuration_digest,
+        candidate.client_id,
+        candidate.subject_id,
+        candidate.scopes,
+        candidate.token_kind,
+        candidate.expires_at,
+        candidate.refresh_expires_at,
+        candidate.subject_pin_verified,
+        candidate.slack_app_id,
+        candidate.slack_team_id,
+        candidate.slack_rotation,
+        hashlib.sha256(candidate.access_token.get_secret_value().encode("ascii")).digest(),
+        None
+        if candidate.refresh_token is None
+        else hashlib.sha256(
+            _secret(candidate.refresh_token.get_secret_value()).get_secret_value().encode("ascii")
+        ).digest(),
+    )
+
+
+@dataclass(frozen=True, init=False, repr=False)
+class GmailProfileObservation:
+    """Private same-exchange profile observation; never installed authority.
+
+    Issued only after the existing checked profile call and final current checks.
+    A consumer verifies this while the original exchange remains current, then
+    must independently verify its durable hold and owner before publication.
+    No token, mailbox, response bytes or private correlation is a public field.
+    """
+
+    observed_at: datetime
+    _issuer: CheckedOAuthExchange
+    _operation: OAuthExchangeOperation
+    _authority: object
+    _named_operation: object
+    _configuration: OAuthConfiguration
+    _continuity: object
+    _backend: object
+    _recovery_admission: object
+    _original_recovery_admission: object
+    _state_hash: str
+    _capability: str
+    _candidate: UninstalledOAuthCandidate
+    _candidate_values: tuple[object, ...]
+    _binding: str
+    _principal: object
+
+    def __init__(self) -> None:
+        raise TypeError("private exchange-issued profile observation required")
+
+    def __repr__(self) -> str:
+        return "GmailProfileObservation()"
+
+    @property
+    def profile_verified(self) -> Literal[True]:
+        return True
+
+    @property
+    def installed(self) -> Literal[False]:
+        return False
+
+    @property
+    def processing_authorized(self) -> Literal[False]:
+        return False
+
+    @property
+    def execution_authorized(self) -> Literal[False]:
+        return False
+
+    def _pins(self, issuer: CheckedOAuthExchange, operation: OAuthExchangeOperation) -> None:
+        if (
+            type(issuer) is not CheckedOAuthExchange
+            or type(operation) is not OAuthExchangeOperation
+            or issuer is not self._issuer
+            or issuer._gmail_observation is not self
+            or issuer.candidate is not self._candidate
+            or operation is not self._operation
+            or operation._authority is not self._authority
+            or operation._operation is not self._named_operation
+            or operation._configuration is not self._configuration
+            or operation._authority._continuity is not self._continuity
+            or operation._authority._backend is not self._backend
+            or getattr(operation, "_recovery_admission", None) is not self._recovery_admission
+            or getattr(operation, "_original_recovery_admission", None)
+            is not self._original_recovery_admission
+            or operation._state_hash != self._state_hash
+            or operation._capability != self._capability
+            or operation._configuration.configuration_digest != self._candidate.configuration_digest
+            or _profile_candidate(self._candidate) != self._candidate_values
+        ):
+            raise ValueError("original same-token profile observation required")
+
+    def _current(self, issuer: CheckedOAuthExchange, operation: OAuthExchangeOperation) -> None:
+        self._pins(issuer, operation)
+        operation.current()
+        self._pins(issuer, operation)
+        verified = operation._operation.recheck(self._binding)
+        if verified.principal != self._principal:
+            raise ValueError("original profile owner required")
+        self._pins(issuer, operation)
+        now = operation.observed_at()
+        if (
+            now < self.observed_at
+            or self._candidate.expires_at is None
+            or now >= self._candidate.expires_at
+        ):
+            raise ValueError("current profile observation required")
+        operation.current()
+        self._pins(issuer, operation)
+
+
 @dataclass(frozen=True)
 class CheckedOAuthExchange:
     candidate: UninstalledOAuthCandidate = field(repr=False)
+    _gmail_observation: GmailProfileObservation | None = field(default=None, init=False, repr=False)
+
+    @_closed
+    def gmail_profile_observation(
+        self, operation: OAuthExchangeOperation
+    ) -> GmailProfileObservation:
+        observation = self._gmail_observation
+        if type(observation) is not GmailProfileObservation:
+            raise ValueError("original Gmail profile observation required")
+        observation._current(self, operation)
+        return observation
 
     @property
     def installed(self) -> Literal[False]:
@@ -351,7 +509,10 @@ def exchange_initial(
         raise ValueError("actual original transaction and trusted host adapters required")
     cancelled = failed = unconfirmed = False
     result: CheckedOAuthExchange | None = None
+    profile_owner = None
+    profile_values = None
     try:
+        profile_operation = _profile_operation(operation)
         material = operation.take_exchange()
         config = material.configuration
         operation.current()
@@ -378,7 +539,19 @@ def exchange_initial(
                 evidence_observed_at=evidence_at,
             )
             operation.current()
+            _same_profile_operation(operation, profile_operation)
+            profile_owner = operation._operation.establish()
+            profile_values = _profile_candidate(candidate)
+            operation.current()
+            _same_profile_operation(operation, profile_operation)
             transport.gmail_profile(candidate.access_token, config)
+            operation.current()
+            _same_profile_operation(operation, profile_operation)
+            if _profile_candidate(candidate) != profile_values:
+                raise ValueError("original profile token changed")
+            verified = operation._operation.recheck(profile_owner.binding_digest)
+            if verified.principal != profile_owner.principal:
+                raise ValueError("original profile owner changed")
             operation.current()
         else:
             rotation = operation._rotation
@@ -402,6 +575,38 @@ def exchange_initial(
         ):
             raise ValueError("candidate expired during identity checks")
         result = CheckedOAuthExchange(candidate)
+        if config.provider is Provider.GMAIL:
+            if (
+                profile_owner is None
+                or profile_values is None
+                or _profile_candidate(candidate) != profile_values
+            ):
+                raise ValueError("original checked profile observation required")
+            _same_profile_operation(operation, profile_operation)
+            observation = object.__new__(GmailProfileObservation)
+            values = {
+                "observed_at": final_now,
+                "_issuer": result,
+                "_operation": operation,
+                "_authority": operation._authority,
+                "_named_operation": operation._operation,
+                "_configuration": operation._configuration,
+                "_continuity": operation._authority._continuity,
+                "_backend": operation._authority._backend,
+                "_recovery_admission": getattr(operation, "_recovery_admission", None),
+                "_original_recovery_admission": getattr(
+                    operation, "_original_recovery_admission", None
+                ),
+                "_state_hash": operation._state_hash,
+                "_capability": operation._capability,
+                "_candidate": candidate,
+                "_candidate_values": profile_values,
+                "_binding": profile_owner.binding_digest,
+                "_principal": profile_owner.principal,
+            }
+            for name, value in values.items():
+                object.__setattr__(observation, name, value)
+            object.__setattr__(result, "_gmail_observation", observation)
     except BaseException as error:  # noqa: BLE001 - preserve only fixed failure categories
         failed, cancelled = True, not isinstance(error, Exception)
     if failed:

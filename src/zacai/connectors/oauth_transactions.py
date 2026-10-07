@@ -648,6 +648,186 @@ class OAuthTransactionAuthority:
                 SecretStr(verifier) if verifier else None,
             )
 
+    @_closed
+    def begin_recovery(
+        self, configuration: OAuthConfiguration, *, request: Request, admission: Any
+    ) -> ConsentRequest:
+        from zacai.connectors.gmail_recovery_consumer import GmailRecoveryAdmission
+
+        if type(admission) is not GmailRecoveryAdmission or admission._authority is not self:
+            raise ValueError("actual spent original-domain recovery required")
+        slack_rotation = None
+        self._ready()
+        admission.current()
+        configuration, account = self._configuration(configuration, slack_rotation)
+        admission.take_begin(request)
+        operation = admission._action._hr_operation
+        binding = operation.establish().binding_digest
+        self._scope(operation, binding)
+        with self._locked() as lock_current:
+            self._ready()
+            admission.current()
+            lock_current()
+            value = self._read()
+            self._now(value)
+            admission.check_ledger(value)
+            if len(value["rows"]) >= _CAPACITY:
+                raise ValueError("transaction capacity reached")
+            generation = admission.attest(configuration)
+            expires = admission.current()
+            now = self._now(value)
+            if now >= expires:
+                raise ValueError("session expired")
+            state = secrets.token_urlsafe(32)
+            if _hash(state) in value["rows"]:
+                raise ValueError("transaction state collision")
+            verifier = (
+                secrets.token_urlsafe(32) if configuration.provider is Provider.GMAIL else None
+            )
+            consent = prepare_consent(
+                configuration,
+                state=SecretStr(state),
+                google_code_verifier=SecretStr(verifier) if verifier else None,
+            )
+            expires = admission.current()
+            now = self._now(value)
+            if now >= expires:
+                raise ValueError("session expired")
+            admission.register_fresh(_hash(state))
+            value["rows"][_hash(state)] = {
+                "configuration": configuration.configuration_digest,
+                "account": account,
+                "binding": binding,
+                "generation": generation,
+                "rotation": None,
+                "expires": min(expires, now + timedelta(minutes=5)).isoformat(),
+                "state": "pending",
+                "verifier": verifier,
+                "execution": None,
+                "loaded": False,
+            }
+            admission.capture_fresh(value["rows"][_hash(state)])
+            admission.current()
+            lock_current()
+            self._persist(value, _hash(state))
+            object.__setattr__(admission, "_fresh_published", True)
+            try:
+                final_generation = admission.attest(configuration)
+                final_expiry = self._scope(operation, binding)
+                if final_generation != generation or self._now(value) >= min(
+                    final_expiry, self._time(value["rows"][_hash(state)]["expires"])
+                ):
+                    raise ValueError("registration changed before disclosure")
+            except BaseException:  # preserve sticky pending before disclosure
+                value["rows"][_hash(state)]["state"] = "held"
+                value["rows"][_hash(state)]["verifier"] = None
+                self._persist(value, _hash(state))
+                raise
+            admission.current()
+            lock_current()
+            return consent
+
+    @_closed
+    def consume_recovery_callback(
+        self, configuration: OAuthConfiguration, *, request: Request, admission: Any
+    ) -> OAuthExchangeOperation | None:
+        from zacai.connectors.gmail_recovery_consumer import GmailRecoveryAdmission
+
+        if type(admission) is not GmailRecoveryAdmission or admission._authority is not self:
+            raise ValueError("actual spent original-domain recovery required")
+        slack_rotation = None
+        self._ready()
+        configuration, account = self._configuration(configuration, slack_rotation)
+        admission.validate_callback(request)
+        operation = admission._action._hr_operation
+        binding = operation.establish().binding_digest
+        self._scope(operation, binding)
+        raw = request.scope.get("query_string", b"")
+        if type(raw) is not bytes or not 1 <= len(raw) <= 4096:
+            raise ValueError("bounded callback required")
+        encoded = raw.decode("ascii")
+        if re.search(r"%(?![0-9A-Fa-f]{2})", encoded):
+            raise ValueError("strict callback encoding required")
+        query = parse_qsl(
+            encoded,
+            keep_blank_values=True,
+            strict_parsing=True,
+            encoding="utf-8",
+            errors="strict",
+            max_num_fields=16,
+        )
+        fields = dict(query)
+        # OAuth response extensions are bounded hints, never grant/identity evidence.
+        if (
+            len(query) != len(fields)
+            or "state" not in fields
+            or ("code" in fields) == ("error" in fields)
+            or any(re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,63}", k) is None for k in fields)
+            or any(
+                len(v) > 2048 or any(ord(c) < 32 or ord(c) > 126 for c in v)
+                for v in fields.values()
+            )
+            or _TOKEN.fullmatch(fields.get("state", "")) is None
+        ):
+            raise ValueError("unique callback fields required")
+        if (
+            configuration.provider is Provider.GMAIL
+            and "iss" in fields
+            and fields["iss"] != "https://accounts.google.com"
+        ):
+            raise ValueError("actual Google issuer required")
+        content = fields.get("code", fields.get("error", ""))
+        if not content or len(content) > 2048 or any(ord(c) < 33 or ord(c) > 126 for c in content):
+            raise ValueError("bounded callback value required")
+        state_hash = _hash(fields["state"])
+        with self._locked() as lock_current:
+            self._ready()
+            admission.current()
+            lock_current()
+            value = self._read()
+            self._now(value)
+            admission.check_ledger(value)
+            if state_hash != admission._fresh_state:
+                raise ValueError("exact fresh recovery state required")
+            row = value["rows"].get(state_hash)
+            if (
+                row is None
+                or row["state"] != "pending"
+                or not hmac.compare_digest(row["binding"], binding)
+                or not hmac.compare_digest(row["configuration"], configuration.configuration_digest)
+                or row["account"] != account
+                or row["rotation"] != (slack_rotation.value if slack_rotation else None)
+            ):
+                raise ValueError("original transaction required")
+            generation = admission.attest(configuration)
+            expires = self._scope(operation, binding)
+            if generation != row["generation"] or self._now(value) >= min(
+                expires, self._time(row["expires"])
+            ):
+                raise ValueError("transaction expired or registration changed")
+            verifier = row["verifier"]
+            capability = secrets.token_urlsafe(32)
+            row["state"] = "denied" if "error" in fields else "exchange_pending"
+            admission.register_callback(None if "error" in fields else _hash(capability))
+            row["execution"] = None if "error" in fields else _hash(capability)
+            row["verifier"] = None
+            admission.current()
+            lock_current()
+            self._persist(value, state_hash)
+            if "error" in fields:
+                return None
+            return OAuthExchangeOperation(
+                self,
+                configuration,
+                slack_rotation,
+                operation,
+                state_hash,
+                capability,
+                SecretStr(content),
+                SecretStr(verifier) if verifier else None,
+                recovery_admission=admission,
+            )
+
 
 @dataclass(frozen=True)
 class ExchangeMaterial:
@@ -678,14 +858,26 @@ class OAuthExchangeOperation:
         capability: str,
         code: SecretStr,
         verifier: SecretStr | None,
+        *,
+        recovery_admission: Any = None,
     ) -> None:
         self._authority, self._configuration, self._rotation = authority, configuration, rotation
         self._operation, self._state_hash, self._capability = operation, state_hash, capability
         self._code, self._verifier = code, verifier
         self._released = False
+        self._recovery_admission = self._original_recovery_admission = recovery_admission
 
-    def _check(self, value: dict[str, Any]) -> dict[str, Any]:
+    def _check(self, value: dict[str, Any], lock_current: Any = None) -> dict[str, Any]:
         authority = self._authority
+        recovery = self._recovery_admission
+        if recovery is not self._original_recovery_admission:
+            raise ValueError("original recovery admission changed")
+        if recovery is not None:
+            recovery.current()
+            lock_current()
+            recovery.check_ledger(value)
+            if recovery._fresh_state != self._state_hash:
+                raise ValueError("exact fresh recovery operation required")
         row = value["rows"].get(self._state_hash)
         configuration, account = authority._configuration(self._configuration, self._rotation)
         if (
@@ -697,11 +889,20 @@ class OAuthExchangeOperation:
             or row["rotation"] != (self._rotation.value if self._rotation else None)
         ):
             raise ValueError("original execution required")
-        generation = authority._attest(self._configuration, self._rotation)
+        generation = (
+            recovery.attest(self._configuration)
+            if recovery is not None
+            else authority._attest(self._configuration, self._rotation)
+        )
+        if recovery is not None:
+            lock_current()
         expires = authority._scope(self._operation, row["binding"])
-        if generation != row["generation"] or authority._now(value) >= min(
-            expires, authority._time(row["expires"])
-        ):
+        if recovery is not None:
+            lock_current()
+        now = authority._now(value)
+        if recovery is not None:
+            lock_current()
+        if generation != row["generation"] or now >= min(expires, authority._time(row["expires"])):
             raise ValueError("exchange authority expired")
         checked: dict[str, Any] = row
         return checked
@@ -710,19 +911,21 @@ class OAuthExchangeOperation:
     def take_exchange(self) -> ExchangeMaterial:
         authority = self._authority
         authority._ready()
-        with authority._locked():
+        with authority._locked() as lock_current:
             authority._ready()
             value = authority._read()
             authority._now(value)
-            row = self._check(value)
+            if self._recovery_admission is not None:
+                lock_current()
+            row = self._check(value, lock_current)
             if self._released or row["loaded"] or row["state"] != "exchange_pending":
                 raise ValueError("exchange material already consumed")
             row["loaded"], row["state"] = True, "exchange_started"
             authority._persist(value, self._state_hash)
             try:
-                self._check(value)
+                self._check(value, lock_current)
                 authority._persist(value, self._state_hash)
-                self._check(value)
+                self._check(value, lock_current)
             except BaseException:  # failed post-persist authority never releases
                 row["state"] = "held"
                 authority._persist(value, self._state_hash)
@@ -738,13 +941,15 @@ class OAuthExchangeOperation:
     def current(self) -> None:
         authority = self._authority
         authority._ready()
-        with authority._locked():
+        with authority._locked() as lock_current:
             authority._ready()
             value = authority._read()
             authority._now(value)
-            self._check(value)
+            if self._recovery_admission is not None:
+                lock_current()
+            self._check(value, lock_current)
             authority._persist(value, self._state_hash)
-            self._check(value)
+            self._check(value, lock_current)
 
     @_closed
     def observed_at(self) -> datetime:
@@ -760,15 +965,19 @@ class OAuthExchangeOperation:
         """
         authority = self._authority
         authority._ready()
-        with authority._locked():
+        with authority._locked() as lock_current:
             authority._ready()
             value = authority._read()
             authority._now(value)
-            self._check(value)
+            if self._recovery_admission is not None:
+                lock_current()
+            self._check(value, lock_current)
             authority._persist(value, self._state_hash)
-            row = self._check(value)
+            row = self._check(value, lock_current)
             effective_expiry = authority._scope(self._operation, row["binding"])
             now = authority._now(value)
+            if self._recovery_admission is not None:
+                lock_current()
             if now >= min(effective_expiry, authority._time(row["expires"])):
                 raise ValueError("exchange authority expired during observation")
             return now
@@ -807,7 +1016,9 @@ class OAuthExchangeOperation:
     @_closed
     def hold(self) -> None:
         authority = self._authority
-        with authority._locked():
+        with authority._locked() as lock_current:
+            if self._recovery_admission is not None:
+                lock_current()
             value = authority._read()
             row = value["rows"].get(self._state_hash)
             if (

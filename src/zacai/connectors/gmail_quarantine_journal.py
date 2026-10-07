@@ -136,6 +136,7 @@ class GmailQuarantineJournal:
         action_generation: str,
         preservation_check: Callable[[], None],
         stop: Callable[[], None],
+        recovery_action: Any = None,
     ) -> None:
         if (
             type(authority) is not OAuthTransactionAuthority
@@ -150,6 +151,16 @@ class GmailQuarantineJournal:
             or not callable(stop)
         ):
             raise ValueError("original foreground composition required")
+        if recovery_action is not None:
+            from zacai.connectors.gmail_recovery_authorization import GmailRecoveryAction
+
+            if (
+                type(recovery_action) is not GmailRecoveryAction
+                or recovery_action._authority is not authority
+            ):
+                raise ValueError("exact original-domain action required")
+        self._recovery_action = self._original_recovery_action = recovery_action
+        self._in_recovery = False
         checked = _configuration(configuration)
         if checked.configuration_digest != reconciliation._digest:
             raise ValueError("original configuration required")
@@ -226,6 +237,10 @@ class GmailQuarantineJournal:
         )
 
     def _check(self) -> None:
+        if self._recovery_action is not self._original_recovery_action:
+            raise ValueError("original recovery action changed")
+        if self._recovery_action is not None:
+            self._recovery_action.current()
         self._reconciliation._current()
         if self._snapshot() != self._original or any(
             actual is not original
@@ -344,6 +359,15 @@ class GmailQuarantineJournal:
 
     def _owner(self, cookie: str) -> tuple[Any, Any]:
         self._check()
+        if self._recovery_action is not None:
+            action = self._recovery_action
+            if not self._in_recovery or not secrets.compare_digest(cookie, action._hr_cookie):
+                raise ValueError("dedicated actual recovery action required")
+            action.current()
+            operation = action._hr_operation
+            verified = operation.recheck(action._hr_binding)
+            action.current()
+            return operation, verified
         operation = self._authority._continuity.for_cookie(cookie)
         verified = operation.establish()
         self._authority._scope(operation, verified.binding_digest)
@@ -362,7 +386,11 @@ class GmailQuarantineJournal:
         self._namespace_files = files
         self._preserved(files)  # denies both pre-existing names before selection
         _, verified = self._owner(cookie)
-        reference = self._reconciliation.select_only_held(cookie=cookie)
+        reference = (
+            self._reconciliation.select_only_held_recovery(action=self._recovery_action)
+            if self._recovery_action is not None
+            else self._reconciliation.select_only_held(cookie=cookie)
+        )
         _, final = self._owner(cookie)
         if final.principal != verified.principal or final.binding_digest != verified.binding_digest:
             raise ValueError("same review owner required")
@@ -407,9 +435,12 @@ class GmailQuarantineJournal:
             raise ValueError("exact reviewed owner form required")
         cookie = _cookie(request, "__Host-zac-session")
         operation, verified = self._owner(cookie)
-        session = self._authority._continuity._sessions.peek_user(
-            cookie, self._authority._continuity._clock()
+        continuity = (
+            self._recovery_action._join._hr
+            if self._recovery_action is not None
+            else self._authority._continuity
         )
+        session = continuity._sessions.peek_user(cookie, continuity._clock())
         if (
             session is None
             or session.identity != verified.principal.identity
@@ -660,3 +691,25 @@ class GmailQuarantineJournal:
                 pass
             raise final_failure()
         return object.__new__(GmailQuarantineIntentReceipt)
+
+    @_closed
+    def preview_recovery(self, *, cookie: str) -> GmailQuarantinePreview:
+        if self._recovery_action is None or self._in_recovery:
+            raise ValueError("dedicated paired recovery required")
+        self._in_recovery = True
+        try:
+            return self.preview(cookie=cookie)
+        finally:
+            self._in_recovery = False
+
+    @_closed
+    def write_recovery(
+        self, request: Request, body: bytes, preview: GmailQuarantinePreview
+    ) -> GmailQuarantineIntentReceipt:
+        if self._recovery_action is None or self._in_recovery:
+            raise ValueError("dedicated paired recovery required")
+        self._in_recovery = True
+        try:
+            return self.write_once(request=request, body=body, preview=preview)
+        finally:
+            self._in_recovery = False

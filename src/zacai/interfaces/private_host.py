@@ -22,7 +22,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from fastapi import FastAPI
 
@@ -177,10 +177,14 @@ def _gmail_owner_controller(inputs: NamedOwnerHostInputs, result: object) -> Gma
     from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
     from zacai.connectors.oauth_transactions import OAuthTransactionAuthority
-    from zacai.interfaces.gmail_connection_web import GmailConnectionWeb
+    from zacai.interfaces.gmail_connection_web import (
+        GmailConnectionWeb as RuntimeGmailConnectionWeb,
+    )
     from zacai.interfaces.named_session_binding import NamedSessionContinuity
 
-    if type(result) is not GmailConnectionWeb or type(result._authority) is not OAuthTransactionAuthority:
+    if not isinstance(result, RuntimeGmailConnectionWeb):
+        raise ValueError("exact Gmail host controller required")  # noqa: TRY004 - retain host error contract
+    if type(result) is not RuntimeGmailConnectionWeb or type(result._authority) is not OAuthTransactionAuthority:
         raise ValueError("exact Gmail host controller required")
     authority = result._authority
     continuity = authority._continuity
@@ -224,7 +228,7 @@ def _gmail_owner_controller(inputs: NamedOwnerHostInputs, result: object) -> Gma
     # This guard must already have been initialized/reconciled by trusted host
     # operations. Factory validation never creates a ready marker or clears holds.
     result._ready()
-    return result
+    return cast("GmailConnectionWeb", result)
 
 
 @dataclass(frozen=True)

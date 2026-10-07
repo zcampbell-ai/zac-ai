@@ -20,6 +20,7 @@ import os
 import re
 import secrets
 import stat
+import sys
 import tempfile
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -268,22 +269,121 @@ class ConnectorAuthority:
         if not okay:
             raise ConnectorAuthorityError("connector authority unavailable")
 
+    @classmethod
+    @_closed
+    def open_existing(
+        cls,
+        directory: Path,
+        *,
+        key: bytes,
+        continuity: NamedSessionContinuity,
+        backend: CredentialAuthority,
+    ) -> ConnectorAuthority:
+        """Open exact existing evidence; never create or initialize storage."""
+        if (
+            cls is not ConnectorAuthority
+            or type(key) is not bytes
+            or len(key) != 32
+            or not isinstance(directory, Path)
+            or not directory.is_absolute()
+            or type(continuity) is not NamedSessionContinuity
+        ):
+            raise ValueError("exact existing authority dependencies required")
+        _guard(directory, directory=True)
+        if {p.name for p in directory.iterdir()} != {
+            "connector-authority.lock",
+            "connector-authority.bin",
+        }:
+            raise ValueError("complete existing connector evidence required")
+        value = object.__new__(cls)
+        value._directory = directory
+        value._path = directory / "connector-authority.bin"
+        value._lock_path = directory / "connector-authority.lock"
+        _guard(value._path)
+        _guard(value._lock_path)
+        value._continuity, value._backend = continuity, backend
+        value._issuance_uncertain = False
+        value._context = b"zac-connector-authority-v1\x00" + continuity._context
+        value._cipher = AESGCM(
+            HKDF(
+                algorithm=SHA256(),
+                length=32,
+                salt=b"zac-connector-authority-v1",
+                info=value._context,
+            ).derive(key)
+        )
+        value._origin = json.loads(continuity._context)["origin"]
+        value._host = value._origin.removeprefix("https://")
+        with value._locked() as current:
+            value._read()
+            current()
+        return value
+
     @contextmanager
-    def _locked(self) -> Iterator[None]:
-        _guard(self._directory, directory=True)
-        expected = _guard(self._lock_path)
-        fd = os.open(self._lock_path, os.O_RDWR | os.O_NOFOLLOW)
+    def _locked(self) -> Iterator[Callable[[], None]]:
+        """Original lock plus a private duplicate retaining its acquired flock.
+
+        Composed callers check the yielded local witness after trusted callbacks.
+        It detects foreign-inode fd reuse and never closes such a descriptor.
+        This is not portable proof against malicious same-UID Python closing
+        both descriptors and reopening the same inode; that remains outside the
+        existing host-isolation threat boundary. No lock bytes are modified.
+        """
+        directory, lock_path = self._directory, self._lock_path
+        _guard(directory, directory=True)
+        expected = _guard(lock_path)
+        identity = (expected.st_dev, expected.st_ino)
+        fd = os.open(lock_path, os.O_RDWR | os.O_NOFOLLOW)
+        anchor: int | None = None
+        live = True
+
+        def current() -> None:
+            if not live or self._directory != directory or self._lock_path != lock_path:
+                raise ValueError("original lock scope changed")
+            for retained in (fd, anchor):
+                if retained is None:
+                    raise ValueError("original retained lock required")
+                opened = os.fstat(retained)
+                if (opened.st_dev, opened.st_ino) != identity:
+                    raise ValueError("original retained lock changed")
+            final = _guard(lock_path)
+            if (final.st_dev, final.st_ino) != identity:
+                raise ValueError("original lock pathname changed")
+
         try:
             opened = os.fstat(fd)
-            if (opened.st_ino, opened.st_dev) != (expected.st_ino, expected.st_dev):
-                raise ValueError("operational lock changed")
+            if (opened.st_dev, opened.st_ino) != identity:
+                raise ValueError("lock changed")
+            anchor = os.dup(fd)
+            current()
             fcntl.flock(fd, fcntl.LOCK_EX)
-            locked = _guard(self._lock_path)
-            if (locked.st_ino, locked.st_dev) != (opened.st_ino, opened.st_dev):
-                raise ValueError("operational lock replaced")
-            yield
+            current()
+            yield current
+            current()
         finally:
-            os.close(fd)
+            body = sys.exc_info()[1]
+            cancelled = body is not None and not isinstance(body, Exception)
+            cleanup_failed = False
+            live = False
+            # Ownership denial cannot prevent cleanup of the other genuine
+            # descriptor. The private anchor retains flock until its own close.
+            for retained in (fd, anchor):
+                if retained is None:
+                    continue
+                try:
+                    actual = os.fstat(retained)
+                    if (actual.st_dev, actual.st_ino) != identity:
+                        cleanup_failed = True
+                        continue
+                    os.close(retained)
+                except Exception:  # noqa: BLE001 - no foreign/retried cleanup
+                    cleanup_failed = True
+                except BaseException:  # noqa: BLE001 - preserve interruption
+                    cleanup_failed = cancelled = True
+            if cleanup_failed:
+                if cancelled:
+                    raise KeyboardInterrupt("OAuth lock cleanup interrupted") from None
+                raise ValueError("OAuth lock cleanup unavailable") from None
 
     def _read(self) -> dict[str, Any]:
         expected = _guard(self._path)
@@ -404,12 +504,12 @@ class ConnectorAuthority:
         """Trusted first-install host action only, never automatic missing recovery."""
         okay = False
         try:
-            with self._locked():
+            with self._locked() as lock_current:
                 if self._path.exists() or self._path.is_symlink():
                     raise ValueError("operational ledger already exists")
-                self._write(
-                    {"version": 1, "watermark": self._continuity._clock().isoformat(), "rows": {}}
-                )
+                watermark = self._continuity._clock().isoformat()
+                lock_current()
+                self._write({"version": 1, "watermark": watermark, "rows": {}})
                 okay = True
         except Exception:  # noqa: BLE001,S110
             pass
@@ -512,10 +612,12 @@ class ConnectorAuthority:
             digest, account, expected_payload = _plan(plan)
             if reviewed_scope_digest != digest or payload_digest != expected_payload:
                 raise ValueError("exact displayed review required")
-            with self._locked():
+            with self._locked() as lock_current:
                 value = self._read()
                 self._now(value)
+                lock_current()
                 verified = operation.recheck(before.binding_digest)
+                lock_current()
                 boundary = plan.data_boundary if type(plan) is CommunicationPlan else None
                 classification = plan.classification if type(plan) is CommunicationPlan else None
                 if boundary is None:
@@ -559,11 +661,15 @@ class ConnectorAuthority:
                 if decision.outcome is not expected_outcome:
                     raise ValueError("connector review cannot override policy deny")
                 self._backend.attest(plan)
+                lock_current()
                 generation = self._backend.generation(plan)
+                lock_current()
                 if type(generation) is not str or _GENERATION.fullmatch(generation) is None:
                     raise ValueError("verified credential generation required")
                 final = operation.recheck(before.binding_digest)
+                lock_current()
                 now = self._now(value)
+                lock_current()
                 if now >= final.effective_expires_at:
                     raise ValueError("owner review expired during attestation")
                 rows = value["rows"]
@@ -662,7 +768,13 @@ class ConnectorGateway:
         )
 
     def _row(
-        self, value: dict[str, Any], plan: Plan, payload: str | None, *, current: bool
+        self,
+        value: dict[str, Any],
+        plan: Plan,
+        payload: str | None,
+        *,
+        current: bool,
+        lock_current: Callable[[], None],
     ) -> dict[str, Any]:
         digest, account, expected = _plan(plan)
         row = value["rows"].get(str(plan.attempt_id))
@@ -688,12 +800,19 @@ class ConnectorGateway:
             ):
                 raise ValueError("another account attempt is held")
             self._authority._now(value)
+            lock_current()
             self._operation.recheck(self._binding)
+            lock_current()
             self._authority._backend.attest(plan)
-            if self._authority._backend.generation(plan) != row["generation"]:
+            lock_current()
+            observed_generation = self._authority._backend.generation(plan)
+            lock_current()
+            if observed_generation != row["generation"]:
                 raise ValueError("current approval and credential generation required")
             self._operation.recheck(self._binding)
+            lock_current()
             now = self._authority._now(value)
+            lock_current()
             if now >= datetime.fromisoformat(row["expires"]):
                 raise ValueError("approval expired during current attestation")
         return row
@@ -701,9 +820,9 @@ class ConnectorGateway:
     def _transition(self, plan: Plan, payload: str | None, *, consume: bool) -> None:
         okay = False
         try:
-            with self._authority._locked():
+            with self._authority._locked() as lock_current:
                 value = self._authority._read()
-                row = self._row(value, plan, payload, current=True)
+                row = self._row(value, plan, payload, current=True, lock_current=lock_current)
                 expected = "approved" if consume else "in_flight"
                 if row["state"] != expected:
                     raise ValueError("attempt is not executable")
@@ -751,9 +870,11 @@ class ConnectorGateway:
     def credential(self, plan: Plan) -> VerifiedCredential:
         result: VerifiedCredential | None = None
         try:
-            with self._authority._locked():
+            with self._authority._locked() as lock_current:
                 value = self._authority._read()
-                row = self._row(value, plan, _plan(plan)[2], current=True)
+                row = self._row(
+                    value, plan, _plan(plan)[2], current=True, lock_current=lock_current
+                )
                 if row["state"] != "in_flight":
                     raise ValueError("durable consumption required before secrets")
                 self._execution(row, plan)
@@ -763,8 +884,10 @@ class ConnectorGateway:
                 # Consume secret access durably before the backend can run.
                 self._authority._write(value)
                 result = self._authority._backend.credential(plan, row["generation"])
-                self._row(value, plan, _plan(plan)[2], current=True)
+                lock_current()
+                self._row(value, plan, _plan(plan)[2], current=True, lock_current=lock_current)
                 now = self._authority._now(value)
+                lock_current()
                 if type(plan) is CommunicationPlan:
                     _check(plan, result, now)
                 elif type(plan) is PreflightPlan:
@@ -793,9 +916,11 @@ class ConnectorGateway:
     ) -> None:
         okay = False
         try:
-            with self._authority._locked():
+            with self._authority._locked() as lock_current:
                 value = self._authority._read()
-                row = self._row(value, plan, _plan(plan)[2], current=not held)
+                row = self._row(
+                    value, plan, _plan(plan)[2], current=not held, lock_current=lock_current
+                )
                 permitted = {"in_flight", "held", "completed"} if held else {"in_flight"}
                 if abandon_approved:
                     if not held or observed is not None or coverage is not None:
@@ -869,6 +994,7 @@ class ConnectorGateway:
                 self._authority._write(value)
                 if held:
                     self._authority._backend.quarantine(plan, row["generation"])
+                    lock_current()
                 okay = True
         except ConnectorApprovalUnconfirmed:
             raise
