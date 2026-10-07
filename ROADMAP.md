@@ -2543,3 +2543,10 @@ pins a genuine host-binding candidate for the existing attended custody consumer
 it does not grant PERSONAL capture, verify content hashes or extend recovery
 coverage. Genuine PERSONAL owner enrollment, selected proposal affirmation and
 canonical recovery remain the next attended history-intake gates.
+
+
+### 2026-10-07: Reviewed attended custody command and broader context coverage
+
+The Mac-specific attended Claude custody command is preserved in the private operator work folder. Independent code-only Opus review accepted the corrected current-credential escrow attestation and atomic, non-replacing result publication. Root passed 30 invented controls and four actual PostgreSQL tests against guarded `zacai_test`: capture and reopen of the original/companion pair, signed-owner mismatch before database construction, revocation after both inserts with rollback, and successful capture followed by disposal failure without acknowledgment. The 175 installed source modules stayed unchanged during the run. These tests simulate Mac startup and human attendance; they do not establish real owner enrollment, private archive capture, recovery or processing authority.
+
+The existing context-first catalog now covers additional customer candidates beyond the initial account example, with account/channel fields and actual task links kept distinct from name-based candidate joins. Root verified the latest source files and dated excerpts. Provider account entries are not a verified customer count; reported fixes, closed task statuses and handoffs are not client acceptance or current facts. Connected Fireflies account identity is verified and its first 50 meeting metadata/summary records are inventoried. Full transcript capture and historical coverage remain unfinished. Next remains genuine PERSONAL sign-in, exact attended custody approval, complete canonical recovery, relevant task retrieval and actual owner acceptance.
