@@ -52,9 +52,11 @@ from typing import TYPE_CHECKING, Literal, Protocol
 
 from fastapi import FastAPI
 
+from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.oidc_identity import IdentityProvider
 from zacai.interfaces.owner_enrollment import PendingOwner
 from zacai.interfaces.private_host import (
+    GmailOwnerHostFactory,
     NamedOwnerHostFactory,
     PreparedEnrollmentHost,
     PreparedOwnerHost,
@@ -465,6 +467,7 @@ def open_private_operator(
     view: Callable[[InterfacePrincipal], Awaitable[str]] | None = None,
     work_choices: WorkChoiceWeb | None = None,
     named_factory: NamedOwnerHostFactory | None = None,
+    gmail_factory: GmailOwnerHostFactory | None = None,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     startup_loader: StartupLoader = load_owner_startup,
     identities: IdentityProvider | None = None,
@@ -494,8 +497,17 @@ def open_private_operator(
             or not callable(startup_loader)
             or (mode == PrivateOperatorMode.OWNER and not callable(view))
             or (
+                gmail_factory is not None
+                and (not callable(gmail_factory) or type(clock) is not HostObservedClock)
+            )
+            or (
                 mode in (PrivateOperatorMode.ENROLLMENT, PrivateOperatorMode.PERSONAL_ENROLLMENT)
-                and (view is not None or work_choices is not None or named_factory is not None)
+                and (
+                    view is not None
+                    or work_choices is not None
+                    or named_factory is not None
+                    or gmail_factory is not None
+                )
             )
         ):
             raise ValueError("invalid operator inputs")
@@ -531,6 +543,7 @@ def open_private_operator(
                 identities=identities,
                 work_choices=work_choices,
                 named_factory=named_factory,
+                gmail_factory=gmail_factory,
             )
         if type(prepared) is PreparedOwnerHost and prepared.named is not None:
             # Actual retained flock is acquired above and not released until

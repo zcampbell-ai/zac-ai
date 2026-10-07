@@ -24,7 +24,7 @@ from fastapi import FastAPI
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
-from starlette.responses import HTMLResponse, RedirectResponse, Response
+from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from starlette.types import ASGIApp
 
 from zacai.interfaces.oidc_identity import GOOGLE_ISSUER, IdentityProvider
@@ -33,6 +33,7 @@ from zacai.interfaces.session_store import Identity, SessionStore, UserSession
 from zacai.policy import DataClassification, TrustBoundary
 
 if TYPE_CHECKING:
+    from zacai.interfaces.gmail_connection_web import GmailConnectionWeb
     from zacai.interfaces.named_followup_web import NamedFollowupWeb
     from zacai.interfaces.work_choice_web import WorkChoiceWeb
 
@@ -87,11 +88,15 @@ class InterfacePrincipal:
 
 
 class _SecurityHeaders(BaseHTTPMiddleware):
-    def __init__(self, app: ASGIApp, *, google_start_path: str | None = None) -> None:
+    def __init__(
+        self, app: ASGIApp, *, google_start_path: str | None = None,
+        gmail_consent_enabled: bool = False,
+    ) -> None:
         if google_start_path not in (None, "/login", "/enroll"):
             raise ValueError("private sign-in policy unavailable")
         super().__init__(app)
         self._google_start_path = google_start_path
+        self._gmail_consent_enabled = gmail_consent_enabled
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         response = await call_next(request)
@@ -99,14 +104,29 @@ class _SecurityHeaders(BaseHTTPMiddleware):
             response.headers[name] = value
         if (
             request.method == "GET"
-            and request.url.path == self._google_start_path
+            and (
+                request.url.path == self._google_start_path
+                or (self._gmail_consent_enabled and request.url.path == "/connections/gmail")
+            )
             and response.status_code == 200
         ):
-            # Only fixed, data-free sign-in documents may navigate to Google.
+            # Only fixed sign-in/consent forms may navigate to Google.
             # Untrusted view headers and all protected responses remain overwritten.
             response.headers["Content-Security-Policy"] = _HEADERS[
                 "Content-Security-Policy"
             ].replace("form-action 'self';", "form-action 'self' https://accounts.google.com;")
+        if self._gmail_consent_enabled and request.url.path.startswith("/connections/gmail"):
+            # A same-origin form POST needs its real Origin for strict CSRF
+            # admission. Suppress cross-origin referrers from the query-free
+            # consent page; redirects, callback and status remain no-referrer.
+            consent_page = (
+                request.method == "GET"
+                and request.url.path == "/connections/gmail"
+                and response.status_code == 200
+            )
+            response.headers["Referrer-Policy"] = (
+                "same-origin" if consent_page else "no-referrer"
+            )
         return response
 
 
@@ -137,6 +157,7 @@ def create_private_web(
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     work_choices: WorkChoiceWeb | None = None,
     named_questions: NamedFollowupWeb | None = None,
+    gmail_connections: GmailConnectionWeb | None = None,
 ) -> FastAPI:
     """Create an isolated app, never mount/run it or alter existing service binding.
 
@@ -160,6 +181,17 @@ def create_private_web(
             or json.loads(named_questions._continuity._context)["origin"] != origin
             or named_questions._store._context != named_questions._continuity._context):
             raise ValueError("private named question configuration unavailable")
+    if gmail_connections is not None:
+        from zacai.interfaces.gmail_connection_web import GmailConnectionWeb
+
+        if (
+            type(gmail_connections) is not GmailConnectionWeb
+            or gmail_connections._authority._continuity._sessions is not sessions
+            or gmail_connections._authority._continuity._owner is not owner
+            or gmail_connections._authority._continuity._clock is not clock
+            or gmail_connections._configuration.private_origin != origin
+        ):
+            raise ValueError("private Gmail connection configuration unavailable")
     target = urlsplit(origin)
     if (
         target.scheme != "https"
@@ -174,7 +206,10 @@ def create_private_web(
     initial = owner()
     OwnerGrant(initial.identity, initial.scopes)
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
-    app.add_middleware(_SecurityHeaders, google_start_path="/login")
+    app.add_middleware(
+        _SecurityHeaders, google_start_path="/login",
+        gmail_consent_enabled=gmail_connections is not None,
+    )
 
     def valid_host(request: Request) -> bool:
         return request.headers.getlist("host") == [target.netloc]
@@ -519,5 +554,83 @@ def create_private_web(
                     return HTMLResponse(named_document(html))
                 except Exception:  # noqa: BLE001 - no claims, request text or private exceptions
                     return Response("Local question not acknowledged. Review request status.", status_code=503)
+
+    if gmail_connections is not None:
+        gmail_controller = gmail_connections
+
+        @app.get("/connections/gmail")
+        async def gmail_connection_page(request: Request) -> Response:
+            try:
+                html = await run_in_threadpool(gmail_controller.page, request)
+                return HTMLResponse(
+                    '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+                    '<meta name="viewport" content="width=device-width, initial-scale=1">'
+                    '<title>Caz AI · Gmail connection</title><style>' + CAZ_STYLE
+                    + '</style></head><body><main>' + html
+                    + '<p><a href="/">Back to your review</a></p></main></body></html>'
+                )
+            except Exception:  # noqa: BLE001 - no request/backend diagnostics
+                return Response("Gmail connection unavailable", status_code=403)
+
+        @app.post("/connections/gmail/begin")
+        async def gmail_connection_begin(request: Request) -> Response:
+            try:
+                body = b""
+                async for chunk in request.stream():
+                    if len(body) + len(chunk) > 1024:
+                        return Response(status_code=413)
+                    body += chunk
+                consent = await run_in_threadpool(gmail_controller.begin, request, body)
+                # URL is transient provider state/PKCE material, never a log or
+                # page field. Fixed provider target is prepared by the authority.
+                return RedirectResponse(consent.url.get_secret_value(), status_code=303)
+            except Exception:  # noqa: BLE001 - no consent URL/raw body in diagnostics
+                return Response("Gmail connection unavailable", status_code=403)
+
+        @app.get("/connections/gmail/callback")
+        async def gmail_connection_callback(request: Request) -> Response:
+            try:
+                await run_in_threadpool(gmail_controller.callback, request)
+                # Clear callback query from the browser address immediately. No
+                # success, installation, source capture or identity claim.
+                return RedirectResponse("/connections/gmail/status", status_code=303)
+            except Exception:  # noqa: BLE001 - fixed text never callback query or tokens
+                return RedirectResponse("/connections/gmail/status", status_code=303)
+
+        @app.get("/connections/gmail/status")
+        async def gmail_connection_status(request: Request) -> Response:
+            try:
+                if not valid_host(request) or request.scope.get("query_string", b""):
+                    return Response(status_code=400)
+                receipt = await run_in_threadpool(gmail_controller.status, request)
+                counts = {
+                    name: getattr(receipt, name)
+                    for name in (
+                        "pending",
+                        "exchange_pending",
+                        "exchange_started",
+                        "denied",
+                        "held",
+                        "loaded",
+                        "total",
+                        "installed",
+                        "original_actor_verified",
+                        "source_subject_verified",
+                        "native_material_verified",
+                        "live_access_proven",
+                        "credential_authority",
+                        "processing_authorized",
+                        "execution_authorized",
+                    )
+                }
+                return JSONResponse(
+                    {
+                        **counts,
+                        "message": "Local attempt counts do not prove Google access or saved credentials. "
+                        "No connector was activated; credential review remains required.",
+                    }
+                )
+            except Exception:  # noqa: BLE001 - fixed status, no credential state disclosed
+                return Response("Gmail connection unavailable", status_code=503)
 
     return app

@@ -2460,3 +2460,24 @@ An unfinished contextual assessment now returns NEEDS_REVIEW before considering 
 The app's connected work-mail profile matches the owner's declared Brainstorm mailbox. A bounded sample retains eight sent work messages across five threads, with six candidate new-body writing excerpts separated from forwarded text and signatures. Root verified all 24 catalog files against retained hashes and all six exact excerpt spans against the connector responses. Two attachment-free selected messages also have retained raw email bytes. Returned From and SENT observations do not independently authenticate composition, establish complete mailbox coverage or connect the native Caz runtime. The owner's current no-em-dash instruction remains separate from historical examples.
 
 An existing project SOW locator now has connector-extracted scope text for contextual reuse. Root verified the updated scope-card files. Original PDF acquisition failed before bytes were saved, so extracted scope is explicitly separate from original custody, signature appearance, cryptographic validity, current amendments and delivered-work acceptance. A further bounded commercial catalog retains 58 channel entries and 13 selected replies, distinguishing edit requests, review intent, reported approval and unacknowledged handoff. These private source records stay outside Git and require protected selection and task acceptance before becoming a useful canonical context baseline.
+
+### 2026-10-07: Optional Gmail setup integration
+
+Integrated the existing connection track's reviewed setup dependency closure into
+the core owner lifecycle. Gmail routes remain off by default. Explicit startup
+preserves the legacy loader, PERSONAL enrollment safeguards, named-owner binding
+and foreground cleanup. A setup callback stages a held attempt; it does not
+install credential authority, activate source capture or authorize processing.
+
+Independent code-only Opus review accepted the inactive integration. Its ingress,
+route-header and combined named/Gmail lifecycle questions received additional
+source-preserving controls. Root reproduced 1,703 selected pure tests against the
+installed files; whole-source strict mypy171 and source/test Ruff pass. Inputs are
+invented provider and OS fixtures, not actual Google or Keychain acceptance.
+
+Live setup remains blocked on credential-format coexistence, a reviewed genuine
+BRAINSTORM HIGHLY_RESTRICTED enrollment path and held-state reconciliation. Do not
+rewrite the shared session-key item, edit an owner grant manually or reset a held
+attempt. Resolve those joins before an attended live trial. Native source capture,
+canonical context protection, useful task acceptance and iPhone readiness remain
+separate gates on the existing context-first roadmap.
