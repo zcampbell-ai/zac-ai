@@ -142,9 +142,12 @@ class ContextualRequest:
 
 
 def _require_legacy_context(context: ReviewContext) -> None:
-    if (
-        context.task.event.event_type == "native.evidence.selected"
-        or context.task.event.producer == "native-evidence-projection-v1"
+    if context.task.event.event_type in (
+        "native.evidence.selected",
+        "history.evidence.selected",
+    ) or context.task.event.producer in (
+        "native-evidence-projection-v1",
+        "history-context-projection-v1",
     ):
         raise ValueError("native contextual family requires its exact sidecar")
 
@@ -469,8 +472,9 @@ def _check_native_derivation(
         or EvidenceReference.model_validate(proposal_reference) != proposal_reference
         or proposal_reference.trust_boundary is not TrustBoundary.BRAINSTORM
         or proposal_reference.effective_classification is not DataClassification.CONFIDENTIAL
-        or original.event.event_type == "native.evidence.selected"
-        or original.event.producer == "native-evidence-projection-v1"
+        or original.event.event_type in ("native.evidence.selected", "history.evidence.selected")
+        or original.event.producer
+        in ("native-evidence-projection-v1", "history-context-projection-v1")
         or context.task.event.event_type != "native.evidence.selected"
         or context.task.event.producer != "native-evidence-projection-v1"
         or context.task.event.causation_id != original.event.event_id
