@@ -274,6 +274,35 @@ class PrivateOperatorWindow:
         Native Uvicorn waits without a graceful-shutdown timeout. No reload or
         worker subprocesses may outlive the mode lease. No auto-restart occurs.
         """
+        self._run_foreground(server)
+
+    def run_local(self, *, action: Callable[[], None]) -> None:
+        """Explicit trusted LOCAL action under the existing foreground lease.
+
+        No listener is bound. The action must stop all background work before
+        returning; the same one-attempt, signal/log restoration and physical
+        thread drain apply. This is host execution, never owner authorization.
+        """
+
+        def local(app: FastAPI) -> None:
+            def interrupt(signum: int, frame: object) -> None:
+                raise KeyboardInterrupt
+
+            # Uvicorn installs its own serving handlers; LOCAL execution has no
+            # server to do that. Interrupt only the action, then suppress further
+            # interrupts while the existing physical drain/restoration runs.
+            try:
+                for sig in (signal.SIGINT, signal.SIGTERM):
+                    signal.signal(sig, interrupt)
+                action()
+            finally:
+                for sig in (signal.SIGINT, signal.SIGTERM):
+                    signal.signal(sig, signal.SIG_IGN)
+
+        self._run_foreground(local)
+
+    def _run_foreground(self, server: Callable[[FastAPI], None]) -> None:
+        """Shared lifecycle; caller is an explicit foreground host action."""
         okay = False
         try:
             self._require()
