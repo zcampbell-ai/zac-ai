@@ -2570,3 +2570,30 @@ The literal preparer binds two distinct original reference snapshots, complete r
 Installed an explicit dormant loader for three distinct canonical Sources: original detail response, original metadata response and exact derived excerpt. It uses the existing bounded local artifact reader, checks current complete Source metadata, strongest classification, revisions and access before each read and after reconstruction, and rejects a derivative classified less restrictively than its originals. Original V1/native research paths remain unchanged. Opus identified the derivative-label gap in the first candidate; the corrected code passed independent code-only review with actual canonical getter parity evidence. No private responses were sent for review.
 
 Root reproduced 83 pure controls and 11 actual guarded PostgreSQL cases with invented artifacts, including PERSONAL and BRAINSTORM HR commit/reopen, separately committed access changes during reads, revision ambiguity, append-only enforcement and the elevation boundary foreign key. The installed 175-source graph matches the accepted database test graph. This is current-source read mechanics, not protected context readiness: actual canonical enrollment, complete original/derived plus State/journal recovery, exact history processing consent, authenticated assessment and useful owner task acceptance remain required. Retrieved response counts do not prove complete transcript or company coverage.
+
+### 2026-10-07: Full-history retrieval scope and context baseline
+
+The owner reaffirmed all accessible Fireflies history across clients. The terminal
+metadata inventory contains 2,478 distinct recording IDs; the provider's final
+short page ends the observed pagination, without proving all-company access or
+retention completeness. Root verified checkpoint 16's 770 successful detailed
+response observations against exact retained source hashes and recording requests.
+The saved queue has 1,708 IDs still unfetched. Subsequent reads continue that queue
+serially, with provider pacing and a stop on the first error. Prior failures remain
+retained separately from explicitly authorized successful retries.
+
+Successful responses are not verified complete transcripts. Live recordings,
+zero-sentence metadata, rendered-only content, missing bodies and unresolved
+coverage must remain explicit. The next local audit checks actual response
+structure before making transcript completeness claims. Cataloging and retrieval
+are restricted holding, not canonical memory, current project facts or permission
+for external model processing.
+
+The useful baseline remains protected history capture, complete recovery,
+source-backed relevant retrieval, authenticated task assessment and owner
+acceptance. The local history runtime and fragment packet storage remain staged.
+Claude's authenticated reviewer reported a weekly limit before reviewing the
+runtime successor; no review verdict or fallback approval exists. Independent
+local checks can advance while that review waits. A fresh attended PERSONAL
+enrollment attempt still requires its separate owner approval. None of these
+dependencies changes the context-first roadmap or makes a prototype usable.
