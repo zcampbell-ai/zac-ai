@@ -1,6 +1,8 @@
-# Zac AI
+# Caz AI
 
-Zac AI is a personal and business AI operating system for Zac Campbell.
+Caz AI is a personal and business AI operating system for Zac Campbell.
+The repository and canonical Zac State and Zac Event identifiers retain their
+existing names.
 
 It is designed to maintain durable personal and Brainstorm context,
 understand activity across connected systems, track commitments,
@@ -9,8 +11,18 @@ prepare useful work, and execute authorized actions safely.
 ## Current Status
 The existing Mac Studio repository is complete through D031B: canonical-state
 storage, synthetic Fireflies-shaped ingestion, encrypted artifact backup and a
-successful real Backblaze B2 restore drill for BRAINSTORM. D032 Core Intelligence Contracts is also complete as a local synthetic foundation,
-independently reviewed by Claude, with 639 passing tests. No live Fireflies connection or real model adapter is implemented.
+successful real Backblaze B2 restore drill for BRAINSTORM. D032 Core Intelligence
+Contracts is also complete as an independently reviewed local synthetic
+foundation. Later controlled source/recovery trials, model experiments and
+context/interface work are recorded with their limits in ROADMAP.md.
+
+The current priority is a verified personal and Brainstorm context baseline.
+Connected-app catalogs and historical holdings are evidence collections, not
+automatically imported canonical memory or confirmed current facts. Native
+connection work remains separate from app connector access. The private
+text-first owner trial is not ready until integration, protected relevant
+context, independently assessed useful answers and actual mobile acceptance
+are verified.
 
 The core contracts separate event/evidence context, provider/model/runtime
 identity, intelligence output and execution proposals. Eligibility uses a
