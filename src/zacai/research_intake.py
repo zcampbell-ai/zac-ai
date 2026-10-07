@@ -16,6 +16,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from zacai.ingestion.artifact_store import ArtifactStore, canonical_bytes, content_hash_of
+from zacai.intelligence.contracts import EvidenceReference
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 from zacai.review_authorization import _bytes, _find, _write
@@ -215,3 +216,181 @@ def record_exhibits(
     except Exception:  # noqa: BLE001, S110 - no private storage/DB diagnostics
         pass
     raise ResearchIntakeError("research intake recording failed")
+
+
+@dataclass(frozen=True, repr=False)
+class RenderedFirefliesLiteral:
+    """Preparation only; both original Sources remain required dependencies.
+
+    Reference/hash consistency is not current Source access, approval or recovery.
+    The literal may include headers or summaries; no sentence grammar is inferred.
+    """
+
+    detail_reference: EvidenceReference
+    metadata_reference: EvidenceReference
+    requested_transcript_id: str
+    envelope: bytes
+
+
+def prepare_rendered_fireflies_literal(
+    *,
+    detail_raw: bytes,
+    metadata_raw: bytes,
+    detail_reference: EvidenceReference,
+    metadata_reference: EvidenceReference,
+    block_index: int,
+    start: int,
+    end: int,
+) -> RenderedFirefliesLiteral:
+    """Bind exact retained wrappers and a literal decoded-text codepoint span.
+
+    No writes, permission, native identity, thread completeness or current facts.
+    Both current Source/ACL checks and original-byte recovery are future gates.
+    fetched_at is a retained wrapper claim, not an authenticated host clock.
+    The matched recording date is provider-reported metadata, not verified time.
+    """
+    try:
+        from datetime import UTC
+
+        from zacai.intelligence.contracts import EvidenceReference
+
+        refs = tuple(
+            EvidenceReference.model_validate(r) for r in (detail_reference, metadata_reference)
+        )
+        if (
+            type(detail_raw) is not bytes
+            or type(metadata_raw) is not bytes
+            or not 0 < len(detail_raw) <= 2_000_000
+            or not 0 < len(metadata_raw) <= 2_000_000
+            or refs[0].source_id == refs[1].source_id
+            or refs[0].trust_boundary != refs[1].trust_boundary
+            or refs[0].effective_classification != refs[1].effective_classification
+            or content_hash_of(detail_raw) != refs[0].content_hash
+            or content_hash_of(metadata_raw) != refs[1].content_hash
+            or any(type(n) is not int for n in (block_index, start, end))
+            or block_index != 0
+            or start < 0
+            or end <= start
+            or end - start > 1200
+        ):
+            raise ValueError("scope")
+
+        def load(raw: bytes | str) -> object:
+            return json.loads(
+                raw, object_pairs_hook=_pairs, parse_constant=_constant, parse_float=_float
+            )
+
+        def aware(value: object) -> str:
+            if not isinstance(value, str) or len(value) > 64:
+                raise ValueError("date")
+            date = datetime.fromisoformat(value)
+            if date.tzinfo is None or date.utcoffset() is None:
+                raise ValueError("date")
+            return date.astimezone(UTC).isoformat()
+
+        def wrapper(raw: bytes) -> tuple[dict[str, object], str, str]:
+            value = load(raw)
+            if not isinstance(value, dict) or set(value) != {"request", "fetched_at", "response"}:
+                raise ValueError("wrapper")
+            request, response = value["request"], value["response"]
+            if (
+                not isinstance(request, dict)
+                or not isinstance(response, dict)
+                or set(response) != {"content", "isError"}
+                or response["isError"] is not False
+            ):
+                raise ValueError("response")
+            blocks = response["content"]
+            if (
+                not isinstance(blocks, list)
+                or len(blocks) != 1
+                or not isinstance(blocks[0], dict)
+                or set(blocks[0]) != {"type", "text"}
+                or blocks[0]["type"] != "text"
+                or not isinstance(blocks[0]["text"], str)
+            ):
+                raise ValueError("block")
+            return request, aware(value["fetched_at"]), blocks[0]["text"]
+
+        request, detail_fetched, literal = wrapper(detail_raw)
+        metadata_request, metadata_fetched, metadata_text = wrapper(metadata_raw)
+        requested = request.get("transcriptId")
+        if (
+            set(request) != {"transcriptId"}
+            or not isinstance(requested, str)
+            or not 1 <= len(requested) <= 100
+            or not requested.isascii()
+            or not requested.isalnum()
+            or end > len(literal)
+        ):
+            raise ValueError("request")
+        if (
+            set(metadata_request) != {"format", "limit", "skip", "mine"}
+            or metadata_request["format"] != "json"
+            or type(metadata_request["limit"]) is not int
+            or not 1 <= metadata_request["limit"] <= 50
+            or type(metadata_request["skip"]) is not int
+            or metadata_request["skip"] < 0
+            or metadata_request["mine"] is not False
+        ):
+            raise ValueError("metadata request")
+        records = load(metadata_text)
+        keys = {
+            "id",
+            "title",
+            "dateString",
+            "duration",
+            "organizerEmail",
+            "meetingLink",
+            "summary",
+            "meetingAttendees",
+            "meetingInfo",
+            "participants",
+        }
+        if not isinstance(records, list) or len(records) > metadata_request["limit"]:
+            raise ValueError("metadata capacity")
+        ids = set()
+        matched_date = None
+        for record in records:
+            if (
+                not isinstance(record, dict)
+                or set(record) != keys
+                or not isinstance(record["id"], str)
+                or record["id"] in ids
+            ):
+                raise ValueError("metadata shape")
+            ids.add(record["id"])
+            if record["id"] == requested:
+                matched_date = aware(record["dateString"])
+        if matched_date is None:
+            raise ValueError("metadata identity")
+        envelope = canonical_bytes(
+            {
+                "format": "zac-fireflies-rendered-literal-preparation-v1",
+                "detail_reference": refs[0].model_dump(mode="json"),
+                "metadata_reference": refs[1].model_dump(mode="json"),
+                "requested_transcript_id": requested,
+                "returned_recording_identity": "UNAUTHENTICATED",
+                "reported_metadata_date": matched_date,
+                "detail_fetched_at": detail_fetched,
+                "metadata_fetched_at": metadata_fetched,
+                "block_index": block_index,
+                "codepoint_start": start,
+                "codepoint_end": end,
+                "decoded_block_hash": content_hash_of(literal.encode("utf-8")),
+                "literal": literal[start:end],
+                "coverage": "SELECTED_RENDERED_TEXT_ONLY",
+                "account_thread_completeness": "UNKNOWN",
+                "live_snapshot_status": "UNASSESSED",
+                "native_capture": False,
+                "processing_authorized": False,
+                "recovery_verified": False,
+                "current_facts_verified": False,
+            }
+        )
+        if len(envelope) > 32_000:
+            raise ValueError("envelope capacity")
+        return RenderedFirefliesLiteral(refs[0], refs[1], requested, envelope)
+    except Exception:  # noqa: BLE001, S110 - fixed diagnostics only
+        pass
+    raise ResearchIntakeError("rendered Fireflies literal preparation rejected") from None

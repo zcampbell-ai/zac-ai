@@ -409,3 +409,94 @@ def decode_contextual_packet_any(raw: bytes) -> ContextualPacket | ContextualPac
     except Exception:  # noqa: BLE001,S110 - suppress private raw union chains
         pass
     raise ValueError("contextual packet unavailable or invalid")
+
+
+def _check_versioned_contextual_assessment(
+    evaluation: ContextualEvaluation,
+    payload: bytes,
+    *,
+    task_id: UUID,
+    builder_id: UUID,
+    created_at: datetime,
+    review: ContextualReview,
+) -> ContextualOutcome:
+    """Consistency of supplied judgments only; no reviewer or delivery authority."""
+    evaluation = ContextualEvaluation.model_validate(evaluation)
+    if (
+        evaluation.task_id != task_id
+        or evaluation.builder_id != builder_id
+        or evaluation.packet_digest != hashlib.sha256(payload).hexdigest()
+        or evaluation.evaluated_at < created_at
+    ):
+        raise ValueError("evaluation binding mismatch")
+    judgments = {item.judgment for item in evaluation.assessments}
+    if ReviewJudgment.FAIL in judgments:
+        return ContextualOutcome.NEEDS_REVISION
+    if ReviewJudgment.UNREVIEWED in judgments:
+        return ContextualOutcome.NEEDS_REVIEW
+    if review.conflicts or review.clarifications:
+        return ContextualOutcome.NEEDS_CLARIFICATION
+    return ContextualOutcome.REVIEWED_PASS
+
+
+def check_native_contextual_evaluation(
+    evaluation: ContextualEvaluation, payload: bytes
+) -> ContextualOutcome:
+    """Native V2 exact-byte judgments, not authenticated review or processing."""
+    try:
+        packet = decode_native_contextual_packet(payload)
+        return _check_versioned_contextual_assessment(
+            evaluation,
+            payload,
+            task_id=packet.task.task_id,
+            builder_id=packet.builder_id,
+            created_at=packet.created_at,
+            review=packet.review,
+        )
+    except Exception:  # noqa: BLE001,S110 - fixed private packet/assessment error
+        pass
+    raise ValueError("native contextual evaluation unavailable or mismatched")
+
+
+def check_history_contextual_evaluation(
+    evaluation: ContextualEvaluation, payload: bytes
+) -> ContextualOutcome:
+    """Complete-message history exact bytes; no source, owner or recovery proof."""
+    from zacai.intelligence.history_contextual_codec import decode_history_contextual_packet
+
+    try:
+        packet = decode_history_contextual_packet(payload)
+        return _check_versioned_contextual_assessment(
+            evaluation,
+            payload,
+            task_id=packet.request().context().task.task_id,
+            builder_id=packet.builder_id,
+            created_at=packet.created_at,
+            review=packet.review,
+        )
+    except Exception:  # noqa: BLE001,S110 - fixed private packet/assessment error
+        pass
+    raise ValueError("history contextual evaluation unavailable or mismatched")
+
+
+def check_history_fragment_contextual_evaluation(
+    evaluation: ContextualEvaluation, payload: bytes
+) -> ContextualOutcome:
+    """Incomplete fragment judgments never upgrade ancestry or current facts."""
+    from zacai.intelligence.history_fragment_contextual_codec import (
+        decode_history_fragment_contextual_packet,
+    )
+
+    try:
+        packet = decode_history_fragment_contextual_packet(payload)
+        return _check_versioned_contextual_assessment(
+            evaluation,
+            payload,
+            task_id=packet.request().context().task.task_id,
+            builder_id=packet.builder_id,
+            created_at=packet.created_at,
+            review=packet.review,
+        )
+    except Exception:  # noqa: BLE001,S110 - fixed private packet/assessment error
+        pass
+    raise ValueError("fragment contextual evaluation unavailable or mismatched")
