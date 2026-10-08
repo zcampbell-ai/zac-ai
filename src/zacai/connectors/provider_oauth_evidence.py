@@ -20,6 +20,7 @@ from typing import Any, Literal
 from pydantic import SecretStr
 
 from zacai.connectors.account_preflight import Provider
+from zacai.connectors.oauth_callback_diagnostic import OAuthCallbackDiagnostic, _phase
 from zacai.connectors.oauth_configuration import OAuthConfiguration
 
 _MAX_RESPONSE = 65_536
@@ -146,8 +147,11 @@ def _google(
     expected_subject: str | None,
     exchange_observed_at: datetime,
     evidence_observed_at: datetime,
+    diagnostic: OAuthCallbackDiagnostic | None = None,
 ) -> UninstalledOAuthCandidate:
+    _phase(diagnostic, "evidence_configuration")
     configuration = _configuration(configuration, Provider.GMAIL)
+    _phase(diagnostic, "evidence_observation")
     start, observed = _time(exchange_observed_at), _time(evidence_observed_at)
     if not start <= observed <= start + timedelta(minutes=5):
         raise ValueError("bounded observation interval required")
@@ -155,7 +159,9 @@ def _google(
         type(expected_subject) is not str or _IDENTIFIER.fullmatch(expected_subject) is None
     ):
         raise ValueError("reviewed stable subject required")
+    _phase(diagnostic, "evidence_response")
     exchange, info = _object(exchange_bytes), _object(tokeninfo_bytes)
+    _phase(diagnostic, "evidence_exchange")
     if set(exchange) - {
         "access_token",
         "refresh_token",
@@ -184,6 +190,7 @@ def _google(
         "email",
         "email_verified",
     }
+    _phase(diagnostic, "evidence_subject")
     actual_subject = info.get("sub")
     if (
         set(info) - allowed
@@ -192,10 +199,13 @@ def _google(
         or (expected_subject is not None and actual_subject != expected_subject)
     ):
         raise ValueError("stable subject evidence required")
+    _phase(diagnostic, "evidence_client")
     clients = [info[k] for k in ("azp", "aud") if k in info]
     if not clients or any(type(c) is not str or c != configuration.client_id for c in clients):
         raise ValueError("exact client evidence required")
+    _phase(diagnostic, "evidence_scope")
     _scopes(info.get("scope"), configuration.scopes, " ")
+    _phase(diagnostic, "evidence_time")
     expiries: list[datetime] = []
     if "expires_in" in info:
         expiries.append(
@@ -211,6 +221,7 @@ def _google(
     candidate_expiry = min([expiry, *expiries])
     if candidate_expiry <= observed:
         raise ValueError("candidate access already expired")
+    _phase(diagnostic, "evidence_optional")
     if "access_type" in info and info["access_type"] != "offline":
         raise ValueError("offline grant required")
     if "email" in info and info["email"] != configuration.gmail_mailbox:
@@ -250,6 +261,7 @@ def parse_google_oauth_evidence(
     expected_subject: str | None,
     exchange_observed_at: datetime,
     evidence_observed_at: datetime,
+    diagnostic: OAuthCallbackDiagnostic | None = None,
 ) -> UninstalledOAuthCandidate:
     """Pure response parsing; adapter must bind tokeninfo to exchanged access token.
 
@@ -270,6 +282,7 @@ def parse_google_oauth_evidence(
             expected_subject=expected_subject,
             exchange_observed_at=exchange_observed_at,
             evidence_observed_at=evidence_observed_at,
+            diagnostic=diagnostic,
         )
     except Exception:  # noqa: BLE001,S110 - discard raw response and token frames
         pass

@@ -28,6 +28,7 @@ from pydantic import SecretStr
 from zacai.connectors.account_preflight import GMAIL_COMMUNICATION_SCOPES, Provider
 from zacai.connectors.gmail_transport import GmailReadTransport
 from zacai.connectors.gmail_wire import GmailScope
+from zacai.connectors.oauth_callback_diagnostic import OAuthCallbackDiagnostic, _phase
 from zacai.connectors.oauth_configuration import OAuthConfiguration
 from zacai.connectors.oauth_transactions import ExchangeMaterial, OAuthExchangeOperation
 from zacai.connectors.provider_oauth_evidence import (
@@ -494,6 +495,7 @@ def exchange_initial(
     client_secret_loader: Callable[[OAuthConfiguration], SecretStr],
     transport: OAuthExchangeTransport,
     expected_subject: str | None = None,
+    diagnostic: OAuthCallbackDiagnostic | None = None,
 ) -> CheckedOAuthExchange:
     """One initial exchange, checked same-token identity, no installation authority.
 
@@ -512,23 +514,29 @@ def exchange_initial(
     profile_owner = None
     profile_values = None
     try:
+        _phase(diagnostic, "exchange_release")
         profile_operation = _profile_operation(operation)
         material = operation.take_exchange()
         config = material.configuration
         operation.current()
+        _phase(diagnostic, "exchange_credential")
         client_secret = client_secret_loader(config)
         operation.current()
         if type(client_secret) is not SecretStr:
             raise ValueError("trusted exact client secret required")
         operation.current()
         observed = operation.observed_at()
+        _phase(diagnostic, "exchange_provider")
         exchange = transport.exchange(material, client_secret)
+        _phase(diagnostic, "exchange_current")
         operation.current()
         if config.provider is Provider.GMAIL:
             access = _secret(_object(exchange).get("access_token"))
             operation.current()
             evidence_at = operation.observed_at()
+            _phase(diagnostic, "tokeninfo_provider")
             evidence = transport.google_tokeninfo(access)
+            _phase(diagnostic, "exchange_current")
             operation.current()
             candidate = parse_google_oauth_evidence(
                 config,
@@ -537,14 +545,18 @@ def exchange_initial(
                 expected_subject=expected_subject,
                 exchange_observed_at=observed,
                 evidence_observed_at=evidence_at,
+                diagnostic=diagnostic,
             )
             operation.current()
+            _phase(diagnostic, "profile_current")
             _same_profile_operation(operation, profile_operation)
             profile_owner = operation._operation.establish()
             profile_values = _profile_candidate(candidate)
             operation.current()
             _same_profile_operation(operation, profile_operation)
+            _phase(diagnostic, "profile_provider")
             transport.gmail_profile(candidate.access_token, config)
+            _phase(diagnostic, "profile_current")
             operation.current()
             _same_profile_operation(operation, profile_operation)
             if _profile_candidate(candidate) != profile_values:
@@ -610,8 +622,13 @@ def exchange_initial(
     except BaseException as error:  # noqa: BLE001 - preserve only fixed failure categories
         failed, cancelled = True, not isinstance(error, Exception)
     if failed:
+        previous_phase = (
+            diagnostic.phase if type(diagnostic) is OAuthCallbackDiagnostic else "unavailable"
+        )
+        _phase(diagnostic, "hold_preservation")
         try:
             operation.hold()
+            _phase(diagnostic, previous_phase)
         except BaseException as error:  # noqa: BLE001 - host-wide halt if preservation unconfirmed
             operation.halt_unconfirmed()
             unconfirmed = True

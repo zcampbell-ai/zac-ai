@@ -36,6 +36,7 @@ from zacai.connectors.gmail_quarantine_journal import (
 from zacai.connectors.gmail_quarantine_record import parse_gmail_quarantine_record
 from zacai.connectors.gmail_recovery_authorization import GmailRecoveryAction, _closed
 from zacai.connectors.gmail_registration import ReviewedGmailRegistration
+from zacai.connectors.oauth_callback_diagnostic import OAuthCallbackDiagnostic, _phase
 from zacai.connectors.oauth_configuration import ConsentRequest, OAuthConfiguration
 from zacai.connectors.oauth_exchange import OAuthExchangeTransport, exchange_initial
 from zacai.connectors.oauth_transactions import OAuthTransactionAuthority
@@ -211,6 +212,7 @@ class GmailRecoveryConsumer:
                 info=self._key_context,
             ).derive(key)
         )
+        self._diagnostic: OAuthCallbackDiagnostic = host._callback_diagnostic
         self._preview: Any = None
         self._committed = self._spent = self._failed = False
         self._admission: GmailRecoveryAdmission | None = None
@@ -648,6 +650,7 @@ class GmailRecoveryConsumer:
 
     @_closed
     def callback_once(self, request: Request) -> GmailRecoveryHeldReceipt:
+        _phase(self._diagnostic, "callback_current")
         self._check()
         admission = self._admission
         if admission is None:
@@ -664,12 +667,23 @@ class GmailRecoveryConsumer:
                 client_secret_loader=self._loader,
                 transport=self._transport,
                 expected_subject=None,
+                diagnostic=self._diagnostic,
             )
+            _phase(self._diagnostic, "profile_current")
             observation = checked.gmail_profile_observation(operation)
+            _phase(self._diagnostic, "native_hold")
             self._stage(checked, operation)
             profile = observation.profile_verified
         finally:
+            previous_phase = (
+                self._diagnostic.phase
+                if type(self._diagnostic) is OAuthCallbackDiagnostic
+                else "unavailable"
+            )
+            _phase(self._diagnostic, "hold_preservation")
             operation.hold()
+            _phase(self._diagnostic, previous_phase)
+        _phase(self._diagnostic, "held_receipt")
         self._check()
         with self._authority._locked() as current:
             self._check()

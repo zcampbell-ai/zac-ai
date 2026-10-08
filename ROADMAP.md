@@ -2653,3 +2653,18 @@ followed by exact task consent/claim, independently reviewed inference and asses
 release. An email acknowledgment alone cannot prove payment or delivered-work
 acceptance. The existing context-first roadmap and PERSONAL/BRAINSTORM isolation
 remain in force.
+
+### 2026-10-07: Gmail callback observation checkpoint
+
+The separately approved recovery attempt reached Google consent but returned a
+closed callback failure. Its route was removed and that attempt remains ended.
+Gmail API enablement was verified; the precise callback failure is still unknown.
+
+Installed fixed callback phases retain only the operation reached, with no
+provider response, token, address or raw error. They do not establish a cause or
+permission. Existing identity, scope, spend, hold and cancellation predicates
+remain unchanged. Independent source review and root reproduction passed all 89
+focused invented controls. No live provider, credential or SQL call was made by
+those checks. A sealed runner proposal remains unreleased until its installed
+pins and fresh configuration are verified and a new exact attempt is approved.
+Gmail remains inactive in Caz; native chat reading is a temporary context bridge.

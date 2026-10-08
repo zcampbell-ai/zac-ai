@@ -38,6 +38,7 @@ from starlette.requests import Request
 
 from zacai.connectors.account_preflight import Provider
 from zacai.connectors.connector_authority import _guard, _json, _pairs
+from zacai.connectors.oauth_callback_diagnostic import _phase
 from zacai.connectors.oauth_configuration import (
     ConsentRequest,
     OAuthConfiguration,
@@ -735,13 +736,17 @@ class OAuthTransactionAuthority:
 
         if type(admission) is not GmailRecoveryAdmission or admission._authority is not self:
             raise ValueError("actual spent original-domain recovery required")
+        diagnostic = admission._consumer._diagnostic
+        _phase(diagnostic, "callback_current")
         slack_rotation = None
         self._ready()
         configuration, account = self._configuration(configuration, slack_rotation)
+        _phase(diagnostic, "callback_owner")
         admission.validate_callback(request)
         operation = admission._action._hr_operation
         binding = operation.establish().binding_digest
         self._scope(operation, binding)
+        _phase(diagnostic, "callback_query")
         raw = request.scope.get("query_string", b"")
         if type(raw) is not bytes or not 1 <= len(raw) <= 4096:
             raise ValueError("bounded callback required")
@@ -780,6 +785,7 @@ class OAuthTransactionAuthority:
         if not content or len(content) > 2048 or any(ord(c) < 33 or ord(c) > 126 for c in content):
             raise ValueError("bounded callback value required")
         state_hash = _hash(fields["state"])
+        _phase(diagnostic, "callback_spend")
         with self._locked() as lock_current:
             self._ready()
             admission.current()

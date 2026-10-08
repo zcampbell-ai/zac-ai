@@ -32,6 +32,7 @@ from zacai.connectors.gmail_held_staging import HeldGmailNativeStage
 from zacai.connectors.gmail_installation import GmailInstallation
 from zacai.connectors.gmail_native_reader import GmailNativeReader
 from zacai.connectors.gmail_registration import ReviewedGmailRegistration
+from zacai.connectors.oauth_callback_diagnostic import OAuthCallbackDiagnostic
 from zacai.connectors.oauth_configuration import OAuthConfiguration
 from zacai.connectors.oauth_exchange import OAuthExchangeTransport
 from zacai.connectors.oauth_host_guard import OAuthHostGuard
@@ -162,6 +163,7 @@ class GmailRecoveryHostPlan:
         self._startup_only = startup_only
         self._original_grant_profile = original_grant_profile
         self._startup_stage = "prepared"
+        self._callback_diagnostic = OAuthCallbackDiagnostic()
         self._load_existing = load_existing
         self._loaded: Any = None
         self._original_loaded: Any = None
@@ -210,6 +212,12 @@ class GmailRecoveryHostPlan:
 
     def __repr__(self) -> str:
         return "GmailRecoveryHostPlan()"
+
+    @property
+    def callback_stage(self) -> str:
+        """Fixed operation reached; never authority or a proven failure cause."""
+        diagnostic = self._callback_diagnostic
+        return diagnostic.phase if type(diagnostic) is OAuthCallbackDiagnostic else "unavailable"
 
     @property
     def startup_stage(self) -> str:
