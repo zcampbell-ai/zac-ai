@@ -7243,3 +7243,22 @@ complete artifact/State/journal recovery plan. Return the association explicitly
 alongside the packet held as NEEDS_REVIEW; packet custody alone cannot establish
 the full publication lineage. Implementation, actual recovery acceptance and
 independent engineering review remain pending. No private processing is enabled.
+
+### Fragment reviewer invocation and retained assessment (2026-10-08)
+
+The staged full-publication path will consume the paired associated answer held
+as NEEDS_REVIEW. It will use the existing complete-review preparation, wire,
+counter and ten-criterion checker. A distinct canonical reviewer attempt is bound
+to the original admitted purpose, packet, association, route, pins, reservation
+and deadline. Commit and reopen its claim before dispatch; a failed consumed
+attempt cannot be revived by another instance or a fresh run identifier.
+
+The reviewer runtime requires a concrete internal PRE/RELEASE gate after its
+metadata/count callbacks. An outer wrapper around the dormant mechanical method
+cannot provide that guarantee. The actual invocation owns the parsed judgments
+and usage; host-assigned assessment identity and once-only retention bind them to
+that invocation. Supplied judgments or a reviewer UUID alone are not authenticated
+review. Retain the exact assessment with its invocation binding, then verify a new
+complete artifact/State/journal checkpoint before checked owner release. Existing
+packet, State, Event and evaluator contracts remain unchanged. This is a design
+under implementation, with no live processing or semantic acceptance established.
