@@ -2854,3 +2854,30 @@ retained output and independent review. The generation/output join is being buil
 on the frozen source graph. No attended live approval, private history inference,
 useful generated result, canonical current-fact promotion or phone readiness is
 claimed. Product changes remain staged pending integration and independent review.
+
+### 2026-10-08: Associated answer storage and cold recovery
+
+The final owner-clock correction passed 52 root-reproduced offline controls,
+followed by fresh seven-case approval and seven-case recovery runs on the
+corrected source. This closes the previously recorded clock-ordering gap for
+those scopes; the earlier failures remain preserved.
+
+The staged generation/output join now passes one root-exclusive PostgreSQL and
+native-age integration case. Invented signed-owner approval leads to the
+generation claim, a simulated model response, and the answer packet plus its
+canonical source association committed together. A fresh complete artifact,
+State and journal checkpoint includes that pair and its approval ancestry. A
+separate cold workspace successfully rechecks recovery; a second save is refused.
+The result remains NEEDS_REVIEW. This proves storage/recovery mechanics, not
+attended owner approval, live inference or useful-answer quality.
+
+Two additional real PostgreSQL cases passed alongside the happy case in a
+three-case run. An artifact callback that commits and restarts the capture
+transaction is refused before association readback or Source capture. An injected
+protection failure after the real packet/association commit keeps the result held
+and refuses another save. These cases do not claim actual failed crypto cleanup.
+
+The concrete reviewer/runtime join passes independent static checks and 17 declared-record
+controls, but authenticated invocation and assessment recovery still require
+execution acceptance and independent engineering review. Product code remains
+staged; private history processing and phone readiness are not enabled.
