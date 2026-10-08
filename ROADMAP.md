@@ -2799,3 +2799,27 @@ private context candidates, with source hashes, exact spans and finite independe
 review. Reported repairs, task status and verified acceptance remain separate;
 incomplete pages are recorded and no global completeness or canonical import is
 claimed. The candidate code remains staged pending independent engineering review.
+
+### 2026-10-08: Canonical cancellation database acceptance
+
+The staged selective cancellation writer passed four root-exclusive PostgreSQL
+cases with invented history and signed-owner fixtures. They verify canonical
+commit/reopen and exact replay without renewing the recorded time, a current
+same-actor cookie cancelling after the original processing window expires,
+committed acknowledgement loss preserving denial, and the actual writer waiting
+on the original generation's advisory lock. Cancellation denies processing even
+before its own backup completes; it does not change source custody or renew
+processing permission.
+
+The first run passed all four cases but its runner still expected three results.
+That run remains recorded as failed acceptance. A runner-only successor corrected
+both counts and passed a fresh four-case run; product code, fixtures and test
+cases were unchanged. Root also reproduced 43 guarded offline withdrawal controls.
+These are isolated mechanics, not attended live approval, mounted cancellation,
+full recovery or a generated useful answer.
+
+Next remains the existing context-first path: finish concrete full-purpose
+approval capture and protection, verify the actual HTTP/database join, and bind
+approval and cancellation to generation and independent review before releasing
+private history results. Current context facts and iPhone usability remain
+unverified. No new private-source processing or native retry was enabled.
