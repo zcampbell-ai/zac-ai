@@ -2770,3 +2770,32 @@ selective withdrawal checks, authenticated reviewer dispatch and assessment-incl
 recovery remain required before generated private answers. The existing protected
 dated-excerpt route is an intermediate source-read checkpoint after fresh PERSONAL
 sign-in and exact custody/protection affirmations, not completion of useful Caz.
+
+### 2026-10-08: Reviewer mechanics and original approval continuity
+
+Root reproduced 65 guarded offline runtime/readiness controls for the staged local reviewer. Its
+metadata-only readiness check uses the concrete pinned counter and runtime without
+fabricating a future answer. Whole-answer fit, original approval, a durable reviewer
+claim and assessment-inclusive recovery still belong to the actual dispatch path.
+One-use attempts and the original deadline are preserved; reported metadata does
+not establish backend locality, template parity or semantic quality.
+
+Three real PostgreSQL cases verify the separate historical declaration target:
+an actual original-custody revision blocks current declaration validation while its exact historical
+publication remains readable; a concurrent conflicting publication blocks the read;
+AUTOCOMMIT is refused before artifact access. The first test incorrectly expected
+a generic historical evidence revision to invalidate that evidence. The corrected
+test changes the actual current-original lineage; product semantics were unchanged.
+
+Root also reproduced fourteen browser-action controls with mocked operational
+storage. The concrete action handler preserves the original session idle expiry
+instead of refreshing it through generic browsing, validates the exact target and
+CSRF, and consumes each observed action once. This is not mounted owner approval
+or real HTTP/database acceptance. Full approval capture, selective cancellation,
+their recovery checkpoints and the generation/reviewer joins are still being built.
+
+Two additional company folders and related Slack history were retained as dated
+private context candidates, with source hashes, exact spans and finite independent
+review. Reported repairs, task status and verified acceptance remain separate;
+incomplete pages are recorded and no global completeness or canonical import is
+claimed. The candidate code remains staged pending independent engineering review.
