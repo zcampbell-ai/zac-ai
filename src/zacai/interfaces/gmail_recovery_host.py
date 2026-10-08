@@ -106,6 +106,9 @@ class _RecoveryGuard:
 class GmailRecoveryHostPlan:
     """Closed one-run actual host; startup and live operations are not automatic."""
 
+    _original_grant_profile: str
+    _startup_stage: str
+
     @_closed
     def __init__(
         self,
@@ -123,11 +126,15 @@ class GmailRecoveryHostPlan:
         action_generation: str,
         identities: IdentityProvider | None = None,
         load_existing: bool = False,
+        original_grant_profile: str = "confidential",
     ) -> None:
         config = _configuration(configuration)
         original, hr = _path(original_directory), _path(hr_directory)
         if (
-            type(load_existing) is not bool
+            type(original_grant_profile) is not str
+            or original_grant_profile
+            not in {"confidential", "legacy_confidential_highly_restricted"}
+            or type(load_existing) is not bool
             or original == hr
             or type(startup_loader) is not OwnerStartupLoader
             or startup_loader.client_id != owner_client_id
@@ -149,6 +156,8 @@ class GmailRecoveryHostPlan:
         ):
             raise ValueError("explicit original and HR foreground proposal required")
         self._configuration, self._original_directory, self._hr_directory = config, original, hr
+        self._original_grant_profile = original_grant_profile
+        self._startup_stage = "prepared"
         self._load_existing = load_existing
         self._loaded: Any = None
         self._original_loaded: Any = None
@@ -175,6 +184,7 @@ class GmailRecoveryHostPlan:
             console_observed_at,
             review_expires_at,
             load_existing,
+            original_grant_profile,
         )
         self._loader_settings = startup_loader._settings
         self._dependencies = (startup_loader, clock, identities, self._server, self._stop)
@@ -196,6 +206,26 @@ class GmailRecoveryHostPlan:
     def __repr__(self) -> str:
         return "GmailRecoveryHostPlan()"
 
+    @property
+    def startup_stage(self) -> str:
+        """Fixed nonauthoritative phase label; never evidence of credential access."""
+        value = self._startup_stage
+        return (
+            value
+            if type(value) is str
+            and value
+            in {
+                "prepared",
+                "precredential_storage",
+                "credentials",
+                "authenticated_owners",
+                "markers",
+                "routes",
+                "serving",
+            }
+            else "unavailable"
+        )
+
     def _proposal_current(self) -> None:
         current = (
             self._configuration.configuration_digest,
@@ -207,10 +237,14 @@ class GmailRecoveryHostPlan:
             self._observed,
             self._expires,
             self._load_existing,
+            self._original_grant_profile,
         )
         dependencies = (self._loader, self._clock, self._identities, self._server, self._stop)
         if (
-            current != self._settings
+            type(self._original_grant_profile) is not str
+            or self._original_grant_profile
+            not in {"confidential", "legacy_confidential_highly_restricted"}
+            or current != self._settings
             or any(a is not b for a, b in zip(dependencies, self._dependencies, strict=True))
             or self._loader._settings != self._loader_settings
         ):
@@ -454,10 +488,20 @@ class GmailRecoveryHostPlan:
             raise ValueError("one HR listener only")
         if self._graph() != self._original_graph:
             raise ValueError("original captured child graph required")
+        if self._startup_stage != "serving":
+            self._startup_stage = "authenticated_owners"
         original = cap.original_inputs.owner()
         hr = cap.hr_inputs.owner()
         if (
-            original.scopes != (BoundaryScope(B.BRAINSTORM, frozenset({C.CONFIDENTIAL})),)
+            original.scopes
+            != (
+                BoundaryScope(
+                    B.BRAINSTORM,
+                    frozenset({C.CONFIDENTIAL})
+                    if self._original_grant_profile == "confidential"
+                    else frozenset({C.CONFIDENTIAL, C.HIGHLY_RESTRICTED}),
+                ),
+            )
             or hr.scopes != (BoundaryScope(B.BRAINSTORM, frozenset({C.HIGHLY_RESTRICTED})),)
             or original.identity.issuer != hr.identity.issuer
             or original.identity.subject != hr.identity.subject
@@ -471,6 +515,8 @@ class GmailRecoveryHostPlan:
                 raise ValueError("original pre-consumer namespace required")
         elif observed[2][0] != self._witness[2][0][:4]:
             raise ValueError("original ledger directory identity required")
+        if self._startup_stage != "serving":
+            self._startup_stage = "markers"
         self._marker_current()
         self._time()
         self._proposal_current()
@@ -622,6 +668,7 @@ class GmailRecoveryHostPlan:
             raise ValueError("actual foreground three-TTY process required")
         self._proposal_current()
         self._time()
+        self._startup_stage = "precredential_storage"
         self._witness = self._files()  # both existing domains/ready/halt before any startup
         if self._witness[0][0][0][:2] == self._witness[0][1][0][:2]:
             raise ValueError("distinct actual original and HR roots required")
@@ -657,6 +704,7 @@ class GmailRecoveryHostPlan:
                     raise ValueError("same actual original startup required")
                 return self._runtime
 
+            self._startup_stage = "credentials"
             with open_private_operator(  # noqa: SIM117 - retain both actual OWNER contexts
                 mode=PrivateOperatorMode.OWNER,
                 client_id=self._owner_client_id,
@@ -756,6 +804,7 @@ class GmailRecoveryHostPlan:
                         configuration=self._configuration,
                         action_generation=self._action_generation,
                     )
+                    self._startup_stage = "routes"
                     if self._load_existing:
                         from zacai.interfaces.gmail_installed_web import GmailInstalledWeb
 
@@ -778,6 +827,7 @@ class GmailRecoveryHostPlan:
                         raise GmailRecoveryHostFatal("Gmail recovery host interrupted")
 
                     try:
+                        self._startup_stage = "serving"
                         hr.serve(server=self._server)
                     finally:
                         if self._consumer is not None:
