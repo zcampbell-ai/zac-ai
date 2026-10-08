@@ -2719,3 +2719,28 @@ processing permission pending. Next is the once-only post-release output join:
 bind the returned draft and usage to the original runtime release, commit and
 reopen its canonical packet, and obtain fresh whole-boundary output recovery.
 Authenticated whole-answer assessment and owner delivery remain separate gates.
+
+### 2026-10-07: Once-only PERSONAL answer recovery checkpoint
+
+Root reproduced 459 offline controls and five genuine PostgreSQL/age cases for
+the staged post-release answer retention join. A retained answer is bound to the
+original runtime's exact draft and usage, committed and reopened, and protected
+with a fresh complete checkpoint containing the original consent and claim.
+The prior claim-only checkpoint becomes stale after the answer is appended.
+Altered output is refused before capture; committed protection failure cannot
+repair or retry; original session revocation and ciphertext mutation after real
+restoration withhold the result. Successful retention still reports NEEDS_REVIEW,
+with no authenticated-review or delivery claim.
+
+Independent local review caught an existing cleanup-uncertainty signal being
+collapsed to a generic failure. The narrow correction preserves its safe
+operator-review error and permanently held attempt. A causal control fails on
+the predecessor and passes on the correction. Root also corrected missing test
+support assets and a dataclass-copy fixture error before accepted execution;
+the unsuccessful evidence remains separate from the five passing cases.
+
+The candidate remains staged pending required Opus review. No private history
+processing, canonical archive import or phone readiness is established here.
+Next is the existing independent model-review pipeline's exact fragment binding,
+observed reviewer dispatch and fresh assessment-inclusive recovery. Owner review
+is final usefulness acceptance, not a substitute for routine semantic assessment.
