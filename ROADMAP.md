@@ -2744,3 +2744,29 @@ processing, canonical archive import or phone readiness is established here.
 Next is the existing independent model-review pipeline's exact fragment binding,
 observed reviewer dispatch and fresh assessment-inclusive recovery. Owner review
 is final usefulness acceptance, not a substitute for routine semantic assessment.
+
+### 2026-10-08: Full review-purpose custody and recovery checkpoint
+
+Root reproduced 640 guarded offline controls and six genuine PostgreSQL/age
+cases for the staged full prospective generation/review declaration. Its MANUAL
+Source preserves the complete declared purpose, original request and expiry.
+Capture, commit/reopen and full artifact/State/journal recovery work with
+invented data. Read-existing verification does not write or repair a receipt.
+Wrong bindings, separately committed revisions or conflicting publication rows,
+AUTOCOMMIT, session revocation, damaged ciphertext and stale snapshots hold.
+Independent local audit caught a publication uniqueness check that became stale
+during a body callback; the correction repeats it after the read and final owner
+callback. The predecessor evidence remains separate from the accepted correction.
+
+For one complete invented PUBLIC request, root also verified stored-template
+text, token IDs and role tags against the renderer. Its 15,023 input tokens exceed
+the 16,384 context limit with the requested 2,048 output reservation. A separately
+declared 1,024 diagnostic reservation fits; this does not lower an approved budget
+or establish server inference, semantic quality or private processing permission.
+
+These candidates remain staged pending required independent code review. Custody
+is not human processing admission. Concrete full-purpose owner publication,
+selective withdrawal checks, authenticated reviewer dispatch and assessment-inclusive
+recovery remain required before generated private answers. The existing protected
+dated-excerpt route is an intermediate source-read checkpoint after fresh PERSONAL
+sign-in and exact custody/protection affirmations, not completion of useful Caz.
