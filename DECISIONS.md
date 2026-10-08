@@ -7225,3 +7225,21 @@ Preserve complete Claude originals and a closed provenance companion as canonica
 All classification-elevation readers select the strongest existing policy rank before timestamp. Equal transaction timestamps and later weaker labels cannot reduce existing sensitivity. Unknown policy labels hold rather than hide beneath a known weaker label. This enforces the established upward-only D030 policy; it grants no new access.
 
 Native preparation cold recovery checks the exact encrypted artifact/State/operational-journal evidence and compares the current ArtifactBackupRun as a deny-only dependency. The operational journal remains excluded from State export, so rebuilding State alone does not recreate that dependency. A missing or changed run holds until the exact separately protected journal is restored. No reminting or receipt repair occurs on read.
+
+### Publication output association within canonical Sources (2026-10-08)
+
+Preserve the approved fragment request and its packet provenance. The staged
+full-publication output path will capture a separate bounded immutable MANUAL
+Source associating the exact packet with its publication, observed admission,
+consumed claim, request, attempt and released output/usage digests. This uses
+existing canonical Sources and artifacts, with no database schema or parallel
+permission ledger. The association conveys no approval or semantic-review result.
+
+Capture packet and association in the same transaction under the existing
+generation lock. Require exact canonical metadata, generation-level namespace
+uniqueness, bounded canonical bytes, current rights and withdrawal checks. Reopen
+both after commit and include both plus their authority dependencies in the fresh
+complete artifact/State/journal recovery plan. Return the association explicitly
+alongside the packet held as NEEDS_REVIEW; packet custody alone cannot establish
+the full publication lineage. Implementation, actual recovery acceptance and
+independent engineering review remain pending. No private processing is enabled.
