@@ -2624,3 +2624,32 @@ owner's specific one-attempt approval. No automatic renewal, unattended reader
 policy or scope upgrade is introduced. The separate fragment storage candidate
 passed seven actual guarded PostgreSQL cases and 330 combined invented runtime
 and storage checks, but remains staged pending its required independent review.
+
+### 2026-10-07: Original Gmail grant compatibility and bounded diagnostics
+
+The original saved BRAINSTORM owner grant was structurally observed to contain
+CONFIDENTIAL and HIGHLY_RESTRICTED, matching its historical explicit enrollment
+profile. Recovery now supports that exact profile only through an explicit,
+closed, repeatedly pinned choice. The CONFIDENTIAL-only default remains unchanged;
+the separate HR-only grant and matching signed identity remain required. Original
+grant bytes and held history are preserved. Fifty-seven focused cases and three
+independent cases passed; root reproduced the independent cases after installation.
+
+The fresh approved recovery attempt stopped at marker validation and its temporary
+route was removed. This does not establish the exact failing predicate or a usable
+Caz Gmail connection. Fixed marker substages and an explicit startup-only diagnostic
+now stop after owner/marker checks and before the Gmail join, routes or listener.
+Default functional predicates remain unchanged. Thirteen focused and independent
+controls passed, including closed mode pinning, privacy and absence of Gmail or
+listener effects; root reproduced them on the installed graph. Actual credential
+access still requires a fresh specifically scoped owner approval. No automatic
+retry, marker rewrite, scope upgrade or canonical mail import is enabled.
+
+Native connected Gmail reading in this chat is separate from Caz's unfinished
+runtime connection. Privately retained source records and dated provisional
+observations remain distinct from canonical memory and confirmed current facts.
+The next useful history-answer dependency is concrete fragment-family protection,
+followed by exact task consent/claim, independently reviewed inference and assessed
+release. An email acknowledgment alone cannot prove payment or delivered-work
+acceptance. The existing context-first roadmap and PERSONAL/BRAINSTORM isolation
+remain in force.

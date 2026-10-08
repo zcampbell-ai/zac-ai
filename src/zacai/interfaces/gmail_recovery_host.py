@@ -108,6 +108,7 @@ class GmailRecoveryHostPlan:
 
     _original_grant_profile: str
     _startup_stage: str
+    _startup_only: bool
 
     @_closed
     def __init__(
@@ -127,11 +128,13 @@ class GmailRecoveryHostPlan:
         identities: IdentityProvider | None = None,
         load_existing: bool = False,
         original_grant_profile: str = "confidential",
+        startup_only: bool = False,
     ) -> None:
         config = _configuration(configuration)
         original, hr = _path(original_directory), _path(hr_directory)
         if (
-            type(original_grant_profile) is not str
+            type(startup_only) is not bool
+            or type(original_grant_profile) is not str
             or original_grant_profile
             not in {"confidential", "legacy_confidential_highly_restricted"}
             or type(load_existing) is not bool
@@ -156,6 +159,7 @@ class GmailRecoveryHostPlan:
         ):
             raise ValueError("explicit original and HR foreground proposal required")
         self._configuration, self._original_directory, self._hr_directory = config, original, hr
+        self._startup_only = startup_only
         self._original_grant_profile = original_grant_profile
         self._startup_stage = "prepared"
         self._load_existing = load_existing
@@ -185,6 +189,7 @@ class GmailRecoveryHostPlan:
             review_expires_at,
             load_existing,
             original_grant_profile,
+            startup_only,
         )
         self._loader_settings = startup_loader._settings
         self._dependencies = (startup_loader, clock, identities, self._server, self._stop)
@@ -220,6 +225,14 @@ class GmailRecoveryHostPlan:
                 "credentials",
                 "authenticated_owners",
                 "markers",
+                "markers_lock",
+                "marker_ready",
+                "marker_halt",
+                "marker_post_time",
+                "marker_post_proposal",
+                "marker_post_graph",
+                "marker_post_files",
+                "recovery_join",
                 "routes",
                 "serving",
             }
@@ -238,10 +251,12 @@ class GmailRecoveryHostPlan:
             self._expires,
             self._load_existing,
             self._original_grant_profile,
+            self._startup_only,
         )
         dependencies = (self._loader, self._clock, self._identities, self._server, self._stop)
         if (
-            type(self._original_grant_profile) is not str
+            type(self._startup_only) is not bool
+            or type(self._original_grant_profile) is not str
             or self._original_grant_profile
             not in {"confidential", "legacy_confidential_highly_restricted"}
             or current != self._settings
@@ -368,11 +383,17 @@ class GmailRecoveryHostPlan:
         guard = self._markers
         if type(guard) is not OAuthHostGuard:
             raise ValueError("original authenticated ready and halt required")
+        if self._startup_stage != "serving":
+            self._startup_stage = "markers_lock"
         with guard._locked():
             for path, expected in (
                 (guard._ready_path, guard._ready_bytes),
                 (guard._halt_path, guard._halt_bytes),
             ):
+                if self._startup_stage != "serving":
+                    self._startup_stage = (
+                        "marker_ready" if path is guard._ready_path else "marker_halt"
+                    )
                 before = _guard(path)
                 fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
                 try:
@@ -518,10 +539,18 @@ class GmailRecoveryHostPlan:
         if self._startup_stage != "serving":
             self._startup_stage = "markers"
         self._marker_current()
+        if self._startup_stage != "serving":
+            self._startup_stage = "marker_post_time"
         self._time()
+        if self._startup_stage != "serving":
+            self._startup_stage = "marker_post_proposal"
         self._proposal_current()
+        if self._startup_stage != "serving":
+            self._startup_stage = "marker_post_graph"
         if self._graph() != self._original_graph:
             raise ValueError("captured child changed during trusted checks")
+        if self._startup_stage != "serving":
+            self._startup_stage = "marker_post_files"
         if self._files()[:2] != self._witness[:2]:
             raise ValueError("protected files changed during marker authentication")
 
@@ -797,6 +826,9 @@ class GmailRecoveryHostPlan:
                     self._original_graph = self._graph()
                     self._active = True
                     self._recovery_current()
+                    if self._startup_only:
+                        return
+                    self._startup_stage = "recovery_join"
                     self._join = GmailRecoveryJoin(
                         host=self,
                         authority=self._authority,
