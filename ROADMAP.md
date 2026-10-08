@@ -2668,3 +2668,31 @@ focused invented controls. No live provider, credential or SQL call was made by
 those checks. A sealed runner proposal remains unreleased until its installed
 pins and fresh configuration are verified and a new exact attempt is approved.
 Gmail remains inactive in Caz; native chat reading is a temporary context bridge.
+
+### 2026-10-07: Context recovery acceptance and execution join
+
+The staged PERSONAL fragment recovery path now covers its own canonical consent
+and claim Sources. Root reproduced 401 offline controls and six genuine guarded
+PostgreSQL/age cases with invented records: consent protection and cold reopen,
+claim append invalidating the old complete consent checkpoint, recovery of both
+subjects, original cookie revocation after restoration, missing claim receipt
+without repair, and missing own consent/claim Sources before body reads. The
+read-order correction passed independent local causal controls. This is mechanical
+recovery evidence, not attended private processing or a production claim issuer.
+Required Opus review remains pending; these changes are not installed.
+
+Next is the existing runtime's concrete PERSONAL one-use claim join. It must commit
+the original claim before recovery or dispatch, preserve a failed attempt's burn
+across host instances, and keep the original owner, consent, body, model pins,
+token budget and deadline. Appending a claim requires its new complete checkpoint;
+the earlier consent checkpoint cannot be treated as current after that append.
+The existing 128-Source whole-boundary pilot limit remains explicit and does not
+establish full historical ingestion capacity. Authenticated whole-answer review,
+protected output retention and useful owner task acceptance still remain.
+
+The temporary native Gmail bridge has preserved 1,700 messages across 1,136 threads,
+including 950 SENT-labelled records. Root verified the retained wrappers and
+metadata index. The dated INBOX query reached its observed cursor end; SENT history
+is incomplete and stopped at the next search error without a retry. SENT and From
+headers do not prove authored spans. These records remain restricted local holding,
+not recovered canonical memory, current facts or an active Caz Gmail connection.
