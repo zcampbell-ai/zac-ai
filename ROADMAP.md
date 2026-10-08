@@ -2696,3 +2696,26 @@ metadata index. The dated INBOX query reached its observed cursor end; SENT hist
 is incomplete and stopped at the next search error without a retry. SENT and From
 headers do not prove authored spans. These records remain restricted local holding,
 not recovered canonical memory, current facts or an active Caz Gmail connection.
+
+### 2026-10-07: Concrete PERSONAL one-use claim checkpoint
+
+Root reproduced 433 offline controls and six genuine PostgreSQL/age cases for
+the staged concrete PERSONAL claim issuer. The real cases cover claim protection
+and read-existing release, committed protection failure, lost commit
+acknowledgment, original cookie revocation after restoration, and concurrent
+claim attempts with one canonical winner. Unsafe DBAPI AUTOCOMMIT is rejected
+before claim artifact effects. Independent local review found that logical
+Session state alone did not establish a physical transaction; root demonstrated
+the lock behavior and verified the narrow correction. Existing family and
+authorization declarations remain unchanged.
+
+The first actual fixture run failed before issuer execution because its invented
+request named a different model than the exact tokenizer accepts. The corrected
+fixture selects its exact model profile before canonical capture and retains
+real token counting. Failed evidence remains preserved separately.
+
+These changes remain staged, with required Opus review and actual private
+processing permission pending. Next is the once-only post-release output join:
+bind the returned draft and usage to the original runtime release, commit and
+reopen its canonical packet, and obtain fresh whole-boundary output recovery.
+Authenticated whole-answer assessment and owner delivery remain separate gates.
