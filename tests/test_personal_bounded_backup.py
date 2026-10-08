@@ -94,7 +94,7 @@ def test_complete_file_positive_and_exact_bounded_io(fixture):
         "max_stderr_bytes": 65_536,
         "timeout_seconds": 30.0,
     }
-    assert f["calls"][1][1]["max_input_bytes"] == 1_000_000
+    assert f["calls"][1][1]["max_input_bytes"] == 4_000_000
     assert (
         f["remote"].get_object(
             b.Manifest.from_json_bytes(f["cache"].read_bytes())
@@ -254,7 +254,7 @@ def test_aggregate_and_cipher_holds_without_manifest(fixture, monkeypatch):
 
 def test_source_capacity_and_duplicate_hashes(fixture):
     f = fixture
-    for n in range(128):
+    for n in range(4096):
         f["session"].add(
             Source(
                 trust_boundary=B.PERSONAL,
@@ -326,7 +326,7 @@ def test_corrupt_complete_readback_and_source_less_boundary_hold(fixture, monkey
 
 def test_sql_size_guard_refuses_all_rows_before_metadata_materialization(fixture):
     f = fixture
-    f["session"].execute(update(Source).values(excerpt="😀" * 250_001))
+    f["session"].execute(update(Source).values(excerpt="😀" * 2_000_001))
     f["session"].commit()
     with pytest.raises(b.BackupArtifactsError):
         b.prepare_personal_full_original_backup_plan(f["session"])

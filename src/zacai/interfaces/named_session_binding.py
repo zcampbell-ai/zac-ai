@@ -61,6 +61,7 @@ class NamedSessionOperation:
             or _TOKEN.fullmatch(cookie) is None
         ):
             raise NamedSessionBindingError("named session operation unavailable")
+        self._source = source  # Operational provenance; no cookie persistence or new authority.
         self._read: Callable[[], VerifiedNamedSession] = lambda: source._current(cookie)
         self._host_clock: Callable[[], HostObservedClock] = lambda: source._clock
 
@@ -173,12 +174,19 @@ class NamedSessionContinuity:
             # Owner callbacks finish before the final actual session lookup;
             # a revocation during the post-call owner check cannot pass.
             second_now = self._clock()
-            refreshed = self._sessions.peek_user(cookie, second_now) if before == after else None
             checked_now = self._clock()
+            final_owner = self._grant()
+            with self._clock._lock:
+                final_observed = self._clock._last
+            # Include observations made by the final owner callback without
+            # invoking another clock callback after that owner check.
+            refreshed = (self._sessions.peek_user(cookie, final_observed)
+                         if before == after == final_owner and final_observed is not None else None)
             if (
                 type(session) is not UserSession
+                or final_observed is None
                 or type(refreshed) is not UserSession
-                or before != after
+                or before != after or after != final_owner
                 or session.identity != before.identity
                 or (session.identity, session.issued_at, session.expires_at, session.csrf)
                 != (refreshed.identity, refreshed.issued_at, refreshed.expires_at, refreshed.csrf)
@@ -187,9 +195,10 @@ class NamedSessionContinuity:
                 <= now
                 <= second_now
                 <= checked_now
+                <= final_observed
                 < session.expires_at
                 or not session.last_seen_at <= refreshed.last_seen_at <= second_now
-                or checked_now - refreshed.last_seen_at
+                or final_observed - refreshed.last_seen_at
                 >= self._sessions.user_idle_timeout
                 or type(session.csrf) is not str
                 or _TOKEN.fullmatch(session.csrf) is None

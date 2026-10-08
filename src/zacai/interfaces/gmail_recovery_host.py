@@ -21,6 +21,7 @@ from functools import wraps
 from pathlib import Path
 from typing import Any
 
+from fastapi import FastAPI
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
@@ -130,11 +131,14 @@ class GmailRecoveryHostPlan:
         load_existing: bool = False,
         original_grant_profile: str = "confidential",
         startup_only: bool = False,
+        diagnostic_serving: bool = False,
     ) -> None:
         config = _configuration(configuration)
         original, hr = _path(original_directory), _path(hr_directory)
         if (
-            type(startup_only) is not bool
+            type(diagnostic_serving) is not bool
+            or (diagnostic_serving and (startup_only or load_existing))
+            or type(startup_only) is not bool
             or type(original_grant_profile) is not str
             or original_grant_profile
             not in {"confidential", "legacy_confidential_highly_restricted"}
@@ -161,6 +165,13 @@ class GmailRecoveryHostPlan:
             raise ValueError("explicit original and HR foreground proposal required")
         self._configuration, self._original_directory, self._hr_directory = config, original, hr
         self._startup_only = startup_only
+        self._diagnostic_serving = diagnostic_serving
+        self._shutdown_stage = "not_started"
+        self._shutdown_failure_stage = "not_started"
+        self._protected_stop_stage = "not_requested"
+        self._diagnostic_request_stage = "not_observed"
+        self._foreground_stage = self._foreground_cleanup_stage = "not_started"
+        self._foreground_cleanup_failure_stage = "not_started"
         self._original_grant_profile = original_grant_profile
         self._startup_stage = "prepared"
         self._callback_diagnostic = OAuthCallbackDiagnostic()
@@ -178,7 +189,9 @@ class GmailRecoveryHostPlan:
             review_expires_at,
             identities,
         )
-        self._server = PrivateServerLifecycle(verified_private_origin=config.private_origin)
+        self._server = PrivateServerLifecycle(
+            verified_private_origin=config.private_origin, diagnostic_stages=diagnostic_serving
+        )
         self._stop = self._server.stop_host
         self._settings = (
             config.configuration_digest,
@@ -192,6 +205,7 @@ class GmailRecoveryHostPlan:
             load_existing,
             original_grant_profile,
             startup_only,
+            diagnostic_serving,
         )
         self._loader_settings = startup_loader._settings
         self._dependencies = (startup_loader, clock, identities, self._server, self._stop)
@@ -247,6 +261,216 @@ class GmailRecoveryHostPlan:
             else "unavailable"
         )
 
+    @property
+    def shutdown_stage(self) -> str:
+        value = self._shutdown_stage
+        return (
+            value
+            if type(value) is str
+            and value
+            in {
+                "not_started",
+                "serve_entered",
+                "serve_returned",
+                "consumer_hold",
+                "postserve_current",
+                "context_close",
+                "stop_cleanup",
+                "closed",
+            }
+            else "unavailable"
+        )
+
+    @property
+    def shutdown_failure_stage(self) -> str:
+        value = self._shutdown_failure_stage
+        return (
+            value
+            if type(value) is str
+            and value
+            in {
+                "not_started",
+                "serve_entered",
+                "serve_returned",
+                "consumer_hold",
+                "postserve_current",
+                "context_close",
+                "stop_cleanup",
+            }
+            else "unavailable"
+        )
+
+    @property
+    def protected_stop_stage(self) -> str:
+        value = self._protected_stop_stage
+        return (
+            value
+            if type(value) is str and value in {"not_requested", "protected_stop_requested"}
+            else "unavailable"
+        )
+
+    @property
+    def diagnostic_request_stage(self) -> str:
+        value = self._diagnostic_request_stage
+        return (
+            value
+            if type(value) is str
+            and value in {"not_observed", "request_entered", "current_returned", "request_refused"}
+            else "unavailable"
+        )
+
+    @property
+    def foreground_stage(self) -> str:
+        value = self._foreground_stage
+        return (
+            value
+            if type(value) is str
+            and value
+            in {
+                "not_started",
+                "prepared",
+                "require",
+                "thread_baseline",
+                "signal_snapshot",
+                "signal_install",
+                "server_call",
+                "server_returned",
+            }
+            else "unavailable"
+        )
+
+    @property
+    def foreground_cleanup_stage(self) -> str:
+        value = self._foreground_cleanup_stage
+        return (
+            value
+            if type(value) is str
+            and value
+            in {
+                "not_started",
+                "signal_suppression",
+                "thread_drain",
+                "paired_worker_drain",
+                "logging_restore",
+                "signal_restore",
+                "restored",
+            }
+            else "unavailable"
+        )
+
+    @property
+    def foreground_cleanup_failure_stage(self) -> str:
+        value = self._foreground_cleanup_failure_stage
+        return (
+            value
+            if type(value) is str
+            and value
+            in {
+                "not_started",
+                "signal_suppression",
+                "thread_drain",
+                "paired_worker_drain",
+                "logging_restore",
+                "signal_restore",
+            }
+            else "unavailable"
+        )
+
+    @property
+    def server_stage(self) -> str:
+        return self._server.lifecycle_stage
+
+    @property
+    def server_failure_stage(self) -> str:
+        return self._server.failure_stage
+
+    @property
+    def listener_stage(self) -> str:
+        return self._server.listener_stage
+
+    def _diagnostic_serve(self, hr: PrivateOperatorWindow) -> None:
+        """One health-only bounded listener inside retained protected OWNER contexts.
+
+        No ownerlogin/Gmail routes, join, consumer, provider or token operation.
+        Ten-second eventloop stop requests graceful shutdown; never force exits
+        or skips the existing physical drain. Health is not connection evidence.
+        """
+        import asyncio
+        from collections.abc import AsyncIterator
+        from contextlib import asynccontextmanager
+
+        @asynccontextmanager
+        async def lifetime(app: FastAPI) -> AsyncIterator[None]:
+            del app
+
+            async def stop_after_budget() -> None:
+                try:
+                    await asyncio.sleep(10)
+                    self._recovery_current()
+                    self._stop()
+                except asyncio.CancelledError:
+                    raise
+                except BaseException:  # noqa: BLE001 - fixed fatal, no task traceback
+                    self._latch()
+
+            task = asyncio.create_task(stop_after_budget())
+            try:
+                yield
+            finally:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+
+        app = FastAPI(lifespan=lifetime, docs_url=None, redoc_url=None, openapi_url=None)
+
+        @app.get("/health")
+        async def health() -> Response:
+            self._diagnostic_request_stage = "request_entered"
+            interrupted = False
+            try:
+                self._recovery_current()
+                self._diagnostic_request_stage = "current_returned"
+            except Exception:  # noqa: BLE001 - fixed public refusal only
+                self._diagnostic_request_stage = "request_refused"
+                self._latch()
+                return Response("Startup diagnostic unavailable.", status_code=403)
+            except BaseException:  # noqa: BLE001 - preserve fatal category, sanitize context
+                self._diagnostic_request_stage = "request_refused"
+                self._latch()
+                interrupted = True
+            if interrupted:
+                raise GmailRecoveryHostFatal("Startup diagnostic interrupted")
+            return Response(
+                "Startup diagnostic only; Gmail inactive.",
+                media_type="text/plain",
+                headers={"cache-control": "no-store"},
+            )
+
+        def server(owner_app: FastAPI) -> None:
+            del owner_app
+            self._recovery_current()
+            self._server(app)
+
+        self._startup_stage = "serving"
+        self._shutdown_stage = "serve_entered"
+        try:
+            hr.serve(server=server)
+            self._shutdown_stage = "serve_returned"
+        except BaseException:
+            self._shutdown_failure_stage = self._shutdown_stage
+            raise
+        finally:
+            self._foreground_stage = hr.foreground_stage
+            self._foreground_cleanup_stage = hr.foreground_cleanup_stage
+            self._foreground_cleanup_failure_stage = hr.foreground_cleanup_failure_stage
+            self._shutdown_stage = "postserve_current"
+            self._recovery_current()
+            self._active = False
+            if self._fatal:
+                raise GmailRecoveryHostFatal("Gmail recovery requires review")
+
     def _proposal_current(self) -> None:
         current = (
             self._configuration.configuration_digest,
@@ -260,10 +484,13 @@ class GmailRecoveryHostPlan:
             self._load_existing,
             self._original_grant_profile,
             self._startup_only,
+            self._diagnostic_serving,
         )
         dependencies = (self._loader, self._clock, self._identities, self._server, self._stop)
         if (
-            type(self._startup_only) is not bool
+            type(self._diagnostic_serving) is not bool
+            or (self._diagnostic_serving and (self._startup_only or self._load_existing))
+            or type(self._startup_only) is not bool
             or type(self._original_grant_profile) is not str
             or self._original_grant_profile
             not in {"confidential", "legacy_confidential_highly_restricted"}
@@ -563,6 +790,7 @@ class GmailRecoveryHostPlan:
             raise ValueError("protected files changed during marker authentication")
 
     def _latch(self) -> None:
+        self._protected_stop_stage = "protected_stop_requested"
         self._active = False
         self._fatal = True
         if not self._stop_attempted:
@@ -836,6 +1064,9 @@ class GmailRecoveryHostPlan:
                     self._recovery_current()
                     if self._startup_only:
                         return
+                    if self._diagnostic_serving:
+                        self._diagnostic_serve(hr)
+                        return
                     self._startup_stage = "recovery_join"
                     self._join = GmailRecoveryJoin(
                         host=self,
@@ -868,15 +1099,30 @@ class GmailRecoveryHostPlan:
 
                     try:
                         self._startup_stage = "serving"
+                        self._shutdown_stage = "serve_entered"
                         hr.serve(server=self._server)
+                        self._shutdown_stage = "serve_returned"
+                    except BaseException:
+                        self._shutdown_failure_stage = self._shutdown_stage
+                        raise
                     finally:
+                        self._foreground_stage = hr.foreground_stage
+                        self._foreground_cleanup_stage = hr.foreground_cleanup_stage
+                        self._foreground_cleanup_failure_stage = hr.foreground_cleanup_failure_stage
+                        self._shutdown_stage = "consumer_hold"
                         if self._consumer is not None:
                             self._consumer.hold_pending()
+                        self._shutdown_stage = "postserve_current"
                         self._recovery_current()
                         self._active = False
                         if self._fatal:
                             raise GmailRecoveryHostFatal("Gmail recovery requires review")
+        except BaseException:
+            if self._shutdown_failure_stage == "not_started":
+                self._shutdown_failure_stage = self._shutdown_stage
+            raise
         finally:
+            self._shutdown_stage = "context_close"
             self._active = False
             self._windows = None
             self._runtime = None
@@ -886,6 +1132,7 @@ class GmailRecoveryHostPlan:
             self._capture = self._markers = self._guard = None
             self._original_graph = None
             try:
+                self._shutdown_stage = "stop_cleanup"
                 self._dependencies[4]()
             except BaseException:  # noqa: BLE001 - fixed fatal after actual stop
                 self._fatal = True

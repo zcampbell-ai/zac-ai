@@ -35,8 +35,10 @@ from zacai.interfaces.private_web import InterfacePrincipal, OwnerGrant, create_
 from zacai.interfaces.sqlite_sessions import SqliteSessionStore
 
 if TYPE_CHECKING:
+    from zacai.interfaces.fragment_publication_web import FragmentPublicationWeb
     from zacai.interfaces.gmail_connection_web import GmailConnectionWeb
     from zacai.interfaces.named_followup_web import NamedFollowupWeb
+    from zacai.interfaces.named_session_binding import NamedSessionOperation
     from zacai.interfaces.named_worker_lifecycle import NamedWorkerRegistry
     from zacai.interfaces.work_choice_web import WorkChoiceWeb
 
@@ -304,6 +306,8 @@ def prepare_owner_host(
     work_choices: WorkChoiceWeb | None = None,
     named_factory: NamedOwnerHostFactory | None = None,
     gmail_factory: GmailOwnerHostFactory | None = None,
+    fragment_factory: Callable[[NamedOwnerHostInputs], FragmentPublicationWeb] | None = None,
+    fragment_preparation_factory: Callable[[NamedOwnerHostInputs, NamedSessionOperation, str], FragmentPublicationWeb] | None = None,
 ) -> PreparedOwnerHost:
     """Compose durable enrolled access; missing/tampered/revoked owner denies.
 
@@ -324,6 +328,13 @@ def prepare_owner_host(
             not callable(gmail_factory) or type(clock) is not HostObservedClock
         ):
             raise ValueError("actual Gmail host factory/shared clock required")
+        if fragment_factory is not None and (not callable(fragment_factory) or type(clock) is not HostObservedClock):
+            raise ValueError("actual fragment factory/shared clock required")
+        if fragment_preparation_factory is not None and (
+            not callable(fragment_preparation_factory) or type(clock) is not HostObservedClock
+            or fragment_factory is not None or named_factory is not None
+        ):
+            raise ValueError("exclusive request-bound fragment factory required")
         if work_choices is not None:
             from zacai.interfaces.work_choice_web import WorkChoiceWeb
 
@@ -338,7 +349,12 @@ def prepare_owner_host(
             origin=configuration.origin,
             client_id=configuration.client_id,
         )
-        owners.load()
+        enrolled = owners.load()
+        if fragment_factory is not None or fragment_preparation_factory is not None:
+            from zacai.claude_local_custody import _SCOPE as fragment_scope
+
+            if enrolled.scopes != fragment_scope:
+                raise ValueError("exact PERSONAL highly restricted host required")
         owner = owners.load
         sessions = SqliteSessionStore(directory / "sessions", key=configuration.session_key)
         provider = (
@@ -370,6 +386,36 @@ def prepare_owner_host(
                 directory, owners, owner, sessions, clock,
             )
             gmail = _gmail_owner_controller(gmail_inputs, gmail_factory(gmail_inputs))
+        fragment = None
+        if fragment_factory is not None:
+            assert type(clock) is HostObservedClock
+            from zacai.interfaces.fragment_publication_web import FragmentPublicationWeb
+            from zacai.interfaces.named_session_binding import NamedSessionContinuity
+            if named is not None:
+                raise ValueError("exclusive local publication family required")
+            fragment_inputs = NamedOwnerHostInputs(configuration.origin, configuration.client_id,
+                configuration.session_key, directory, owners, owner, sessions, clock)
+            fragment = fragment_factory(fragment_inputs)
+            expected = NamedSessionContinuity(sessions=sessions, owner=owner, clock=clock,
+                key=configuration.session_key, origin=configuration.origin,
+                client_id=configuration.client_id)
+            if (type(fragment) is not FragmentPublicationWeb
+                or fragment.host_clock is not clock
+                or fragment._continuity._sessions is not sessions
+                or fragment._continuity._owner is not owner
+                or fragment._continuity._context != expected._context
+                or fragment._continuity._key != expected._key):
+                raise ValueError("exact original fragment host binding required")
+        preparation = None
+        if fragment_preparation_factory is not None:
+            from zacai.interfaces.fragment_preparation_web import FragmentPreparationWeb
+
+            assert type(clock) is HostObservedClock
+            preparation = FragmentPreparationWeb(
+                inputs=NamedOwnerHostInputs(configuration.origin, configuration.client_id,
+                    configuration.session_key, directory, owners, owner, sessions, clock),
+                factory=fragment_preparation_factory,
+            )
         app = create_private_web(
             origin=configuration.origin,
             identities=provider,
@@ -380,6 +426,8 @@ def prepare_owner_host(
             work_choices=work_choices,
             named_questions=named.controller if named is not None else None,
             gmail_connections=gmail,
+            fragment_publication=fragment,
+            fragment_preparation=preparation,
         )
         if named is not None:
             from zacai.interfaces.named_worker_lifecycle import (

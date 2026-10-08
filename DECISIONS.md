@@ -7262,3 +7262,20 @@ review. Retain the exact assessment with its invocation binding, then verify a n
 complete artifact/State/journal checkpoint before checked owner release. Existing
 packet, State, Event and evaluator contracts remain unchanged. This is a design
 under implementation, with no live processing or semantic acceptance established.
+
+### Complete-history style wire and diagnostic cleanup (2026-10-08)
+
+Preserve complete-history V1 request and packet encodings. Bind the trusted
+owner-style clause in a separate complete-generation wire declaration, retaining
+the exact task words and quoted evidence punctuation. The generation counter and
+runtime must measure and send that wire, not silently fall back to the old prompt
+body. The complete family stays distinct from fragment authority; its declaration
+and mechanical recovery receipts cannot authorize processing or establish useful
+context. Reuse canonical Sources, existing locks and recovery mechanics for the
+remaining concrete consumers instead of creating another state system.
+
+Diagnostic-only Uvicorn configuration requires lifespan startup; the normal
+serving path retains auto mode. LOCAL execution disarms both interrupt handlers
+before raising its first interrupt, then retains existing physical drain and
+restoration behavior. Fixed diagnostic observations provide no source-access or
+owner-readiness authority. A consumed failed startup is not replayable.

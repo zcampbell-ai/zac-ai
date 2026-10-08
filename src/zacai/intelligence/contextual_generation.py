@@ -48,6 +48,9 @@ from zacai.intelligence.review_evaluation import review_context_digest
 from zacai.intelligence.review_generation import DraftClaim, DraftItem, prepare_review_request
 
 if TYPE_CHECKING:
+    from zacai.intelligence.history_fragment_contextual_codec import (
+        HistoryFragmentContextualRequestV1,
+    )
     from zacai.intelligence.native_evidence_context import NativeEvidenceProjection
 
 
@@ -828,6 +831,73 @@ def resolve_native_contextual_draft(
             raise ValueError("unsupported contextual request family")
         validate_native_contextual_request(request)
         expected = request
+        failure = GenerationFailure.DRAFT_SCHEMA
+        draft = ContextualDraft.model_validate(draft)
+        failure = GenerationFailure.CITATION
+        quotes = dict(expected.quotes)
+
+        def claim(value: DraftClaim | DraftConnection) -> Claim:
+            if len(set(value.evidence_ids)) != len(value.evidence_ids):
+                raise ValueError("duplicate evidence IDs")
+            return Claim(
+                text=value.text,
+                inferred=value.inferred,
+                quotes=tuple(quotes[eid] for eid in value.evidence_ids),
+            )
+
+        def question(value: DraftQuestion, conflict: bool) -> Clarification:
+            cls = EvidenceConflict if conflict else Clarification
+            return cls(**claim(value).model_dump(), question=value.question, reason=value.reason)
+
+        # Resolve first: unknown IDs remain a citation failure.
+        overview = tuple(claim(v) for v in draft.overview)
+        background = tuple(claim(v) for v in draft.background)
+        continuity = tuple(claim(v) for v in draft.continuity)
+        items = tuple((v, claim(v)) for v in draft.items)
+        conflicts = tuple(question(v, True) for v in draft.conflicts)
+        clarifications = tuple(question(v, False) for v in draft.clarifications)
+        failure = GenerationFailure.VALIDATION
+        review = ContextualReview(
+            format="zac-contextual-review-v1",
+            task_id=expected.context.task.task_id,
+            data_classification=expected.context.task.event.data_classification,
+            overview=overview,
+            background=background,
+            continuity=tuple(ProvisionalConnection(**v.model_dump()) for v in continuity),
+            items=tuple(
+                ReviewItem(**resolved.model_dump(), kind=v.kind, owner=v.owner, due_date=v.due_date)
+                for v, resolved in items
+            ),
+            conflicts=conflicts,
+            clarifications=clarifications,
+        )
+        return validate_contextual_review(review, expected.context)
+    except ContextualReviewInvalid as error:
+        rejection = error.reason if failure == GenerationFailure.VALIDATION else None
+    except Exception:  # noqa: BLE001 - no private model/catalog errors
+        if failure == GenerationFailure.VALIDATION:
+            rejection = ReviewRejection.CONSTRUCTION
+    raise ContextualGenerationError(
+        failure, "contextual draft unavailable or invalid", rejection=rejection
+    )
+
+
+def resolve_history_fragment_contextual_draft(
+    draft: ContextualDraft, request: HistoryFragmentContextualRequestV1
+) -> ContextualReview:
+    """Resolve host identities and exact quotes; edited request/catalog rejects."""
+    from zacai.intelligence.history_fragment_contextual_codec import (
+        HistoryFragmentContextualRequestV1,
+        encode_history_fragment_contextual_request,
+    )
+
+    failure = GenerationFailure.REQUEST
+    rejection = None
+    try:
+        if type(request) is not HistoryFragmentContextualRequestV1:
+            raise ValueError("unsupported contextual request family")
+        encode_history_fragment_contextual_request(request)
+        expected = _prepare_contextual_catalog(request.context())
         failure = GenerationFailure.DRAFT_SCHEMA
         draft = ContextualDraft.model_validate(draft)
         failure = GenerationFailure.CITATION

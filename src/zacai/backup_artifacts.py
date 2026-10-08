@@ -1092,16 +1092,16 @@ def age_decrypt_bounded(
 # Closed, dormant engineering profile. It never establishes owner/key permission.
 _PERSONAL_PLAIN_LIMIT = 100_000_000
 _PERSONAL_CIPHER_LIMIT = 101_000_000
-_PERSONAL_ARTIFACT_LIMIT = 128
+_PERSONAL_ARTIFACT_LIMIT = 4096
 _PERSONAL_AGGREGATE_LIMIT = 512_000_000
-_PERSONAL_METADATA_LIMIT = 1_000_000
+_PERSONAL_METADATA_LIMIT = 8_000_000
 
 
 @dataclass(frozen=True)
 class PersonalFullOriginalBackupPlan:
     """Complete canonical PERSONAL selection, not authority or a receipt.
 
-    Closed profiles hold above128 Source rows as well as128 unique artifacts.
+    Closed profiles hold above4096 Source rows as well as4096 unique artifacts.
     Explicit v2 admits HR for encrypted PERSONAL custody, never model processing.
     Host owner/access and reviewed recipient custody remain caller prerequisites.
     """
@@ -1415,19 +1415,19 @@ def _backup_personal_full_original(
         manifest = Manifest(trust_boundary.value, datetime.now(UTC).isoformat(), entries)
         body = manifest.to_json_bytes()
         total += len(body)
-        if total > _PERSONAL_AGGREGATE_LIMIT or len(body) > _PERSONAL_METADATA_LIMIT:
+        if total > _PERSONAL_AGGREGATE_LIMIT or len(body) > 4_000_000:
             raise ValueError("bounded manifest capacity exceeded")
         current()
         encrypted = age_encrypt_bounded(
             body,
             recipient,
-            max_input_bytes=_PERSONAL_METADATA_LIMIT,
-            max_output_bytes=2_000_000,
+            max_input_bytes=4_000_000,
+            max_output_bytes=4_100_000,
             max_stderr_bytes=65_536,
             timeout_seconds=30.0,
         )
         current()
-        if type(encrypted) is not bytes or not 0 < len(encrypted) <= 2_000_000:
+        if type(encrypted) is not bytes or not 0 < len(encrypted) <= 4_100_000:
             raise ValueError("bounded manifest ciphertext required")
         total += len(encrypted)
         if total > _PERSONAL_AGGREGATE_LIMIT:
@@ -1435,7 +1435,7 @@ def _backup_personal_full_original(
         key = manifest_key_for(trust_boundary)
         backup_store.put_object(key, encrypted)
         current()
-        confirmed = object_read(key, max_bytes=2_000_000)
+        confirmed = object_read(key, max_bytes=4_100_000)
         current()
         if type(confirmed) is not bytes or confirmed != encrypted:
             raise ValueError("bounded manifest readback differs")
@@ -1456,3 +1456,16 @@ def _assert_personal_backup_backend(session: Session) -> None:
     if session.get_bind().dialect.name != "postgresql":
         raise ValueError("canonical PostgreSQL metadata bounds required")
     _assert_ledger_isolation(session)
+
+
+def _assert_personal_custody_append_capacity(session: Session, reserved_sources: int) -> None:
+    """Bound complete custody before a one-use burn, never reserve permission.
+
+    Caller holds the existing parent lock. Unrelated concurrent appends still
+    require complete later reconciliation; this check is not a boundary lock.
+    """
+    if type(reserved_sources) is not int or not 1 <= reserved_sources <= 8:
+        raise ValueError("exact bounded custody append count required")
+    raw, _ = _personal_backup_rows(session, profile="personal-encrypted-custody-backup-v2")
+    if len(json.loads(raw)) + reserved_sources > _PERSONAL_ARTIFACT_LIMIT:
+        raise ValueError("complete PERSONAL recovery capacity exhausted before burn")

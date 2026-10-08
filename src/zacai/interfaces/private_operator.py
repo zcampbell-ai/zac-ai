@@ -58,6 +58,7 @@ from zacai.interfaces.owner_enrollment import PendingOwner
 from zacai.interfaces.private_host import (
     GmailOwnerHostFactory,
     NamedOwnerHostFactory,
+    NamedOwnerHostInputs,
     PreparedEnrollmentHost,
     PreparedOwnerHost,
     prepare_enrollment_host,
@@ -74,6 +75,8 @@ from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 
 if TYPE_CHECKING:
+    from zacai.interfaces.fragment_publication_web import FragmentPublicationWeb
+    from zacai.interfaces.named_session_binding import NamedSessionOperation
     from zacai.interfaces.work_choice_web import WorkChoiceWeb
 
 _HOST = "127.0.0.1"
@@ -249,6 +252,67 @@ class PrivateOperatorWindow:
     ) -> None:
         self._prepared, self._mode, self._origin, self._clock = prepared, mode, origin, clock
         self._active, self._serving, self._served = True, False, False
+        self._foreground_stage = "prepared"
+        self._foreground_cleanup_stage = "not_started"
+        self._foreground_cleanup_failure_stage = "not_started"
+
+    @property
+    def foreground_stage(self) -> str:
+        """Fixed foreground phase only, not listener or owner evidence."""
+        value = self._foreground_stage
+        return (
+            value
+            if type(value) is str
+            and value
+            in {
+                "prepared",
+                "require",
+                "thread_baseline",
+                "signal_snapshot",
+                "signal_install",
+                "server_call",
+                "server_returned",
+            }
+            else "unavailable"
+        )
+
+    @property
+    def foreground_cleanup_stage(self) -> str:
+        """Fixed cleanup phase only, never private diagnostics."""
+        value = self._foreground_cleanup_stage
+        return (
+            value
+            if type(value) is str
+            and value
+            in {
+                "not_started",
+                "signal_suppression",
+                "thread_drain",
+                "paired_worker_drain",
+                "logging_restore",
+                "signal_restore",
+                "restored",
+            }
+            else "unavailable"
+        )
+
+    @property
+    def foreground_cleanup_failure_stage(self) -> str:
+        value = self._foreground_cleanup_failure_stage
+        return (
+            value
+            if type(value) is str
+            and value
+            in {
+                "not_started",
+                "signal_suppression",
+                "thread_drain",
+                "paired_worker_drain",
+                "logging_restore",
+                "signal_restore",
+            }
+            else "unavailable"
+        )
 
     def __repr__(self) -> str:
         return "PrivateOperatorWindow()"
@@ -292,6 +356,8 @@ class PrivateOperatorWindow:
 
         def local(app: FastAPI) -> None:
             def interrupt(signum: int, frame: object) -> None:
+                for sig in (signal.SIGINT, signal.SIGTERM):
+                    signal.signal(sig, signal.SIG_IGN)
                 raise KeyboardInterrupt
 
             # Uvicorn installs its own serving handlers; LOCAL execution has no
@@ -311,12 +377,15 @@ class PrivateOperatorWindow:
         """Shared lifecycle; caller is an explicit foreground host action."""
         okay = False
         try:
+            self._foreground_stage = "require"
             self._require()
             if self._served or not callable(server):
                 raise ValueError("operator already served")
+            self._foreground_stage = "thread_baseline"
             baseline = set(threading.enumerate())
             if baseline != {threading.main_thread()}:
                 raise ValueError("dedicated foreground process required")
+            self._foreground_stage = "signal_snapshot"
             handlers = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
             if any(handler is None for handler in handlers.values()):
                 raise ValueError("unknown foreground signal handler")
@@ -328,56 +397,74 @@ class PrivateOperatorWindow:
                     # Native Uvicorn installs its handlers during serving and
                     # restores these ignored handlers on return. Replayed second
                     # interrupts cannot terminate the ensuing private worker drain.
+                    self._foreground_stage = "signal_install"
                     for sig in handlers:
                         signal.signal(sig, signal.SIG_IGN)
+                    self._foreground_stage = "server_call"
                     server(self._prepared.app)
+                    self._foreground_stage = "server_returned"
                 finally:
-                    for sig in handlers:
-                        try:
-                            signal.signal(sig, signal.SIG_IGN)
-                        except BaseException:  # noqa: BLE001,S110 - never skip actual drain on suppression failure.
-                            pass
-                    _drain_threads(baseline)
-                    # Uvicorn can report lifespan.shutdown.failed only to its
-                    # logger and return normally. Repeat the actual paired
-                    # lifecycle gate while lease/log/signal protection is held.
-                    if (
-                        type(self._prepared) is PreparedOwnerHost
-                        and self._prepared.named is not None
-                    ):
-                        from zacai.interfaces.named_worker_lifecycle import (
-                            NamedWorkerRegistry,
-                            ThreadBoundNamedAskPipeline,
-                        )
+                    try:
+                        self._foreground_cleanup_stage = "signal_suppression"
+                        for sig in handlers:
+                            try:
+                                signal.signal(sig, signal.SIG_IGN)
+                            except BaseException:  # noqa: BLE001,S110 - never skip actual drain on suppression failure.
+                                pass
+                        self._foreground_cleanup_stage = "thread_drain"
+                        _drain_threads(baseline)
+                        # Uvicorn can report lifespan.shutdown.failed only to its
+                        # logger and return normally. Repeat the actual paired
+                        # lifecycle gate while lease/log/signal protection is held.
+                        self._foreground_cleanup_stage = "paired_worker_drain"
+                        if (
+                            type(self._prepared) is PreparedOwnerHost
+                            and self._prepared.named is not None
+                        ):
+                            from zacai.interfaces.named_worker_lifecycle import (
+                                NamedWorkerRegistry,
+                                ThreadBoundNamedAskPipeline,
+                            )
 
-                        pair = self._prepared.named
-                        if type(pair.workers) is not NamedWorkerRegistry:
-                            raise ValueError("actual worker registry required")
-                        pipeline = pair.controller._pipeline
-                        if pipeline is None:
-                            pair.workers.close_and_drain()
-                        else:
-                            if (
-                                type(pipeline) is not ThreadBoundNamedAskPipeline
-                                or pipeline._workers is not pair.workers
-                                or pipeline._store is not pair.controller._store
-                            ):
-                                raise ValueError("actual paired worker lifecycle required")
-                            pipeline.close_and_retire()
+                            pair = self._prepared.named
+                            if type(pair.workers) is not NamedWorkerRegistry:
+                                raise ValueError("actual worker registry required")
+                            pipeline = pair.controller._pipeline
+                            if pipeline is None:
+                                pair.workers.close_and_drain()
+                            else:
+                                if (
+                                    type(pipeline) is not ThreadBoundNamedAskPipeline
+                                    or pipeline._workers is not pair.workers
+                                    or pipeline._store is not pair.controller._store
+                                ):
+                                    raise ValueError("actual paired worker lifecycle required")
+                                pipeline.close_and_retire()
+                    except BaseException:
+                        self._foreground_cleanup_failure_stage = self._foreground_cleanup_stage
+                        raise
                 okay = True
             finally:
                 # All private worker jobs are now finished. Restore logging/state
                 # before SIGINT last, so an immediate subsequent interrupt cannot
                 # skip restoration or release the lease with a worker still active.
                 try:
+                    self._foreground_cleanup_stage = "logging_restore"
                     logging.disable(disabled)
                 finally:
                     self._serving = False
+                    self._foreground_cleanup_stage = "signal_restore"
                     for sig in reversed(handlers):
                         handler = handlers[sig]
                         assert handler is not None
                         signal.signal(sig, handler)
+                    self._foreground_cleanup_stage = "restored"
         except BaseException:  # noqa: BLE001 - sanitize runtime/interrupt diagnostics after drain.
+            if (
+                self._foreground_cleanup_failure_stage == "not_started"
+                and self._foreground_cleanup_stage not in {"not_started", "restored"}
+            ):
+                self._foreground_cleanup_failure_stage = self._foreground_cleanup_stage
             okay = False
             self._active = False
         if not okay:
@@ -486,6 +573,8 @@ def open_private_operator(
     work_choices: WorkChoiceWeb | None = None,
     named_factory: NamedOwnerHostFactory | None = None,
     gmail_factory: GmailOwnerHostFactory | None = None,
+    fragment_factory: Callable[[NamedOwnerHostInputs], FragmentPublicationWeb] | None = None,
+    fragment_preparation_factory: Callable[[NamedOwnerHostInputs, NamedSessionOperation, str], FragmentPublicationWeb] | None = None,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     startup_loader: StartupLoader = load_owner_startup,
     identities: IdentityProvider | None = None,
@@ -519,6 +608,15 @@ def open_private_operator(
                 and (not callable(gmail_factory) or type(clock) is not HostObservedClock)
             )
             or (
+                fragment_factory is not None
+                and (not callable(fragment_factory) or type(clock) is not HostObservedClock)
+            )
+            or (
+                fragment_preparation_factory is not None
+                and (not callable(fragment_preparation_factory) or type(clock) is not HostObservedClock
+                     or fragment_factory is not None or named_factory is not None)
+            )
+            or (
                 mode
                 in (
                     PrivateOperatorMode.ENROLLMENT,
@@ -530,6 +628,8 @@ def open_private_operator(
                     or work_choices is not None
                     or named_factory is not None
                     or gmail_factory is not None
+                    or fragment_factory is not None
+                    or fragment_preparation_factory is not None
                 )
             )
         ):
@@ -574,6 +674,8 @@ def open_private_operator(
                 work_choices=work_choices,
                 named_factory=named_factory,
                 gmail_factory=gmail_factory,
+                fragment_factory=fragment_factory,
+                fragment_preparation_factory=fragment_preparation_factory,
             )
         if type(prepared) is PreparedOwnerHost and prepared.named is not None:
             # Actual retained flock is acquired above and not released until

@@ -392,9 +392,9 @@ def _run_local_claude_protection(
                 current()
                 if completed.status != ArtifactBackupRunStatus.SUCCEEDED or plan_now() != plan:
                     raise ValueError("artifact protection incomplete")
-                cipher = _read(independent_reader, manifest_key_for(B.PERSONAL), 2_000_000)
+                cipher = _read(independent_reader, manifest_key_for(B.PERSONAL), 4_100_000)
                 current()
-                manifest_raw = _recover(cipher, recovered_identity_path, 1_000_000)
+                manifest_raw = _recover(cipher, recovered_identity_path, 4_000_000)
                 current()
                 manifest = Manifest.from_json_bytes(manifest_raw)
                 if (
@@ -453,7 +453,7 @@ def _run_local_claude_protection(
                             select(Source.id, Source.content_hash)
                             .where(Source.trust_boundary == B.PERSONAL)
                             .order_by(Source.id)
-                            .limit(129)
+                            .limit(4097)
                         ).all()
                     )
                     if in_snapshot != expected:

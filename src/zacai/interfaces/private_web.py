@@ -147,6 +147,11 @@ def _set_cookie(response: Response, name: str, token: str, max_age: int) -> None
     )
 
 
+if TYPE_CHECKING:
+    from zacai.interfaces.fragment_preparation_web import FragmentPreparationWeb
+    from zacai.interfaces.fragment_publication_web import FragmentPublicationWeb
+
+
 def create_private_web(
     *,
     origin: str,
@@ -158,6 +163,8 @@ def create_private_web(
     work_choices: WorkChoiceWeb | None = None,
     named_questions: NamedFollowupWeb | None = None,
     gmail_connections: GmailConnectionWeb | None = None,
+    fragment_publication: FragmentPublicationWeb | None = None,
+    fragment_preparation: FragmentPreparationWeb | None = None,
 ) -> FastAPI:
     """Create an isolated app, never mount/run it or alter existing service binding.
 
@@ -192,6 +199,24 @@ def create_private_web(
             or gmail_connections._configuration.private_origin != origin
         ):
             raise ValueError("private Gmail connection configuration unavailable")
+    if fragment_publication is not None:
+        from zacai.interfaces.fragment_publication_web import FragmentPublicationWeb
+        if (type(fragment_publication) is not FragmentPublicationWeb
+            or named_questions is not None
+            or fragment_publication._continuity._sessions is not sessions
+            or fragment_publication._continuity._owner is not owner
+            or fragment_publication.host_clock is not clock
+            or json.loads(fragment_publication._continuity._context)["origin"] != origin):
+            raise ValueError("exact exclusive fragment publication host required")
+    if fragment_preparation is not None:
+        from zacai.interfaces.fragment_preparation_web import FragmentPreparationWeb
+
+        c = fragment_preparation.continuity
+        if (type(fragment_preparation) is not FragmentPreparationWeb
+            or fragment_publication is not None or named_questions is not None
+            or c._sessions is not sessions or c._owner is not owner
+            or c._clock is not clock or json.loads(c._context)["origin"] != origin):
+            raise ValueError("exact exclusive fragment preparation host required")
     target = urlsplit(origin)
     if (
         target.scheme != "https"
@@ -221,7 +246,13 @@ def create_private_web(
     def authenticated(request: Request) -> tuple[UserSession, InterfacePrincipal] | None:
         # A revoked/unavailable owner cannot keep denied cookies idle-alive.
         grant = current_owner()
-        session = sessions.user(_cookie(request, _USER), clock())
+        # A fragment publication pins the original effective expiry. Ordinary
+        # navigation must not renew that session and invalidate its live claim.
+        lookup = (fragment_preparation.continuity._sessions.peek_user
+                  if fragment_preparation is not None else
+                  fragment_publication._continuity._sessions.peek_user
+                  if fragment_publication is not None else sessions.user)
+        session = lookup(_cookie(request, _USER), clock())
         if session is None:
             return None
         if session.identity != grant.identity:
@@ -632,5 +663,153 @@ def create_private_web(
                 )
             except Exception:  # noqa: BLE001 - fixed status, no credential state disclosed
                 return Response("Gmail connection unavailable", status_code=503)
+
+    if fragment_publication is not None or fragment_preparation is not None:
+        from zacai.contextual_protection import PersonalFragmentCleanupUncertain
+        from zacai.intelligence.fragment_review_runtime import _AUTHENTICATED_MONOTONIC
+
+        def active_fragment() -> FragmentPublicationWeb:
+            if fragment_publication is not None:
+                return fragment_publication
+            assert fragment_preparation is not None
+            return fragment_preparation.prepared_controller()
+
+        def fragment_response_interval(fragment_controller: FragmentPublicationWeb, deadline: datetime, started: float) -> float:
+            # No further caller clock: final actual owner recheck has observed
+            # the shared clock. Conservative original wall/idle-expiry cap.
+            with fragment_controller.host_clock._lock:
+                observed = fragment_controller.host_clock._last
+            if observed is None or observed >= deadline:
+                raise ValueError("original response interval unavailable")
+            return started + (deadline-observed).total_seconds()
+
+        def fragment_response_expired(fragment_controller: FragmentPublicationWeb, deadline: datetime, bound: float) -> bool:
+            with fragment_controller.host_clock._lock:
+                observed = fragment_controller.host_clock._last
+            return (observed is None or observed >= deadline
+                    or _AUTHENTICATED_MONOTONIC() >= bound)
+
+        def fragment_document(content: str) -> str:
+            return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
+                '<meta name="viewport" content="width=device-width, initial-scale=1">'
+                '<title>Caz AI · Local context task</title><style>' + CAZ_STYLE + '</style></head>'
+                '<body><main>' + content + '</main></body></html>')
+
+        if fragment_preparation is not None:
+            @app.post("/prepare-caz-task")
+            async def prepare_fragment_task(request: Request) -> Response:
+                try:
+                    if (not valid_host(request) or request.scope.get("query_string", b"")
+                        or request.headers.getlist("origin") != [origin]
+                        or request.headers.getlist("content-type") != ["application/x-www-form-urlencoded"]
+                        or authenticated(request) is None):
+                        return Response(status_code=403)
+                    body = bytearray()
+                    async for chunk in request.stream():
+                        body.extend(chunk)
+                        if len(body) > 2048:
+                            return Response(status_code=413)
+                    assert fragment_preparation is not None
+                    await run_in_threadpool(fragment_preparation.prepare, request=request, body=bytes(body))
+                    return RedirectResponse("/ask-caz-locally", status_code=303)
+                except PersonalFragmentCleanupUncertain:
+                    return Response("PERSONAL cleanup uncertain. Stop and reconcile; do not retry.", status_code=503)
+                except Exception:  # noqa: BLE001 - no private construction diagnostics
+                    return Response("Task preparation stopped. Stop and reconcile; do not retry.", status_code=503)
+
+        @app.get("/ask-caz-locally")
+        async def fragment_publication_page(request: Request) -> Response:
+            try:
+                if (not valid_host(request) or request.scope.get("query_string", b"")
+                    or request.headers.getlist("sec-fetch-site") not in ([], ["same-origin"], ["none"])):
+                    return Response(status_code=400)
+                cookie = _cookie(request, _USER)
+                if fragment_preparation is not None:
+                    from zacai.interfaces.fragment_preparation_web import FragmentPreparationError
+                    signed = authenticated(request)
+                    if signed is None:
+                        return Response(status_code=403)
+                    try:
+                        fragment_preparation.prepared_controller()
+                    except FragmentPreparationError:
+                        if fragment_preparation._phase != "NEW":
+                            return Response("Task preparation stopped. Stop and reconcile; do not retry.", status_code=503)
+                        from zacai.claude_local_custody import _SCOPE as preparation_scope
+                        original = fragment_preparation.continuity.for_cookie(cookie)
+                        observed = original.establish()
+                        if (observed.principal.scopes != preparation_scope
+                            or observed.principal.identity != signed[0].identity):
+                            return Response(status_code=403)
+                        form = fragment_preparation.page(csrf=signed[0].csrf)
+                        if original.recheck(observed.binding_digest) != observed:
+                            return Response(status_code=403)
+                        return HTMLResponse(fragment_document(form))
+                fragment_controller = active_fragment()
+                operation = fragment_controller._continuity.for_cookie(cookie)
+                before = operation.establish()  # peek_user; no idle renewal
+                page = await run_in_threadpool(fragment_controller.page, cookie=cookie)
+                started = _AUTHENTICATED_MONOTONIC()
+                within_window = clock() < page.deadline
+                after = operation.recheck(before.binding_digest)
+                if (after != before or not within_window):
+                    return Response("Local context publication unavailable", status_code=403)
+                bound = fragment_response_interval(fragment_controller, page.deadline, started)
+                await run_in_threadpool(fragment_controller.scalar_response, page)
+                if fragment_response_expired(fragment_controller, page.deadline, bound):
+                    return Response("Local context publication unavailable", status_code=403)
+                return HTMLResponse(fragment_document(page.html))
+            except PersonalFragmentCleanupUncertain:
+                return Response("PERSONAL cleanup uncertain. Stop and reconcile; do not retry.", status_code=503)
+            except Exception:  # noqa: BLE001 - no private publication/session diagnostics
+                return Response("Local context publication unavailable", status_code=503)
+
+        @app.post("/ask-caz-locally")
+        async def fragment_publication_submit(request: Request) -> Response:
+            try:
+                if (not valid_host(request) or request.headers.getlist("origin") != [origin]
+                    or request.scope.get("query_string", b"")
+                    or request.headers.getlist("content-type") != ["application/x-www-form-urlencoded"]):
+                    return Response(status_code=403)
+                cookie = _cookie(request, _USER)
+                fragment_controller = active_fragment()
+                operation = fragment_controller._continuity.for_cookie(cookie)
+                before = operation.establish()
+                body = b""
+                async for chunk in request.stream():
+                    if len(body)+len(chunk) > 2048:
+                        return Response(status_code=413)
+                    body += chunk
+                if operation.recheck(before.binding_digest) != before:
+                    return Response(status_code=403)
+                result = await run_in_threadpool(fragment_controller.submit, request=request, body=body)
+                if operation.recheck(before.binding_digest) != before:
+                    return Response(status_code=403)
+                saved = await run_in_threadpool(fragment_controller.recheck_result, cookie=cookie, result=result)
+                started = _AUTHENTICATED_MONOTONIC()
+                within_window = clock() < saved.deadline
+                if not within_window or operation.recheck(before.binding_digest) != before:
+                    return Response("Local context action not acknowledged", status_code=403)
+                bound = fragment_response_interval(fragment_controller, saved.deadline, started)
+                await run_in_threadpool(fragment_controller.scalar_response, saved)
+                if fragment_response_expired(fragment_controller, saved.deadline, bound):
+                    return Response("Local context action not acknowledged", status_code=403)
+                from zacai.interfaces.fragment_publication_web import (
+                    ObservedFragmentCancellation,
+                    _RetainedFragmentTask,
+                )
+                if type(saved) is _RetainedFragmentTask:
+                    return HTMLResponse(fragment_document(saved.html))
+                if type(saved) is ObservedFragmentCancellation:
+                    return HTMLResponse(fragment_document(
+                        '<section class="decision-card"><h1>Cancellation recorded</h1>'
+                        '<p>The original processing window is not renewed.</p></section>'))
+                return HTMLResponse(fragment_document(
+                    '<section class="decision-card"><h1>Owner action recorded and protected</h1>'
+                    '<p>Generation and review have not started. This acknowledgment is '
+                    'not a reviewed reply or a claim that the context is current.</p></section>'))
+            except PersonalFragmentCleanupUncertain:
+                return Response("PERSONAL cleanup uncertain. Stop and reconcile; do not retry.", status_code=503)
+            except Exception:  # noqa: BLE001 - committed failures remain held; no automatic repair
+                return Response("Local context action not acknowledged. Do not retry.", status_code=503)
 
     return app

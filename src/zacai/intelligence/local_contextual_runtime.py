@@ -13,8 +13,10 @@ import json
 import re
 import threading
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Protocol
+from typing import TYPE_CHECKING, Literal, Protocol
+from uuid import UUID, uuid4
 
 from zacai.intelligence.contextual_generation import (
     ContextualDraft,
@@ -39,6 +41,12 @@ from zacai.intelligence.review_generation import prepare_review_request
 from zacai.intelligence.runtime_diagnostics import RuntimeDiagnosticError, closed_runtime_code
 from zacai.intelligence.runtime_diagnostics import RuntimeFailureCode as F
 from zacai.policy import Destination
+
+if TYPE_CHECKING:
+    from zacai.intelligence.history_fragment_contextual_codec import (
+        HistoryFragmentContextualRequestV1,
+    )
+    from zacai.intelligence.ollama_token_counter import OllamaQwenContextualTokenCounter
 
 _CONTEXT_TOKENS = 8192
 
@@ -815,3 +823,645 @@ def _parse_native_response(reply: object, request: ContextualRequestV2, route: M
     except Exception as error:  # noqa: BLE001 - no model/provider causes escape
         failure = closed_runtime_code(error) or failure
     raise LocalContextualRuntimeError("native contextual response rejected", code=failure)
+
+
+class FragmentLocalContextualRuntimeError(LocalContextualRuntimeError):
+    """Fixed phase diagnostic plus honest local POST-attempt observation."""
+
+    def __init__(
+        self, message: str, *, code: F = F.UNSPECIFIED, did_transport_attempt: bool = False
+    ) -> None:
+        if type(did_transport_attempt) is not bool:
+            raise TypeError("exact transport observation required")
+        self.did_transport_attempt = did_transport_attempt
+        super().__init__(message, code=code)
+
+
+def fragment_contextual_counter_pins(
+    counter: OllamaQwenContextualTokenCounter,
+) -> tuple[str, str, str]:
+    """Declared concrete tokenizer/template/source pins, never approval or parity proof."""
+    from importlib.metadata import version
+    from pathlib import Path
+
+    from zacai.ingestion.artifact_store import canonical_bytes
+    from zacai.intelligence import ollama_token_counter as base
+    from zacai.intelligence.native_prompt_counter import _TEMPLATE
+
+    if type(counter) is not base.OllamaQwenContextualTokenCounter:
+        raise ValueError("concrete contextual tokenizer required")
+    tokenizer = hashlib.sha256(
+        b"zac-fragment-tokenizer-v1\0"
+        + canonical_bytes(
+            {
+                "model_manifest": counter.model_digest,
+                "blobs": sorted((digest, limit) for _, digest, limit in counter._files),
+                "tokenizers_version": version("tokenizers"),
+                "add_special_tokens": False,
+                "padding": False,
+                "truncation": False,
+            }
+        )
+    ).hexdigest()
+    template = hashlib.sha256(
+        b"zac-fragment-template-v1\0"
+        + canonical_bytes(
+            {
+                "model": base._MODEL,
+                "version": base._VERSION,
+                "text": _TEMPLATE,
+                "trim_space": base._SPACE,
+            }
+        )
+    ).hexdigest()
+    files = (
+        Path(base.__file__),
+        Path(__file__).with_name("local_review_runtime.py"),
+        Path(__file__).with_name("native_prompt_counter.py"),
+    )
+    renderer = hashlib.sha256(
+        b"zac-fragment-renderer-v1\0"
+        + canonical_bytes(
+            {"files": [(f.name, hashlib.sha256(f.read_bytes()).hexdigest()) for f in files]}
+        )
+    ).hexdigest()
+    return tokenizer, template, renderer
+
+
+def fragment_contextual_runtime_digest() -> str:
+    """Prospective implementation inventory only, not a granted model profile."""
+    from pathlib import Path
+
+    files = [
+        Path(__file__),
+        *(
+            Path(__file__).with_name(name + ".py")
+            for name in (
+                "contextual_generation",
+                "contextual_evaluation",
+                "history_fragment_contextual_codec",
+                "history_contextual_codec",
+                "history_context_metadata",
+                "contextual_review",
+                "review_generation",
+                "review_evaluation",
+                "contracts",
+                "ollama_token_counter",
+                "native_prompt_counter",
+                "local_review_runtime",
+                "runtime_diagnostics",
+                "contextual_diagnostics",
+                "meeting_review",
+                "native_context_metadata",
+            )
+        ),
+    ]
+    root = Path(__file__).parent.parent
+    files += [
+        root / name
+        for name in (
+            "claude_historical_fragment.py",
+            "claude_large_original_message.py",
+            "claude_original_read.py",
+            "claude_original_capture.py",
+            "claude_history_index.py",
+            "history_manifest.py",
+            "claude_custody_selection.py",
+            "claude_message_projection.py",
+            "policy.py",
+            "gateway.py",
+            "state.py",
+            "ingestion/artifact_store.py",
+        )
+    ]
+    return hashlib.sha256(
+        b"zac-fragment-runtime-v1\0"
+        + b"".join(
+            str(f.relative_to(root)).encode() + b"\0" + hashlib.sha256(f.read_bytes()).digest()
+            for f in files
+        )
+    ).hexdigest()
+
+
+def _fragment_http_post(body: bytes, remaining_seconds: float) -> object:
+    """Literal loopback only, no proxies/redirects/retry; original remaining task budget."""
+    import http.client
+    import math
+
+    from zacai.intelligence.local_review_runtime import _json
+
+    if not math.isfinite(remaining_seconds) or remaining_seconds <= 0:
+        raise ValueError("fragment deadline exhausted")
+    connection = http.client.HTTPConnection("127.0.0.1", 11434, timeout=remaining_seconds)
+    try:
+        connection.request(
+            "POST", "/api/chat", body=body, headers={"Content-Type": "application/json"}
+        )
+        response = connection.getresponse()
+        if (
+            response.status != 200
+            or response.getheader("Content-Encoding", "identity") != "identity"
+        ):
+            raise ValueError("fragment runtime unavailable")
+        raw = response.read(2_000_001)
+        if len(raw) > 2_000_000:
+            raise ValueError("fragment response too large")
+        return _json(raw)
+    finally:
+        connection.close()
+
+
+
+def _fragment_verify_runtime(counter: OllamaQwenContextualTokenCounter) -> None:
+    # Broad return annotation makes the strict None runtime contract observable
+    # even for a replaced trusted callback; no shape is accepted as authority.
+    verify: Callable[[], object] = counter.verify_runtime
+    if verify() is not None:
+        raise ValueError("fragment runtime verification contract differs")
+
+
+@dataclass(frozen=True, repr=False)
+class FragmentContextualDispatchDescriptor:
+    """Exact runtime observations for a host gate, never an authority capability."""
+
+    phase: Literal["PRE_DISPATCH", "RELEASE"]
+    attempt_id: UUID
+    body_digest: str
+    retained_request_digest: str
+    prompt_tokens: int
+    route_json: str
+    model_digest: str
+    tokenizer_digest: str
+    runtime_digest: str
+    template_digest: str
+    renderer_digest: str
+    output_digest: str | None = None
+    usage_digest: str | None = None
+
+
+def _fragment_descriptor(
+    phase: Literal["PRE_DISPATCH", "RELEASE"], attempt_id: UUID,
+    body: bytes, retained: bytes, count: int,
+    configuration: tuple[str, str, str, str, str, str],
+    draft: ContextualDraft | None = None, usage: UsageObservation | None = None,
+) -> FragmentContextualDispatchDescriptor:
+    from zacai.ingestion.artifact_store import canonical_bytes
+
+    if (phase == "RELEASE") != (draft is not None and usage is not None):
+        raise ValueError("exact descriptor phase observations required")
+    return FragmentContextualDispatchDescriptor(
+        phase=phase, attempt_id=attempt_id,
+        body_digest=hashlib.sha256(body).hexdigest(),
+        retained_request_digest=hashlib.sha256(retained).hexdigest(),
+        prompt_tokens=count, route_json=configuration[5],
+        model_digest=configuration[0], tokenizer_digest=configuration[1],
+        runtime_digest=configuration[2], template_digest=configuration[3],
+        renderer_digest=configuration[4],
+        output_digest=None if draft is None else hashlib.sha256(
+            canonical_bytes(draft.model_dump(mode="json"))).hexdigest(),
+        usage_digest=None if usage is None else hashlib.sha256(
+            canonical_bytes(usage.model_dump(mode="json"))).hexdigest(),
+    )
+
+
+class FragmentLocalContextualRuntime:
+    """Dormant one-fragment LOCAL adapter; one instance attempt, no host activation.
+
+    Construction/counting are not human approval, protected Source access or a canonical
+    claim. A future authenticated host must own those gates before calling this adapter.
+    No default token counter, host recheck or model profile exists. The mandatory
+    callable must be the future host's actual canonical Source/owner/consent/recovery
+    recheck. Its return value is not authenticated permission or a proof receipt.
+    It runs after external predispatch checks and again after response callbacks;
+    only pure retained/configuration reconstruction and a monotonic deadline read
+    follow each call. No host or authority is activated here. Error reporters must disable local-variable
+    capture for private inputs. The POST uses remaining original task time; metadata uses existing bounded calls.
+    Total latency rejects late results, not a process sandbox or hard kill.
+    """
+
+    def __init__(
+        self,
+        *,
+        route: ModelRoute,
+        model_digest: str,
+        tokenizer_digest: str,
+        runtime_digest: str,
+        template_digest: str,
+        renderer_digest: str,
+        token_counter: OllamaQwenContextualTokenCounter,
+        recheck: Callable[[HistoryFragmentContextualRequestV1, FragmentContextualDispatchDescriptor], None],
+    ) -> None:
+        from zacai.intelligence.ollama_token_counter import OllamaQwenContextualTokenCounter
+
+        try:
+            if not callable(recheck):
+                raise TypeError("explicit host recheck required")
+            if type(token_counter) is not OllamaQwenContextualTokenCounter:
+                raise ValueError("concrete contextual tokenizer required")
+            self._route = ModelRoute.model_validate(route)
+            if any(
+                type(pin) is not str or re.fullmatch(r"[0-9a-f]{64}", pin) is None
+                for pin in (
+                    model_digest,
+                    tokenizer_digest,
+                    runtime_digest,
+                    template_digest,
+                    renderer_digest,
+                )
+            ):
+                raise ValueError("fragment configuration pins differ")
+            if (
+                runtime_digest != fragment_contextual_runtime_digest()
+                or self._route.destination != Destination.LOCAL
+                or not self._route.available
+            ):
+                raise ValueError("fragment configuration differs")
+            self._model_digest = model_digest
+            self._tokenizer_digest = tokenizer_digest
+            self._runtime_digest = runtime_digest
+            self._template_digest = template_digest
+            self._renderer_digest = renderer_digest
+            self._route_snapshot = _canonical_native_route(self._route)
+            self._token_counter = token_counter
+            self._recheck = recheck
+            self._publication_window: tuple[object, float] | None = None
+            self._configuration = (model_digest, tokenizer_digest, runtime_digest,
+                                   template_digest, renderer_digest, self._route_snapshot)
+            self._prepared: tuple[HistoryFragmentContextualRequestV1, bytes, bytes, int] | None = (
+                None
+            )
+            self._attempted = False
+            self._did_transport_attempt = False
+            self._usage: UsageObservation | None = None
+            self._lock = threading.Lock()
+            return
+        except Exception:  # noqa: BLE001,S110 - configuration/input diagnostics stay private
+            pass
+        raise FragmentLocalContextualRuntimeError("invalid fragment runtime configuration")
+
+    @property
+    def route(self) -> ModelRoute:
+        return self._route
+
+    @property
+    def usage(self) -> UsageObservation | None:
+        return self._usage
+
+    @property
+    def did_transport_attempt(self) -> bool:
+        return self._did_transport_attempt
+
+    def _pins(self) -> None:
+        actual = (
+            self._token_counter.model_digest,
+            *fragment_contextual_counter_pins(self._token_counter),
+            fragment_contextual_runtime_digest(),
+        )
+        expected = (
+            self._model_digest,
+            self._tokenizer_digest,
+            self._template_digest,
+            self._renderer_digest,
+            self._runtime_digest,
+        )
+        if any(
+            type(value) is not str or value != pin
+            for value, pin in zip(actual, expected, strict=True)
+        ):
+            raise LocalContextualRuntimeError(
+                "fragment implementation pin differs", code=F.MODEL_PIN
+            )
+
+    def _count(self, body: bytes, request: HistoryFragmentContextualRequestV1) -> int:
+        self._pins()
+        value = self._token_counter.count_prompt_tokens(body)
+        self._pins()
+        if type(value) is not int or value <= 0:
+            raise LocalContextualRuntimeError("invalid fragment token count", code=F.TOKEN_COUNT)
+        if value + request.task.max_output_tokens > _context_tokens(self._route):
+            raise LocalContextualRuntimeError(
+                "fragment token capacity exceeded", code=F.TOKEN_CAPACITY
+            )
+        return value
+
+    def _bytes(self, request: HistoryFragmentContextualRequestV1) -> tuple[bytes, bytes]:
+        from zacai.intelligence.history_fragment_contextual_codec import (
+            HistoryFragmentContextualRequestV1,
+            encode_history_fragment_contextual_request,
+        )
+
+        if type(request) is not HistoryFragmentContextualRequestV1:
+            raise ValueError("exact fragment request required")
+        if (
+            _canonical_native_route(self._route) != self._route_snapshot
+            or request.route != self._route
+        ):
+            raise LocalContextualRuntimeError("fragment route changed", code=F.MODEL_PIN)
+        retained = encode_history_fragment_contextual_request(request)
+        body = request.prompt_body.encode()
+        wire = json.loads(body)
+        if wire["model"] != self._route.identity.model_id:
+            raise ValueError("fragment model differs")
+        return body, retained
+
+    def _after_host_recheck(
+        self, request: HistoryFragmentContextualRequestV1, body: bytes, retained: bytes,
+        counter: OllamaQwenContextualTokenCounter,
+        recheck: Callable[[HistoryFragmentContextualRequestV1, FragmentContextualDispatchDescriptor], None],
+        configuration: tuple[str, str, str, str, str, str],
+    ) -> None:
+        """Pure retained bytes/configuration check, never invokes a host/provider callback."""
+        if (self._token_counter is not counter or self._recheck is not recheck
+            or (self._model_digest, self._tokenizer_digest, self._runtime_digest,
+                self._template_digest, self._renderer_digest, self._route_snapshot) != configuration or self._configuration != configuration
+            or counter._digest != self._model_digest
+            or self._bytes(request) != (body, retained)):
+            raise ValueError("fragment changed during host recheck")
+
+    def preflight_fragment(self, request: HistoryFragmentContextualRequestV1) -> None:
+        if not self._lock.acquire(blocking=False):
+            raise FragmentLocalContextualRuntimeError(
+                "fragment instance busy", code=F.PREFLIGHT_BINDING
+            )
+        failure = F.PREFLIGHT_BINDING
+        try:
+            if self._attempted or self._prepared is not None:
+                raise LocalContextualRuntimeError(
+                    "fragment preflight consumed", code=F.PREFLIGHT_BINDING
+                )
+            failure = F.REQUEST_PAYLOAD
+            body, retained = self._bytes(request)
+            failure = F.TOKEN_COUNT
+            count = self._count(body, request)
+            failure = F.RUNTIME_VERSION
+            _fragment_verify_runtime(self._token_counter)
+            failure = F.MODEL_PIN
+            verify_model(self._route.identity.model_id, self._model_digest, _http)
+            self._pins()
+            failure = F.REQUEST_PAYLOAD
+            if self._bytes(request) != (body, retained):
+                raise LocalContextualRuntimeError(
+                    "fragment request changed", code=F.REQUEST_PAYLOAD
+                )
+            self._prepared = (request, body, retained, count)
+        except BaseException as error:  # noqa: BLE001 - never retain private exception causes
+            self._prepared = None
+            self._attempted = True
+            kind = type(error)
+            exit_code = (
+                error.code if isinstance(error, SystemExit) and type(error.code) is int else 1
+            )
+            failure = _native_phase_failure(error, failure)
+        else:
+            return
+        finally:
+            self._lock.release()
+        _raise_interruption(kind, exit_code)
+        raise FragmentLocalContextualRuntimeError(
+            "fragment contextual preflight failed", code=failure
+        )
+
+    def generate_fragment(self, request: HistoryFragmentContextualRequestV1) -> ContextualDraft:
+        if not self._lock.acquire(blocking=False):
+            raise FragmentLocalContextualRuntimeError(
+                "fragment attempt unavailable", code=F.PREFLIGHT_BINDING
+            )
+        try:
+            if self._attempted:
+                raise FragmentLocalContextualRuntimeError(
+                    "fragment attempt consumed", code=F.PREFLIGHT_BINDING
+                )
+            self._usage = None
+            self._attempted = True
+            prepared = self._prepared
+            self._prepared = None
+        finally:
+            self._lock.release()
+        failure = F.PREFLIGHT_BINDING
+        did_transport_attempt = False
+        try:
+            started = time.perf_counter()
+            counter, recheck = self._token_counter, self._recheck
+            publication_window = self._publication_window
+            configuration = self._configuration
+            attempt_id = uuid4()
+            if prepared is None or prepared[0] is not request:
+                raise ValueError("original preflight required")
+            failure = F.REQUEST_PAYLOAD
+            body, retained = self._bytes(request)
+            if (body, retained) != prepared[1:3]:
+                raise ValueError("fragment preflight differs")
+            failure = F.TOKEN_COUNT
+            if self._count(body, request) != prepared[3]:
+                raise ValueError("fragment tokenizer changed")
+            failure = F.RUNTIME_VERSION
+            _fragment_verify_runtime(self._token_counter)
+            failure = F.MODEL_PIN
+            verify_model(self._route.identity.model_id, self._model_digest, _http)
+            # Last tokenizer/provider/policy callbacks precede the actual canonical gate.
+            failure = F.TOKEN_COUNT
+            if self._count(body, request) != prepared[3]:
+                raise ValueError("fragment tokenizer changed")
+            failure = F.MODEL_PIN
+            self._pins()
+            failure = F.REQUEST_PAYLOAD
+            if self._bytes(request) != (body, retained):
+                raise ValueError("fragment request changed before dispatch")
+            failure = F.TOTAL_LATENCY
+            if not 0 <= (time.perf_counter() - started) * 1000 <= request.task.max_latency_ms:
+                raise ValueError("fragment dispatch exceeded deadline")
+            failure = F.PREFLIGHT_BINDING
+            descriptor = _fragment_descriptor("PRE_DISPATCH", attempt_id, body, retained,
+                                              prepared[3], configuration)
+            if recheck(request, descriptor) is not None:
+                raise ValueError("host recheck contract differs")
+            self._after_host_recheck(request, body, retained, counter, recheck, configuration)
+            if descriptor != _fragment_descriptor("PRE_DISPATCH", attempt_id, body, retained,
+                                                 prepared[3], configuration):
+                raise ValueError("dispatch descriptor changed during host recheck")
+            failure = F.TOTAL_LATENCY
+            remaining = request.task.max_latency_ms / 1000 - (time.perf_counter() - started)
+            if not 0 < remaining <= request.task.max_latency_ms / 1000:
+                raise ValueError("fragment dispatch deadline exhausted")
+            remaining = _publication_remaining(self, publication_window, remaining)
+            failure = F.TRANSPORT
+            did_transport_attempt = True
+            self._did_transport_attempt = True
+            reply = _fragment_http_post(body, remaining)
+            failure = F.RESPONSE_SHAPE
+            draft, usage = _parse_fragment_response(
+                reply, request, self._route, (time.perf_counter() - started) * 1000, prepared[3]
+            )
+            failure = F.POST_RUNTIME_VERSION
+            _fragment_verify_runtime(self._token_counter)
+            failure = F.POST_MODEL_PIN
+            verify_model(self._route.identity.model_id, self._model_digest, _http)
+            self._pins()
+            failure = F.POST_MODEL_PIN
+            if _canonical_native_route(self._route) != self._route_snapshot:
+                raise ValueError("fragment release route changed")
+            # Existing audit consumers classify REQUEST_PAYLOAD as preflight.
+            # Preserve a post-response code as well as the actual attempt flag.
+            failure = F.RESPONSE_AUTHORITY
+            if self._bytes(request) != (body, retained):
+                raise ValueError("fragment release request changed")
+            failure = F.TOTAL_LATENCY
+            elapsed = (time.perf_counter() - started) * 1000
+            if not 0 <= elapsed <= request.task.max_latency_ms:
+                raise ValueError("fragment output exceeded deadline")
+            # Construct privately before the last canonical host callback.
+            result_usage = UsageObservation.model_validate({**usage.model_dump(), "latency_ms": elapsed})
+            failure = F.RESPONSE_AUTHORITY
+            descriptor = _fragment_descriptor("RELEASE", attempt_id, body, retained,
+                                              prepared[3], configuration, draft, result_usage)
+            if recheck(request, descriptor) is not None:
+                raise ValueError("host recheck contract differs")
+            self._after_host_recheck(request, body, retained, counter, recheck, configuration)
+            if descriptor != _fragment_descriptor("RELEASE", attempt_id, body, retained,
+                                                 prepared[3], configuration, draft, result_usage):
+                raise ValueError("release descriptor changed during host recheck")
+            failure = F.TOTAL_LATENCY
+            elapsed = (time.perf_counter() - started) * 1000
+            if not 0 <= elapsed <= request.task.max_latency_ms:
+                raise ValueError("fragment release exceeded deadline")
+            _publication_remaining(self, publication_window, 1.0)
+            self._usage = result_usage
+            return draft
+        except BaseException as error:  # noqa: BLE001 - private backend/gate diagnostics stay private
+            kind = type(error)
+            exit_code = (
+                error.code if isinstance(error, SystemExit) and type(error.code) is int else 1
+            )
+            from zacai.contextual_protection import PersonalFragmentCleanupUncertain
+
+            cleanup_uncertain = isinstance(error, PersonalFragmentCleanupUncertain)
+            failure = _native_phase_failure(error, failure)
+        if cleanup_uncertain:
+            raise PersonalFragmentCleanupUncertain(
+                "PERSONAL recovery cleanup uncertain; operator review required"
+            ) from None
+        _raise_interruption(kind, exit_code)
+        raise FragmentLocalContextualRuntimeError(
+            "fragment contextual generation failed",
+            code=failure,
+            did_transport_attempt=did_transport_attempt,
+        )
+
+    # Pure structural resolver only: no instance-origin/display/permission binding.
+    def resolve_fragment(
+        self, draft: ContextualDraft, request: HistoryFragmentContextualRequestV1
+    ) -> ContextualReview:
+        from zacai.intelligence.contextual_generation import (
+            resolve_history_fragment_contextual_draft,
+        )
+
+        return resolve_history_fragment_contextual_draft(draft, request)
+
+
+def _parse_fragment_response(
+    reply: object,
+    request: HistoryFragmentContextualRequestV1,
+    route: ModelRoute,
+    elapsed: float,
+    expected_count: int,
+) -> tuple[ContextualDraft, UsageObservation]:
+    failure = F.RESPONSE_SHAPE
+    try:
+        if type(reply) is not dict:
+            raise ValueError("fragment response shape")
+        failure = F.RESPONSE_MODEL
+        if reply.get("model") != route.identity.model_id:
+            raise ValueError("fragment response model")
+        failure = F.RESPONSE_INCOMPLETE
+        if reply.get("done") is not True:
+            raise ValueError("fragment response incomplete")
+        failure = F.RESPONSE_SHAPE
+        message = reply.get("message")
+        if type(message) is not dict:
+            raise ValueError("fragment response message shape")
+        failure = F.RESPONSE_AUTHORITY
+        if (
+            message.get("role") != "assistant"
+            or message.get("tool_calls")
+            or message.get("thinking")
+        ):
+            raise ValueError("fragment response authority")
+        if reply.get("done_reason") == "length":
+            failure = F.RESPONSE_USAGE
+            length_input = reply.get("prompt_eval_count")
+            length_output = reply.get("eval_count")
+            if type(length_input) is not int or type(length_output) is not int:
+                raise ValueError("fragment length count type")
+            reported = (length_input, length_output)
+            if (
+                any(n < 0 for n in reported)
+                or reported[1] > request.task.max_output_tokens
+                or sum(reported) > _context_tokens(route)
+            ):
+                raise ValueError("fragment length usage")
+            failure = (
+                F.OUTPUT_LIMIT
+                if reported[1] == request.task.max_output_tokens
+                and sum(reported) < _context_tokens(route)
+                else F.RESPONSE_LENGTH
+            )
+            raise ValueError("fragment length completion")
+        failure = F.RESPONSE_STOP_REASON
+        if reply.get("done_reason") != "stop":
+            raise ValueError("fragment response stop")
+        failure = F.RESPONSE_USAGE
+        input_count = reply.get("prompt_eval_count")
+        output_count = reply.get("eval_count")
+        if (
+            type(input_count) is not int
+            or type(output_count) is not int
+            or input_count < 0
+            or output_count < 0
+        ):
+            raise ValueError("fragment response counts")
+        counts = (input_count, output_count)
+        if counts[0] != expected_count:
+            raise LocalContextualRuntimeError(
+                "fragment prompt count mismatch", code=F.PROMPT_COUNT_MISMATCH
+            )
+        if counts[1] > request.task.max_output_tokens or sum(counts) > _context_tokens(route):
+            raise ValueError("fragment response capacity")
+        failure = F.RESPONSE_LATENCY
+        if not 0 <= elapsed <= request.task.max_latency_ms:
+            raise ValueError("fragment response latency")
+        failure = F.RESPONSE_SCHEMA
+        content = message.get("content")
+        if type(content) is not str:
+            raise ValueError("fragment response content")
+        draft = parse_contextual_draft(content.encode())
+        return draft, UsageObservation(
+            input_tokens=counts[0], output_tokens=counts[1], latency_ms=elapsed, cost_usd=0
+        )
+    except Exception as error:  # noqa: BLE001 - no model/provider causes escape
+        failure = closed_runtime_code(error) or failure
+    raise LocalContextualRuntimeError("fragment contextual response rejected", code=failure)
+
+
+def _publication_remaining(
+    runtime: FragmentLocalContextualRuntime, window: tuple[object, float] | None, remaining: float,
+) -> float:
+    """Scalar original publication cap; no caller clock or renewable authority."""
+    from zacai.intelligence.fragment_publication_generation import (
+        CanonicalPersonalFragmentPublicationAuthorization,
+    )
+    from zacai.intelligence.fragment_review_runtime import _AUTHENTICATED_MONOTONIC
+
+    parent = getattr(runtime._recheck, "__self__", None)
+    if type(parent) is not CanonicalPersonalFragmentPublicationAuthorization:
+        if window is not None or runtime._publication_window is not None:
+            raise ValueError("publication runtime origin changed")
+        return remaining
+    if (window is None or runtime._publication_window is not window
+        or window[0] is not parent or parent._runtime is not runtime
+        or parent._generation_window is not window
+        or getattr(runtime._recheck, "__func__", None) is not type(parent).recheck):
+        raise ValueError("original publication processing window required")
+    bounded = min(remaining, window[1] - _AUTHENTICATED_MONOTONIC())
+    if not 0 < bounded <= remaining:
+        raise ValueError("original publication processing interval exhausted")
+    return bounded

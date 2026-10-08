@@ -2922,3 +2922,60 @@ actual in-memory SQLite storage cases. All 630 passed; the original installed
 origins were checked after execution. This is temporary-tree integration
 acceptance, not installed-tree acceptance or owner readiness. Independent Opus
 review approval remains pending before review and installation.
+
+
+### 2026-10-08 request wording and context baseline integration checkpoint (staged)
+
+The owner's exact task wording is now carried through the existing preparation POST, factory, original task, request digest and approval display. Preparation does not authorize model processing. The original one-attempt behavior, 2048-byte request cap, native deadline and full PERSONAL recovery requirements remain. The UI remains secondary to useful contextual work.
+
+The final combined request-flow stage passed 125 guarded checks, strict typing across 201 modules and scoped lint. Its changed factory passed genuine PostgreSQL and native age recovery with 151 invented records. A second actual control supplied wording different from the configured instruction and verified its exact canonical original and derived task after retention and recovery. Model output quality, real private processing, mobile access and useful readiness are not proved by these tests. The unchanged reviewer path separately passed four actual database/recovery cases, including approval expiry after a database-lock wait. Independent Opus review is recorded in the private progress handoff; the final exact-wording packet is still under review.
+
+Complete Claude MESSAGE V2 preparation already exists. The authenticated gap-fragment consumer cannot silently accept it, and the context baseline cannot be limited to incomplete-ancestry fragments. The next finite slice adds exact complete-history evidence retention/loading through existing codecs, Source records and current original/companion checks. Complete-family generation, fresh admission, output protection and full-answer review remain explicit missing joins. Holding catalogs are not canonical context. Project names or a shared customer do not establish that two projects or SOWs are the same. Material uncertainty must yield one scope question before dispatch.
+
+This checkpoint is staged. Installed source remains frozen for the separate attended Gmail attempt. No code installation, new private-source import, credential read or model processing is implied.
+
+The three final instruction-flow review findings are now corrected in the staged successor: original processing-window fit is checked before declaration capture, cleanup exceptions are fixed and raised outside the catch, and the personal text form declares UTF-8 and disables browser spellcheck/autocomplete assistance. Request text is displayed in a preformatted element so default restrictive CSP does not collapse its whitespace. The combined successor passed 132 guarded checks and actual PostgreSQL/native encrypted recovery with distinct Unicode and browser-style CRLF wording. This remains a mechanics proof on invented records, not private usefulness or account connectivity. The root source freeze remains while the independent Gmail protected-startup diagnostic is reconciled.
+
+
+### 2026-10-08: Complete history packet custody acceptance
+
+Complete MESSAGE V2 packets now have additive canonical capture and exact-reference reopen, retaining multiple selected messages from a single original/companion pair. Current ACL and original revision changes hold stale context. Root passed five genuine PostgreSQL cases in 3.39 seconds, including stronger review labels and caller rollback, using invented evidence. The integrated exact-owner-request and complete-storage candidate passed 190 guarded checks in 45.89 seconds and strict typing for 201 source files. Independent code-only Opus storage review completed. Root confirmed the existing packet validator already enforces the task/review classification bound, moved the retained-hash check before packet parsing, and documented required caller rollback. The corrupted-byte control confirms no packet decoder runs before integrity passes.
+
+This is storage acceptance only. Actual owner enrollment, protected canonical historical intake, relevant retrieval, complete-family authenticated generation/review, useful owner acceptance and mobile usability remain unfinished. Source installation waits for the separate protected Gmail startup diagnostic to finish and its outcome to be reconciled.
+
+### 2026-10-08: Reviewed context checkpoint installed
+
+The finite request, declaration, admission, associated-output, reviewer and
+complete-history storage checkpoint is now installed. Root applied 94 exact
+preimage-checked paths and verified all postimages. Installed acceptance passed
+322 guarded checks and two separate native process controls, with exact installed
+import origins. Strict typing passes for 202 modules and lint passes. Earlier
+actual PostgreSQL and encrypted recovery evidence remains scoped to its recorded
+invented fixtures and source snapshots; it is not live-history acceptance.
+
+Independent code-only Opus review identified two cleanup corrections now applied:
+diagnostic lifespan refusal must stop startup, and LOCAL execution suppresses
+repeated interrupt delivery before unwinding the action. Causal controls failed
+on the predecessor and pass on the corrected code. The conditional consent
+instance-validation finding does not apply: the inherited contract already
+requires revalidation, verified with explicit malformed-instance controls.
+
+Complete-history generation retains the existing V1 request bytes. A separate
+complete declaration binds the actual style-bearing generation wire, concise
+owner voice, unchanged submitted instruction and original processing window.
+Counting and dispatch must use that exact wire. This declaration does not grant
+permission or authenticate a reviewer; concrete full-history consumers remain
+the next integration work.
+
+The separate Gmail diagnostic is terminal and its generation consumed. It
+stopped at credential loading before foreground execution; no listener remained.
+It does not diagnose the original serving failure, establish Gmail connectivity
+or authorize a retry. Its terminal outcome removes the installed-source hold.
+
+The context-first next milestone remains one relevant, canonically retrieved
+historical cohort through complete preparation, observed approval, generation,
+retained output and independent review. Later USER corrections must not be lost
+because keywords differ, and a conversation or account is not automatically a
+project. Actual PERSONAL enrollment, original custody and whole-inventory
+recovery, approved private inference, useful owner acceptance and iPhone
+usability are still unverified. No broad import or live processing is enabled.
