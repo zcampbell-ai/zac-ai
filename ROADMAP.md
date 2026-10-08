@@ -2913,3 +2913,12 @@ final query correction from MANUAL review records to USER_INSTRUCTION
 cancellations. Product bytes and original deadlines were unchanged. These
 results close the staged concurrency acceptance, not independent review,
 installation, private processing, useful-answer quality or mobile acceptance.
+
+The finite installation candidate was assembled in a separate temporary tree
+with the exact final 199-module source graph. Root reproduced 610 offline cases
+with database, network and subprocess access blocked, plus 20 separately selected
+actual in-memory SQLite storage cases. All 630 passed; the original installed
+187-module product remains unchanged. Complete input hashes and canonical import
+origins were checked after execution. This is temporary-tree integration
+acceptance, not installed-tree acceptance or owner readiness. Independent Opus
+review approval remains pending before review and installation.
