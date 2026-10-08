@@ -2823,3 +2823,34 @@ approval capture and protection, verify the actual HTTP/database join, and bind
 approval and cancellation to generation and independent review before releasing
 private history results. Current context facts and iPhone usability remain
 unverified. No new private-source processing or native retry was enabled.
+
+### 2026-10-08: Observed approval and admission recovery checks
+
+Seven root-exclusive PostgreSQL cases passed against the frozen staged code,
+using actual ASGI form handling and invented signed-owner fixtures. They cover
+approval commit/reopen, original expiry/session/CSRF mismatches, conflicting
+publication during artifact reading, current-original revision before response,
+and a lost acknowledgement after commit without a second write. The first run
+had six passes and a fixture failure because a proposed custody revision lowered
+the original classification. Its evidence remains preserved. A test-only
+correction retained the actual classification and chronology; all seven passed.
+
+Seven additional cases passed using genuine isolated PostgreSQL and age recovery:
+the approved publication and admission are recovered as one complete Source
+union; the earlier declaration-only checkpoint becomes stale after approval;
+missing or corrupted ciphertext is refused; source changes or owner revocation
+after restoration withhold the receipt. Reported cleanup uncertainty was injected
+after successful real restoration, so this case does not establish actual failed
+database cleanup or operator repair. Root also reproduced 46 guarded browser
+controls without operational storage or model inference.
+
+Independent source inspection then identified a final owner-freshness gap: the
+admission protector calls the clock after its last signed-owner check. A clock
+callback could revoke that owner before receipt return. A bounded causal test
+and correction are in progress; these passing cases do not close that gap.
+
+The context-first critical path remains approval, complete recovery, generation,
+retained output and independent review. The generation/output join is being built
+on the frozen source graph. No attended live approval, private history inference,
+useful generated result, canonical current-fact promotion or phone readiness is
+claimed. Product changes remain staged pending integration and independent review.
