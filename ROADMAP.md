@@ -2899,3 +2899,17 @@ The coherent staged code-only Opus review scope has been prepared and requested;
 no new packet has been sent. These checks do not authorize private processing or
 establish useful answers, attended live approval or phone readiness. Product code
 remains staged until integration and independent review close the checkpoint.
+
+The concurrent namespace checks now have two root-observed passing cases for
+independently committed claim and assessment siblings. The separate parent-lock
+cancellation case also passed on actual PostgreSQL and native age. It observes
+matching granted and waiting locks, a committed/reopened cancellation, the
+durable reviewer child claim, and a held reviewer with zero simulated model POSTs.
+Invented signed-owner fixtures and provider responses remain the scope.
+
+Earlier fixture failures remain preserved. The cancellation fixture needed
+calling-thread lease accounting for its genuine signed-owner lookup, then a
+final query correction from MANUAL review records to USER_INSTRUCTION
+cancellations. Product bytes and original deadlines were unchanged. These
+results close the staged concurrency acceptance, not independent review,
+installation, private processing, useful-answer quality or mobile acceptance.
