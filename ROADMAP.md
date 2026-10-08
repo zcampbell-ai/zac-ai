@@ -2881,3 +2881,21 @@ The concrete reviewer/runtime join passes independent static checks and 17 decla
 controls, but authenticated invocation and assessment recovery still require
 execution acceptance and independent engineering review. Product code remains
 staged; private history processing and phone readiness are not enabled.
+
+### 2026-10-08: Reviewer assessment recovery
+
+The final staged reviewer join passed 28 root-reproduced controls. They exercise
+the concrete gate, runtime and codecs with simulated owner, database, encryption
+and provider seams. A separate root-exclusive integration case then passed on
+actual PostgreSQL and native age encryption. The reviewer child claim is committed
+and protected before the single simulated inference response; its append makes
+the earlier answer-only checkpoint stale. The runtime-owned assessment is captured
+once, reopened and recovered with the full artifact, State and journal union,
+including the answer and all approval ancestry. A second assessment capture is
+refused. All ten judgments are invented UNREVIEWED values, not quality acceptance.
+
+Real concurrent namespace and parent-lock cancellation controls remain pending.
+The coherent staged code-only Opus review scope has been prepared and requested;
+no new packet has been sent. These checks do not authorize private processing or
+establish useful answers, attended live approval or phone readiness. Product code
+remains staged until integration and independent review close the checkpoint.
