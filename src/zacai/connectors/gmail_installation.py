@@ -449,7 +449,7 @@ class GmailInstallation:
             "spend_hash": hashlib.sha256(self._consumer._spend_bytes).hexdigest(),
         }
         history = getattr(self._consumer, "_history", None)
-        if (history is not None) != (self._consumer._host._recovery_profile == "legacy_repeat_v2"):
+        if (history is not None) != (self._consumer._host._recovery_profile in {"legacy_repeat_v2", "terminal_chain_v3", "terminal_native_absence_v4"}):
             raise ValueError("exact installed recovery profile required")
         if history is not None:
             from zacai.connectors.gmail_recovery_history import GmailRecoveryHistory
@@ -457,6 +457,8 @@ class GmailInstallation:
             if type(history) is not GmailRecoveryHistory:
                 raise ValueError("actual captured immutable recovery history required")
             self._current()
+            if history.descriptor()["profile"] != self._consumer._host._recovery_profile:
+                raise ValueError("exact installed history profile required")
             history.current()
             record["version"] = 2
             record["history"] = history.descriptor()

@@ -18,7 +18,7 @@ import threading
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.hashes import SHA256
@@ -203,7 +203,7 @@ class GmailInstallationLoader:
         )
         self._key, self._directory, self._account = key, authority._directory, account
         self._recovery_profile = host._recovery_profile
-        if self._recovery_profile not in {"fresh_v1", "legacy_repeat_v2"}:
+        if self._recovery_profile not in {"fresh_v1", "legacy_repeat_v2", "terminal_chain_v3", "terminal_native_absence_v4"}:
             raise ValueError("closed installed recovery profile required")
         self._issuer = object()
         self._context = b"zac-fresh-gmail-installation-v1\x00" + authority._context
@@ -339,9 +339,13 @@ class GmailInstallationLoader:
         pending = _record(self._cipher, self._file(self._directory / PENDING), self._context)
         history = _installation_history(pending, configuration=self._configuration.configuration_digest,
                                         account=self._account)
-        if (history is not None) != (self._recovery_profile == "legacy_repeat_v2"):
+        if (history is not None) != (self._recovery_profile in {"legacy_repeat_v2", "terminal_chain_v3", "terminal_native_absence_v4"}):
             raise ValueError("exact installed recovery profile required")
+        if history is not None and history["profile"] != self._recovery_profile:
+            raise ValueError("exact authenticated installation history profile required")
         files = _FILES | ({history["journal"], history["spend"]} if history is not None else set())
+        if history is not None and history["profile"] in {"terminal_chain_v3", "terminal_native_absence_v4"}:
+            files |= set(history["legacy_files"])
         if {p.name for p in self._directory.iterdir()} != files | {CONNECTOR} | extra:
             raise ValueError("exact installed operational namespace required")
         root = self._directory / CONNECTOR
@@ -715,6 +719,18 @@ class GmailInstallationLoader:
                 authenticate_history(history, authority=authority, configuration=self._configuration,
                                      key=self._key, identity=self._action._hr_principal.identity)
                 check()
+                if history["profile"] == "terminal_native_absence_v4":
+                    from zacai.connectors.gmail_recovery_native_absence import recorded_observations
+
+                    prior_name = history["epochs"][-1]["journal"]
+                    prior_raw = self._file(self._directory / prior_name, check=check)
+                    prior_record = parse_gmail_quarantine_record(
+                        self._journal_cipher.decrypt(prior_raw[:12], prior_raw[12:], self._journal_context),
+                        configuration=self._configuration,
+                    )
+                    inherited = (prior_record.history or {}).get("native_absence_observations", [])
+                    recorded_observations(history, journal, spend, cast(Any, inherited))
+                    check()
             elif journal.version != 1 or journal.history is not None:
                 raise ValueError("legacy installation requires legacy journal")
             for name in ("old_state", "old_row", "journal", "hr_binding", "original_binding"):

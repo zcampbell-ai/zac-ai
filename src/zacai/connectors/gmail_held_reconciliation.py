@@ -293,6 +293,89 @@ class HeldGmailReconciliation:
         return reference
 
     @_closed
+    def inspect_historical_recovery(
+        self, *, action: Any, descriptor: dict[str, Any], state_hash: str
+    ) -> HeldGmailReference:
+        """New current dual-owner action; never upgrades the original CONF grant.
+
+        Ordinary inspect still requires its original HR scope. This dedicated
+        path consumes the already privately issued same-identity two-realm
+        pairing and authenticates the complete retained epoch before issuance.
+        """
+        from zacai.connectors.gmail_recovery_authorization import GmailRecoveryAction
+        from zacai.connectors.gmail_recovery_terminal_chain import authenticate
+
+        self._current()
+        if (
+            type(action) is not GmailRecoveryAction
+            or action._authority is not self._authority
+            or action._configuration.configuration_digest != self._digest
+            or action._join._host._recovery_profile != "terminal_native_absence_v4"
+            or type(state_hash) is not str
+            or _DIGEST.fullmatch(state_hash) is None
+        ):
+            raise ValueError("actual current dual-owner historical action required")
+        action.current()
+        self._current()
+        before = self._files()
+        authority = self._authority
+        host = action._join._host
+        if host._runtime is None:
+            raise ValueError("actual held owner startup context required")
+        with authority._locked() as lock_current:
+            action.current()
+            lock_current()
+            self._current()
+            if self._files() != before:
+                raise ValueError("original ledger snapshot required")
+            targets = authenticate(
+                descriptor,
+                authority=authority,
+                configuration=action._configuration,
+                key=host._runtime.session_key,
+                identity=action._hr_principal.identity,
+                reconciliation_only=True,
+            )
+            action.current()
+            lock_current()
+            self._current()
+            if self._files() != before:
+                raise ValueError("original authenticated epoch changed")
+            ledger = authority._read()
+            if ledger["rows"] != descriptor["rows"] or state_hash not in {s for _, s in targets}:
+                raise ValueError("exact complete suffixed epoch row required")
+            row = ledger["rows"][state_hash]
+            if (
+                row["state"] != "held"
+                or row["loaded"] is not True
+                or row["rotation"] is not None
+                or row["configuration"] != self._digest
+                or row["account"] != self._account
+                or type(row["execution"]) is not str
+                or _DIGEST.fullmatch(row["execution"]) is None
+            ):
+                raise ValueError("exact consumed held native-review row required")
+            row_bytes = _json(row)
+            action.current()
+            lock_current()
+            self._current()
+            if self._files() != before:
+                raise ValueError("original epoch final snapshot required")
+            reference = object.__new__(HeldGmailReference)
+            object.__setattr__(
+                reference,
+                "_generation",
+                hashlib.sha256(_DOMAIN + state_hash.encode("ascii")).hexdigest()[:32],
+            )
+            object.__setattr__(reference, "_state_hash", state_hash)
+            object.__setattr__(reference, "_row", row_bytes)
+            object.__setattr__(reference, "_issuer", self._issuer)
+        self._current()
+        if self._files() != before:
+            raise ValueError("original epoch cleanup snapshot required")
+        return reference
+
+    @_closed
     def select_only_held(self, *, cookie: str) -> HeldGmailReference:
         """Select one original held correlation privately; never disclose it over HTTP.
 
@@ -402,7 +485,11 @@ class HeldGmailReconciliation:
             else:
                 from zacai.connectors.gmail_recovery_history import GmailRecoveryHistory
 
-                if type(history) is not GmailRecoveryHistory or history._authority is not authority or history._action is not action:
+                if (
+                    type(history) is not GmailRecoveryHistory
+                    or history._authority is not authority
+                    or history._action is not action
+                ):
                     raise ValueError("actual privately captured history required")
                 history.current()
                 history.check_rows(ledger)

@@ -14,13 +14,14 @@ from __future__ import annotations
 
 import hashlib
 import http.client
+import json
 import re
 import ssl
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import wraps
-from typing import Literal, Protocol
+from typing import Any, Literal, Protocol
 from urllib.parse import urlencode
 
 from pydantic import SecretStr
@@ -105,9 +106,13 @@ def _direct_tls(host: str) -> Connection:
     return http.client.HTTPSConnection(host, port=443, timeout=20, context=context)
 
 
-def _headers(response: Response, *, provider_host: str) -> None:
-    if type(response.status) is not int or response.status != 200:
+def _headers(response: Response, *, provider_host: str, diagnostic: object = None, error_response: bool = False) -> None:
+    _phase(diagnostic, "exchange_status")
+    if type(response.status) is not int or (response.status != 200 and not (
+        error_response is True and response.status in {400, 401}
+    )):
         raise ValueError("provider response rejected")
+    _phase(diagnostic, "exchange_headers")
     pairs = response.getheaders()
     if type(pairs) is not list or len(pairs) > 64:
         raise ValueError("bounded response headers required")
@@ -137,22 +142,34 @@ def _headers(response: Response, *, provider_host: str) -> None:
         if lower in security and lower in seen:
             raise ValueError("duplicate security header")
         seen.add(lower)
-    if (
-        response.getheader("Location") is not None
-        or response.getheader("Transfer-Encoding") is not None
+    _phase(diagnostic, "exchange_framing")
+    transfer = response.getheader("Transfer-Encoding")
+    if response.getheader("Location") is not None:
+        raise ValueError("redirect response rejected")
+    if transfer is not None and (
+        transfer != "chunked"
+        or response.getheader("Content-Length") is not None
+        or type(response) is not http.client.HTTPResponse
+        or response.chunked is not True
+        or response.length is not None
+        or response.chunk_left is not None
     ):
-        raise ValueError("redirect/streaming response rejected")
+        raise ValueError("unsupported response framing")
+    _phase(diagnostic, "exchange_media")
     if (response.getheader("Content-Type") or "").split(";", 1)[
         0
     ].strip().lower() != "application/json":
         raise ValueError("JSON response required")
+    _phase(diagnostic, "exchange_encoding")
     if (response.getheader("Content-Encoding") or "identity").strip().lower() != "identity":
         raise ValueError("compressed response rejected")
+    _phase(diagnostic, "exchange_length")
     length = response.getheader("Content-Length")
     if length is not None and (
         re.fullmatch(r"[0-9]{1,8}", length) is None or int(length) > _MAX_BYTES
     ):
         raise ValueError("bounded response required")
+    _phase(diagnostic, "exchange_scopes")
     scopes = response.getheader("X-OAuth-Scopes")
     if scopes is not None:
         values = [value.strip() for value in scopes.split(",")]
@@ -169,9 +186,78 @@ def _headers(response: Response, *, provider_host: str) -> None:
             raise ValueError("exact bounded scope header required")
 
 
+class _ChunkStream(Protocol):
+    def read(self, amount: int) -> bytes: ...
+    def readline(self, amount: int) -> bytes: ...
+    def close(self) -> None: ...
+    def flush(self) -> None: ...
+
+
+class _StrictChunkStream:
+    """Validate framing while genuine HTTPResponse performs decoded reads.
+
+    Closed initial support accepts bounded hexadecimal chunks with CRLF and an
+    empty trailer section. Extensions and nonempty trailers remain unsupported.
+    No raw framing bytes or provider prose leave this in-memory observer.
+    """
+
+    def __init__(self, stream: _ChunkStream) -> None:
+        self._stream = stream
+        self._state = "size"
+        self._left = 0
+        self._chunks = 0
+        self.complete = False
+
+    def readline(self, amount: int) -> bytes:
+        line = self._stream.readline(min(amount, 130))
+        if self._state == "trailer":
+            if line != b"\r\n":
+                raise ValueError("unsupported chunk trailer")
+            self.complete = True
+            self._state = "done"
+            return line
+        if self._state != "size" or re.fullmatch(rb"[0-9A-Fa-f]{1,8}\r\n", line) is None:
+            raise ValueError("invalid chunk framing")
+        self._chunks += 1
+        if self._chunks > _MAX_BYTES + 1:
+            raise ValueError("bounded chunk count required")
+        self._left = int(line[:-2], 16)
+        self._state = "data" if self._left else "trailer"
+        return line
+
+    def read(self, amount: int) -> bytes:
+        if self._state == "separator":
+            if amount != 2 or self._stream.read(amount) != b"\r\n":
+                raise ValueError("invalid chunk separator")
+            self._state = "size"
+            return b"\r\n"
+        if self._state != "data" or not 0 < amount <= self._left:
+            raise ValueError("invalid chunk read")
+        value = self._stream.read(amount)
+        if type(value) is not bytes or len(value) != amount:
+            raise ValueError("incomplete chunk data")
+        self._left -= amount
+        if not self._left:
+            self._state = "separator"
+        return value
+
+    def flush(self) -> None:
+        self._stream.flush()
+
+    def close(self) -> None:
+        self._stream.close()
+
+
 class _CheckedResponse:
-    def __init__(self, response: Response) -> None:
+    def __init__(self, response: Response, *, diagnostic: object = None) -> None:
+        self._diagnostic = diagnostic
         self._response = response
+        self._chunk_stream: _StrictChunkStream | None = None
+        if type(response) is http.client.HTTPResponse and response.chunked:
+            if response.fp is None:
+                raise ValueError("unavailable chunk stream")
+            self._chunk_stream = _StrictChunkStream(response.fp)
+            response.fp = self._chunk_stream  # type: ignore[assignment]
         self.status = response.status
 
     def getheaders(self) -> list[tuple[str, str]]:
@@ -181,7 +267,15 @@ class _CheckedResponse:
         return self._response.getheader(name)
 
     def read(self, amount: int) -> bytes:
+        _phase(self._diagnostic, "exchange_body")
         raw = self._response.read(min(amount, _MAX_BYTES + 1))
+        _phase(self._diagnostic, "exchange_body_validation")
+        if self._chunk_stream is not None and (
+            not self._chunk_stream.complete
+            or type(self._response) is not http.client.HTTPResponse
+            or not self._response.isclosed()
+        ):
+            raise ValueError("incomplete chunk response")
         length = self.getheader("Content-Length")
         if (
             type(raw) is not bytes
@@ -195,7 +289,9 @@ class _CheckedResponse:
 class _CheckedConnection:
     """Apply strict envelope checks also to the reused identity read transports."""
 
-    def __init__(self, connection: Connection, *, provider_host: str) -> None:
+    def __init__(self, connection: Connection, *, provider_host: str, diagnostic: object = None, error_response: bool = False) -> None:
+        self._error_response = error_response
+        self._diagnostic = diagnostic
         if type(provider_host) is not str or provider_host not in {
             "oauth2.googleapis.com",
             "gmail.googleapis.com",
@@ -209,9 +305,10 @@ class _CheckedConnection:
         self._connection.request(method, url, body, headers)
 
     def getresponse(self) -> Response:
+        _phase(self._diagnostic, "exchange_response")
         response = self._connection.getresponse()
-        _headers(response, provider_host=self._provider_host)
-        return _CheckedResponse(response)
+        _headers(response, provider_host=self._provider_host, diagnostic=self._diagnostic, error_response=self._error_response)
+        return _CheckedResponse(response, diagnostic=self._diagnostic)
 
     def close(self) -> None:
         self._connection.close()
@@ -390,6 +487,34 @@ class CheckedOAuthExchange:
         return False
 
 
+def _google_error_phase(raw: bytes) -> str:
+    """Bounded classification only; never return provider descriptions or values."""
+    def unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        for name, value in pairs:
+            if name in result:
+                raise ValueError("duplicate error field")
+            result[name] = value
+        return result
+
+    def finite(value: str) -> None:
+        raise ValueError("nonfinite error value")
+
+    try:
+        if type(raw) is not bytes or not 1 <= len(raw) <= 65_536:
+            raise ValueError("bounded error response required")
+        value = json.loads(raw.decode("utf-8"), object_pairs_hook=unique, parse_constant=finite)
+        if type(value) is not dict or type(value.get("error")) is not str:
+            return "exchange_error_unavailable"
+        code = value["error"]
+        assert isinstance(code, str)
+        if code in {"invalid_client", "invalid_grant", "invalid_request"}:
+            return "exchange_error_" + code
+        return "exchange_error_other"
+    except Exception:  # noqa: BLE001 - fixed classification discards private error JSON
+        return "exchange_error_unavailable"
+
+
 class OAuthExchangeTransport:
     """Inert host transport; supplying a factory neither grants nor proves access."""
 
@@ -398,13 +523,18 @@ class OAuthExchangeTransport:
             raise OAuthExchangeError("trusted connection factory required")
         self._factory = connection_factory
 
-    def _connection(self, host: str) -> _CheckedConnection:
-        return _CheckedConnection(self._factory(host), provider_host=host)
+    def _connection(self, host: str, *, diagnostic: object = None, error_response: bool = False) -> _CheckedConnection:
+        _phase(diagnostic, "exchange_connection")
+        return _CheckedConnection(self._factory(host), provider_host=host, diagnostic=diagnostic, error_response=error_response)
 
     def _post(
-        self, host: str, path: str, values: dict[str, str], key: SecretStr | None = None
+        self, host: str, path: str, values: dict[str, str], key: SecretStr | None = None,
+        *, diagnostic: object = None
     ) -> bytes:
-        connection = self._connection(host)
+        classify_error = (host == "oauth2.googleapis.com" and path == "/token"
+                          and type(diagnostic) is OAuthCallbackDiagnostic)
+        connection = self._connection(host, diagnostic=diagnostic, error_response=classify_error)
+        primary_failed = False
         try:
             headers = {
                 "Content-Type": "application/x-www-form-urlencoded",
@@ -415,6 +545,7 @@ class OAuthExchangeTransport:
                 headers["Authorization"] = (
                     "Bearer " + _secret(key.get_secret_value()).get_secret_value()
                 )
+            _phase(diagnostic, "exchange_request")
             connection.request("POST", path, urlencode(values).encode("ascii"), headers)
             response = connection.getresponse()
             raw = response.read(_MAX_BYTES + 1)
@@ -425,24 +556,48 @@ class OAuthExchangeTransport:
                 or (length is not None and len(raw) != int(length))
             ):
                 raise ValueError("incomplete bounded response")
+            if classify_error and response.status in {400, 401}:
+                _phase(diagnostic, _google_error_phase(raw))
+                raise ValueError("provider initial exchange denied")
+            _phase(diagnostic, "exchange_json")
             _object(raw)
-            return raw
+        except BaseException:
+            primary_failed = True
+            raise
         finally:
-            connection.close()
+            previous = diagnostic.phase if type(diagnostic) is OAuthCallbackDiagnostic else None
+            if not primary_failed:
+                _phase(diagnostic, "exchange_close")
+            try:
+                connection.close()
+            except Exception:
+                if not primary_failed:
+                    raise
+            except BaseException:
+                raise
+            finally:
+                if primary_failed and previous is not None:
+                    _phase(diagnostic, previous)
+        _phase(diagnostic, "exchange_return")
+        return raw
 
     @_closed
-    def exchange(self, material: ExchangeMaterial, client_secret: SecretStr) -> bytes:
+    def exchange(self, material: ExchangeMaterial, client_secret: SecretStr, *, diagnostic: OAuthCallbackDiagnostic | None = None) -> bytes:
+        _phase(diagnostic, "exchange_material")
         if type(material) is not ExchangeMaterial or type(client_secret) is not SecretStr:
             raise ValueError("trusted exact exchange material required")
+        _phase(diagnostic, "exchange_configuration")
         config = OAuthConfiguration.model_validate(material.configuration)
         if material.callback != config.callback:
             raise ValueError("exact callback required")
+        _phase(diagnostic, "exchange_secret")
         values = {
             "client_id": config.client_id,
             "client_secret": _secret(client_secret.get_secret_value()).get_secret_value(),
             "code": _secret(material.code.get_secret_value()).get_secret_value(),
             "redirect_uri": config.callback,
         }
+        _phase(diagnostic, "exchange_pkce")
         if config.provider is Provider.GMAIL:
             if type(material.google_code_verifier) is not SecretStr:
                 raise ValueError("PKCE required")
@@ -450,10 +605,10 @@ class OAuthExchangeTransport:
                 "grant_type": "authorization_code",
                 "code_verifier": material.google_code_verifier.get_secret_value(),
             }
-            return self._post("oauth2.googleapis.com", "/token", values)
+            return self._post("oauth2.googleapis.com", "/token", values, diagnostic=diagnostic)
         if material.google_code_verifier is not None:
             raise ValueError("unexpected Gmail verifier")
-        return self._post("slack.com", "/api/oauth.v2.access", values)
+        return self._post("slack.com", "/api/oauth.v2.access", values, diagnostic=diagnostic)
 
     @_closed
     def google_tokeninfo(self, access_token: SecretStr) -> bytes:
@@ -527,15 +682,17 @@ def exchange_initial(
         operation.current()
         observed = operation.observed_at()
         _phase(diagnostic, "exchange_provider")
-        exchange = transport.exchange(material, client_secret)
+        exchange = transport.exchange(material, client_secret, diagnostic=diagnostic)
         _phase(diagnostic, "exchange_current")
         operation.current()
+        exchange_end = operation.observed_at()
         if config.provider is Provider.GMAIL:
             access = _secret(_object(exchange).get("access_token"))
             operation.current()
-            evidence_at = operation.observed_at()
+            evidence_start = operation.observed_at()
             _phase(diagnostic, "tokeninfo_provider")
             evidence = transport.google_tokeninfo(access)
+            evidence_at = operation.observed_at()
             _phase(diagnostic, "exchange_current")
             operation.current()
             candidate = parse_google_oauth_evidence(
@@ -545,6 +702,8 @@ def exchange_initial(
                 expected_subject=expected_subject,
                 exchange_observed_at=observed,
                 evidence_observed_at=evidence_at,
+                exchange_completed_at=exchange_end,
+                evidence_started_at=evidence_start,
                 diagnostic=diagnostic,
             )
             operation.current()

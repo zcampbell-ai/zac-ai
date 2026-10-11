@@ -148,12 +148,16 @@ def _google(
     exchange_observed_at: datetime,
     evidence_observed_at: datetime,
     diagnostic: OAuthCallbackDiagnostic | None = None,
+    exchange_completed_at: datetime | None = None,
+    evidence_started_at: datetime | None = None,
 ) -> UninstalledOAuthCandidate:
     _phase(diagnostic, "evidence_configuration")
     configuration = _configuration(configuration, Provider.GMAIL)
     _phase(diagnostic, "evidence_observation")
     start, observed = _time(exchange_observed_at), _time(evidence_observed_at)
-    if not start <= observed <= start + timedelta(minutes=5):
+    exchange_end = start if exchange_completed_at is None else _time(exchange_completed_at)
+    evidence_start = observed if evidence_started_at is None else _time(evidence_started_at)
+    if not start <= exchange_end <= evidence_start <= observed <= start + timedelta(minutes=5):
         raise ValueError("bounded observation interval required")
     if expected_subject is not None and (
         type(expected_subject) is not str or _IDENTIFIER.fullmatch(expected_subject) is None
@@ -176,7 +180,8 @@ def _google(
     access, refresh = _secret(exchange.get("access_token")), _secret(exchange.get("refresh_token"))
     if access.get_secret_value() == refresh.get_secret_value():
         raise ValueError("distinct credential material required")
-    expiry = start + timedelta(seconds=_seconds(exchange.get("expires_in"), 3600))
+    access_ttl = timedelta(seconds=_seconds(exchange.get("expires_in"), 3600))
+    expiry, expiry_upper = start + access_ttl, exchange_end + access_ttl
     if "scope" in exchange:
         _scopes(exchange["scope"], configuration.scopes, " ")
     allowed = {
@@ -206,19 +211,26 @@ def _google(
     _phase(diagnostic, "evidence_scope")
     _scopes(info.get("scope"), configuration.scopes, " ")
     _phase(diagnostic, "evidence_time")
-    expiries: list[datetime] = []
-    if "expires_in" in info:
-        expiries.append(
-            observed + timedelta(seconds=_seconds(info["expires_in"], 3600, strings=True))
-        )
+    tolerance = timedelta(seconds=10)
+    expiries = [expiry]
+    absolute = None
     if "exp" in info:
         epoch = _seconds(info["exp"], 253_402_300_799, strings=True)
-        expiries.append(datetime.fromtimestamp(epoch, UTC))
-    if not expiries or any(
-        e <= observed or abs((e - expiry).total_seconds()) > 10 for e in expiries
-    ):
-        raise ValueError("consistent unexpired access required")
-    candidate_expiry = min([expiry, *expiries])
+        absolute = datetime.fromtimestamp(epoch, UTC)
+        if absolute <= observed or not expiry - tolerance <= absolute <= expiry_upper + tolerance:
+            raise ValueError("consistent absolute access required")
+        expiries.append(absolute)
+    if "expires_in" in info:
+        ttl = timedelta(seconds=_seconds(info["expires_in"], 3600, strings=True))
+        lower, upper = evidence_start + ttl, observed + ttl
+        if expiry_upper < lower - tolerance or expiry > upper + tolerance:
+            raise ValueError("consistent relative access required")
+        if absolute is not None and not lower - tolerance <= absolute <= upper + tolerance:
+            raise ValueError("consistent provider observations required")
+        expiries.append(lower)
+    if len(expiries) == 1:
+        raise ValueError("fresh provider expiry required")
+    candidate_expiry = min(expiries)
     if candidate_expiry <= observed:
         raise ValueError("candidate access already expired")
     _phase(diagnostic, "evidence_optional")
@@ -262,6 +274,8 @@ def parse_google_oauth_evidence(
     exchange_observed_at: datetime,
     evidence_observed_at: datetime,
     diagnostic: OAuthCallbackDiagnostic | None = None,
+    exchange_completed_at: datetime | None = None,
+    evidence_started_at: datetime | None = None,
 ) -> UninstalledOAuthCandidate:
     """Pure response parsing; adapter must bind tokeninfo to exchanged access token.
 
@@ -283,6 +297,8 @@ def parse_google_oauth_evidence(
             exchange_observed_at=exchange_observed_at,
             evidence_observed_at=evidence_observed_at,
             diagnostic=diagnostic,
+            exchange_completed_at=exchange_completed_at,
+            evidence_started_at=evidence_started_at,
         )
     except Exception:  # noqa: BLE001,S110 - discard raw response and token frames
         pass

@@ -138,7 +138,7 @@ class GmailRecoveryHostPlan:
         original, hr = _path(original_directory), _path(hr_directory)
         if (
             type(recovery_profile) is not str
-            or recovery_profile not in {"fresh_v1", "legacy_repeat_v2"}
+            or recovery_profile not in {"fresh_v1", "legacy_repeat_v2", "terminal_chain_v3", "terminal_native_absence_v4"}
             or type(diagnostic_serving) is not bool
             or (diagnostic_serving and (startup_only or load_existing))
             or type(startup_only) is not bool
@@ -179,6 +179,7 @@ class GmailRecoveryHostPlan:
         self._original_grant_profile = original_grant_profile
         self._startup_stage = "prepared"
         self._callback_diagnostic = OAuthCallbackDiagnostic()
+        self._native_absence_stage = "not_started"
         self._load_existing = load_existing
         self._loaded: Any = None
         self._original_loaded: Any = None
@@ -495,7 +496,7 @@ class GmailRecoveryHostPlan:
         dependencies = (self._loader, self._clock, self._identities, self._server, self._stop)
         if (
             type(self._recovery_profile) is not str
-            or self._recovery_profile not in {"fresh_v1", "legacy_repeat_v2"}
+            or self._recovery_profile not in {"fresh_v1", "legacy_repeat_v2", "terminal_chain_v3", "terminal_native_absence_v4"}
             or type(self._diagnostic_serving) is not bool
             or (self._diagnostic_serving and (self._startup_only or self._load_existing))
             or type(self._startup_only) is not bool
@@ -602,6 +603,9 @@ class GmailRecoveryHostPlan:
                 if len(journals) == 1:
                     suffix = journals[0][len("gmail-quarantine-intent-"):-4]
                     repeat_shape = extra == {journals[0], "gmail-recovery-attempt-" + suffix + ".bin"}
+            if self._recovery_profile in {"terminal_chain_v3", "terminal_native_absence_v4"}:
+                from zacai.connectors.gmail_recovery_terminal_chain import namespace_pairs
+                repeat_shape = namespace_pairs(extra, maximum=4)
             if names != _FILES | {CONNECTOR} and not (repeat_shape and _FILES | {CONNECTOR} <= names):
                 raise ValueError("complete residue-free installed namespace required")
         namespace: tuple[Any, ...]
@@ -821,6 +825,17 @@ class GmailRecoveryHostPlan:
     def _stop_recovery(self) -> None:
         self._latch()
 
+    @property
+    def native_absence_stage(self) -> str:
+        """Retained fixed phase after cleanup, never native absence authority."""
+        value = getattr(self, "_native_absence_stage", "not_started")
+        return value if type(value) is str and value in {
+            "not_started", "owner_checked", "query_entered", "not_found", "item_present",
+            "ambiguous_result", "unexpected_result", "permission_denied", "user_cancelled",
+            "query_denied", "cleanup_unconfirmed", "interrupted", "confirmed",
+            "requery_entered", "requery_confirmed",
+        } else "not_started"
+
     def _make_recovery_consumer(self, action: Any) -> Any:
         from zacai.connectors.gmail_recovery_consumer import GmailRecoveryConsumer
 
@@ -863,6 +878,10 @@ class GmailRecoveryHostPlan:
             from zacai.connectors.gmail_recovery_history import GmailRecoveryHistory
 
             history = GmailRecoveryHistory.capture(action=action, key=self._runtime.session_key)
+            self._recovery_current()
+        elif self._recovery_profile in {"terminal_chain_v3", "terminal_native_absence_v4"}:
+            from zacai.connectors.gmail_recovery_terminal_chain import capture
+            history = capture(action=action, key=self._runtime.session_key)
             self._recovery_current()
         consumer = GmailRecoveryConsumer(
             host=self,
@@ -1107,7 +1126,13 @@ class GmailRecoveryHostPlan:
 
                         GmailInstalledWeb(host=self, join=self._join).mount(hr._prepared.app)
                     else:
-                        GmailRecoveryWeb(host=self, join=self._join).mount(hr._prepared.app)
+                        if self._recovery_profile == "terminal_native_absence_v4":
+                            from zacai.interfaces.gmail_native_absence_web import (
+                                GmailNativeAbsenceWeb,
+                            )
+                            GmailNativeAbsenceWeb(host=self, join=self._join).mount(hr._prepared.app)
+                        else:
+                            GmailRecoveryWeb(host=self, join=self._join).mount(hr._prepared.app)
 
                     @hr._prepared.app.middleware("http")
                     async def lifetime(

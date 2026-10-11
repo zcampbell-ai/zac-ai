@@ -3005,3 +3005,176 @@ Live Gmail connectivity still requires a newly pinned attended launcher and
 actual account verification. This code checkpoint neither reads mail nor grants
 source capture or model processing. The context-first milestone above remains
 the next useful acceptance target; connection mechanics do not complete it.
+
+### 2026-10-11: Owner-confirmed context-first baseline and acceptance workflows
+
+The owner reaffirmed the existing build order: verified source access, protected
+historical custody and intake, relevant canonical retrieval, preference learning,
+then useful task acceptance. Interface polish and additional specialist agents
+follow that baseline. This is a refinement of the existing roadmap, not a new
+project. The root chat owns integration and readiness; the existing Gmail/Slack
+connection chat owns its bounded connection work. Helpers receive separate scopes
+and cannot change the installed source during an attended connection or root SQL
+test hold.
+
+The first useful baseline must prove three owner-confirmed workflows:
+
+- Client follow-up: use actual recent correspondence and relevant account/project
+  history to prepare the Vitamin Shoppe follow-up. Verify the recipient and last
+  contact rather than relying on the owner's tentative name. Retain source/date
+  evidence and prepare exact wording for review; no sending is implied.
+- Zac Campbell brand: gather a bounded approved source set from the owner's X
+  following or supplied public accounts, offer a few worthwhile ideas, and retain
+  a backlog. Produce distinct LinkedIn and X drafts using verified writing
+  examples and the owner's views. Do not invent opinions; ask one targeted
+  question when the position would change the draft. Publication requires an
+  actual approved draft and destination.
+- Personal finance: use approved Monarch exports and current statements for
+  holdings, cost basis, cash flow and debt; use historical conversations for dated
+  goals and prior reasoning. Prepare a concise recommendation with evidence,
+  freshness, assumptions and tradeoffs, including no change when appropriate.
+  Missing tax lots, debt terms or current records limit the conclusion. No
+  transaction, account change or financial commitment is authorized by this
+  workflow definition. PERSONAL data remains separate from business context.
+
+All owner-facing text must be concise, use the owner's writing examples and avoid
+em dashes. Sent mail and approved proposals are examples to learn from, not
+permanent standards. Material conflicts or missing context require one quick
+question before dependent work. Corrections need their own source/date and scope;
+they must not silently become rules for all customers or all projects.
+
+Readiness requires actual Caz execution through the existing State, evidence,
+approval, generation and retention path, with clear model/runtime provenance and
+owner acceptance of usefulness and voice. A ChatGPT-only draft, holding catalog,
+prototype, passing invented tests or estimated percentage does not satisfy it.
+The three workflows can pass independently; report each gate honestly rather
+than claim every source is connected or all history has been imported.
+
+Maintain the existing source coverage map with separate access, catalog, custody,
+canonical intake, relevant retrieval and useful-result states. Reuse verified
+Claude and ChatGPT assets before requesting more material. Prepare source-specific
+owner handoffs only when the protected flow is ready. Preserve narrow credential
+and processing permissions, original one-attempt limits, canonical Zac State and
+Events, vendor-neutral routing and independent code-only Claude Opus review.
+
+Goal reconciliation: the current app Goal still names an interface-first iPhone
+trial and reports usageLimited. The desired updated objective is the context-first
+baseline above, proved by these three real workflows, followed by private text
+delivery and voice. This entry records the owner's expanded scope; it does not
+claim the app Goal has been rewritten or automatic continuation resumed. Goal
+replacement and usage-limit recovery remain user/system-controlled.
+
+The owner approved a temporary public-source brand sample, starting with Elon
+Musk and Sam Altman, while preparing a comprehensive list later. The initial
+engineering sample also includes Andrej Karpathy, Demis Hassabis and Satya
+Nadella. These are candidate research inputs, not a verified copy of the owner's
+following or evidence of agreement. Profile discovery is not current feed
+coverage or continuous monitoring; no live X connection is established here.
+
+Prepared Goal objective for the user-controlled replacement:
+
+> Continue the existing Caz AI roadmap to a verified context-first baseline.
+> Reuse protected Claude and accessible ChatGPT history, establish scoped source
+> access, measure coverage, preserve provenance and dates, reconcile important
+> conflicts with one owner question, and learn the owner's voice from approved
+> examples and corrections. Prove actual Caz execution on the Vitamin Shoppe
+> follow-up, a source-backed LinkedIn/X draft, and a PERSONAL financial review
+> using current approved records. Retain results and evidence for owner quality
+> acceptance. Keep canonical Zac State and Events, vendor-neutral routing,
+> external approval/credential gateway, separate personal/business permissions,
+> one-attempt limits and independent Claude Opus code-only review. Coordinate
+> bounded parallel engineering and source preparation, integrate and test finished
+> work, and report meaningful completions and concrete owner handoffs. No sending,
+> publishing, transactions, broad private processing or credentials are authorized
+> by the Goal itself. Deliver through private text once the workflows work, then
+> add voice. Do not mark ready from prototypes, synthetic tests or estimated
+> percentages; readiness requires source coverage evidence and useful real results.
+
+Same-day reconciliation found reusable dated holdings across Gmail, Slack,
+ClickUp, Fireflies, Claude and accessible ChatGPT views. These observations do
+not prove fresh provider access, complete coverage or canonical contextual use.
+The next step is bounded relevant capture and retrieval for a real task, not
+restarting broad catalogs that already exist. X currently has only the approved
+public sample; Monarch and personal mail still need their separate ready intake
+handoffs. Current ChatGPT connector availability is not a Caz-owned connection.
+
+The installed complete-history storage and declaration contracts are reusable,
+but the installed browser composition still accepts the fragment family. The
+complete observed approval, one-use generation, paired output and independent
+review consumer joins remain unfinished. Routing currently assesses eligibility;
+it is not a measured automatic best-model selector. Existing output schemas do
+not yet prove a send-ready email, platform-specific post or reconciled finance
+review. Do not cast another family or relax PERSONAL policy to bypass a missing
+join.
+
+A source-only audit identified a staged complete-declaration capture callback
+that can change owner state before commit. A direct owner recheck under its SQL
+lease would violate the existing named-session contract. The correction must
+reuse callback/owner checks outside canonical leases, preserve exact protected
+snapshot validation and honestly reconcile any uncertain committed result.
+Invented causal controls and independent review precede installation; no live
+context-processing readiness is claimed by this audit.
+
+Root independently reproduced that predecessor defect under the strong offline
+driver: the no-commit revocation control failed and the unchanged positive
+capture passed. The test uses a genuine invented signed owner, temporary artifact
+storage and simulated canonical SQL, not an actual PostgreSQL race. An isolated
+two-phase correction is assigned for source review and causal controls; it is
+neither installed nor accepted yet.
+
+The bounded two-phase successor now separates clean reconstruction, outside-SQL
+artifact/clock/owner checks and a callback-free locked write with exact snapshot
+and original native-deadline checks. Root reproduced nine passing guarded
+controls on an independent exact-input copy. The same finite suite previously
+exposed four predecessor defects. SQL/recovery are simulated in these controls;
+actual SQL, independent final source review, postcommit reconciliation, union
+capacity and receipt concurrency remain separate gates. No installed runtime
+source was changed or live processing enabled.
+
+The owner has now appended the context-first baseline and three workflow goals
+to the existing app Goal and resumed it. Root verified the actual Goal status is
+active. This supersedes the earlier usageLimited control observation without
+removing the final private iPhone/text/voice requirements. Bounded engineering
+continues automatically while live source and processing gates remain explicit.
+
+Root has now verified five actual PostgreSQL/native-age cases on a frozen,
+isolated successor using invented records and only the dedicated zacai_test
+database. These cover complete declaration commit/reopen and full recovery,
+revocation after restore, original expiry before writing, revision before own
+body loading, and preservation-only reconciliation after the original processing
+permission expires. All five passed with no skips; input and loaded-module pins
+remained exact. Reconciliation returns custody only, performs no write and never
+renews processing permission or infers a safe retry from absence. Independent
+code-only Opus accepted its bounded read path. A separate advancing-clock control
+passed; actual named-session observation uses peek_user without idle refresh.
+
+Opus held the selector resolution for a concrete unanswered-branch defect:
+multiple matching branches could omit a required nonmatching USER ancestor from
+their offered choices. The isolated successor expands linked USER closure for
+each hit, retains explicit branch exclusions and still denies missing ancestry.
+Its same-shape controls fail the predecessor and pass the successor. An unrelated
+empty earlier record also no longer globally blocks otherwise usable evidence.
+These changes remain source-only until root reproduction, final review and
+combined integration. Whole-export JSON indexing is distinct from per-message
+projection; no claim of zero unselected JSON decoding is made.
+
+The Gmail connection chat delivered its terminal frozen recovery v4 slice.
+Root assembled its exact code with the independently accepted OAuth transport
+in a separate 206-module tree. Combined offline controls and full-context Opus
+review are running; no installed runtime edit or live inspection/retry is implied.
+
+Root completed the combined Gmail recovery v4 and OAuth transport validation:
+251 guarded offline controls passed, strict typing checked 206 modules and scoped
+lint passed. Opus held one consent-copy issue, then the connection chat accepted
+the exact two-file correction. The recovery screen now explicitly describes
+original-domain pairing and the second metadata check with its possible Keychain
+prompt. The actual mounted recovery control passed on that corrected copy.
+Root installed only the accepted owned slice and its unchanged test dependency;
+the complete 206-module installed graph matches the frozen successor. This is
+code integration, not a released live attempt, credential inspection or Gmail
+connection success. A fresh attended handoff remains separately controlled.
+
+Root independently reproduced all 28 corrected context-selector controls. The
+required linked USER ancestors are now offered for each matching branch, while
+missing ancestry still holds. Bounded code-only Opus follow-up is running; the
+selector remains isolated pending that review and combined integration.

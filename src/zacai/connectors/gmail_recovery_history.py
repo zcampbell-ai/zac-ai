@@ -57,6 +57,9 @@ def validate_history_descriptor(
     value: Any, *, configuration: str, account: str, generation: str
 ) -> dict[str, Any]:
     """Strict untrusted syntax only; MAC/current-owner checks remain mandatory."""
+    if type(value) is dict and value.get("profile") in {"terminal_chain_v3", "terminal_native_absence_v4"}:
+        from zacai.connectors.gmail_recovery_terminal_chain import validate
+        return validate(value, configuration=configuration, account=account, generation=generation)
     if (
         type(value) is not dict
         or set(value) != _KEYS
@@ -218,6 +221,10 @@ def authenticate_history(
     descriptor: dict[str, Any], *, authority: Any, configuration: Any, key: bytes, identity: Any
 ) -> None:
     """Authenticate immutable legacy chain under a separately current real owner."""
+    if type(descriptor) is dict and descriptor.get("profile") in {"terminal_chain_v3", "terminal_native_absence_v4"}:
+        from zacai.connectors.gmail_recovery_terminal_chain import authenticate
+        authenticate(descriptor, authority=authority, configuration=configuration, key=key, identity=identity)
+        return
     configuration, account = authority._configuration(configuration, None)
     checked = validate_history_descriptor(
         descriptor,

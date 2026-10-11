@@ -38,7 +38,14 @@ from zacai.connectors.gmail_recovery_authorization import GmailRecoveryAction, _
 from zacai.connectors.gmail_registration import ReviewedGmailRegistration
 from zacai.connectors.oauth_callback_diagnostic import OAuthCallbackDiagnostic, _phase
 from zacai.connectors.oauth_configuration import ConsentRequest, OAuthConfiguration
-from zacai.connectors.oauth_exchange import OAuthExchangeTransport, exchange_initial
+from zacai.connectors.oauth_exchange import (
+    OAuthExchangeCancellationHoldUnconfirmed,
+    OAuthExchangeCancelled,
+    OAuthExchangeError,
+    OAuthExchangeHoldUnconfirmed,
+    OAuthExchangeTransport,
+    exchange_initial,
+)
 from zacai.connectors.oauth_transactions import OAuthTransactionAuthority
 
 SPEND_NAME = "gmail-recovery-attempt.bin"
@@ -188,15 +195,33 @@ class GmailRecoveryConsumer:
             raise ValueError("exact captured recovery consumer required")
         from zacai.connectors.gmail_recovery_history import GmailRecoveryHistory, recovery_names
 
-        if history is not None and (type(history) is not GmailRecoveryHistory or history._action is not action or history._authority is not action._authority):
+        if history is not None and (
+            type(history) is not GmailRecoveryHistory
+            or history._action is not action
+            or history._authority is not action._authority
+        ):
             raise ValueError("exact privately captured history required")
+        if history is not None and history.descriptor()["profile"] != host._recovery_profile:
+            raise ValueError("exact declared recovery history profile required")
         self._history = self._original_history = history
         self._history_data = history._data if history is not None else None
-        self._journal_name, self._stage_name, self._spend_name = JOURNAL_NAME, STAGING_NAME, SPEND_NAME
+        self._journal_name, self._stage_name, self._spend_name = (
+            JOURNAL_NAME,
+            STAGING_NAME,
+            SPEND_NAME,
+        )
         if history is not None:
             value = history.descriptor()
-            self._journal_name, self._stage_name, self._spend_name = recovery_names(value["configuration"], value["account"], action._generation)
-        self._namespace_pins = (self._history, self._history_data, self._journal_name, self._stage_name, self._spend_name)
+            self._journal_name, self._stage_name, self._spend_name = recovery_names(
+                value["configuration"], value["account"], action._generation
+            )
+        self._namespace_pins = (
+            self._history,
+            self._history_data,
+            self._journal_name,
+            self._stage_name,
+            self._spend_name,
+        )
         self._host, self._action = host, action
         self._authority, self._configuration = action._authority, action._configuration
         self._registration, self._loader, self._transport, self._stage = (
@@ -328,7 +353,13 @@ class GmailRecoveryConsumer:
             self._cipher,
         ):
             raise ValueError("original recovery composition required")
-        if (self._history, self._history_data, self._journal_name, self._stage_name, self._spend_name) != self._namespace_pins or self._history is not self._original_history:
+        if (
+            self._history,
+            self._history_data,
+            self._journal_name,
+            self._stage_name,
+            self._spend_name,
+        ) != self._namespace_pins or self._history is not self._original_history:
             raise ValueError("original recovery history namespace changed")
         if self._history is not None:
             if self._history._data != self._history_data:
@@ -422,6 +453,17 @@ class GmailRecoveryConsumer:
         self._check()
         if self._preview is None or self._committed:
             raise ValueError("one reviewed original intent required")
+        if self._history is not None and self._history.descriptor()["profile"] == "terminal_native_absence_v4":
+            from zacai.connectors.gmail_recovery_native_absence import consume_capabilities
+            if self._journal._in_recovery:
+                raise ValueError("one original metadata review required")
+            self._journal._in_recovery = True
+            try:
+                self._journal._approved(request, body, self._preview)
+            finally:
+                self._journal._in_recovery = False
+            consume_capabilities(self._history)
+            self._check()
         result = self._journal.write_recovery(request, body, self._preview)
         self._committed = True
         self._check()
@@ -554,7 +596,15 @@ class GmailRecoveryConsumer:
                 plaintext = _json(
                     {
                         "version": 1 if self._history is None else 2,
-                        **({"history_sha256": hashlib.sha256(_json(self._history.descriptor())).hexdigest()} if self._history is not None else {}),
+                        **(
+                            {
+                                "history_sha256": hashlib.sha256(
+                                    _json(self._history.descriptor())
+                                ).hexdigest()
+                            }
+                            if self._history is not None
+                            else {}
+                        ),
                         "state": "spent",
                         "configuration": self._configuration.configuration_digest,
                         "old_state": reference._state_hash,
@@ -682,6 +732,7 @@ class GmailRecoveryConsumer:
             self._configuration, request=request, admission=admission
         )
         profile = False
+        failed = cancelled = unconfirmed = False
         if operation is None:
             raise ValueError("fresh Gmail permission denied")
         try:
@@ -697,15 +748,35 @@ class GmailRecoveryConsumer:
             _phase(self._diagnostic, "native_hold")
             self._stage(checked, operation)
             profile = observation.profile_verified
-        finally:
-            previous_phase = (
-                self._diagnostic.phase
-                if type(self._diagnostic) is OAuthCallbackDiagnostic
-                else "unavailable"
+        except BaseException as error:  # noqa: BLE001 - retain only fixed failure category
+            failed, cancelled = True, not isinstance(error, Exception)
+            unconfirmed = isinstance(
+                error, (OAuthExchangeHoldUnconfirmed, OAuthExchangeCancellationHoldUnconfirmed)
             )
-            _phase(self._diagnostic, "hold_preservation")
+        previous_phase = (
+            self._diagnostic.phase
+            if type(self._diagnostic) is OAuthCallbackDiagnostic
+            else "unavailable"
+        )
+        _phase(self._diagnostic, "hold_preservation")
+        try:
             operation.hold()
             _phase(self._diagnostic, previous_phase)
+        except BaseException as error:  # noqa: BLE001 - cancellation dominates cleanup failure
+            operation.halt_unconfirmed()
+            unconfirmed = True
+            cancelled = cancelled or not isinstance(error, Exception)
+        if failed or unconfirmed:
+            kind = (
+                (
+                    OAuthExchangeCancellationHoldUnconfirmed
+                    if unconfirmed
+                    else OAuthExchangeCancelled
+                )
+                if cancelled
+                else (OAuthExchangeHoldUnconfirmed if unconfirmed else OAuthExchangeError)
+            )
+            raise kind("Gmail fresh recovery held; preservation review required")
         _phase(self._diagnostic, "held_receipt")
         self._check()
         with self._authority._locked() as current:
