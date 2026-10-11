@@ -3178,3 +3178,19 @@ Root independently reproduced all 28 corrected context-selector controls. The
 required linked USER ancestors are now offered for each matching branch, while
 missing ancestry still holds. Bounded code-only Opus follow-up is running; the
 selector remains isolated pending that review and combined integration.
+
+Root integrated the complete history preparation/custody foundation onto current
+main without replacing any installed Gmail or private-host source. The four new
+modules provide complete preparation, two-phase retained declaration storage,
+protection and preservation-only reconciliation. Independent code-only Opus
+accepted this exact composition. Root reproduced 23 focused controls and all 35
+factory controls after reconciling two explicitly simulated predecessor fixture
+assumptions. Five real dedicated PostgreSQL/native-age cases also passed on the
+current 210-module graph; source and loaded-input pins stayed exact. The real
+SQL test is retained in the repository, using existing root-only guarded fixtures.
+
+This foundation is dormant preparation and custody, not mounted processing or
+owner-task readiness. Exclusive receipt-writer operation remains required; no
+cross-process no-clobber claim is made. Current whole-branch choice presentation
+and complete observed admission-to-generation integration continue separately.
+No private history processing, source scope expansion or live enrollment occurred.
