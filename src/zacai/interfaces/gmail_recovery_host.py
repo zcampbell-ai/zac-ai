@@ -132,11 +132,14 @@ class GmailRecoveryHostPlan:
         original_grant_profile: str = "confidential",
         startup_only: bool = False,
         diagnostic_serving: bool = False,
+        recovery_profile: str = "fresh_v1",
     ) -> None:
         config = _configuration(configuration)
         original, hr = _path(original_directory), _path(hr_directory)
         if (
-            type(diagnostic_serving) is not bool
+            type(recovery_profile) is not str
+            or recovery_profile not in {"fresh_v1", "legacy_repeat_v2"}
+            or type(diagnostic_serving) is not bool
             or (diagnostic_serving and (startup_only or load_existing))
             or type(startup_only) is not bool
             or type(original_grant_profile) is not str
@@ -164,6 +167,7 @@ class GmailRecoveryHostPlan:
         ):
             raise ValueError("explicit original and HR foreground proposal required")
         self._configuration, self._original_directory, self._hr_directory = config, original, hr
+        self._recovery_profile = recovery_profile
         self._startup_only = startup_only
         self._diagnostic_serving = diagnostic_serving
         self._shutdown_stage = "not_started"
@@ -206,6 +210,7 @@ class GmailRecoveryHostPlan:
             original_grant_profile,
             startup_only,
             diagnostic_serving,
+            recovery_profile,
         )
         self._loader_settings = startup_loader._settings
         self._dependencies = (startup_loader, clock, identities, self._server, self._stop)
@@ -485,10 +490,13 @@ class GmailRecoveryHostPlan:
             self._original_grant_profile,
             self._startup_only,
             self._diagnostic_serving,
+            self._recovery_profile,
         )
         dependencies = (self._loader, self._clock, self._identities, self._server, self._stop)
         if (
-            type(self._diagnostic_serving) is not bool
+            type(self._recovery_profile) is not str
+            or self._recovery_profile not in {"fresh_v1", "legacy_repeat_v2"}
+            or type(self._diagnostic_serving) is not bool
             or (self._diagnostic_serving and (self._startup_only or self._load_existing))
             or type(self._startup_only) is not bool
             or type(self._original_grant_profile) is not str
@@ -584,7 +592,17 @@ class GmailRecoveryHostPlan:
             from zacai.connectors.gmail_installation import CONNECTOR
             from zacai.connectors.gmail_installed_load import _FILES
 
-            if {p.name for p in ledger.iterdir()} != _FILES | {CONNECTOR}:
+            names = {p.name for p in ledger.iterdir()}
+            extra = names - (_FILES | {CONNECTOR})
+            # Metadata-only startup shape; loader later MAC-authenticates the
+            # descriptor and exact two current names before any native read.
+            repeat_shape = False
+            if self._recovery_profile == "legacy_repeat_v2" and len(extra) == 2:
+                journals = [name for name in extra if re.fullmatch(r"gmail-quarantine-intent-[0-9a-f]{32}\.bin", name)]
+                if len(journals) == 1:
+                    suffix = journals[0][len("gmail-quarantine-intent-"):-4]
+                    repeat_shape = extra == {journals[0], "gmail-recovery-attempt-" + suffix + ".bin"}
+            if names != _FILES | {CONNECTOR} and not (repeat_shape and _FILES | {CONNECTOR} <= names):
                 raise ValueError("complete residue-free installed namespace required")
         namespace: tuple[Any, ...]
         if self._loaded is not None:
@@ -840,6 +858,12 @@ class GmailRecoveryHostPlan:
             host_guard=self._guard,
             stop_host=self._stop,
         )
+        history = None
+        if self._recovery_profile == "legacy_repeat_v2":
+            from zacai.connectors.gmail_recovery_history import GmailRecoveryHistory
+
+            history = GmailRecoveryHistory.capture(action=action, key=self._runtime.session_key)
+            self._recovery_current()
         consumer = GmailRecoveryConsumer(
             host=self,
             action=action,
@@ -848,6 +872,7 @@ class GmailRecoveryHostPlan:
             loader=loader,
             transport=OAuthExchangeTransport(),
             stage=stage,
+            history=history,
         )
         self._consumer = self._original_consumer = consumer
         return consumer
@@ -986,6 +1011,7 @@ class GmailRecoveryHostPlan:
                     client_id=self._owner_client_id,
                     origin=self._configuration.private_origin,
                     directory=self._hr_directory,
+                    gmail_recovery_consent_enabled=not (self._startup_only or self._diagnostic_serving or self._load_existing),
                     escrow_confirmed_by_operator=True,
                     view=view,
                     clock=self._clock,

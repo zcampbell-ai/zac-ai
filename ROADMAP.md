@@ -2979,3 +2979,29 @@ because keywords differ, and a conversation or account is not automatically a
 project. Actual PERSONAL enrollment, original custody and whole-inventory
 recovery, approved private inference, useful owner acceptance and iPhone
 usability are still unverified. No broad import or live processing is enabled.
+
+### 2026-10-11: Preserved-history Gmail retry installed
+
+The opt-in `legacy_repeat_v2` recovery profile preserves and authenticates the
+previous encrypted journal, consumed attempt and complete historical row set.
+A fresh explicit owner action creates a separate original-domain session and
+generation-bound recovery namespace. Existing consumed launchers remain unusable.
+Installation and reopening retain the exact authenticated history. Unknown,
+in-flight, crash and additional-repeat history holds for separate reconciliation.
+
+Root independently passed nine mounted retry and integrity controls, including
+installation and reopening, plus 40 consent and record-selection checks on the
+frozen candidate. The installed exact source passed 43 controls under external
+network, native-library, process and PostgreSQL connection denial, with SQLite
+restricted to a fresh disposable test directory. Strict typing passes for 203
+source modules. Independent Opus review of the full execution context found no
+concrete blocker. All test records and provider responses were invented.
+
+The recovery consent document now narrowly permits the fixed Google form target
+and retains same-origin checks in both recovery profiles. This is an intended
+consent-page correction; default authorization semantics remain unchanged.
+
+Live Gmail connectivity still requires a newly pinned attended launcher and
+actual account verification. This code checkpoint neither reads mail nor grants
+source capture or model processing. The context-first milestone above remains
+the next useful acceptance target; connection mechanics do not complete it.

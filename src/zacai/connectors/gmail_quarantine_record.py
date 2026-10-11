@@ -85,6 +85,8 @@ def _closed[**P, R](method: Callable[P, R]) -> Callable[P, R]:
 class ParsedGmailQuarantineRecord:
     """Parser-issued untrusted intent only; not an admission or committed write."""
 
+    version: int
+    history: dict[str, object] | None
     configuration_digest: str
     account_digest: str
     state_hash: str
@@ -201,14 +203,16 @@ def parse_gmail_quarantine_record(
     account = hashlib.sha256(
         _json({"provider": "gmail", "account": checked.gmail_mailbox})
     ).hexdigest()
-    if type(data) is not bytes or not 1 <= len(data) <= _MAX_DATA:
+    if type(data) is not bytes or not 1 <= len(data) <= 48_000:
         raise ValueError("bounded exact record bytes required")
     record = json.loads(data.decode("ascii"), object_pairs_hook=_pairs, parse_constant=_nonfinite)
-    if type(record) is not dict or set(record) != _KEYS:
+    if type(record) is not dict or set(record) not in (_KEYS, _KEYS | {"history"}):
         raise ValueError("exact quarantine record schema required")
     if (
         type(record["version"]) is not int
-        or record["version"] != 1
+        or record["version"] not in (1, 2)
+        or (record["version"] == 1 and (set(record) != _KEYS or len(data) > _MAX_DATA))
+        or (record["version"] == 2 and set(record) != _KEYS | {"history"})
         or type(record["action"]) is not str
         or record["action"] != "quarantine_only"
         or type(record["remote_grant_status"]) is not str
@@ -254,6 +258,13 @@ def parse_gmail_quarantine_record(
     ):
         raise ValueError("bounded reviewer claims required")
     reviewed_at = _aware(reviewer["reviewed_at"])
+    history = None
+    if record["version"] == 2:
+        from zacai.connectors.gmail_recovery_history import validate_history_descriptor
+
+        history = validate_history_descriptor(record["history"], configuration=digest, account=account, generation=reviewer["review_generation"])
+        if history["state"] != record["state_hash"] or _json(history["rows"].get(record["state_hash"])) != _json(row):
+            raise ValueError("exact preserved historical row required")
     row_bytes, record_bytes = _json(row), _json(record)
     # Configuration may have been changed by an intervening trusted callback.
     if (
@@ -263,6 +274,8 @@ def parse_gmail_quarantine_record(
         raise ValueError("original configuration changed")
     parsed = object.__new__(ParsedGmailQuarantineRecord)
     fields = {
+        "version": record["version"],
+        "history": history,
         "configuration_digest": digest,
         "account_digest": account,
         "state_hash": record["state_hash"],

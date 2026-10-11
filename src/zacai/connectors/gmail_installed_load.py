@@ -32,6 +32,10 @@ from zacai.connectors.gmail_quarantine_journal import JOURNAL_NAME
 from zacai.connectors.gmail_quarantine_record import parse_gmail_quarantine_record
 from zacai.connectors.gmail_recovery_authorization import GmailRecoveryAction, _closed
 from zacai.connectors.gmail_recovery_consumer import SPEND_NAME
+from zacai.connectors.gmail_recovery_history import (
+    authenticate_history,
+    validate_history_descriptor,
+)
 from zacai.connectors.oauth_configuration import OAuthConfiguration
 from zacai.connectors.oauth_transactions import OAuthTransactionAuthority
 
@@ -61,6 +65,21 @@ _PENDING_KEYS = frozenset(
     }
 )
 _ACTIVE_KEYS = _PENDING_KEYS | {"expires", "native_identity_digest"}
+
+
+def _installation_history(value: dict[str, Any], *, configuration: str, account: str) -> dict[str, Any] | None:
+    """Authenticated record syntax selects names; it grants no current-owner access."""
+    if type(value.get("version")) is not int:
+        raise ValueError("closed installation version required")
+    if value["version"] == 1 and set(value) == _PENDING_KEYS:
+        return None
+    if value["version"] != 2 or set(value) != _PENDING_KEYS | {"history"}:
+        raise ValueError("closed installation history required")
+    history = value["history"]
+    if type(history) is not dict or type(history.get("generation")) is not str:
+        raise ValueError("bounded installation history required")
+    return validate_history_descriptor(history, configuration=configuration, account=account,
+                                       generation=history["generation"])
 _SPEND_KEYS = frozenset(
     {
         "version",
@@ -183,6 +202,9 @@ class GmailInstallationLoader:
             checked,
         )
         self._key, self._directory, self._account = key, authority._directory, account
+        self._recovery_profile = host._recovery_profile
+        if self._recovery_profile not in {"fresh_v1", "legacy_repeat_v2"}:
+            raise ValueError("closed installed recovery profile required")
         self._issuer = object()
         self._context = b"zac-fresh-gmail-installation-v1\x00" + authority._context
         self._cipher = _cipher(key, b"zac-fresh-gmail-installation-v1", self._context)
@@ -213,6 +235,7 @@ class GmailInstallationLoader:
             self._journal_cipher,
             self._spend_cipher,
             self._issuer,
+            self._recovery_profile,
         )
         self._snapshot: tuple[Any, ...] | None = None
         self._issued: AuthenticatedGmailInstallation | None = None
@@ -246,9 +269,12 @@ class GmailInstallationLoader:
             self._journal_cipher,
             self._spend_cipher,
             self._issuer,
+            self._recovery_profile,
         )
         if any(a is not b for a, b in zip(values, self._pins, strict=True)):
             raise ValueError("original authenticated load composition changed")
+        if self._host._recovery_profile != self._recovery_profile:
+            raise ValueError("original installed recovery profile required")
         if (
             _configuration(self._configuration).configuration_digest
             != self._action._configuration.configuration_digest
@@ -301,9 +327,22 @@ class GmailInstallationLoader:
                 raise cleanup
 
     def _files(self) -> tuple[Any, ...]:
+        # Recheck real newly paired sessions before even the authenticated selector read.
+        for operation, binding, principal in (
+            (self._action._hr_operation, self._action._hr_binding, self._action._hr_principal),
+            (self._action._original_operation, self._action._original_binding, self._action._original_principal),
+        ):
+            if operation.recheck(binding).principal != principal:
+                raise ValueError("current paired installation owner required")
         directory = _guard(self._directory, directory=True)
         extra = self._quarantine_namespace()
-        if {p.name for p in self._directory.iterdir()} != _FILES | {CONNECTOR} | extra:
+        pending = _record(self._cipher, self._file(self._directory / PENDING), self._context)
+        history = _installation_history(pending, configuration=self._configuration.configuration_digest,
+                                        account=self._account)
+        if (history is not None) != (self._recovery_profile == "legacy_repeat_v2"):
+            raise ValueError("exact installed recovery profile required")
+        files = _FILES | ({history["journal"], history["spend"]} if history is not None else set())
+        if {p.name for p in self._directory.iterdir()} != files | {CONNECTOR} | extra:
             raise ValueError("exact installed operational namespace required")
         root = self._directory / CONNECTOR
         connector = _guard(root, directory=True)
@@ -333,7 +372,7 @@ class GmailInstallationLoader:
                     _witness(_guard(self._directory / name)),
                     hashlib.sha256(self._file(self._directory / name)).digest(),
                 )
-                for name in sorted(_FILES)
+                for name in sorted(files)
             ),
             _witness(_guard(root / "connector-authority.lock")),
         )
@@ -634,10 +673,14 @@ class GmailInstallationLoader:
             check()
             pendingraw = self._file(self._directory / PENDING, check=check)
             activeraw = self._file(self._directory / ACTIVE, check=check)
-            journalraw = self._file(self._directory / JOURNAL_NAME, check=check)
-            spendraw = self._file(self._directory / SPEND_NAME, check=check)
             pending = _record(self._cipher, pendingraw, self._context)
             active = _record(self._cipher, activeraw, self._context)
+            history = _installation_history(pending, configuration=self._configuration.configuration_digest,
+                                            account=self._account)
+            journal_name = JOURNAL_NAME if history is None else history["journal"]
+            spend_name = SPEND_NAME if history is None else history["spend"]
+            journalraw = self._file(self._directory / journal_name, check=check)
+            spendraw = self._file(self._directory / spend_name, check=check)
             spend = _record(self._spend_cipher, spendraw, self._spend_context)
             journal = parse_gmail_quarantine_record(
                 self._journal_cipher.decrypt(
@@ -646,21 +689,34 @@ class GmailInstallationLoader:
                 configuration=self._configuration,
             )
             if (
-                set(pending) != _PENDING_KEYS
-                or set(active) != _ACTIVE_KEYS
+                set(pending) != _PENDING_KEYS | ({"history"} if history is not None else set())
+                or set(active) != _ACTIVE_KEYS | ({"history"} if history is not None else set())
                 or type(pending["version"]) is not int
-                or pending["version"] != 1
+                or pending["version"] != (2 if history is not None else 1)
                 or pending["state"] != "installation_pending"
                 or type(active["version"]) is not int
-                or active["version"] != 1
+                or active["version"] != pending["version"]
                 or active["state"] != "active"
-                or any(active[k] != pending[k] for k in _PENDING_KEYS - {"state"})
-                or set(spend) != _SPEND_KEYS
+                or any(active[k] != pending[k] for k in set(pending) - {"state"})
+                or set(spend) != _SPEND_KEYS | ({"history_sha256"} if history is not None else set())
                 or type(spend["version"]) is not int
-                or spend["version"] != 1
+                or spend["version"] != pending["version"]
                 or spend["state"] != "spent"
             ):
                 raise ValueError("exact completed installation records required")
+            if history is not None:
+                if (journal.version != 2 or _json(journal.history) != _json(history)
+                    or spend["generation"] != history["generation"]
+                    or journal.review_generation_claim != history["generation"]
+                    or spend["history_sha256"] != hashlib.sha256(_json(history)).hexdigest()
+                    or journal.reviewer_binding_claim != active["owner_binding"]):
+                    raise ValueError("exact fresh history correlations required")
+                check()
+                authenticate_history(history, authority=authority, configuration=self._configuration,
+                                     key=self._key, identity=self._action._hr_principal.identity)
+                check()
+            elif journal.version != 1 or journal.history is not None:
+                raise ValueError("legacy installation requires legacy journal")
             for name in ("old_state", "old_row", "journal", "hr_binding", "original_binding"):
                 if type(spend[name]) is not str or _DIGEST.fullmatch(spend[name]) is None:
                     raise ValueError("strict spent recovery binding required")
@@ -698,8 +754,12 @@ class GmailInstallationLoader:
             ledger = authority._read()
             check()
             rows = ledger["rows"]
-            if set(rows) != {journal.state_hash, active["state_hash"]}:
-                raise ValueError("exact original and fresh installed rows required")
+            old_rows = {journal.state_hash} if history is None else set(history["rows"])
+            if active["state_hash"] in old_rows or set(rows) != old_rows | {active["state_hash"]}:
+                raise ValueError("exact retained history and fresh installed rows required")
+            if history is not None and any(_json(rows[state]) != _json(row)
+                                           for state, row in history["rows"].items()):
+                raise ValueError("complete authenticated historical rows changed")
             old, fresh = rows[journal.state_hash], rows[active["state_hash"]]
             generation = hashlib.sha256(
                 b"zac-gmail-held-generation-v1\x00" + active["state_hash"].encode("ascii")

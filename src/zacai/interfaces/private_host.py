@@ -306,6 +306,7 @@ def prepare_owner_host(
     work_choices: WorkChoiceWeb | None = None,
     named_factory: NamedOwnerHostFactory | None = None,
     gmail_factory: GmailOwnerHostFactory | None = None,
+    gmail_recovery_consent_enabled: bool = False,
     fragment_factory: Callable[[NamedOwnerHostInputs], FragmentPublicationWeb] | None = None,
     fragment_preparation_factory: Callable[[NamedOwnerHostInputs, NamedSessionOperation, str], FragmentPublicationWeb] | None = None,
 ) -> PreparedOwnerHost:
@@ -319,6 +320,8 @@ def prepare_owner_host(
     """
     result: PreparedOwnerHost | None = None
     try:
+        if type(gmail_recovery_consent_enabled) is not bool:
+            raise ValueError("closed recovery consent policy required")
         _validate(configuration, directory)
         if named_factory is not None and (
             not callable(named_factory) or type(clock) is not HostObservedClock
@@ -426,6 +429,7 @@ def prepare_owner_host(
             work_choices=work_choices,
             named_questions=named.controller if named is not None else None,
             gmail_connections=gmail,
+            gmail_recovery_consent_enabled=gmail_recovery_consent_enabled,
             fragment_publication=fragment,
             fragment_preparation=preparation,
         )

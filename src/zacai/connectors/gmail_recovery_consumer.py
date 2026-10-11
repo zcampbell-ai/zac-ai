@@ -119,6 +119,9 @@ class GmailRecoveryAdmission:
         account_rows = [
             key for key, row in ledger["rows"].items() if row["account"] == self._account
         ]
+        if self._consumer._history is not None:
+            self._consumer._history.check_rows(ledger, fresh_state=self._fresh_state)
+            return
         if set(account_rows) != (
             {self._state_hash}
             if self._fresh_state is None
@@ -167,6 +170,7 @@ class GmailRecoveryConsumer:
         loader: GmailClientSecretLoader,
         transport: OAuthExchangeTransport,
         stage: HeldGmailNativeStage,
+        history: Any = None,
     ) -> None:
         from zacai.interfaces.gmail_recovery_host import GmailRecoveryHostPlan
 
@@ -182,6 +186,17 @@ class GmailRecoveryConsumer:
             or type(stage) is not HeldGmailNativeStage
         ):
             raise ValueError("exact captured recovery consumer required")
+        from zacai.connectors.gmail_recovery_history import GmailRecoveryHistory, recovery_names
+
+        if history is not None and (type(history) is not GmailRecoveryHistory or history._action is not action or history._authority is not action._authority):
+            raise ValueError("exact privately captured history required")
+        self._history = self._original_history = history
+        self._history_data = history._data if history is not None else None
+        self._journal_name, self._stage_name, self._spend_name = JOURNAL_NAME, STAGING_NAME, SPEND_NAME
+        if history is not None:
+            value = history.descriptor()
+            self._journal_name, self._stage_name, self._spend_name = recovery_names(value["configuration"], value["account"], action._generation)
+        self._namespace_pins = (self._history, self._history_data, self._journal_name, self._stage_name, self._spend_name)
         self._host, self._action = host, action
         self._authority, self._configuration = action._authority, action._configuration
         self._registration, self._loader, self._transport, self._stage = (
@@ -202,6 +217,7 @@ class GmailRecoveryConsumer:
             preservation_check=host._recovery_current,
             stop=host._stop_recovery,
             recovery_action=action,
+            history=history,
         )
         self._key_context = b"zac-gmail-one-recovery-v1\x00" + self._authority._context
         self._cipher = AESGCM(
@@ -312,12 +328,18 @@ class GmailRecoveryConsumer:
             self._cipher,
         ):
             raise ValueError("original recovery composition required")
+        if (self._history, self._history_data, self._journal_name, self._stage_name, self._spend_name) != self._namespace_pins or self._history is not self._original_history:
+            raise ValueError("original recovery history namespace changed")
+        if self._history is not None:
+            if self._history._data != self._history_data:
+                raise ValueError("original recovery history changed")
+            self._history.current()
         _guard(self._authority._directory, directory=True)
         if not self._committed:
             self._journal.namespace_current()
             return
         names = {p.name for p in self._authority._directory.iterdir()}
-        expected = set(self._protected) | {JOURNAL_NAME}
+        expected = set(self._protected) | {self._journal_name}
         if self._installer is not self._original_installer:
             raise ValueError("original installed composition required")
         if self._installer is not None:
@@ -325,8 +347,8 @@ class GmailRecoveryConsumer:
             if self._installer.namespace_current() is not None:
                 raise ValueError("exact owned installation namespace required")
         if self._spend_inode is not None:
-            expected.add(SPEND_NAME)
-        if names != expected or STAGING_NAME in names:
+            expected.add(self._spend_name)
+        if names != expected or self._stage_name in names:
             raise ValueError("exact recovery namespace required")
         for name, identity in self._protected.items():
             info = _guard(self._authority._directory / name)
@@ -337,7 +359,7 @@ class GmailRecoveryConsumer:
                 info.st_uid,
             ) != identity and name != self._authority._path.name:
                 raise ValueError("original protected child changed")
-        journal = self._authority._directory / JOURNAL_NAME
+        journal = self._authority._directory / self._journal_name
         if self._journal._closed_witness != _witness(_guard(journal)):
             raise ValueError("original committed journal changed")
         ledger = self._authority._read()
@@ -373,7 +395,7 @@ class GmailRecoveryConsumer:
             if fresh["execution"] not in (None, self._admission._execution):
                 raise ValueError("exact once fresh execution required")
         if self._spend_inode is not None:
-            info = _guard(self._authority._directory / SPEND_NAME)
+            info = _guard(self._authority._directory / self._spend_name)
             if (info.st_dev, info.st_ino) != self._spend_inode:
                 raise ValueError("owned recovery spend changed")
             if self._spend_witness is not None and self._spend_witness != (
@@ -420,7 +442,7 @@ class GmailRecoveryConsumer:
         return self._action.current()
 
     def _read_journal(self, lock_current: Any) -> bytes:
-        path = self._authority._directory / JOURNAL_NAME
+        path = self._authority._directory / self._journal_name
         self._check()
         lock_current()
         original = _guard(path)
@@ -531,7 +553,8 @@ class GmailRecoveryConsumer:
                     raise ValueError("exact actual committed journal required")
                 plaintext = _json(
                     {
-                        "version": 1,
+                        "version": 1 if self._history is None else 2,
+                        **({"history_sha256": hashlib.sha256(_json(self._history.descriptor())).hexdigest()} if self._history is not None else {}),
                         "state": "spent",
                         "configuration": self._configuration.configuration_digest,
                         "old_state": reference._state_hash,
@@ -547,7 +570,7 @@ class GmailRecoveryConsumer:
                 self._check()
                 lock_current()
                 fd = os.open(
-                    self._authority._directory / SPEND_NAME,
+                    self._authority._directory / self._spend_name,
                     os.O_CREAT | os.O_EXCL | os.O_RDWR | os.O_NOFOLLOW,
                     0o600,
                 )
@@ -559,7 +582,7 @@ class GmailRecoveryConsumer:
 
                 def owned() -> None:
                     info = os.fstat(owned_fd)
-                    named = _guard(self._authority._directory / SPEND_NAME)
+                    named = _guard(self._authority._directory / self._spend_name)
                     if (
                         (info.st_dev, info.st_ino) != self._spend_inode
                         or info.st_nlink != 1

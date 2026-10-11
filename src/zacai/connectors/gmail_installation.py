@@ -436,7 +436,7 @@ class GmailInstallation:
         self._candidate_bytes = _payload(
             self._configuration, self._candidate, self._reference._generation
         )
-        record = {
+        record: dict[str, Any] = {
             "version": 1,
             "state": "installation_pending",
             "configuration": self._configuration.configuration_digest,
@@ -448,6 +448,19 @@ class GmailInstallation:
             "owner_binding": self._consumer._action._hr_binding,
             "spend_hash": hashlib.sha256(self._consumer._spend_bytes).hexdigest(),
         }
+        history = getattr(self._consumer, "_history", None)
+        if (history is not None) != (self._consumer._host._recovery_profile == "legacy_repeat_v2"):
+            raise ValueError("exact installed recovery profile required")
+        if history is not None:
+            from zacai.connectors.gmail_recovery_history import GmailRecoveryHistory
+
+            if type(history) is not GmailRecoveryHistory:
+                raise ValueError("actual captured immutable recovery history required")
+            self._current()
+            history.current()
+            record["version"] = 2
+            record["history"] = history.descriptor()
+            self._current()
         self._record(PENDING, record)
         read = self._reader.read_once(
             reference=self._reference, admission=admission, candidate=self._candidate

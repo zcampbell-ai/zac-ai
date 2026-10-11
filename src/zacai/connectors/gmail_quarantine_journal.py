@@ -38,7 +38,7 @@ from zacai.interfaces.private_web import _cookie
 
 JOURNAL_NAME = "gmail-quarantine-intent.bin"
 STAGING_NAME = ".gmail-quarantine-intent.stage"
-_MAX_CIPHERTEXT = 16_412
+_MAX_CIPHERTEXT = 48_028
 _ACTION = re.compile(r"[A-Za-z0-9_.-]{1,128}")
 
 
@@ -137,6 +137,7 @@ class GmailQuarantineJournal:
         preservation_check: Callable[[], None],
         stop: Callable[[], None],
         recovery_action: Any = None,
+        history: Any = None,
     ) -> None:
         if (
             type(authority) is not OAuthTransactionAuthority
@@ -159,6 +160,15 @@ class GmailQuarantineJournal:
                 or recovery_action._authority is not authority
             ):
                 raise ValueError("exact original-domain action required")
+        from zacai.connectors.gmail_recovery_history import GmailRecoveryHistory, recovery_names
+
+        if history is not None and (type(history) is not GmailRecoveryHistory or history._authority is not authority or history._action is not recovery_action):
+            raise ValueError("exact privately captured history required")
+        self._history = self._original_history = history
+        self._history_data = history._data if history is not None else None
+        self._journal_name, self._stage_name = JOURNAL_NAME, STAGING_NAME
+        if history is not None:
+            self._journal_name, self._stage_name, _ = recovery_names(configuration.configuration_digest, reconciliation._account, action_generation)
         self._recovery_action = self._original_recovery_action = recovery_action
         self._in_recovery = False
         checked = _configuration(configuration)
@@ -234,9 +244,14 @@ class GmailQuarantineJournal:
             self._action_generation,
             _configuration(self._configuration).configuration_digest,
             _configuration(self._input_configuration).configuration_digest,
+            self._history, self._history_data, self._journal_name, self._stage_name,
         )
 
     def _check(self) -> None:
+        if self._history is not self._original_history or (self._history is not None and self._history._data != self._history_data):
+            raise ValueError("original history changed")
+        if self._history is not None:
+            self._history.current()
         if self._recovery_action is not self._original_recovery_action:
             raise ValueError("original recovery action changed")
         if self._recovery_action is not None:
@@ -260,13 +275,16 @@ class GmailQuarantineJournal:
         paths = list(directory.iterdir())
         original_names = {self._authority._path.name, self._authority._lock_path.name}
         names = {path.name for path in paths}
+        if self._history is not None:
+            self._history.current()
+            original_names.update(self._history.descriptor()["legacy_files"])
         if not original_names <= names or not names <= original_names | {
-            JOURNAL_NAME,
-            STAGING_NAME,
+            self._journal_name,
+            self._stage_name,
         }:
             raise ValueError("exact original transaction namespace required")
         for child in paths:
-            if child.name not in (JOURNAL_NAME, STAGING_NAME):
+            if child.name not in (self._journal_name, self._stage_name):
                 info = _guard(child)
                 if info.st_size > 512_000:
                     raise ValueError("bounded original protected child required")
@@ -313,6 +331,8 @@ class GmailQuarantineJournal:
         self._reconciliation._current()  # pure original-scope audit before filesystem access
         if self._snapshot() != self._original:
             raise ValueError("original namespace composition changed")
+        if self._history is not self._original_history or (self._history is not None and self._history._data != self._history_data):
+            raise ValueError("original history changed")
         current = self._files()  # exact original namespace even before first preview
         if self._namespace_files is not None:
             original = self._namespace_files
@@ -327,11 +347,11 @@ class GmailQuarantineJournal:
                 raise ValueError("original protected namespace changed")
         directory = self._authority._directory
         if self._stage_inode is None:
-            for name in (JOURNAL_NAME, STAGING_NAME):
+            for name in (self._journal_name, self._stage_name):
                 if (directory / name).exists() or (directory / name).is_symlink():
                     raise ValueError("existing journal or crash residue")
             return
-        expected = ((STAGING_NAME, not self._stage_removed), (JOURNAL_NAME, self._published))
+        expected = ((self._stage_name, not self._stage_removed), (self._journal_name, self._published))
         for name, present in expected:
             path = directory / name
             if not present:
@@ -387,7 +407,7 @@ class GmailQuarantineJournal:
         self._preserved(files)  # denies both pre-existing names before selection
         _, verified = self._owner(cookie)
         reference = (
-            self._reconciliation.select_only_held_recovery(action=self._recovery_action)
+            self._reconciliation.select_only_held_recovery(action=self._recovery_action, history=self._history)
             if self._recovery_action is not None
             else self._reconciliation.select_only_held(cookie=cookie)
         )
@@ -465,7 +485,7 @@ class GmailQuarantineJournal:
             or not stat.S_ISREG(opened.st_mode)
         ):
             raise ValueError("owned journal fd changed")
-        for name, required in ((STAGING_NAME, stage), (JOURNAL_NAME, journal)):
+        for name, required in ((self._stage_name, stage), (self._journal_name, journal)):
             if required:
                 named = (self._authority._directory / name).lstat()
                 if _witness(named) != _witness(opened):
@@ -503,8 +523,11 @@ class GmailQuarantineJournal:
                     for r in ledger["rows"].values()
                     if r["account"] == self._reconciliation._account
                 ]
-                if len(selected) != 1:
-                    raise ValueError("sole original held row required")
+                if self._history is None:
+                    if len(selected) != 1:
+                        raise ValueError("sole original held row required")
+                else:
+                    self._history.check_rows(ledger)
                 now = self._authority._continuity._clock()
                 if now < self._authority._time(ledger["watermark"]):
                     raise ValueError("host clock rollback")
@@ -515,7 +538,8 @@ class GmailQuarantineJournal:
                 record = parse_gmail_quarantine_record(
                     _json(
                         {
-                            "version": 1,
+                            "version": 1 if self._history is None else 2,
+                            **({"history": self._history.descriptor()} if self._history is not None else {}),
                             "action": "quarantine_only",
                             "configuration_digest": self._reconciliation._digest,
                             "account_digest": self._reconciliation._account,
@@ -544,7 +568,7 @@ class GmailQuarantineJournal:
                 self._preserved(preview._files)
                 touched = True  # stage creation may have happened even on interruption
                 fd = os.open(
-                    directory / STAGING_NAME,
+                    directory / self._stage_name,
                     os.O_CREAT | os.O_EXCL | os.O_RDWR | os.O_NOFOLLOW,
                     0o600,
                 )
@@ -568,12 +592,12 @@ class GmailQuarantineJournal:
                 os.fsync(fd)
                 self._preserved(preview._files)
                 self._owned(fd, links=1, stage=True, journal=False)
-                os.link(directory / STAGING_NAME, directory / JOURNAL_NAME, follow_symlinks=False)
+                os.link(directory / self._stage_name, directory / self._journal_name, follow_symlinks=False)
                 self._published = True
                 self._links = 2
                 self._preserved(preview._files)
                 self._owned(fd, links=2, stage=True, journal=True)
-                os.unlink(directory / STAGING_NAME)
+                os.unlink(directory / self._stage_name)
                 self._stage_removed = True
                 self._links = 1
                 self._preserved(preview._files)

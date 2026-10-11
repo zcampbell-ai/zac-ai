@@ -371,7 +371,7 @@ class HeldGmailReconciliation:
         return reference
 
     @_closed
-    def select_only_held_recovery(self, *, action: Any) -> HeldGmailReference:
+    def select_only_held_recovery(self, *, action: Any, history: Any = None) -> HeldGmailReference:
         """Dedicated dual-current recovery selection; ordinary HR selection unchanged."""
         from zacai.connectors.gmail_recovery_authorization import GmailRecoveryAction
 
@@ -395,9 +395,19 @@ class HeldGmailReconciliation:
             rows = [
                 (key, row) for key, row in ledger["rows"].items() if row["account"] == self._account
             ]
-            if len(rows) != 1:
-                raise ValueError("one original held attempt required")
-            state_hash, row = rows[0]
+            if history is None:
+                if len(rows) != 1:
+                    raise ValueError("one original held attempt required")
+                state_hash, row = rows[0]
+            else:
+                from zacai.connectors.gmail_recovery_history import GmailRecoveryHistory
+
+                if type(history) is not GmailRecoveryHistory or history._authority is not authority or history._action is not action:
+                    raise ValueError("actual privately captured history required")
+                history.current()
+                history.check_rows(ledger)
+                state_hash = history.descriptor()["state"]
+                row = ledger["rows"][state_hash]
             if (
                 row["configuration"] != self._digest
                 or row["state"] != "held"

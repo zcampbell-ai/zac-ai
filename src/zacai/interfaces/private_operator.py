@@ -573,6 +573,7 @@ def open_private_operator(
     work_choices: WorkChoiceWeb | None = None,
     named_factory: NamedOwnerHostFactory | None = None,
     gmail_factory: GmailOwnerHostFactory | None = None,
+    gmail_recovery_consent_enabled: bool = False,
     fragment_factory: Callable[[NamedOwnerHostInputs], FragmentPublicationWeb] | None = None,
     fragment_preparation_factory: Callable[[NamedOwnerHostInputs, NamedSessionOperation, str], FragmentPublicationWeb] | None = None,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
@@ -596,6 +597,7 @@ def open_private_operator(
         if (
             threading.current_thread() is not threading.main_thread()
             or type(mode) is not PrivateOperatorMode
+            or type(gmail_recovery_consent_enabled) is not bool
             or type(escrow_confirmed_by_operator) is not bool
             or not escrow_confirmed_by_operator
             or not isinstance(directory, Path)
@@ -628,6 +630,7 @@ def open_private_operator(
                     or work_choices is not None
                     or named_factory is not None
                     or gmail_factory is not None
+                    or gmail_recovery_consent_enabled
                     or fragment_factory is not None
                     or fragment_preparation_factory is not None
                 )
@@ -674,6 +677,7 @@ def open_private_operator(
                 work_choices=work_choices,
                 named_factory=named_factory,
                 gmail_factory=gmail_factory,
+                gmail_recovery_consent_enabled=gmail_recovery_consent_enabled,
                 fragment_factory=fragment_factory,
                 fragment_preparation_factory=fragment_preparation_factory,
             )

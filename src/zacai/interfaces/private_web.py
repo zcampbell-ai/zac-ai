@@ -91,12 +91,15 @@ class _SecurityHeaders(BaseHTTPMiddleware):
     def __init__(
         self, app: ASGIApp, *, google_start_path: str | None = None,
         gmail_consent_enabled: bool = False,
+        gmail_recovery_consent_enabled: bool = False,
     ) -> None:
-        if google_start_path not in (None, "/login", "/enroll"):
+        if (google_start_path not in (None, "/login", "/enroll")
+            or type(gmail_recovery_consent_enabled) is not bool):
             raise ValueError("private sign-in policy unavailable")
         super().__init__(app)
         self._google_start_path = google_start_path
         self._gmail_consent_enabled = gmail_consent_enabled
+        self._gmail_recovery_consent_enabled = gmail_recovery_consent_enabled
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         response = await call_next(request)
@@ -107,6 +110,9 @@ class _SecurityHeaders(BaseHTTPMiddleware):
             and (
                 request.url.path == self._google_start_path
                 or (self._gmail_consent_enabled and request.url.path == "/connections/gmail")
+                or (self._gmail_recovery_consent_enabled
+                    and request.url.path == "/connections/gmail/recover"
+                    and not request.url.query)
             )
             and response.status_code == 200
         ):
@@ -115,13 +121,18 @@ class _SecurityHeaders(BaseHTTPMiddleware):
             response.headers["Content-Security-Policy"] = _HEADERS[
                 "Content-Security-Policy"
             ].replace("form-action 'self';", "form-action 'self' https://accounts.google.com;")
-        if self._gmail_consent_enabled and request.url.path.startswith("/connections/gmail"):
+        if (self._gmail_consent_enabled or self._gmail_recovery_consent_enabled) and request.url.path.startswith("/connections/gmail"):
             # A same-origin form POST needs its real Origin for strict CSRF
             # admission. Suppress cross-origin referrers from the query-free
             # consent page; redirects, callback and status remain no-referrer.
             consent_page = (
                 request.method == "GET"
-                and request.url.path == "/connections/gmail"
+                and (
+                    (self._gmail_consent_enabled and request.url.path == "/connections/gmail")
+                    or (self._gmail_recovery_consent_enabled
+                        and request.url.path == "/connections/gmail/recover"
+                        and not request.url.query)
+                )
                 and response.status_code == 200
             )
             response.headers["Referrer-Policy"] = (
@@ -163,6 +174,7 @@ def create_private_web(
     work_choices: WorkChoiceWeb | None = None,
     named_questions: NamedFollowupWeb | None = None,
     gmail_connections: GmailConnectionWeb | None = None,
+    gmail_recovery_consent_enabled: bool = False,
     fragment_publication: FragmentPublicationWeb | None = None,
     fragment_preparation: FragmentPreparationWeb | None = None,
 ) -> FastAPI:
@@ -217,6 +229,8 @@ def create_private_web(
             or c._sessions is not sessions or c._owner is not owner
             or c._clock is not clock or json.loads(c._context)["origin"] != origin):
             raise ValueError("exact exclusive fragment preparation host required")
+    if type(gmail_recovery_consent_enabled) is not bool:
+        raise ValueError("closed recovery consent policy required")
     target = urlsplit(origin)
     if (
         target.scheme != "https"
@@ -234,6 +248,7 @@ def create_private_web(
     app.add_middleware(
         _SecurityHeaders, google_start_path="/login",
         gmail_consent_enabled=gmail_connections is not None,
+        gmail_recovery_consent_enabled=gmail_recovery_consent_enabled,
     )
 
     def valid_host(request: Request) -> bool:
