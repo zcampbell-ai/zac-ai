@@ -1188,6 +1188,7 @@ def record_source(
     external_ref: str | None = None,
     captured_at: datetime | None = None,
     excerpt: str | None = None,
+    preallocated_source_id: uuid.UUID | None = None,
 ) -> tuple[Source, bool]:
     """Idempotently records one Source. Returns `(source, was_new)`.
 
@@ -1204,6 +1205,10 @@ def record_source(
     no filesystem I/O itself (see `zacai.ingestion.artifact_store`,
     `zacai.ingestion.pipeline`).
 
+    Explicit preallocation permits immutable paired artifact preparation before
+    the write lease. It never replaces an existing Source identity; a caller must
+    still serialize its namespace and commit/reopen the actual canonical rows.
+
     Concurrency note: the tip lookup below is row-locked when an existing
     chain is found, serializing concurrent revisions of the same
     `external_ref`. Two fully concurrent *first-ever* inserts of
@@ -1212,6 +1217,10 @@ def record_source(
     milestone's single-writer, no-scheduler synthetic pipeline (D030);
     closing that gap for a multi-writer future is separate, later work.
     """
+    if preallocated_source_id is not None and (
+        type(preallocated_source_id) is not uuid.UUID or preallocated_source_id.int == 0
+    ):
+        raise ValueError("preallocated Source identity must be exact nonzero UUID")
     existing = None
     if external_ref is not None:
         existing = session.execute(
@@ -1223,12 +1232,26 @@ def record_source(
             )
         ).scalar_one_or_none()
     if existing is not None:
+        if preallocated_source_id is not None and existing.id != preallocated_source_id:
+            raise ValueError("idempotent Source identity differs from preallocated identity")
         return existing, False
+    if (
+        preallocated_source_id is not None
+        and session.execute(
+            select(Source.id).where(Source.id == preallocated_source_id)
+        ).scalar_one_or_none()
+        is not None
+    ):
+        raise ValueError("preallocated Source identity already used")
 
     supersedes_source_id: uuid.UUID | None = None
     if external_ref is not None:
         current_tip = get_current_source_revision(
-            session, system=system, external_ref=external_ref, trust_boundary=trust_boundary, lock=True
+            session,
+            system=system,
+            external_ref=external_ref,
+            trust_boundary=trust_boundary,
+            lock=True,
         )
         if current_tip is not None:
             supersedes_source_id = current_tip.id
@@ -1243,6 +1266,8 @@ def record_source(
         "content_location": content_location,
         "supersedes_source_id": supersedes_source_id,
     }
+    if preallocated_source_id is not None:
+        source_kwargs["id"] = preallocated_source_id
     if captured_at is not None:
         source_kwargs["captured_at"] = captured_at
 

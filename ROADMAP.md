@@ -3194,3 +3194,25 @@ owner-task readiness. Exclusive receipt-writer operation remains required; no
 cross-process no-clobber claim is made. Current whole-branch choice presentation
 and complete observed admission-to-generation integration continue separately.
 No private history processing, source scope expansion or live enrollment occurred.
+
+
+### 2026-10-11: Complete-history approval identity and paired Source preparation
+
+Installed the observed history action and acknowledgment contracts. Only the
+exact object issued by a successful original writer can enter once; public
+copies, serialized state and canonical reloads cannot renew approval. Original
+owner, task, session and deadline checks remain required. A possibly committed
+write with failed final acknowledgment retains custody without processing
+authority. These contracts are not yet mounted to a live history consumer.
+
+The shared Source writer now accepts an optional preallocated nonzero UUID so
+paired immutable artifacts can be prepared before canonical SQL writes. Exact
+idempotence is preserved; mismatched or occupied identities hold. Defaults,
+revision lineage and caller rollback ownership remain unchanged.
+
+Validation: 31 current-main invented action controls passed; five actual
+dedicated PostgreSQL/temporary encryption cases passed for acknowledgment, and
+12 actual PostgreSQL cases passed for Source identity and lineage. Independent
+code-only Opus reviews accepted both corrections. No private history, provider
+request or new credential access occurred. Complete generation and ChatGPT
+native context joins remain separate implementation and acceptance work.
