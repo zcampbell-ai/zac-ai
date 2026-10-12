@@ -3513,3 +3513,26 @@ generation used an 8,192-token window; review used 16,384. Review input measured
 13,637 tokens plus the unchanged 512-token reservation. Its workload is being
 measured before any fresh experiment. The old grant and exact output stay
 untouched; no private history or useful owner-task success is claimed.
+
+### 2026-10-12: Retained ChatGPT task recovery checkpoint
+
+Installed the independently reviewed native task recovery adapter with a distinct
+PERSONAL receipt. It reconstructs the retained original, companion, declaration
+and association, verifies the whole current artifact inventory and restored
+State/journal, and preserves the older pair receipt. Receipt flags do not grant
+processing, establish current facts or claim runtime readiness. Journal currency
+is checked against the relevant backup run row, not every operational event.
+
+The final installed-source composition passed four genuine disposable
+PostgreSQL/native-age cases in 10.36 seconds with no skips. Those cases cover
+whole recovery/read-existing, association drift, ciphertext mutation before
+publication and declaration expiry. Code-only Opus review accepted the adapter;
+eleven previously frozen offline controls passed. The shared SQL fixture now
+accepts an explicit USER or ASSISTANT role while preserving the older two-argument
+fixture's original text span. No actual private history, credentials, connection
+or model processing was exercised by these invented-data checks.
+
+This closes retained task recovery, not the missing owner processing/runtime
+joins or successful independent review of a useful task. The latest actual local
+model trial remains held at independent review; lossless review-input preparation
+is the next separate change.

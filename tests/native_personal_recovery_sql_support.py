@@ -33,7 +33,7 @@ from zacai.policy import TrustBoundary as B
 
 @pytest.fixture
 def native_custody_case(clean_factory, tmp_path):
-    def make(boundary=B.PERSONAL, label=C.HIGHLY_RESTRICTED):
+    def make(boundary=B.PERSONAL, label=C.HIGHLY_RESTRICTED, role=None):
         now = datetime(2026, 10, 11, 12, tzinfo=UTC)
         times = [now]
         clock = HostObservedClock(lambda: times[0])
@@ -67,7 +67,19 @@ def native_custody_case(clean_factory, tmp_path):
             client_id=client,
         )
         operation = continuity.for_cookie(cookie)
-        wire = raw(fixture_body())
+        returned = fixture_body()
+        pointer = "/turns/0/items/0/content/0/text"
+        start, end = 1, 3
+        if role is not None:
+            if role == "USER":
+                literal = returned["turns"][0]["items"][0]["content"][0]["text"]
+            elif role == "ASSISTANT":
+                pointer = "/turns/0/items/1/text"
+                literal = returned["turns"][0]["items"][1]["text"]
+            else:
+                raise ValueError("Unsupported native fixture role")
+            start, end = 0, len(literal)
+        wire = raw(returned)
         proposal = m.prepare_native_view_custody_proposal(
             inputs=inputs,
             operation=operation,
@@ -79,9 +91,9 @@ def native_custody_case(clean_factory, tmp_path):
             boundary=boundary,
             whole_original_classification=label,
             expected_thread_id="thread-1",
-            selected_pointer="/turns/0/items/0/content/0/text",
-            start=1,
-            end=3,
+            selected_pointer=pointer,
+            start=start,
+            end=end,
             expires_at=now + timedelta(minutes=5),
         )
         artifacts = LocalFilesystemArtifactStore(tmp_path / f"canonical-{uuid4()}")
