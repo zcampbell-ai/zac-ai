@@ -3290,3 +3290,27 @@ deadline holds and one pass in 286.54 seconds to three passes in 72.11 seconds.
 Each original reviewer window remains 60 seconds. That timing is offline evidence,
 not real-model latency or useful-answer acceptance. Full reviewer SQL, recovery,
 independent code review and useful owner-task validation remain pending.
+
+### 2026-10-11: Explicit native history custody action
+
+Integrated the request-bound native history custody seam. An actual observed
+owner POST binds the whole returned-view hash, selected field, original session,
+fixed window and separately assigned PERSONAL or BRAINSTORM scope. Its private
+snapshot stays independent of later caller changes. The original action is
+consumed once before effects; public objects and canonical reloads grant no
+permission. A fresh explicit POST is a new owner action, while canonical namespace
+occupancy prevents a committed pair from being captured again. No retry is automatic.
+
+The writer requires the standard configured SQLAlchemy Session factory and pins
+its engine, class and options across callbacks. Artifact preparation stays outside
+write leases; the atomic original/companion write commits and closes before the
+current pair reader reopens. Read-only reopen intentionally reads artifact bytes.
+Registered ORM listeners remain trusted host code outside the structural factory
+guard; no global Session/sessionmaker listeners were found in project source.
+
+Root reproduced 42 guarded controls and four actual dedicated PostgreSQL cases,
+including both boundaries, partial-write rollback and a real commit with lost
+acknowledgment. Code-only Opus accepted the corrected factory and snapshot rules.
+This is an unmounted custody primitive. Live owner capture, whole native recovery,
+processing/task admission and useful task acceptance remain separate gates. No
+private conversation was imported or processed by these tests.
