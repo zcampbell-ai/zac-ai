@@ -1,4 +1,4 @@
-"""Dormant complete USER source-to-declaration preparation, no APPROVE UI."""
+"""Dormant complete USER and optional ASSISTANT source-to-declaration preparation, no APPROVE UI."""
 
 from __future__ import annotations
 
@@ -225,11 +225,18 @@ def prepare_personal_history_task(
         preview = prepare_claude_history_context_preview(
             original, read, selections=c.selections, observed_at=prepared_at, route=c.route
         )
-        if any(
-            type(entry) is not ClaudeMessageMetadata or entry.historical_role != "USER"
-            for entry in preview.sidecar.entries
+        if (
+            any(
+                type(entry) is not ClaudeMessageMetadata
+                or entry.historical_role not in ("USER", "ASSISTANT")
+                for entry in preview.sidecar.entries
+            )
+            or not any(
+                type(entry) is ClaudeMessageMetadata and entry.historical_role == "USER"
+                for entry in preview.sidecar.entries
+            )
         ):
-            raise ValueError("complete USER selection required for first writing preparation")
+            raise ValueError("complete USER and optional ASSISTANT evidence selection required")
         request = prepare_history_contextual_request(
             preview, original_context=original, route=c.route
         )

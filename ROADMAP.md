@@ -3491,3 +3491,25 @@ factory rejects ASSISTANT selections. That prevents preserving a complete
 USER/ASSISTANT/USER correction sequence. A bounded role-selection correction is
 next; source roles, dates and warnings must remain intact. No old answer is
 repaired, no private processing is claimed, and useful owner tasks remain unproved.
+
+### 2026-10-12: Mixed history reaches actual generation
+
+Complete history preparation now accepts reported USER and ASSISTANT evidence,
+with at least one USER message required. Unknown roles and other metadata families
+remain refused. All text, roles, dates, source bindings, warnings, budgets and
+approval rules stay intact. Assistant suggestions are not preferences or approval.
+Opus accepted the bounded change; 43 installed role/factory checks passed.
+
+A fresh invented-data trial reached actual local generation, canonical output
+retention and encrypted recovery. Backend generation took 35.14 seconds, with
+4,169 input tokens matching the offline count and 975 output tokens. The draft
+kept the projects separate, identified requester and recipient, and left client
+acceptance unresolved. Some factual statements were labelled DECISION without
+explicit decision evidence, so structural validity is not semantic acceptance.
+
+The full reviewer request was sent, but no response was recorded and the trial
+held at independent review. No assessment or final text release occurred. Actual
+generation used an 8,192-token window; review used 16,384. Review input measured
+13,637 tokens plus the unchanged 512-token reservation. Its workload is being
+measured before any fresh experiment. The old grant and exact output stay
+untouched; no private history or useful owner-task success is claimed.
