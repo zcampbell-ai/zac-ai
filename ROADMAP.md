@@ -3253,3 +3253,24 @@ Generated owner-facing prose must be concise and contain no em dashes. Exact
 source quotations retain their original text and attribution. Publishing,
 paid tools and sharing private material with external models require their
 own applicable authorization. No deck/video capability is claimed complete.
+
+### 2026-10-11: Native ChatGPT context preparation and current pair loading
+
+Integrated three explicit native-history modules: bounded returned-view
+projection, current canonical original/companion loading, and contextual body
+and citation preparation. The loader-checked capture identity stays bound to
+the profile and citations. Reported role, pointer and dates accompany the exact
+selected text; historical assistant statements remain dated suggestions rather
+than owner views, current facts or permissions. Capacity failures hold without
+silently clipping selected text. Upstream history completeness remains unknown.
+
+Root reproduced 120 guarded invented controls and nine actual dedicated
+PostgreSQL pair-loading cases. Actual revision, namespace, rights elevation and
+artifact-callback changes refuse stale reads. Independent code-only Opus accepted
+the corrected provenance. The existing canonical read helper enforces explicit
+classification scope; public prepared objects are not authenticated authority.
+
+This installs preparation and loading, not a native history capture or usable
+task service. Authorized pair capture, current signed-owner recovery, exact
+processing admission, runtime response/citation joins and useful owner-task
+acceptance remain required. No private history import or model request occurred.
