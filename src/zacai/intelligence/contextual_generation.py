@@ -126,9 +126,12 @@ class ContextualDraft(Contract):
     clarifications: tuple[DraftQuestion, ...] = Field(max_length=3)
 
 
+_CONTEXTUAL_DRAFT_SCHEMA_JSON = json.dumps(ContextualDraft.model_json_schema())
+
+
 def contextual_draft_schema(*, related_citable: bool = True) -> dict[str, Any]:
-    """Two host-owned schema shapes; never caller-supplied schema extensions."""
-    schema = ContextualDraft.model_json_schema()
+    """Fresh host-owned schema shape; cache only fixed public schema bytes."""
+    schema: dict[str, Any] = json.loads(_CONTEXTUAL_DRAFT_SCHEMA_JSON)
     if not related_citable:
         for section in ("background", "continuity"):
             schema["properties"][section]["maxItems"] = 0

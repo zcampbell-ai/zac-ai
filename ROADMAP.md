@@ -3274,3 +3274,19 @@ This installs preparation and loading, not a native history capture or usable
 task service. Authorized pair capture, current signed-owner recovery, exact
 processing admission, runtime response/citation joins and useful owner-task
 acceptance remain required. No private history import or model request occurred.
+
+### 2026-10-11: Fixed output-schema performance correction
+
+The contextual renderer now builds its fixed public draft schema once and returns
+a fresh nested dictionary on each request. Schema values, ordering and wire bytes
+remain unchanged. This caches no context, requests, permissions, current state
+or recovery observations. Fresh runtime declarations must pin the changed source;
+old approvals are not renewed.
+
+Root reproduced the three schema equality, call-count and nested mutation controls;
+independent code-only Opus accepted the change. In the separate unmounted reviewer
+candidate, the identical three invented orchestration cases changed from two
+deadline holds and one pass in 286.54 seconds to three passes in 72.11 seconds.
+Each original reviewer window remains 60 seconds. That timing is offline evidence,
+not real-model latency or useful-answer acceptance. Full reviewer SQL, recovery,
+independent code review and useful owner-task validation remain pending.
