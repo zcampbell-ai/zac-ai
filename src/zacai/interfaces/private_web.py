@@ -161,6 +161,10 @@ def _set_cookie(response: Response, name: str, token: str, max_age: int) -> None
 if TYPE_CHECKING:
     from zacai.interfaces.fragment_preparation_web import FragmentPreparationWeb
     from zacai.interfaces.fragment_publication_web import FragmentPublicationWeb
+    from zacai.interfaces.history_publication_web import (
+        HistoryPreparationWeb,
+        HistoryPublicationWeb,
+    )
 
 
 def create_private_web(
@@ -177,6 +181,7 @@ def create_private_web(
     gmail_recovery_consent_enabled: bool = False,
     fragment_publication: FragmentPublicationWeb | None = None,
     fragment_preparation: FragmentPreparationWeb | None = None,
+    history_preparation: HistoryPreparationWeb | None = None,
 ) -> FastAPI:
     """Create an isolated app, never mount/run it or alter existing service binding.
 
@@ -229,6 +234,16 @@ def create_private_web(
             or c._sessions is not sessions or c._owner is not owner
             or c._clock is not clock or json.loads(c._context)["origin"] != origin):
             raise ValueError("exact exclusive fragment preparation host required")
+    if history_preparation is not None:
+        from zacai.interfaces.history_publication_web import HistoryPreparationWeb
+
+        c = history_preparation.continuity
+        if (type(history_preparation) is not HistoryPreparationWeb
+            or fragment_preparation is not None or fragment_publication is not None
+            or named_questions is not None or c._sessions is not sessions
+            or c._owner is not owner or c._clock is not clock
+            or json.loads(c._context)["origin"] != origin):
+            raise ValueError("exact exclusive complete history host required")
     if type(gmail_recovery_consent_enabled) is not bool:
         raise ValueError("closed recovery consent policy required")
     target = urlsplit(origin)
@@ -263,7 +278,9 @@ def create_private_web(
         grant = current_owner()
         # A fragment publication pins the original effective expiry. Ordinary
         # navigation must not renew that session and invalidate its live claim.
-        lookup = (fragment_preparation.continuity._sessions.peek_user
+        lookup = (history_preparation.continuity._sessions.peek_user
+                  if history_preparation is not None else
+                  fragment_preparation.continuity._sessions.peek_user
                   if fragment_preparation is not None else
                   fragment_publication._continuity._sessions.peek_user
                   if fragment_publication is not None else sessions.user)
@@ -824,6 +841,149 @@ def create_private_web(
                     'not a reviewed reply or a claim that the context is current.</p></section>'))
             except PersonalFragmentCleanupUncertain:
                 return Response("PERSONAL cleanup uncertain. Stop and reconcile; do not retry.", status_code=503)
+            except Exception:  # noqa: BLE001 - committed failures remain held; no automatic repair
+                return Response("Local context action not acknowledged. Do not retry.", status_code=503)
+
+    if history_preparation is not None:
+        from zacai.contextual_protection import PersonalFragmentCleanupUncertain
+        from zacai.interfaces.history_publication_web import (
+            _NATIVE_MONOTONIC as _HISTORY_MONOTONIC,
+        )
+        from zacai.interfaces.history_publication_web import (
+            HistoryApprovalAlreadyEntered,
+        )
+
+        def active_history() -> HistoryPublicationWeb:
+            assert history_preparation is not None
+            return history_preparation.prepared_controller()
+
+        def history_response_interval(history_controller: HistoryPublicationWeb, deadline: datetime, started: float) -> float:
+            # No further caller clock: final actual owner recheck has observed
+            # the shared clock. Conservative original wall/idle-expiry cap.
+            with history_controller.host_clock._lock:
+                observed = history_controller.host_clock._last
+            if observed is None or observed >= deadline:
+                raise ValueError("original response interval unavailable")
+            return started + (deadline-observed).total_seconds()
+
+        def history_response_expired(history_controller: HistoryPublicationWeb, deadline: datetime, bound: float) -> bool:
+            with history_controller.host_clock._lock:
+                observed = history_controller.host_clock._last
+            return (observed is None or observed >= deadline
+                    or _HISTORY_MONOTONIC() >= bound)
+
+        def history_document(content: str) -> str:
+            return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
+                '<meta name="viewport" content="width=device-width, initial-scale=1">'
+                '<title>Caz AI · Local context task</title><style>' + CAZ_STYLE + '</style></head>'
+                '<body><main>' + content + '</main></body></html>')
+
+        if history_preparation is not None:
+            @app.post("/prepare-caz-task")
+            async def prepare_history_task(request: Request) -> Response:
+                try:
+                    if (not valid_host(request) or request.scope.get("query_string", b"")
+                        or request.headers.getlist("origin") != [origin]
+                        or request.headers.getlist("content-type") != ["application/x-www-form-urlencoded"]
+                        or authenticated(request) is None):
+                        return Response(status_code=403)
+                    body = bytearray()
+                    async for chunk in request.stream():
+                        body.extend(chunk)
+                        if len(body) > 2048:
+                            return Response(status_code=413)
+                    assert history_preparation is not None
+                    await run_in_threadpool(history_preparation.prepare, request=request, body=bytes(body))
+                    return RedirectResponse("/ask-caz-locally", status_code=303)
+                except PersonalFragmentCleanupUncertain:
+                    return Response("PERSONAL cleanup uncertain. Stop and reconcile; do not retry.", status_code=503)
+                except Exception:  # noqa: BLE001 - no private construction diagnostics
+                    return Response("Task preparation stopped. Stop and reconcile; do not retry.", status_code=503)
+
+        @app.get("/ask-caz-locally")
+        async def history_publication_page(request: Request) -> Response:
+            try:
+                if (not valid_host(request) or request.scope.get("query_string", b"")
+                    or request.headers.getlist("sec-fetch-site") not in ([], ["same-origin"], ["none"])):
+                    return Response(status_code=400)
+                cookie = _cookie(request, _USER)
+                if history_preparation is not None:
+                    from zacai.interfaces.history_publication_web import HistoryPreparationError
+                    signed = authenticated(request)
+                    if signed is None:
+                        return Response(status_code=403)
+                    try:
+                        history_preparation.prepared_controller()
+                    except HistoryPreparationError:
+                        if history_preparation._phase != "NEW":
+                            return Response("Task preparation stopped. Stop and reconcile; do not retry.", status_code=503)
+                        from zacai.claude_local_custody import _SCOPE as preparation_scope
+                        original = history_preparation.continuity.for_cookie(cookie)
+                        observed = original.establish()
+                        if (observed.principal.scopes != preparation_scope
+                            or observed.principal.identity != signed[0].identity):
+                            return Response(status_code=403)
+                        form = history_preparation.page(csrf=signed[0].csrf)
+                        if original.recheck(observed.binding_digest) != observed:
+                            return Response(status_code=403)
+                        return HTMLResponse(history_document(form))
+                history_controller = active_history()
+                operation = history_controller._continuity.for_cookie(cookie)
+                before = operation.establish()  # peek_user; no idle renewal
+                page = await run_in_threadpool(history_controller.page, cookie=cookie)
+                started = _HISTORY_MONOTONIC()
+                within_window = clock() < page.deadline
+                after = operation.recheck(before.binding_digest)
+                if (after != before or not within_window):
+                    return Response("Local context publication unavailable", status_code=403)
+                bound = history_response_interval(history_controller, page.deadline, started)
+                await run_in_threadpool(history_controller.scalar_response, page)
+                if history_response_expired(history_controller, page.deadline, bound):
+                    return Response("Local context publication unavailable", status_code=403)
+                return HTMLResponse(history_document(page.html))
+            except PersonalFragmentCleanupUncertain:
+                return Response("PERSONAL cleanup uncertain. Stop and reconcile; do not retry.", status_code=503)
+            except Exception:  # noqa: BLE001 - no private publication/session diagnostics
+                return Response("Local context publication unavailable", status_code=503)
+
+        @app.post("/ask-caz-locally")
+        async def history_publication_submit(request: Request) -> Response:
+            try:
+                if (not valid_host(request) or request.headers.getlist("origin") != [origin]
+                    or request.scope.get("query_string", b"")
+                    or request.headers.getlist("content-type") != ["application/x-www-form-urlencoded"]):
+                    return Response(status_code=403)
+                cookie = _cookie(request, _USER)
+                history_controller = active_history()
+                operation = history_controller._continuity.for_cookie(cookie)
+                before = operation.establish()
+                body = b""
+                async for chunk in request.stream():
+                    if len(body)+len(chunk) > 2048:
+                        return Response(status_code=413)
+                    body += chunk
+                if operation.recheck(before.binding_digest) != before:
+                    return Response(status_code=403)
+                result = await run_in_threadpool(history_controller.submit, request=request, body=body)
+                if operation.recheck(before.binding_digest) != before:
+                    return Response(status_code=403)
+                saved = await run_in_threadpool(history_controller.recheck_result, cookie=cookie, result=result)
+                started = _HISTORY_MONOTONIC()
+                within_window = clock() < saved.deadline
+                if not within_window or operation.recheck(before.binding_digest) != before:
+                    return Response("Local context action not acknowledged", status_code=403)
+                bound = history_response_interval(history_controller, saved.deadline, started)
+                await run_in_threadpool(history_controller.scalar_response, saved)
+                if history_response_expired(history_controller, saved.deadline, bound):
+                    return Response("Local context action not acknowledged", status_code=403)
+                return HTMLResponse(history_document(saved.html))
+            except PersonalFragmentCleanupUncertain:
+                return Response("PERSONAL cleanup uncertain. Stop and reconcile; do not retry.", status_code=503)
+            except HistoryApprovalAlreadyEntered:
+                return Response(
+                    "This task has already been entered. Reload to see its status or cancel it.",
+                    status_code=409,
+                )
             except Exception:  # noqa: BLE001 - committed failures remain held; no automatic repair
                 return Response("Local context action not acknowledged. Do not retry.", status_code=503)
 

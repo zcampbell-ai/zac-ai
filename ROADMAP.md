@@ -3462,3 +3462,32 @@ at this checkpoint; the owner-host changes remain staged for narrow corrections.
 This proves orchestration and compatibility, not useful answer quality. A fresh
 actual local-model generation and full-answer review remain next. No private
 history was processed and no owner task or mobile readiness is claimed.
+
+### 2026-10-12: Complete-history owner workflow and native task custody
+
+Installed the separate owner workflow for preparing, approving, cancelling and
+viewing a complete PERSONAL history task. Only the actual reviewed result can
+appear. Duplicate approval returns a clear 409 status without damaging the first
+task, and cancellation uses the canonical declaration digest. The workflow stays
+disabled unless explicitly configured; no service or private session was started.
+
+Root verified seven real rendered-form/database/encrypted recovery cases in
+267.13 seconds, zero skips, on the final owner-host graph. Model replies were
+scripted. Broader compatibility passed 134 isolated checks and two controlled
+dummy subprocess checks. Installed owner tests passed 38 checks; one redundant
+native-expiry case was deselected because the real seven-case run covered expiry.
+Independent code-only Opus accepted the narrow correction.
+
+Native ChatGPT tasks can now retain their exact declaration and paired association
+under canonical custody. Durable artifact writes, current-owner checks, exact
+read scopes and commit uncertainty are preserved. This returns no processing,
+runtime or reviewer authority. Root verified 26 installed isolated checks and
+four real database cases on the final 230-module union, zero skips. Opus accepted
+the correction after catching interrupt handling and ineffective expiry tests.
+Whole recovery of this new retained task remains separate unfinished work.
+
+The first fresh actual-model trial stopped before any model call: the first-writing
+factory rejects ASSISTANT selections. That prevents preserving a complete
+USER/ASSISTANT/USER correction sequence. A bounded role-selection correction is
+next; source roles, dates and warnings must remain intact. No old answer is
+repaired, no private processing is claimed, and useful owner tasks remain unproved.

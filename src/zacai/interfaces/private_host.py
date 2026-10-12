@@ -37,6 +37,7 @@ from zacai.interfaces.sqlite_sessions import SqliteSessionStore
 if TYPE_CHECKING:
     from zacai.interfaces.fragment_publication_web import FragmentPublicationWeb
     from zacai.interfaces.gmail_connection_web import GmailConnectionWeb
+    from zacai.interfaces.history_publication_web import HistoryPublicationWeb
     from zacai.interfaces.named_followup_web import NamedFollowupWeb
     from zacai.interfaces.named_session_binding import NamedSessionOperation
     from zacai.interfaces.named_worker_lifecycle import NamedWorkerRegistry
@@ -309,6 +310,7 @@ def prepare_owner_host(
     gmail_recovery_consent_enabled: bool = False,
     fragment_factory: Callable[[NamedOwnerHostInputs], FragmentPublicationWeb] | None = None,
     fragment_preparation_factory: Callable[[NamedOwnerHostInputs, NamedSessionOperation, str], FragmentPublicationWeb] | None = None,
+    history_preparation_factory: Callable[[NamedOwnerHostInputs, NamedSessionOperation, str], HistoryPublicationWeb] | None = None,
 ) -> PreparedOwnerHost:
     """Compose durable enrolled access; missing/tampered/revoked owner denies.
 
@@ -338,6 +340,12 @@ def prepare_owner_host(
             or fragment_factory is not None or named_factory is not None
         ):
             raise ValueError("exclusive request-bound fragment factory required")
+        if history_preparation_factory is not None and (
+            not callable(history_preparation_factory) or type(clock) is not HostObservedClock
+            or fragment_factory is not None or fragment_preparation_factory is not None
+            or named_factory is not None
+        ):
+            raise ValueError("exclusive request-bound complete history factory required")
         if work_choices is not None:
             from zacai.interfaces.work_choice_web import WorkChoiceWeb
 
@@ -353,7 +361,8 @@ def prepare_owner_host(
             client_id=configuration.client_id,
         )
         enrolled = owners.load()
-        if fragment_factory is not None or fragment_preparation_factory is not None:
+        if (fragment_factory is not None or fragment_preparation_factory is not None
+            or history_preparation_factory is not None):
             from zacai.claude_local_custody import _SCOPE as fragment_scope
 
             if enrolled.scopes != fragment_scope:
@@ -419,6 +428,16 @@ def prepare_owner_host(
                     configuration.session_key, directory, owners, owner, sessions, clock),
                 factory=fragment_preparation_factory,
             )
+        history_preparation = None
+        if history_preparation_factory is not None:
+            from zacai.interfaces.history_publication_web import HistoryPreparationWeb
+
+            assert type(clock) is HostObservedClock
+            history_preparation = HistoryPreparationWeb(
+                inputs=NamedOwnerHostInputs(configuration.origin, configuration.client_id,
+                    configuration.session_key, directory, owners, owner, sessions, clock),
+                factory=history_preparation_factory,
+            )
         app = create_private_web(
             origin=configuration.origin,
             identities=provider,
@@ -432,6 +451,7 @@ def prepare_owner_host(
             gmail_recovery_consent_enabled=gmail_recovery_consent_enabled,
             fragment_publication=fragment,
             fragment_preparation=preparation,
+            history_preparation=history_preparation,
         )
         if named is not None:
             from zacai.interfaces.named_worker_lifecycle import (
