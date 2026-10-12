@@ -3216,3 +3216,20 @@ dedicated PostgreSQL/temporary encryption cases passed for acknowledgment, and
 code-only Opus reviews accepted both corrections. No private history, provider
 request or new credential access occurred. Complete generation and ChatGPT
 native context joins remain separate implementation and acceptance work.
+
+
+### 2026-10-11: Complete Claude context selection and explicit missing custody
+
+Installed the bounded selection helper for approved retained Claude context. It
+keeps connected USER ancestors and corrections together, presents distinct whole
+branches as one numbered question, and keeps unavailable, over-capacity or
+unretained context as explicit missing context. An indexed but unretained record
+does not reach per-message text projection or a generation request. Historical
+assistant content does not become owner views, current facts or permissions.
+
+All 63 finite selection cases passed against the current repository graph.
+Independent code-only Opus accepted the corrected selection and its complete
+node receipt; scoped strict types and lint passed. This is a preparation helper,
+not a mounted conversation/search service, semantic relevance guarantee, private
+history import or useful-owner-task acceptance. Native ChatGPT provenance and
+complete generation/reviewer joins remain separate work.
