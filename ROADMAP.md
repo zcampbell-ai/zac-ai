@@ -3345,3 +3345,28 @@ No private history was processed by a model or live credential accessed.
 The private phone trial is not ready. Next acceptance must demonstrate a useful
 owner result with authorized relevant context, not substitute these test counts
 for readiness.
+
+
+### 2026-10-11: Native PERSONAL history-pair recovery
+
+Integrated the explicit PERSONAL/HR native ChatGPT pair recovery adapter. It
+reuses the existing whole-boundary artifact, State and journal recovery machinery
+and retains exact original/companion/capture, role/date and current Source bindings.
+It reobserves ciphertext after restore and receipt encryption before publishing
+a receipt; read-existing verifies the same checkpoint without repair or renewal.
+A receipt remains comparison evidence, never processing or current-fact permission.
+BRAINSTORM and mixed/weaker pairs are rejected by this PERSONAL path.
+
+Independent code-only Opus accepted the correction. Root reproduced 21 guarded
+controls and seven actual dedicated PostgreSQL/native-age/full State and journal
+recovery cases, zero skips. The ciphertext mutation control demonstrates that
+changed ciphertext after actual restoration prevents first receipt publication.
+Cleanup uncertainty was injected after real restoration to verify propagation;
+this does not prove recovery from an actual induced cleanup failure.
+
+The final owner observation is a finite watermark before terminal canonical
+queries. It is not a promise that return occurs before later expiry or revocation;
+consumers must check their own current owner and complete processing checkpoint.
+Exclusive cooperating custody, recovered key/geography and approved cold plaintext
+handling remain operational requirements. Native task admission and useful owner
+results are still pending; no real conversation was imported or sent to a model.
