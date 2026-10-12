@@ -3233,3 +3233,23 @@ node receipt; scoped strict types and lint passed. This is a preparation helper,
 not a mounted conversation/search service, semantic relevance guarantee, private
 history import or useful-owner-task acceptance. Native ChatGPT provenance and
 complete generation/reviewer joins remain separate work.
+
+### 2026-10-11: Owner deliverable workflow direction
+
+The owner wants Caz to produce meeting decks, infographics and videos from a
+brief, prompt, image or existing material using relevant retained context and
+learned writing/design preferences. For decks, the requested starting division
+is Claude for the story and structure, with Astra for infographic and visual
+work. Treat this as a preferred division to validate against actual model
+capabilities and available tools, not an installed integration or a fixed
+provider dependency. The owner should not need to brief each model separately.
+
+Follow the existing build order: verify context, demonstrate useful task
+execution, then extend the same routing and approval contracts to these
+deliverables. Reuse existing Brainstorm proposals and branding as dated examples
+that can evolve with feedback. Acceptance requires a coherent assembled artifact,
+source-backed claims, readable visuals and owner review of usefulness and voice.
+Generated owner-facing prose must be concise and contain no em dashes. Exact
+source quotations retain their original text and attribution. Publishing,
+paid tools and sharing private material with external models require their
+own applicable authorization. No deck/video capability is claimed complete.
