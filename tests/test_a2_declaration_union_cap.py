@@ -84,7 +84,9 @@ def wide_declaration(s, count, monkeypatch):
             "task_id": request.task.task_id,
             "request_digest": content_hash_of(raw),
             "body_digest": content_hash_of(body),
-            "generation_wire_digest": content_hash_of(prepare_history_generation_wire(request)),
+            "generation_wire_digest": content_hash_of(
+                prepare_history_generation_wire(request, generation_wire_format=g.generation_wire_format)
+            ),
         }
     )
     declaration = prepare_history_generation_review_declaration(

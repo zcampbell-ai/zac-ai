@@ -338,7 +338,20 @@ def test_full_wire_actual_count_owner_commit_close_reopen_recovery_join(factory_
     f = factory_case
     result = invoke(f)
     g = decode_history_consent(result.retained.declaration.generation_consent_json.encode())
-    assert f.wires == [result.generation_wire] == [prepare_history_generation_wire(result.request)]
+    assert (
+        f.wires
+        == [result.generation_wire]
+        == [
+            prepare_history_generation_wire(
+                result.request, generation_wire_format=g.generation_wire_format
+            )
+        ]
+    )
+    assert g.generation_wire_format == "zac-history-complete-generation-wire-v2"
+    assert (
+        json.dumps(result.request.original_task.instruction, ensure_ascii=False)
+        in json.loads(result.generation_wire)["messages"][1]["content"]
+    )
     assert f.wires[0] != result.request.prompt_body.encode()
     assert g.prompt_tokens == f.c.generation_counter.count_prompt_tokens(result.generation_wire)
     assert result.request.original_task.instruction == f.c.original_context.task.instruction

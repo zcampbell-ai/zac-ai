@@ -213,7 +213,9 @@ class LocalHistoryContextualRuntime:
             if request is not gate._request:
                 raise ValueError("original request identity required")
             retained = encode_history_contextual_request(request)
-            body = prepare_history_generation_wire(request)
+            body = prepare_history_generation_wire(
+                request, generation_wire_format=gate._consent.generation_wire_format
+            )
             if request.route != self._route:
                 raise ValueError("actual route differs")
             count = self._counter.count_prompt_tokens(body)
@@ -289,9 +291,13 @@ class LocalHistoryContextualRuntime:
         configuration: tuple[str, str, str, str, str, str],
     ) -> None:
         if (
-            self._prepared is not bound
+            self._authorization is None
+            or self._prepared is not bound
             or encode_history_contextual_request(request) != bound[0]
-            or prepare_history_generation_wire(request) != bound[1]
+            or prepare_history_generation_wire(
+                request, generation_wire_format=self._authorization._consent.generation_wire_format
+            )
+            != bound[1]
             or self.configuration() != configuration
         ):
             raise ValueError("complete original body or pins changed")

@@ -201,6 +201,7 @@ def _claim_binding(
         or claim.builder_id != g.builder_id
         or claim.original_session_binding != g.original_session_binding
         or claim.body_digest != g.body_digest
+        or claim.generation_wire_format != g.generation_wire_format
         or claim.generation_wire_digest != g.generation_wire_digest
         or claim.route_digest != content_hash_of(canonical_bytes(route))
         or any(
@@ -941,6 +942,7 @@ class CanonicalPersonalHistoryPublicationAuthorization:
             builder_id=g.builder_id,
             original_session_binding=g.original_session_binding,
             body_digest=g.body_digest,
+            generation_wire_format=g.generation_wire_format,
             generation_wire_digest=g.generation_wire_digest,
             route_digest=d.route_digest,
             model_digest=d.model_digest,

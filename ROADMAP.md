@@ -3422,3 +3422,43 @@ Independent code-only Opus accepted the corrected bounded precursor. Strict
 Actual native task approval, canonical declaration retention and recovery,
 once-only generation/output and independent whole-answer review remain separate
 unfinished work. No private-history processing or useful owner result is claimed.
+
+### 2026-10-12: Owner requirement for coordinated creative deliverables
+
+The owner wants Caz to produce meeting decks, infographics and videos from a
+short prompt or reference image, using the right models for each part. The
+requested example is Claude for deck structure and Astra for the infographic,
+with Caz assembling the finished deliverable. These are preferred roles to
+evaluate, not verified integrations or a requirement to use one provider forever.
+
+Start from the meeting purpose, audience, relevant verified context and existing
+Brainstorm material. Keep a shared brief across outline, writing, visuals and
+assembly so the final result tells one story. Match the owner's writing style,
+use no em dashes, preserve source evidence and return an editable deck with a
+concise preview for review. Select video tools against the actual requested
+output and available capabilities. Keep private-source/model permissions in the
+external gateway and check factual accuracy and visual quality before delivery.
+
+This extends the existing proposal, brand and task-execution direction after
+the context baseline and initial useful tasks. It does not authorize new paid
+accounts, confidential model processing or publication. No creative integration
+or completed deliverable is claimed at this checkpoint.
+
+### 2026-10-12: Send the owner's exact task with the complete context
+
+New complete-history preparations now include the exact current task wording in
+the model request. The original source context stays intact. Fixed evidence,
+privacy, output and style rules still apply. Old saved v1 requests reconstruct
+exactly; new v2 requests bind the selected format through preparation, counting,
+approval, generation and later checks. No budget or original deadline changes.
+
+Root verified the combined 229-module owner-host candidate with seven real
+PostgreSQL and encrypted State/journal recovery cases, zero skips, in 259.53
+seconds. Model replies were scripted. The separate 53 wire compatibility checks
+passed, as did strict typing and lint. Independent code-only Opus accepted the
+task-wire correction. Only its four source files and portable tests are installed
+at this checkpoint; the owner-host changes remain staged for narrow corrections.
+
+This proves orchestration and compatibility, not useful answer quality. A fresh
+actual local-model generation and full-answer review remain next. No private
+history was processed and no owner task or mobile readiness is claimed.

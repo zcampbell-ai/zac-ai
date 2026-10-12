@@ -275,6 +275,8 @@ def test_actual_complete_factory_commit_reopen_full_native_recovery_and_write_xi
     assert reopened(f, value) == value.retained
     assert g.expires_at == f.c.expires_at and g.original_session_binding == f.owner.binding_digest
     assert value.protector._operation is f.operation and value.protector._clock is f.inputs.clock
+    assert g.generation_wire_format == "zac-history-complete-generation-wire-v2"
+    assert json.dumps(value.request.original_task.instruction, ensure_ascii=False) in json.loads(value.generation_wire)["messages"][1]["content"]
     assert value.generation_wire == value.retained.declaration.generation_wire_json.encode()
     assert f.c.generation_counter.count_prompt_tokens(value.generation_wire) == g.prompt_tokens
     assert [e.historical_role for e in value.request.sidecar.entries] == ["USER", "USER"]
@@ -445,7 +447,10 @@ def test_actual_input_revision_withholds_declaration_before_own_body_read(
 
 def test_actual_preservation_reconciliation_keeps_committed_custody_and_expired_permission(history_factory_case, monkeypatch):
     from datetime import timedelta
-    from zacai.intelligence.history_declaration_reconciliation import reconcile_history_declaration_custody
+
+    from zacai.intelligence.history_declaration_reconciliation import (
+        reconcile_history_declaration_custody,
+    )
     f = history_factory_case
     value = f.prepare()
     g = decode_history_consent(value.retained.declaration.generation_consent_json.encode())

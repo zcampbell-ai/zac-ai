@@ -79,7 +79,7 @@ def declaration_case(prepared):
         template_digest="4" * 64,
         renderer_digest="5" * 64,
         body_digest=content_hash_of(q.prompt_body.encode()),
-        generation_wire_digest=content_hash_of(m.prepare_history_generation_wire(q)),
+        generation_wire_digest=content_hash_of(m.prepare_history_generation_wire(q, generation_wire_format="zac-history-complete-generation-wire-v1")),
         prompt_tokens=500,
         max_output_tokens=q.task.max_output_tokens,
     )
@@ -365,7 +365,7 @@ def test_complete_only_styled_wire_preserves_every_evidence_and_original_word(de
     q, g, _ = declaration_case
     before = encode_history_contextual_request(q)
     original = json.loads(q.prompt_body)
-    wire = m.prepare_history_generation_wire(q)
+    wire = m.prepare_history_generation_wire(q, generation_wire_format="zac-history-complete-generation-wire-v1")
     value = json.loads(wire)
     expected = json.loads(q.prompt_body)
     expected["messages"][0]["content"] += "\n" + m.GENERATION_STYLE_CLAUSE

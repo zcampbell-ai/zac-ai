@@ -1,0 +1,13 @@
+{
+  "encoder": "exact installed d2f4de109b6602863b7c786d8a17c4042669a93c",
+  "hashes": {
+    "consent.json": "b3484c3c0858eaf96e6ff05b15848c24b264279074a61a7b361293e545009fff",
+    "claim.json": "322a4dc7305df08eded421a3138864879aa1e82d816a2b2f6eca00497146a1f6",
+    "declaration.json": "4e3838fb9f89c3b44a185f9c68bd6eb4743e1d9e4769b54db6f2902933a76971",
+    "admission.json": "41eb6db7dfeb8a034bce6af1e9c5a978e043a4304ba2bb79168e1551a4f84eba",
+    "wire.json": "ca6d77c096f675ad9d463ba4dd3d2e16320c3a2a1f97ba8816d5a0b759f41027"
+  },
+  "domain_digest": "b10e4a1950eb70ea23d225228e18cf02e9cdbbbf9c848e16a182e4176a3da4e8",
+  "claim_namespace": "personal-history-fragment-claim/1e4f7857-fca1-4a64-b822-ed3d6d55b070/history-complete-v1/41eb6db7dfeb8a034bce6af1e9c5a978e043a4304ba2bb79168e1551a4f84eba/00000000-0000-0000-0000-00000000002b/322a4dc7305df08eded421a3138864879aa1e82d816a2b2f6eca00497146a1f6",
+  "actual_declared_bytes": 86449
+}

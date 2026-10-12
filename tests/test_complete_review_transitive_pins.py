@@ -2,6 +2,7 @@
 
 import shutil
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -51,9 +52,15 @@ def test_dependency_byte_drift_changes_actual_generation_predispatch_guard(
     runtime = generation.LocalHistoryContextualRuntime(
         route=q.route, model_digest=installed[2], counter=counter
     )
-    body = prepare_history_generation_wire(q)
+    body = prepare_history_generation_wire(q, generation_wire_format="zac-history-complete-generation-wire-v1")
     bound = (encode_history_contextual_request(q), body, counter.count_prompt_tokens(body), 1.0)
     runtime._prepared = bound
+    # This isolated dependency guard has no admission or transport. Supply only
+    # its stored-format comparison; actual canonical authorization is exercised
+    # by the separate full pipeline tests.
+    runtime._authorization = SimpleNamespace(
+        _consent=SimpleNamespace(generation_wire_format="zac-history-complete-generation-wire-v1")
+    )
     before = runtime.configuration()
     runtime._unchanged(q, bound, before)  # Same actual private guard used before POST.
     target = copied / dependency

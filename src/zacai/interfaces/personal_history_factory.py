@@ -39,6 +39,7 @@ from zacai.intelligence.history_declaration_protection import (
     protect_history_declaration,
 )
 from zacai.intelligence.history_generation_review_declaration import (
+    GENERATION_WIRE_V2,
     HistoryConsentV1,
     HistoryReviewPurposeProfileV1,
     prepare_history_generation_review_declaration,
@@ -235,7 +236,7 @@ def prepare_personal_history_task(
         provenance = _history_request_provenance(request)
         if len(provenance) > 89:
             raise ValueError("complete later review inventory capacity exceeded")
-        wire = prepare_history_generation_wire(request)
+        wire = prepare_history_generation_wire(request, generation_wire_format=GENERATION_WIRE_V2)
         count = c.generation_counter.count_prompt_tokens(wire)
         _owner(inputs, operation, current.binding_digest)
         if (
@@ -267,6 +268,7 @@ def prepare_personal_history_task(
             template_digest=template,
             renderer_digest=renderer,
             body_digest=content_hash_of(request.prompt_body.encode()),
+            generation_wire_format=GENERATION_WIRE_V2,
             generation_wire_digest=content_hash_of(wire),
             prompt_tokens=count,
             max_output_tokens=request.task.max_output_tokens,
