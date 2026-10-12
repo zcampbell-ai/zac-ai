@@ -12,7 +12,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from starlette.requests import Request
 
-from test_chatgpt_native_view import fixture_body, raw
+from tests.test_chatgpt_native_view import fixture_body, raw
 from zacai import chatgpt_native_custody as m
 from zacai import chatgpt_native_source as reader
 from zacai.claude_original_capture import observe_claude_artifact_root

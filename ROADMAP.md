@@ -3397,3 +3397,28 @@ An earlier actual PUBLIC local-model draft took 35.82 seconds and matched the
 rule for a follow-up item. Its exact output remains rejected, without citation
 repair. Real generator/reviewer quality, actual private processing, useful owner
 tasks and phone acceptance remain unfinished.
+
+### 2026-10-12: Native ChatGPT task comparison and original-window declaration
+
+Added a bounded native task request codec, current canonical pair/task loader and
+non-authorizing declaration producer. Full selected returned text, reported role,
+field pointer, dates, capture identity, current Source references and complete
+model wire remain bound by exact reconstruction. Original task prose remains a
+trusted host comparison, not proof of source authorship. The declaration checks
+the configured model manifest pin against the concrete counter and requested
+model before counting, then rechecks the actual signed owner and original window
+after count callbacks. It always reports processing, runtime and reviewer
+readiness as false. No native processing or Claude-family cast is introduced.
+
+Root reproduced 140 guarded native/task/context/custody/view cases and six real
+dedicated PostgreSQL loader/declaration cases (3.88 seconds, zero skips) after
+portable test import reconciliation. Actual current rows, pair revision,
+classification changes, artifact callback mutation, owner revocation and
+original expiry are exercised; no model responses or live credentials are used.
+The counter fixtures use real invented tokenizer files, not backend conformance.
+Independent code-only Opus accepted the corrected bounded precursor. Strict
+227-module typing and owned lint passed.
+
+Actual native task approval, canonical declaration retention and recovery,
+once-only generation/output and independent whole-answer review remain separate
+unfinished work. No private-history processing or useful owner result is claimed.
