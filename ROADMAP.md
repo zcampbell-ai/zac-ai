@@ -3314,3 +3314,34 @@ acknowledgment. Code-only Opus accepted the corrected factory and snapshot rules
 This is an unmounted custody primitive. Live owner capture, whole native recovery,
 processing/task admission and useful task acceptance remain separate gates. No
 private conversation was imported or processed by these tests.
+
+
+### 2026-10-11: Complete PERSONAL context generation and independent review
+
+Integrated the complete retained-history generation, review and protection path.
+The original observed owner action binds exact context, purpose, runtime and
+budgets. Generation and review claims are consumed once before their model POST;
+failed or canceled attempts stay held. The reviewer authenticates the complete
+output, preserves source text, and releases text only from the exact reviewed
+bytes after current owner, whole-boundary recovery and original deadline checks.
+Generated prose rejects em dashes; unchanged attributed source text is preserved.
+This style guard does not prove the owner's voice.
+
+Root reproduced the corrected 225-module graph with strict types and scoped lint,
+three corrective controls and three positive/cancellation/text-fidelity controls.
+Independent code-only Opus accepted the corrected safe errors, dependency pins
+and final release checks. Seven genuine dedicated PostgreSQL/full encrypted
+recovery cases withheld output after revocation, evidence revision, whole-boundary
+rights changes, unrelated append, wall expiry/rollback and actual native expiry.
+Five additional genuine pipeline cases passed for retained PASS and UNREVIEWED,
+transport failure, owner withdrawal and corrupt assessment. All twelve passed
+without skips. Model metadata, responses and reviewer judgments were invented;
+this is mechanical acceptance, not authentic model quality or owner usefulness.
+
+This complete family remains explicitly PERSONAL and retained-Claude-specific.
+Native ChatGPT whole recovery/task admission, BRAINSTORM client-task joins, mounted
+owner processing flow and real model/task acceptance remain separate requirements.
+No private history was processed by a model or live credential accessed.
+The private phone trial is not ready. Next acceptance must demonstrate a useful
+owner result with authorized relevant context, not substitute these test counts
+for readiness.

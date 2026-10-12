@@ -29,7 +29,7 @@ from zacai.intelligence.contextual_generation import (
     validate_native_contextual_request,
 )
 from zacai.intelligence.contextual_review import ContextualReview
-from zacai.intelligence.contracts import ModelRoute, UsageObservation
+from zacai.intelligence.contracts import IntelligenceTask, ModelRoute, UsageObservation
 from zacai.intelligence.local_review_runtime import (
     LocalPromptTokenCounter,
     Transport,
@@ -43,6 +43,7 @@ from zacai.intelligence.runtime_diagnostics import RuntimeFailureCode as F
 from zacai.policy import Destination
 
 if TYPE_CHECKING:
+    from zacai.intelligence.history_contextual_codec import HistoryContextualRequestV1
     from zacai.intelligence.history_fragment_contextual_codec import (
         HistoryFragmentContextualRequestV1,
     )
@@ -1365,6 +1366,45 @@ def _parse_fragment_response(
     elapsed: float,
     expected_count: int,
 ) -> tuple[ContextualDraft, UsageObservation]:
+    return _parse_contextual_response(reply, request.task, route, elapsed, expected_count)
+
+def _parse_history_response(
+    reply: object,
+    request: HistoryContextualRequestV1,
+    route: ModelRoute,
+    elapsed: float,
+    expected_count: int,
+) -> tuple[ContextualDraft, UsageObservation]:
+    """Complete-only structural reply parsing, never dispatch or permission.
+
+    Expected count must come from the separately bound actual generation wire.
+    Parsing does not prove observed invocation, semantic support or reviewer identity.
+    """
+    from zacai.intelligence.history_contextual_codec import (
+        HistoryContextualRequestV1,
+        encode_history_contextual_request,
+    )
+
+    valid = False
+    try:
+        if type(request) is HistoryContextualRequestV1 and route == request.route:
+            encode_history_contextual_request(request)
+            valid = True
+    except Exception:  # noqa: BLE001 - invalid inputs never escape as private diagnostics
+        valid = False
+    if not valid:
+        raise LocalContextualRuntimeError(
+            "complete contextual request rejected", code=F.REQUEST_PAYLOAD
+        )
+    return _parse_contextual_response(reply, request.task, route, elapsed, expected_count)
+
+def _parse_contextual_response(
+    reply: object,
+    task: IntelligenceTask,
+    route: ModelRoute,
+    elapsed: float,
+    expected_count: int,
+) -> tuple[ContextualDraft, UsageObservation]:
     failure = F.RESPONSE_SHAPE
     try:
         if type(reply) is not dict:
@@ -1395,13 +1435,13 @@ def _parse_fragment_response(
             reported = (length_input, length_output)
             if (
                 any(n < 0 for n in reported)
-                or reported[1] > request.task.max_output_tokens
+                or reported[1] > task.max_output_tokens
                 or sum(reported) > _context_tokens(route)
             ):
                 raise ValueError("fragment length usage")
             failure = (
                 F.OUTPUT_LIMIT
-                if reported[1] == request.task.max_output_tokens
+                if reported[1] == task.max_output_tokens
                 and sum(reported) < _context_tokens(route)
                 else F.RESPONSE_LENGTH
             )
@@ -1424,10 +1464,10 @@ def _parse_fragment_response(
             raise LocalContextualRuntimeError(
                 "fragment prompt count mismatch", code=F.PROMPT_COUNT_MISMATCH
             )
-        if counts[1] > request.task.max_output_tokens or sum(counts) > _context_tokens(route):
+        if counts[1] > task.max_output_tokens or sum(counts) > _context_tokens(route):
             raise ValueError("fragment response capacity")
         failure = F.RESPONSE_LATENCY
-        if not 0 <= elapsed <= request.task.max_latency_ms:
+        if not 0 <= elapsed <= task.max_latency_ms:
             raise ValueError("fragment response latency")
         failure = F.RESPONSE_SCHEMA
         content = message.get("content")
