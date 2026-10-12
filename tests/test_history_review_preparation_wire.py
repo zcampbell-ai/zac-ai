@@ -122,7 +122,7 @@ def test_exact_whole_packet_request_dates_profiles_coverage_and_false_authority(
     raw, q, args = case
     value = prepare(case)
     data = json.loads(value.body)
-    assert p._packet_from_review_view(data["packet"]) == raw
+    assert p._review_packet_raw(data["packet"], data["packet_representation"]) == raw
     packet = decode_history_contextual_packet(raw)
     assert packet.request() == q
     assert json.loads(packet.request_json)["sidecar"] == q.sidecar.model_dump(mode="json")
@@ -326,14 +326,14 @@ def test_original_three_message_whole_wire_preserves_correction_without_omission
     assert len(actual) <= w.MAX_WIRE_BYTES
     assert json.loads(actual)["messages"][1]["content"].encode() == value.body
     # Whole packet remains exact. Successful preparation does not promise wire fit.
-    assert p._packet_from_review_view(json.loads(value.body)["packet"]) == oversized[0]
+    assert p._review_packet_raw(json.loads(value.body)["packet"], json.loads(value.body)["packet_representation"]) == oversized[0]
 
 
 def test_literal_markup_role_date_and_coverage_are_preserved(case):
     raw, q, args = case
     value = prepare(case)
     data = json.loads(value.body)
-    assert p._packet_from_review_view(data["packet"]) == raw
+    assert p._review_packet_raw(data["packet"], data["packet_representation"]) == raw
     sidecar = data["packet"]["request"]["sidecar"]
     assert sidecar == q.sidecar.model_dump(mode="json")
     assert w.serialize_history_review_wire(
@@ -391,8 +391,8 @@ def test_actual_full_three_message_overcap_holds_without_losing_packet(original_
     template = b"Independent complete review with all original dated evidence. " * 60
     profile = c[2]["review"].model_copy(update={"template_digest": content_hash_of(template)})
     c = (c[0], c[1], c[2] | {"template_utf8": template, "review": profile})
-    value = prepare(c)
-    assert p._packet_from_review_view(json.loads(value.body)["packet"]) == c[0]
+    value = prepare(c, packet_representation=p.LEGACY_PACKET_REPRESENTATION)
+    assert p._review_packet_raw(json.loads(value.body)["packet"], json.loads(value.body)["packet_representation"]) == c[0]
     with pytest.raises(w.HistoryReviewWireError):
         wire(c, value)
 
@@ -422,4 +422,4 @@ def test_lossless_view_reconstruction_refuses_tamper(case, fault):
     else:
         view["request"]["sidecar"]["entries"][0]["historical_role"] = "ASSISTANT"
     with pytest.raises(ValueError):
-        p._packet_from_review_view(view)
+        p._review_packet_raw(view, data["packet_representation"])

@@ -179,20 +179,19 @@ def test_actual_three_message_correction_full_wire_count(original_prepared, inst
     ]
     assert (
         "Correction: use three short paragraphs."
-        in request["task"]["context"][-1]["untrusted_text"]
+        in request["task"]["context"][-1]["untrusted_text"][m.preparation._HISTORY_SEGMENTS_MARKER][2]["text"]
     )
     measured = counter(installed).count_prompt_tokens(raw)
     assert 0 < measured + selected[2]["review"].max_output_tokens <= 16384
     assert len(raw) <= 64000
     assert (
-        content_hash_of(m.preparation._packet_from_review_view(json.loads(user)["packet"]))
+        content_hash_of(m.preparation._review_packet_raw(json.loads(user)["packet"], json.loads(user)["packet_representation"]))
         == selected[2]["expected_packet_digest"]
     )
     # Numbers from actual synthetic renderer/tokenizer, not real model fit/parity.
-    from pathlib import Path
 
     observation = {
-        "representation": "canonical-history-request-object-v1",
+        "representation": json.loads(user)["packet_representation"],
         "selected_messages": 3,
         "prepared_body_bytes": len(prepare(selected).body),
         "wire_bytes": len(raw),
@@ -201,6 +200,6 @@ def test_actual_three_message_correction_full_wire_count(original_prepared, inst
         "context_tokens": 16384,
         "actual_backend_parity_verified": False,
     }
-    (Path(__file__).parents[1] / "three-message-observation.json").write_text(
+    (tmp_path / "three-message-observation.json").write_text(
         json.dumps(observation, indent=2) + "\n"
     )

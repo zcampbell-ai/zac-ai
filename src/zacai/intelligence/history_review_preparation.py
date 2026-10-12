@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Literal, Self
 from uuid import UUID
@@ -117,6 +118,203 @@ def _packet_from_review_view(value: object) -> bytes:
     return raw
 
 
+LEGACY_PACKET_REPRESENTATION = "canonical-history-request-object-v1"
+PREVIOUS_LOSSLESS_PACKET_REPRESENTATION = "canonical-history-derived-prompt-json-view-v2"
+LOSSLESS_PACKET_REPRESENTATION = "canonical-history-visible-segments-json-view-v3"
+_HISTORY_SEGMENTS_MARKER = "zac_review_history_segments_v3"
+_JSON_STRING_MARKER = "zac_review_canonical_json_string_v2"
+_PROMPT_MARKER = "zac_review_derived_prompt_body_v2"
+
+
+def _parse_canonical_strings(value: object) -> object:
+    """Parse only the validated request's typed canonical projection profiles.
+
+    Never inspect or transform arbitrary source text, instruction, draft text,
+    rendered preview or any other string that happens to contain JSON.
+    """
+    if type(value) is not dict or type(value.get("request")) is not dict:
+        raise ValueError("exact typed request view required")
+    result = deepcopy(value)
+    request = result["request"]
+    profiles = request.get("projection_profiles")
+    if type(profiles) is not list:
+        raise ValueError("typed projection profile array required")
+    parsed_profiles = []
+    for raw in profiles:
+        if type(raw) is not str:
+            raise ValueError("canonical profile string required")
+        parsed = json.loads(raw)
+        if type(parsed) is not dict or canonical_bytes(parsed).decode("utf-8") != raw:
+            raise ValueError("canonical profile object required")
+        parsed_profiles.append({_JSON_STRING_MARKER: parsed})
+    request["projection_profiles"] = parsed_profiles
+    return result
+
+
+def _restore_canonical_strings(value: object) -> object:
+    if type(value) is not dict or type(value.get("request")) is not dict:
+        raise ValueError("exact typed request view required")
+    result = deepcopy(value)
+    request = result["request"]
+    profiles = request.get("projection_profiles")
+    if type(profiles) is not list:
+        raise ValueError("typed projection profile array required")
+    restored = []
+    for profile in profiles:
+        if (
+            type(profile) is not dict
+            or set(profile) != {_JSON_STRING_MARKER}
+            or type(profile[_JSON_STRING_MARKER]) is not dict
+        ):
+            raise ValueError("closed canonical profile marker required")
+        restored.append(canonical_bytes(profile[_JSON_STRING_MARKER]).decode("utf-8"))
+    request["projection_profiles"] = restored
+    return result
+
+
+def _segment_history_tail(view: dict[str, object]) -> None:
+    request = view["request"]
+    if type(request) is not dict:
+        raise ValueError("exact history request required")
+    entries = request["sidecar"]["entries"]
+    tail = request["task"]["context"][-1]
+    text = tail["untrusted_text"]
+    if type(text) is not str:
+        raise ValueError("literal history text required")
+    tail["untrusted_text"] = {
+        _HISTORY_SEGMENTS_MARKER: [
+            {
+                "index": i,
+                "message_id": e["message_id"],
+                "historical_role": e["historical_role"],
+                "reported_created_at": e["reported_created_at"],
+                "reported_updated_at": e["reported_updated_at"],
+                "text": text[e["context_character_start"] : e["context_character_end"]],
+            }
+            for i, e in enumerate(entries)
+        ]
+    }
+
+
+def _restore_history_tail(view: dict[str, object]) -> None:
+    request = view["request"]
+    if type(request) is not dict:
+        raise ValueError("exact history request required")
+    entries = request["sidecar"]["entries"]
+    tail = request["task"]["context"][-1]
+    marker = tail["untrusted_text"]
+    if type(marker) is not dict or set(marker) != {_HISTORY_SEGMENTS_MARKER}:
+        raise ValueError("closed history segments marker required")
+    segments = marker[_HISTORY_SEGMENTS_MARKER]
+    if type(segments) is not list or len(segments) != len(entries):
+        raise ValueError("one exact visible segment per sidecar entry required")
+    texts = []
+    fields = {
+        "index",
+        "message_id",
+        "historical_role",
+        "reported_created_at",
+        "reported_updated_at",
+        "text",
+    }
+    for i, (segment, entry) in enumerate(zip(segments, entries, strict=True)):
+        if (
+            type(segment) is not dict
+            or set(segment) != fields
+            or type(segment["index"]) is not int
+            or segment["index"] != i
+            or type(segment["text"]) is not str
+        ):
+            raise ValueError("closed index-aligned history segment required")
+        if any(segment[k] != entry[k] for k in fields - {"index", "text"}):
+            raise ValueError("visible history role/date/identity differs")
+        texts.append(segment["text"])
+    tail["untrusted_text"] = "\n".join(texts)
+
+
+def _lossless_packet_view(packet_raw: bytes, *, segments: bool = True) -> object:
+    view = _packet_review_view(packet_raw)
+    request = view["request"]
+    if type(request) is not dict or _PROMPT_MARKER in request:
+        raise ValueError("exact request representation required")
+    prompt = request.pop("prompt_body")
+    if type(prompt) is not str:
+        raise ValueError("exact prompt required")
+    request[_PROMPT_MARKER] = {
+        "format": "installed-history-context-body-v1",
+        "sha256": content_hash_of(prompt.encode("utf-8")),
+    }
+    if segments:
+        _segment_history_tail(view)
+    result = _parse_canonical_strings(view)
+    if _packet_from_lossless_view(result, segments=segments) != packet_raw:
+        raise ValueError("exact packet roundtrip required")
+    return result
+
+
+def _packet_from_lossless_view(value: object, *, segments: bool = True) -> bytes:
+    from zacai.intelligence.contracts import IntelligenceTask
+    from zacai.intelligence.history_context_metadata import (
+        ClaudeMessageMetadata,
+        render_history_context_body,
+    )
+    from zacai.intelligence.meeting_review import ReviewContext
+
+    view = _restore_canonical_strings(value)
+    if type(view) is not dict or type(view.get("request")) is not dict:
+        raise ValueError("closed complete review view required")
+    if segments:
+        _restore_history_tail(view)
+    request = view["request"]
+    if "prompt_body" in request:
+        raise ValueError("conflicting derived prompt")
+    marker = request.pop(_PROMPT_MARKER)
+    if (
+        type(marker) is not dict
+        or set(marker) != {"format", "sha256"}
+        or marker["format"] != "installed-history-context-body-v1"
+    ):
+        raise ValueError("exact prompt derivation required")
+    context = ReviewContext(
+        IntelligenceTask.model_validate(request["task"]),
+        UUID(request["meeting_source_id"]),
+        frozenset(UUID(x) for x in request["related_source_ids"]),
+    )
+    body = render_history_context_body(
+        context,
+        tuple(ClaudeMessageMetadata.model_validate(e) for e in request["sidecar"]["entries"]),
+        ModelRoute.model_validate(request["route"]),
+    )
+    if content_hash_of(body) != marker["sha256"]:
+        raise ValueError("derived prompt digest differs")
+    request["prompt_body"] = body.decode("utf-8")
+    return _packet_from_review_view(view)
+
+
+def _review_packet_raw(value: object, representation: str) -> bytes:
+    if representation == LEGACY_PACKET_REPRESENTATION:
+        return _packet_from_review_view(value)
+    if representation in (LOSSLESS_PACKET_REPRESENTATION, PREVIOUS_LOSSLESS_PACKET_REPRESENTATION):
+        segments = representation == LOSSLESS_PACKET_REPRESENTATION
+        raw = _packet_from_lossless_view(value, segments=segments)
+        # Require canonical marker placement and every complete field exactly once.
+        legacy = _packet_review_view(raw)
+        request = legacy["request"]
+        if type(request) is not dict:
+            raise ValueError("exact request required")
+        prompt = request.pop("prompt_body")
+        request[_PROMPT_MARKER] = {
+            "format": "installed-history-context-body-v1",
+            "sha256": content_hash_of(str(prompt).encode("utf-8")),
+        }
+        if segments:
+            _segment_history_tail(legacy)
+        if _parse_canonical_strings(legacy) != value:
+            raise ValueError("noncanonical review representation")
+        return raw
+    raise ValueError("unsupported complete review representation")
+
+
 def prepare_history_review_request(
     packet_raw: bytes,
     *,
@@ -127,6 +325,7 @@ def prepare_history_review_request(
     review: HistoryReviewPurposeProfileV1,
     rubric_utf8: bytes,
     template_utf8: bytes,
+    packet_representation: str = LOSSLESS_PACKET_REPRESENTATION,
 ) -> PreparedHistoryReviewRequest:
     """Exact whole packet plus schema/rubric, never truncate or dispatch.
 
@@ -222,8 +421,15 @@ def prepare_history_review_request(
                 "builder_id": str(expected_builder_id),
                 "reviewer_id": str(reviewer_id),
                 "run_id": str(run_id),
-                "packet_representation": "canonical-history-request-object-v1",
-                "packet": _packet_review_view(packet_raw),
+                "packet_representation": packet_representation,
+                "packet": (
+                    _packet_review_view(packet_raw)
+                    if packet_representation == LEGACY_PACKET_REPRESENTATION
+                    else _lossless_packet_view(
+                        packet_raw,
+                        segments=packet_representation != PREVIOUS_LOSSLESS_PACKET_REPRESENTATION,
+                    )
+                ),
                 "review_budgets": {
                     "max_output_tokens": max_output_tokens,
                     "max_latency_ms": max_latency_ms,
@@ -248,7 +454,7 @@ def prepare_history_review_request(
                 "review_purpose_digest": history_review_profile_digest(review),
             }
         )
-        if _packet_from_review_view(json.loads(body)["packet"]) != packet_raw:
+        if _review_packet_raw(json.loads(body)["packet"], packet_representation) != packet_raw:
             raise ValueError("original packet bytes must survive representation")
         if len(body) > MAX_REVIEW_BODY_BYTES or len(body.decode()) > route.max_input_characters:
             raise ValueError("whole review input too large; never truncate")
@@ -324,6 +530,7 @@ def verify_history_review_request(
             expected_builder_id=value.builder_id,
             expected_request=expected_request,
             review=value.purpose,
+            packet_representation=json.loads(value.body)["packet_representation"],
             rubric_utf8=rubric_utf8,
             template_utf8=template_utf8,
         )

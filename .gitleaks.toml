@@ -17,3 +17,17 @@ title = "Zac AI"
 
 [extend]
 useDefault = true
+
+# Actual false positive: this one fixed PUBLIC fixture tokenizer SHA-256 is
+# prospective comparison metadata, not an API credential. JSON cannot carry an
+# inline allow comment. Match only this value, field and exact fixture path; all
+# other values and default secret detectors remain enabled.
+[[rules]]
+id = "generic-api-key"
+
+  [[rules.allowlists]]
+  description = "Fixed public complete-review fixture tokenizer SHA-256"
+  condition = "AND"
+  regexTarget = "match"
+  regexes = ['''tokenizer_digest"\s*:\s*"66fb5e33a41d055ab4715715fbad9240ee8c97d8a9508f7eabbcf5e32cbb6df3''']
+  paths = ['''(^|/)tests/fixtures/complete_review_public/review-profile\.json$''']

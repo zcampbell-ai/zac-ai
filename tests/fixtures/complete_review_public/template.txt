@@ -1,0 +1,1 @@
+Independently assess every criterion. Return only criterion judgments.

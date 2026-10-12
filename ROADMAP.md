@@ -3370,3 +3370,30 @@ consumers must check their own current owner and complete processing checkpoint.
 Exclusive cooperating custody, recovered key/geography and approved cold plaintext
 handling remain operational requirements. Native task admission and useful owner
 results are still pending; no real conversation was imported or sent to a model.
+
+### 2026-10-12: Full-context reviewer representation and executable dependency controls
+
+The complete PERSONAL retained-Claude reviewer now sees explicit message text,
+reported roles and dates together, including later USER corrections. The full
+canonical packet is reconstructed byte-for-byte before rendering and counting.
+Only duplicate derived prompt text and typed profile escaping are represented
+more compactly; relevant source text and the full candidate answer are retained.
+The selected three-message PUBLIC fixture fits the existing 16,384-token window
+with 12,731 review-input tokens plus the unchanged 512-token reservation. The
+original escaped representation exceeded that budget. No clipping, larger window
+or renewed processing authority is used. Legacy v1 remains exact; v2 remains
+readable/reconstructable but cannot serialize, count or dispatch to a model.
+
+Both generation and reviewer dependency pins include the bounded recursive
+module-level import inventory, package initializers and explicit on-path local
+imports. This static inventory is a regression aid, not proof of arbitrary
+dynamic import behavior or loaded-code identity. Root reproduced 40 guarded
+controls and five actual dedicated PostgreSQL/native-encryption pipeline cases
+(178.36 seconds, zero skips) on the final corrected graph. Independent code-only
+Opus accepted the correction. The model replies in SQL acceptance were scripted.
+
+An earlier actual PUBLIC local-model draft took 35.82 seconds and matched the
+4,023-token offline input count, but failed the canonical meeting-only evidence
+rule for a follow-up item. Its exact output remains rejected, without citation
+repair. Real generator/reviewer quality, actual private processing, useful owner
+tasks and phone acceptance remain unfinished.

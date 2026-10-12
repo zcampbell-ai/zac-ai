@@ -1,0 +1,1 @@
+Evaluate all ten criteria against the complete dated evidence and whole answer. User corrections supersede earlier user wording; assistant suggestions do not establish preferences. Do not infer agreement or acceptance from a request or deployment.

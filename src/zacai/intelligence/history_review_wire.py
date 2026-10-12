@@ -65,8 +65,16 @@ def serialize_history_review_wire(
             or prepared.route.identity.runtime_id != RUNTIME
         ):
             raise ValueError("unsupported concrete local profile")
+        from zacai.intelligence.history_context_metadata import _WARNING
+        from zacai.intelligence.history_review_preparation import (
+            LOSSLESS_PACKET_REPRESENTATION,
+            PREVIOUS_LOSSLESS_PACKET_REPRESENTATION,
+        )
+
         schema = HistoryReviewJudgments.model_json_schema()
         data = json.loads(prepared.body)
+        if data["packet_representation"] == PREVIOUS_LOSSLESS_PACKET_REPRESENTATION:
+            raise ValueError("v2 is reconstruct-only")
         result = canonical_bytes(
             {
                 "model": MODEL,
@@ -80,6 +88,11 @@ def serialize_history_review_wire(
                     {
                         "role": "system",
                         "content": data["review_instruction"]
+                        + (
+                            _WARNING
+                            if data["packet_representation"] == LOSSLESS_PACKET_REPRESENTATION
+                            else ""
+                        )
                         + "\nReturn only the ten criterion judgments; host provenance is not model output.\nOutput JSON schema: "
                         + canonical_bytes(schema).decode("utf-8"),
                     },

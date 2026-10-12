@@ -20,7 +20,6 @@ from zacai.intelligence import history_review_preparation as preparation
 from zacai.intelligence import history_review_wire as wire
 from zacai.intelligence import local_review_runtime as local
 from zacai.intelligence import ollama_token_counter as base
-from zacai.intelligence.history_contextual_codec import decode_history_contextual_request
 from zacai.intelligence.history_generation_review_declaration import HistoryReviewPurposeProfileV1
 from zacai.intelligence.ollama_token_counter import (
     LocalTokenCounterError,
@@ -43,12 +42,10 @@ def render_history_review_prompt(serialized_body: bytes) -> str:
             raise ValueError("bounded exact wire required")
         body = local._json(serialized_body)
         data = local._json(body["messages"][1]["content"])
-        if data["packet_representation"] != "canonical-history-request-object-v1":
-            raise ValueError("closed complete packet representation required")
-        packet_raw = preparation._packet_from_review_view(data["packet"])
-        expected_request = decode_history_contextual_request(
-            canonical_bytes(data["packet"]["request"])
-        )
+        packet_raw = preparation._review_packet_raw(data["packet"], data["packet_representation"])
+        from zacai.intelligence.history_contextual_codec import decode_history_contextual_packet
+
+        expected_request = decode_history_contextual_packet(packet_raw).request()
         rubric_raw = data["rubric"].encode("utf-8")
         template_raw = data["review_instruction"].encode("utf-8")
         prepared = preparation.prepare_history_review_request(
@@ -58,6 +55,7 @@ def render_history_review_prompt(serialized_body: bytes) -> str:
             expected_builder_id=UUID(data["builder_id"]),
             expected_request=expected_request,
             review=HistoryReviewPurposeProfileV1.model_validate(data["review_purpose"]),
+            packet_representation=data["packet_representation"],
             rubric_utf8=rubric_raw,
             template_utf8=template_raw,
         )

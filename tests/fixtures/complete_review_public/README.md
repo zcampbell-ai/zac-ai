@@ -1,0 +1,1 @@
+Wholly invented PUBLIC fixture. Fixed USER/ASSISTANT/later USER correction with exported role/date claims; no real account, owner grant, canonical custody or model success. Legacy hashes bind exact historical framing; synthetic counters do not establish Mac backend count parity.
