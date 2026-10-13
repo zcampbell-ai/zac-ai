@@ -1,5 +1,14 @@
 # Zac AI Decision Log
 
+## 2026-10-13: Passive email wire before runtime admission
+
+Reuse the existing offline tokenizer through an additive email renderer. Keep the
+full prompt count separate from any cached subset and pin the email schema and
+local route. Caller-supplied digest, timing and counts remain declarations; parsing
+a candidate grants no processing, authenticated generation, review, recovery,
+current-fact verification, delivery or sending authority. Actual email-purpose host
+admission and protection must follow before private runtime use.
+
 ## 2026-10-13: Distinct email candidates within the existing task contract
 
 Use an additive email specification/candidate family for subject/body deliverables;

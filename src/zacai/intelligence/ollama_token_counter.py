@@ -51,6 +51,13 @@ def render_contextual_prompt(serialized_body: bytes) -> str:
     )
 
 
+def render_email_prompt(serialized_body: bytes) -> str:
+    """Explicit email schema on the unchanged verified Qwen two-turn renderer."""
+    from zacai.intelligence.email_generation import EmailModelOutputV1
+
+    return _render_prompt(serialized_body, EmailModelOutputV1.model_json_schema())
+
+
 def _render_prompt(
     serialized_body: bytes,
     schema: dict[str, Any],
@@ -229,3 +236,10 @@ class OllamaQwenContextualTokenCounter(OllamaQwenReviewTokenCounter):
 
     def _render(self, serialized_body: bytes) -> str:
         return render_contextual_prompt(serialized_body)
+
+
+class OllamaQwenEmailTokenCounter(OllamaQwenReviewTokenCounter):
+    """Offline email schema counter; inherited verify_runtime is separate host work."""
+
+    def _render(self, serialized_body: bytes) -> str:
+        return render_email_prompt(serialized_body)

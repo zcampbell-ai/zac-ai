@@ -1,5 +1,19 @@
 # Zac AI Roadmap
 
+### 2026-10-13: Passive local email model preparation
+
+The email family now has a local payload, exact offline tokenizer count and closed
+response parser. It reuses the existing pinned tokenizer and email resolver,
+requires full prompt-count parity, and treats cached tokens as a subset. Opus
+accepted the bounded code-only review. Root verified 85 affected invented tests,
+strict types across 234 source files and formatting checks. A stronger duplicate
+key test uses an otherwise valid response after Opus flagged the earlier test.
+
+This layer performs no model dispatch, credential access, canonical import or
+sending. Runtime admission, protected custody and actual useful-result acceptance
+remain the next integration work. The local Vitamin Shoppe review snapshot is
+ChatGPT-assisted and unsent; it is not native Caz generation or a deployed app.
+
 ### 2026-10-13: Email deliverable preparation and resolution
 
 Reviewed additive email libraries now retain a subject/body candidate with separate
