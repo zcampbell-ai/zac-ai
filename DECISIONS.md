@@ -1,5 +1,21 @@
 # Zac AI Decision Log
 
+## 2026-10-13: Distinct email candidates within the existing task contract
+
+Use an additive email specification/candidate family for subject/body deliverables;
+do not label a meeting summary as an email. Reuse the canonical IntelligenceTask,
+ZacEvent and EvidenceReference contracts without changing them. Host code resolves
+model evidence IDs and assigns hashes; comparisons and literal custody never grant
+processing, review, current-fact, recovery or sending authority. Each model-facing
+source appears once, with reported whole-source role/date metadata. Mixed roles
+must be UNKNOWN or split by the host. Sort capability labels in this email family's
+task serialization for stable cross-process custody. A missing recipient requires
+a question-only packet; generated prose follows the owner's concise/no-em-dash rule.
+
+The offline libraries have affected tests and independent code-only Opus review;
+runtime, authorization, canonical recovery and useful owner acceptance remain separate
+integration work. All communication requires explicit owner approval before dispatch.
+
 ## Purpose
 Preserve architectural decisions, their reasons, and their consequences.
 Prevent future builders from silently changing the agreed direction.

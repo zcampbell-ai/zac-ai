@@ -1,5 +1,25 @@
 # Zac AI Roadmap
 
+### 2026-10-13: Email deliverable preparation and resolution
+
+Reviewed additive email libraries now retain a subject/body candidate with separate
+source support and prepare/resolve model-facing email output. Each selected literal
+source is transmitted once; task instructions, reported roles/dates and exact
+citations are retained. Capability ordering is deterministic across processes.
+Mixed-role sources require UNKNOWN metadata or separate message sources. Unknown
+recipients and material blocking questions withhold dependent draft text.
+
+Validation: 75 affected invented tests passed, strict types passed 233 staged source
+files, and causal mutations proved cross-process ordering, owner-role support and
+unknown-recipient controls. Independent Opus review identified corrections; its
+corrective review confirmed the original code fixes and its final targeted review
+accepted the remaining prompt/test corrections. This is library acceptance only:
+no model dispatch, native email generation, canonical retention/recovery integration,
+verified recipient/current facts, owner usefulness, mailbox readiness or sending.
+The next integration remains an actual reviewed task/result path in the existing
+context-first roadmap. No email or other communication may be sent without the
+owner's explicit approval of the concrete communication.
+
 ## Purpose
 Build the full Zac AI architecture incrementally, with useful,
 verified results at every phase.
