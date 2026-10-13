@@ -3816,3 +3816,47 @@ offline cases including complete canonical packet byte/hash invariance. Strict
 affected-source typing and Ruff pass; complete follow-up Opus review accepted.
 Original failed fixture and rejected review remain preserved. The helper is
 unmounted, grants no release and does not prove actual model or task usefulness.
+
+
+### 2026-10-13: Owner priority, usable Caz and bounded specialist delivery
+
+The owner confirms the primary outcome is a usable personal/business assistant:
+accept a minimally directed assignment, select relevant permitted context,
+propose a concise approach, perform approved work, and return a useful result
+with evidence and durable status. The prototype-based interface supports this
+outcome; styling or a static draft is not acceptance of the assistant.
+
+This preserves the existing context-first and D034AC usable-release gates. The
+next work reuses the installed contextual task, evidence, named follow-up,
+protected history, work-tracking and external gateway components in this order:
+
+1. Prove one actual Caz task from owner input through context, generation,
+   review and saved result. Keep outputs draft-only or informational until an
+   exact external action has been separately authorized.
+2. Connect task intake to bounded relevant-context selection. Preserve source,
+   role, date, boundary and coverage; ask one question when a missing material
+   fact would change the result. Configured context is not general retrieval.
+3. Provide durable work and conversation continuation. A process restart must
+   not silently lose the owner's task or claim that old one-use approval can
+   be replayed. Recover committed status/results and request fresh scoped
+   approval when the old processing authority has expired or been consumed.
+4. Extend the same shared execution path to client/project intelligence, brand
+   drafts and personal financial review. Confirm current context and useful
+   output separately for each role. These bounded workflows precede the
+   persistent specialist workforce in the existing later phases.
+5. Verify private text use and the owner's physical iPhone experience, then
+   add voice. Preserve the existing OCE evaluation gate before custom production
+   control-plane infrastructure.
+
+A read-only code audit confirms deterministic route eligibility is not yet an
+automatic model selector or general executor. Existing task controllers accept
+instructions over configured context, but no general source-discovery planner,
+shared specialist dispatcher or production action executor was demonstrated.
+Source connections inside ChatGPT are not automatically Caz-owned connections.
+
+Root remains accountable for integration and exclusive PostgreSQL checks.
+Bounded workers own separate code or audit tasks; independent Claude Opus review
+continues on code-only packets. A dedicated owner-decisions chat maintains ready,
+engineering-blocked and deferred access/decision items. It cannot approve on
+behalf of the owner, expand permissions or send outreach. More accounts or
+credits are requested only for a prepared task that needs them.

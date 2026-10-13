@@ -57,6 +57,46 @@ _PATHS = frozenset(
 )
 
 
+def _prototype_shell(content: str) -> str:
+    """Owner prototype styling around real forms, without scripts or fake activity."""
+    return (
+        "<style>"
+        "body{margin:0;background:#F6F4EF;color:#1A1915;font-family:system-ui,-apple-system,sans-serif;"
+        "background-image:radial-gradient(ellipse at 5% 0%,#FFD3B880,transparent 45%),"
+        "radial-gradient(ellipse at 95% 10%,#D9CCF780,transparent 45%);min-height:100vh}"
+        "body>main{max-width:540px;margin:0 auto;padding:32px 20px 64px;box-sizing:border-box;"
+        "background:transparent;box-shadow:none;border:none;border-radius:0}"
+        ".caz-brand{display:flex;gap:12px;align-items:center;margin-bottom:28px}"
+        ".caz-orb{width:42px;height:42px;border-radius:50%;flex:none;"
+        "background:radial-gradient(circle at 30% 25%,#ffffffdd,transparent 60%),"
+        "conic-gradient(#FFC4A3,#F7B3CF,#C7B5F6,#A6D0F6,#B9E6D1,#FFE2A8,#FFC4A3);"
+        "box-shadow:0 8px 24px -10px #785aa077;animation:caz-breathe 5s ease-in-out infinite}"
+        ".caz-name{font-family:Georgia,serif;font-size:26px}.caz-context{font-size:12px;color:#6E6A62;margin-top:3px}"
+        ".caz-card{background:#ffffffc9;border:1px solid #1a19150d;border-radius:28px;"
+        "padding:24px;box-shadow:0 16px 40px -24px #1a191533}"
+        ".caz-card h1{font-family:Georgia,serif;font-weight:400;font-size:36px;line-height:1.08;margin:0 0 16px;letter-spacing:-.025em}"
+        ".caz-card p{font-size:15px;line-height:1.55;color:#555149;margin:14px 0}"
+        ".caz-card details{border:1px solid #1a191512;border-radius:16px;padding:12px 14px;margin:12px 0;background:#f6f4ef88}"
+        ".caz-card summary{cursor:pointer;font-size:14px;font-weight:500;line-height:1.4}"
+        ".caz-card pre{white-space:pre-wrap;overflow-wrap:anywhere;font:14px/1.6 system-ui;background:transparent;max-width:100%}"
+        ".caz-card form{display:flex;flex-direction:column;gap:16px;margin-top:24px}"
+        ".caz-card label{display:flex;flex-direction:column;gap:8px;font-size:14px;font-weight:500}"
+        ".caz-card textarea,.caz-card select{box-sizing:border-box;width:100%;padding:14px 16px;border-radius:18px;"
+        "border:1px solid #1a19151a;background:#F6F4EF;color:#1A1915;font:16px/1.5 system-ui}"
+        ".caz-card textarea{min-height:128px;resize:vertical}"
+        ".caz-card button{min-height:48px;padding:14px 18px;border:0;border-radius:24px;background:#1A1915;color:#fff;"
+        "font:500 15px system-ui;cursor:pointer;transition:transform .15s}"
+        ".caz-card button:active{transform:scale(.98)}"
+        ".caz-card :focus-visible{outline:3px solid #876ab5;outline-offset:3px}"
+        "@keyframes caz-breathe{50%{transform:scale(1.06)}}"
+        "@media(prefers-reduced-motion:reduce){.caz-orb{animation:none}.caz-card button{transition:none}}"
+        "@media(max-width:400px){body>main{padding:24px 14px 48px}.caz-card{padding:20px}.caz-card h1{font-size:32px}}"
+        '</style><header class="caz-brand"><span class="caz-orb" aria-hidden="true"></span>'
+        '<div><div class="caz-name">Caz</div><div class="caz-context">Business · Email follow-up</div></div>'
+        '</header><section class="caz-card">' + content + "</section>"
+    )
+
+
 class EmailWorkflowWebError(ValueError):
     """Fixed private-safe hold; canonical pending custody needs host reconciliation."""
 
@@ -305,7 +345,23 @@ class EmailWorkflowWeb:
         )
         if request.url.path == "/caz-email-result" and self._output is None:
             raise ValueError("completed protected output absent")
-        html = "<h1>Email follow-up</h1><p>App observation serialization. Mailbox account and sender identity are unverified. One selected body per message, incomplete thread and missing attachments. No email is sent.</p>"
+        heading = (
+            "What do you want Caz to draft?"
+            if self._phase == "NEW"
+            else "Ready to draft"
+            if self._output is None
+            else "Your approved draft"
+            if self._release is not None
+            else "Your decision is saved"
+            if self._assessment is not None
+            else "Review your draft"
+        )
+        html = (
+            "<h1>" + heading + "</h1><p>Nothing will be sent.</p>"
+            "<details><summary>What context is available?</summary>"
+            "<p>Selected email excerpts, not the complete conversation or attachments. "
+            "The mailbox account and sender identity are unverified.</p></details>"
+        )
         if self._phase == "HELD":
             raise ValueError("entered workflow held; reconcile canonical custody")
         if self._phase == "NEW":
@@ -319,10 +375,10 @@ class EmailWorkflowWeb:
             if self._selection is not None and selected != self._selection:
                 raise ValueError("published selection changed")
             self._selection = selected
-            html += "<p>Capture the exact selected observations and your instruction with encrypted recovery. This does not approve AI processing.</p>"
+            html += "<p>First, save your request and these email excerpts to protected storage and encrypted backup. You will approve local drafting separately on the next page.</p>"
             if self._recipient:
                 html += (
-                    "<p>Selected recipient: "
+                    "<p>Draft for: "
                     + escape(self._recipient.display_name + " <" + self._recipient.address + ">")
                     + "</p>"
                 )
@@ -330,7 +386,7 @@ class EmailWorkflowWeb:
                 html += "<p>Recipient unresolved. A draft must ask for clarification.</p>"
             for preparation in self._preparations:
                 html += (
-                    "<details><summary>Selected unverified body</summary><pre>"
+                    "<details><summary>Read this email excerpt</summary><pre>"
                     + escape(preparation.literal_text)
                     + "</pre></details>"
                 )
@@ -339,25 +395,29 @@ class EmailWorkflowWeb:
                 + _hidden("csrf", csrf)
                 + _hidden("request_id", str(self._request_id))
                 + _hidden("selection_digest", selected.digest())
-                + '<label>Exact instruction<textarea name="instruction" maxlength="2000" required></textarea></label><button>Capture for review</button></form>'
+                + '<label>What would you like me to do?<textarea name="instruction" maxlength="2000" required></textarea></label><button>Save request and continue</button></form>'
             )
         elif self._output is None:
             if self._manifest is None:
                 raise ValueError("protected prepared input absent")
             self._processing._fresh_inputs(self._manifest)
             html += (
-                '<p>Protected input captured. Generate this exact candidate once locally for your review. No automatic retry.</p><form method="post" action="/generate-caz-email">'
+                '<p>Your request and email excerpts are saved. The next button starts one draft using the configured local model. Review the result before using it. Nothing will be sent, and Caz will not retry automatically.</p><form method="post" action="/generate-caz-email">'
                 + _hidden("csrf", csrf)
                 + _hidden("action_id", str(self._manifest.action_id))
                 + _hidden("manifest_digest", self._manifest.digest())
                 + _hidden("action", ACTION)
-                + "<button>Generate once locally</button></form>"
+                + "<button>Draft once locally</button></form>"
             )
         else:
             # This reader preserves original output ownership after generator
             # consent expiry; it never renews processing or performs inference.
             read = self._review.read_output(self._output.reference, self._output.receipt)
-            html += "<p>Candidate held for your semantic review.</p>" + _packet_html(read.packet)
+            if self._assessment is None:
+                html += (
+                    "<p>Here is the draft. Check the wording and supporting evidence before approving it.</p>"
+                    + _packet_html(read.packet)
+                )
             if self._assessment is None:
                 if self._review_manifest is None:
                     raise ValueError("published review absent")
@@ -375,18 +435,37 @@ class EmailWorkflowWeb:
                     else ("DEFER", "DECLINE")
                 )
                 html += (
-                    "".join("<option>" + choice + "</option>" for choice in choices)
-                    + '</select></label><label>Reason<textarea name="reason" maxlength="2000" required></textarea></label><label>Semantic confirmation<select name="confirmation"><option value="">No acceptance confirmation</option><option value="'
+                    "".join(
+                        '<option value="'
+                        + choice
+                        + '">'
+                        + {
+                            "ACCEPT": "Approve this draft",
+                            "DECLINE": "Decline this draft",
+                            "DEFER": "Not now (closes this draft)",
+                        }[choice]
+                        + "</option>"
+                        for choice in choices
+                    )
+                    + '</select></label><label>Reason<textarea name="reason" maxlength="2000" required></textarea></label><label>If approving, confirm you checked the draft<select name="confirmation"><option value="">Not approving yet</option><option value="'
                     + escape(CONFIRMATION, quote=True)
                     + '">'
                     + escape(CONFIRMATION)
-                    + "</option></select></label><p>Choose no acceptance confirmation for decline or defer.</p><button>Record assessment</button></form>"
+                    + "</option></select></label><p>If declining or deferring, leave this set to Not approving yet.</p><button>Save my decision</button></form>"
                 )
             else:
                 saved = self._review.load_assessment(
                     self._assessment.reference, self._assessment.receipt
                 )
-                html += "<p>Assessment: " + escape(saved.record.decision) + ".</p>"
+                html += (
+                    "<p>"
+                    + {
+                        "ACCEPT": "You approved this draft.",
+                        "DECLINE": "You declined this draft.",
+                        "DEFER": "You chose not to decide. This draft is closed; a new request is needed to continue.",
+                    }[saved.record.decision]
+                    + "</p>"
+                )
                 if self._release is not None:
                     released = self._review.load_release(
                         self._release.reference, self._release.receipt
@@ -396,15 +475,21 @@ class EmailWorkflowWeb:
                         + _packet_html(released.packet)
                     )
                 elif saved.record.decision == "ACCEPT":
+                    html += _packet_html(read.packet)
                     html += (
                         '<form method="post" action="/release-caz-email">'
                         + _hidden("csrf", csrf)
                         + _hidden("assessment_digest", saved.reference.content_hash)
                         + _hidden("action", _RELEASE)
-                        + "<button>Release for manual use</button></form>"
+                        + "<button>Make the approved draft available to copy</button></form>"
                     )
                 else:
-                    html += "<p>Manual-use release held. A new assessment or edited candidate requires a separately prepared workflow.</p>"
+                    html += "<p>This draft is not available for use. Changing it requires a new request; nothing will be generated automatically.</p>"
+                    html += (
+                        "<details><summary>View the closed draft and evidence</summary>"
+                        + _packet_html(read.packet)
+                        + "</details>"
+                    )
         assert self._graph is not None
         if any(a is not b for a, b in zip(self._graph, self._graph_now(), strict=True)) or any(
             a is not b for a, b in zip(self._cold_graph, self._cold_graph_now(), strict=True)
@@ -412,7 +497,7 @@ class EmailWorkflowWeb:
             raise ValueError("email dependencies changed during final read")
         if self.host_clock() >= deadline:
             raise ValueError("original page session expired")
-        return EmailWorkflowPage(html, deadline)
+        return EmailWorkflowPage(_prototype_shell(html), deadline)
 
     def page(self, request: Request) -> EmailWorkflowPage:
         if not self._lock.acquire(blocking=False):

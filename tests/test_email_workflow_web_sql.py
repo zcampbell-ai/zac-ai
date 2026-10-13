@@ -194,7 +194,7 @@ def generate(c):
         assert c.calls == []
     output = post(c, "/generate-caz-email", fields(prepared))
     assert output.status_code == 200 and c.calls.count("/api/chat") == 1
-    assert "Candidate held" in output.text
+    assert "Review your draft" in output.text
     assert c.client.get("/caz-email-result").status_code == 200
     return output
 
@@ -209,7 +209,15 @@ def test_actual_asgi_cold_original_owner_flow_distinct_assessment_release(web_ca
         "confirmation": CONFIRMATION if decision == "ACCEPT" else "",
     }
     assessed = post(c, "/review-caz-email", values)
-    assert assessed.status_code == 200 and "Assessment: " + decision in assessed.text
+    assert (
+        assessed.status_code == 200
+        and {
+            "ACCEPT": "You approved this draft.",
+            "DECLINE": "You declined this draft.",
+            "DEFER": "You chose not to decide. This draft is closed; a new request is needed to continue.",
+        }[decision]
+        in assessed.text
+    )
     assert c.controller._release is None  # acceptance does not auto-release
     if decision == "ACCEPT":
         original_release_form = fields(assessed)
@@ -225,7 +233,7 @@ def test_actual_asgi_cold_original_owner_flow_distinct_assessment_release(web_ca
         packet = c.controller._release.packet
         assert packet.processing_authorized is False and packet.generation_authenticated is False
     else:
-        assert "Manual-use release held" in assessed.text
+        assert "This draft is not available for use" in assessed.text
         assert post(c, "/release-caz-email", fields(assessed)).status_code == 503
     assert c.calls.count("/api/chat") == 1
     assert post(c, "/generate-caz-email", fields(output)).status_code == 503
@@ -330,7 +338,7 @@ def test_actual_asgi_protected_result_read_after_generator_expiry_does_not_renew
     c.f.offset[0] += timedelta(minutes=11)
     assert consent.expires_at <= c.f.clock() < consent.original_session_expires_at
     read = c.client.get("/caz-email-result")
-    assert read.status_code == 200 and "Candidate held" in read.text
+    assert read.status_code == 200 and "Review your draft" in read.text
     assert c.controller._binding == original_binding and c.calls.count("/api/chat") == 1
     assert post(c, "/generate-caz-email", fields(read)).status_code == 503
     assert c.calls.count("/api/chat") == 1
