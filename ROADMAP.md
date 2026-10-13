@@ -3669,3 +3669,19 @@ and checked release, reconcile relevant real-source availability, then prove a
 useful owner task with an actual admitted backend. Expired-session historical review
 and phone usability remain unfinished. No email sending or Gmail draft creation
 is implemented or authorized.
+
+### 2026-10-13: Contextual reviewer cached-input metadata
+
+Correct the existing closed LOCAL reviewer parser to accept the observed optional
+`prompt_eval_cached_count` field as an integer subset of reported total input.
+Do not subtract it from input capacity, infer cache pricing or grant authority.
+Unknown and duplicate fields, malformed counts and capacity overflow remain held.
+The actual invented PUBLIC response parses unchanged; the original held trial is
+not revived. New implementation pins and a fresh observed trial are required for
+future processing. No provider dispatch, credential or private-context processing
+is introduced by this correction.
+
+Root validation: 86 guarded parser/preparation/counter checks and 21 existing
+session/review controls passed on the corrected current-source snapshot. Strict
+types and Ruff passed. No SQL, model dispatch or private record processing occurred
+in these tests. Opus reviewed code and invented controls only.

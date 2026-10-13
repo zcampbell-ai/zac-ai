@@ -122,7 +122,7 @@ def parse_history_review_response(
     *,
     requested_output_tokens: int,
 ) -> ParsedHistoryReviewResponse:
-    """Closed hypothetical non-streamed Ollama reply, not observed dispatch.
+    """Closed non-streamed Ollama reply; parsed fields grant no authority.
 
     Token counts are reported declarations, never actual tokenizer/runtime proof.
     No reviewer/task/digest/time headers are supplied by the model. PASS remains
@@ -151,6 +151,7 @@ def parse_history_review_response(
         required = {"model", "done", "done_reason", "message", "prompt_eval_count", "eval_count"}
         optional = {
             "created_at",
+            "prompt_eval_cached_count",
             "total_duration",
             "load_duration",
             "prompt_eval_duration",
@@ -173,7 +174,7 @@ def parse_history_review_response(
             or type(message["content"]) is not str
         ):
             raise ValueError("closed model content required")
-        for key in optional - {"created_at"}:
+        for key in optional - {"created_at", "prompt_eval_cached_count"}:
             if key in data and (type(data[key]) is not int or data[key] < 0):
                 raise ValueError("invalid reported timing")
         if "created_at" in data and type(data["created_at"]) is not str:
@@ -187,6 +188,10 @@ def parse_history_review_response(
             or incoming + outgoing > CONTEXT_TOKENS
         ):
             raise ValueError("reported usage exceeds declared profile")
+        cached = data.get("prompt_eval_cached_count", 0)
+        if type(cached) is not int or not 0 <= cached <= incoming:
+            raise ValueError("invalid reported cached input count")
+        # Cached count is descriptive only; incoming remains the total input count.
         judgments = parse_history_review_judgments(message["content"].encode("utf-8"))
         result = ParsedHistoryReviewResponse(judgments, incoming, outgoing)
     except Exception:  # noqa: BLE001,S110 - no raw private response diagnostics

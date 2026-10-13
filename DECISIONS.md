@@ -7362,3 +7362,19 @@ unreviewed, not ready to deliver and not a current fact. Original-session custod
 reconciliation cannot replay inference or renew expiry. Human semantic assessment
 and checked release require the next concrete join; expired-session access cannot
 be inferred from this adapter.
+
+### 2026-10-13: Cached-input metadata is descriptive
+
+Accept only exact integer `prompt_eval_cached_count` values between zero and the
+already validated `prompt_eval_count`. Incoming usage remains total prompt input;
+capacity is still total input plus output. Validate the optional count separately
+from timing fields. Keep the closed field set and duplicate-key refusal. Cache
+metadata never establishes permission, counter parity, cost or reviewer accuracy.
+
+The preserved PUBLIC trial reports runtime 0.35.1. Its official tagged API source
+computes uncached input by subtracting cached input from total prompt input:
+https://github.com/ollama/ollama/blob/v0.35.1/api/types.go . This supports the declared
+subset interpretation; it does not attest local binary identity. Old trial/profile
+pins and holds remain unchanged. Independent code-only Opus review accepted this
+finite parser delta. Root strengthened duplicate injection and one-token capacity
+controls without changing production code after review.
