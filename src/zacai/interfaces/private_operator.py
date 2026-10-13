@@ -56,6 +56,7 @@ from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.oidc_identity import IdentityProvider
 from zacai.interfaces.owner_enrollment import PendingOwner
 from zacai.interfaces.private_host import (
+    EmailOwnerHostFactory,
     GmailOwnerHostFactory,
     NamedOwnerHostFactory,
     NamedOwnerHostInputs,
@@ -574,6 +575,7 @@ def open_private_operator(
     work_choices: WorkChoiceWeb | None = None,
     named_factory: NamedOwnerHostFactory | None = None,
     gmail_factory: GmailOwnerHostFactory | None = None,
+    email_factory: EmailOwnerHostFactory | None = None,
     gmail_recovery_consent_enabled: bool = False,
     fragment_factory: Callable[[NamedOwnerHostInputs], FragmentPublicationWeb] | None = None,
     fragment_preparation_factory: Callable[[NamedOwnerHostInputs, NamedSessionOperation, str], FragmentPublicationWeb] | None = None,
@@ -612,6 +614,13 @@ def open_private_operator(
                 and (not callable(gmail_factory) or type(clock) is not HostObservedClock)
             )
             or (
+                email_factory is not None
+                and (not callable(email_factory) or type(clock) is not HostObservedClock
+                     or named_factory is not None or gmail_factory is not None or fragment_factory is not None
+                     or fragment_preparation_factory is not None
+                     or history_preparation_factory is not None)
+            )
+            or (
                 fragment_factory is not None
                 and (not callable(fragment_factory) or type(clock) is not HostObservedClock)
             )
@@ -638,6 +647,7 @@ def open_private_operator(
                     or work_choices is not None
                     or named_factory is not None
                     or gmail_factory is not None
+                    or email_factory is not None
                     or gmail_recovery_consent_enabled
                     or fragment_factory is not None
                     or fragment_preparation_factory is not None
@@ -686,6 +696,7 @@ def open_private_operator(
                 work_choices=work_choices,
                 named_factory=named_factory,
                 gmail_factory=gmail_factory,
+                email_factory=email_factory,
                 gmail_recovery_consent_enabled=gmail_recovery_consent_enabled,
                 fragment_factory=fragment_factory,
                 fragment_preparation_factory=fragment_preparation_factory,

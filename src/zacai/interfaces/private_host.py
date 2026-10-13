@@ -35,6 +35,7 @@ from zacai.interfaces.private_web import InterfacePrincipal, OwnerGrant, create_
 from zacai.interfaces.sqlite_sessions import SqliteSessionStore
 
 if TYPE_CHECKING:
+    from zacai.interfaces.email_workflow_web import EmailWorkflowWeb
     from zacai.interfaces.fragment_publication_web import FragmentPublicationWeb
     from zacai.interfaces.gmail_connection_web import GmailConnectionWeb
     from zacai.interfaces.history_publication_web import HistoryPublicationWeb
@@ -76,6 +77,7 @@ class PreparedNamedOwnerHost:
 
 NamedOwnerHostFactory = Callable[[NamedOwnerHostInputs], PreparedNamedOwnerHost]
 GmailOwnerHostFactory = Callable[[NamedOwnerHostInputs], "GmailConnectionWeb"]
+EmailOwnerHostFactory = Callable[[NamedOwnerHostInputs], "EmailWorkflowWeb"]
 
 
 def _named_owner_pair(inputs: NamedOwnerHostInputs, result: object) -> PreparedNamedOwnerHost:
@@ -234,6 +236,34 @@ def _gmail_owner_controller(inputs: NamedOwnerHostInputs, result: object) -> Gma
     return cast("GmailConnectionWeb", result)
 
 
+def _email_owner_controller(inputs: NamedOwnerHostInputs, result: object) -> EmailWorkflowWeb:
+    """Validate the cold concrete owner leaf before any browser session binding."""
+    from zacai.interfaces.email_workflow_web import EmailWorkflowWeb
+    from zacai.interfaces.named_session_binding import NamedSessionContinuity
+
+    expected = NamedSessionContinuity(
+        sessions=inputs.sessions, owner=inputs.owner, clock=inputs.clock,
+        key=inputs.session_key, origin=inputs.origin, client_id=inputs.client_id,
+    )
+    if type(result) is not EmailWorkflowWeb:
+        raise ValueError("exact cold email owner controller required")
+    continuity = result.continuity
+    if (
+        type(continuity) is not NamedSessionContinuity
+        or result.host_clock is not inputs.clock
+        or continuity._sessions is not inputs.sessions
+        or continuity._owner is not inputs.owner
+        or continuity._clock is not inputs.clock
+        or continuity._context != expected._context
+        or continuity._key != expected._key
+        or result._operation is not None
+        or result._binding is not None
+        or result._binding_started
+    ):
+        raise ValueError("original cold email owner host binding differs")
+    return result
+
+
 @dataclass(frozen=True)
 class PreparedOwnerHost:
     app: FastAPI = field(repr=False)
@@ -307,6 +337,7 @@ def prepare_owner_host(
     work_choices: WorkChoiceWeb | None = None,
     named_factory: NamedOwnerHostFactory | None = None,
     gmail_factory: GmailOwnerHostFactory | None = None,
+    email_factory: EmailOwnerHostFactory | None = None,
     gmail_recovery_consent_enabled: bool = False,
     fragment_factory: Callable[[NamedOwnerHostInputs], FragmentPublicationWeb] | None = None,
     fragment_preparation_factory: Callable[[NamedOwnerHostInputs, NamedSessionOperation, str], FragmentPublicationWeb] | None = None,
@@ -333,6 +364,12 @@ def prepare_owner_host(
             not callable(gmail_factory) or type(clock) is not HostObservedClock
         ):
             raise ValueError("actual Gmail host factory/shared clock required")
+        if email_factory is not None and (
+            not callable(email_factory) or type(clock) is not HostObservedClock
+            or named_factory is not None or gmail_factory is not None or fragment_factory is not None
+            or fragment_preparation_factory is not None or history_preparation_factory is not None
+        ):
+            raise ValueError("exclusive original email owner factory/shared clock required")
         if fragment_factory is not None and (not callable(fragment_factory) or type(clock) is not HostObservedClock):
             raise ValueError("actual fragment factory/shared clock required")
         if fragment_preparation_factory is not None and (
@@ -398,6 +435,14 @@ def prepare_owner_host(
                 directory, owners, owner, sessions, clock,
             )
             gmail = _gmail_owner_controller(gmail_inputs, gmail_factory(gmail_inputs))
+        email = None
+        if email_factory is not None:
+            assert type(clock) is HostObservedClock
+            email_inputs = NamedOwnerHostInputs(
+                configuration.origin, configuration.client_id, configuration.session_key,
+                directory, owners, owner, sessions, clock,
+            )
+            email = _email_owner_controller(email_inputs, email_factory(email_inputs))
         fragment = None
         if fragment_factory is not None:
             assert type(clock) is HostObservedClock
@@ -448,6 +493,7 @@ def prepare_owner_host(
             work_choices=work_choices,
             named_questions=named.controller if named is not None else None,
             gmail_connections=gmail,
+            email_workflow=email,
             gmail_recovery_consent_enabled=gmail_recovery_consent_enabled,
             fragment_publication=fragment,
             fragment_preparation=preparation,

@@ -5,7 +5,8 @@ callback. Synthetic adapters prove request behavior only, never live auth. Serve
 TLS/Tailscale setup, secrets, persistence and safe operational logging are separate
 release gates. Uvicorn/proxy raw query/header/body access logging MUST be disabled
 before mounting; existing generic redaction does not protect OAuth callback codes.
-No route dispatches actions or interprets client claims as identity/permission.
+The default app dispatches no actions. Optional email routes require the existing
+original-owner processing/claim/review hosts; client claims never grant authority.
 """
 
 from __future__ import annotations
@@ -33,6 +34,7 @@ from zacai.interfaces.session_store import Identity, SessionStore, UserSession
 from zacai.policy import DataClassification, TrustBoundary
 
 if TYPE_CHECKING:
+    from zacai.interfaces.email_workflow_web import EmailWorkflowWeb
     from zacai.interfaces.gmail_connection_web import GmailConnectionWeb
     from zacai.interfaces.named_followup_web import NamedFollowupWeb
     from zacai.interfaces.work_choice_web import WorkChoiceWeb
@@ -182,6 +184,7 @@ def create_private_web(
     fragment_publication: FragmentPublicationWeb | None = None,
     fragment_preparation: FragmentPreparationWeb | None = None,
     history_preparation: HistoryPreparationWeb | None = None,
+    email_workflow: EmailWorkflowWeb | None = None,
 ) -> FastAPI:
     """Create an isolated app, never mount/run it or alter existing service binding.
 
@@ -192,6 +195,10 @@ def create_private_web(
     Optional trusted work_choices mounts non-executing preference capture only.
     Disabled default exposes no choice route; no executable approval is granted.
     """
+    if email_workflow is not None and any(controller is not None for controller in (
+        named_questions, gmail_connections, fragment_publication, fragment_preparation, history_preparation
+    )):
+        raise ValueError("exclusive email workflow host required")
     if work_choices is not None:
         from zacai.interfaces.work_choice_web import WorkChoiceWeb
 
@@ -244,6 +251,16 @@ def create_private_web(
             or c._owner is not owner or c._clock is not clock
             or json.loads(c._context)["origin"] != origin):
             raise ValueError("exact exclusive complete history host required")
+    if email_workflow is not None:
+        from zacai.interfaces.email_workflow_web import EmailWorkflowWeb
+
+        if type(email_workflow) is not EmailWorkflowWeb:
+            raise ValueError("exact original-owner email workflow host required")
+        c = email_workflow.continuity
+        if (c._sessions is not sessions or c._owner is not owner
+            or email_workflow.host_clock is not clock or c._clock is not clock
+            or json.loads(c._context)["origin"] != origin):
+            raise ValueError("exact original-owner email workflow host required")
     if type(gmail_recovery_consent_enabled) is not bool:
         raise ValueError("closed recovery consent policy required")
     target = urlsplit(origin)
@@ -278,7 +295,9 @@ def create_private_web(
         grant = current_owner()
         # A fragment publication pins the original effective expiry. Ordinary
         # navigation must not renew that session and invalidate its live claim.
-        lookup = (history_preparation.continuity._sessions.peek_user
+        lookup = (email_workflow.continuity._sessions.peek_user
+                  if email_workflow is not None else
+                  history_preparation.continuity._sessions.peek_user
                   if history_preparation is not None else
                   fragment_preparation.continuity._sessions.peek_user
                   if fragment_preparation is not None else
@@ -986,5 +1005,70 @@ def create_private_web(
                 )
             except Exception:  # noqa: BLE001 - committed failures remain held; no automatic repair
                 return Response("Local context action not acknowledged. Do not retry.", status_code=503)
+
+    if email_workflow is not None:
+        email_controller = email_workflow
+
+        def email_document(content: str) -> str:
+            return ('<!doctype html><html lang="en"><head><meta charset="utf-8">'
+                '<meta name="viewport" content="width=device-width, initial-scale=1">'
+                '<title>Caz AI · Email follow-up</title><style>' + CAZ_STYLE + '</style></head>'
+                '<body><main>' + content + '<p><a href="/">Back to your review</a></p></main></body></html>')
+
+        def email_same_session(before: tuple[UserSession, InterfacePrincipal],
+                               after: tuple[UserSession, InterfacePrincipal] | None) -> bool:
+            return (after is not None and before == after)
+
+        async def email_page(request: Request) -> Response:
+            try:
+                if not valid_host(request) or request.scope.get("query_string", b""):
+                    return Response(status_code=400)
+                before = authenticated(request)
+                if before is None:
+                    return RedirectResponse("/login", status_code=303)
+                await run_in_threadpool(email_controller.page, request)
+                if not email_same_session(before, authenticated(request)):
+                    return Response("Email follow-up unavailable", status_code=403)
+                # Recheck protected rows after the final external app-owner callback.
+                page = await run_in_threadpool(email_controller.page, request)
+                if clock() >= min(before[0].expires_at, page.deadline):
+                    return Response("Email follow-up unavailable", status_code=403)
+                return HTMLResponse(email_document(page.html))
+            except Exception:  # noqa: BLE001 - no private details in response
+                return Response("Email follow-up unavailable", status_code=503)
+
+        async def email_submit(request: Request) -> Response:
+            try:
+                if (not valid_host(request) or request.headers.getlist("origin") != [origin]
+                    or request.scope.get("query_string", b"")):
+                    return Response(status_code=403)
+                before = authenticated(request)
+                if before is None:
+                    return Response(status_code=401)
+                if request.headers.getlist("content-type") != ["application/x-www-form-urlencoded"]:
+                    return Response(status_code=403)
+                body = b""
+                async for chunk in request.stream():
+                    if len(body) + len(chunk) > 12000:
+                        return Response(status_code=413)
+                    body += chunk
+                if not email_same_session(before, authenticated(request)):
+                    return Response("Email follow-up unavailable", status_code=403)
+                # Await the concrete one-attempt pipeline. No GET, background
+                # retry or provider-independent permissive dispatch adapter exists.
+                await run_in_threadpool(email_controller.submit, request, body)
+                if not email_same_session(before, authenticated(request)):
+                    return Response("Email result held", status_code=403)
+                page = await run_in_threadpool(email_controller.page, request)
+                if clock() >= min(before[0].expires_at, page.deadline):
+                    return Response("Email result held", status_code=403)
+                return HTMLResponse(email_document(page.html))
+            except Exception:  # noqa: BLE001 - committed failures remain held, never retry
+                return Response("Email action not acknowledged. Review protected custody.", status_code=503)
+
+        for path in ("/prepare-caz-email", "/generate-caz-email", "/review-caz-email", "/caz-email-result"):
+            app.add_api_route(path, email_page, methods=["GET"], response_class=HTMLResponse)
+        for path in ("/prepare-caz-email", "/generate-caz-email", "/review-caz-email", "/release-caz-email"):
+            app.add_api_route(path, email_submit, methods=["POST"], response_class=HTMLResponse)
 
     return app

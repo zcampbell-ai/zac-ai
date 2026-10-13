@@ -3757,3 +3757,32 @@ gateway was introduced to address the earlier review concern. Evidence lives in
 Model inference in the tests is invented. Real source refresh/capture, mounted
 owner actions, actual private generation and owner usefulness remain required.
 App account/sender metadata stays unverified and attachments remain references.
+
+### 2026-10-13: Mounted original-owner email trial flow
+
+Added disabled-by-default capture, separate local generation, semantic assessment,
+manual-use release and protected result routes. The concrete controller starts
+without a session and binds once to an authenticated GET's original cookie.
+The existing foreground owner host/operator can assemble it using their actual
+encrypted sessions, owner, clock and continuity key. Unauthenticated entry leads
+to the existing sign-in form. No listener, credential read or sending is started
+by installing this code.
+
+Root proved 23 unique actual ASGI/PostgreSQL/native-age/encrypted-session cases
+across a 21-pass run and targeted reruns of its two corrected test expectations;
+production source stayed byte-identical to the accepted stage. Tests cover cold
+sign-in, wrong continuity key, distinct capture/generation/assessment/release,
+revocation during transport, competing submits, consumed interruption, release
+replay and original-session reads after generation expiry. Existing compatibility
+controls passed 103 cases; strict 247-source typing and Ruff passed. Complete
+code-only Opus review accepted the source and the focused test corrections.
+
+The first source review requested controller exclusivity and lifecycle controls;
+those corrections and earlier failed fixtures are preserved. Seven installed
+controls pass under a guard allowing anonymous event-loop Unix socketpairs while
+denying network/listeners/SQL/SQLite/child processes. An overly broad prior guard
+blocked TestClient's socketpair, rather than exposing a product failure.
+
+Actual Google/TLS, live B2 recovery, private model output, owner usefulness and
+iPhone operation remain release requirements. The next attended step is the
+reviewed foreground initializer using existing credentials and selected app data.

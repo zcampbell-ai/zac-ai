@@ -7442,3 +7442,27 @@ Refused capture can leave noncanonical content-addressed artifacts, as existing
 capture paths do. They grant no processing or current-fact authority. Capture,
 generation consent, semantic assessment and manual-use release remain distinct.
 No successful test or manual-use release authorizes sending or outreach.
+
+### 2026-10-13: Cold original-session email trial assembly
+
+Assemble the concrete email controller before sign-in, then bind it once on an
+actual authenticated GET. Do not fabricate a cookie or renew an old action from
+a new session. Validate the foreground host's exact shared encrypted session
+store, owner callback, clock, origin/client context and derived continuity key.
+The trusted host factory is assembly only; it grants no source/model permission.
+
+The current trial leaf is exclusive from Gmail, named, history and fragment
+controllers. Their differing session lookup behavior must not change silently.
+Non-executing work preferences may coexist. While this leaf is mounted, owner
+lookups use non-renewing peek; the configured idle bound remains authoritative.
+This is a bounded trial composition, not a permanent ban on a unified interface.
+
+An entered failure holds the controller and consumed canonical claim. Failed
+initial binding requires operator reconciliation and a fresh controller, not an
+automatic retry. A client disconnect is not an inference abort mechanism; the
+foreground operator retains its existing worker/thread drain. Direct-controller
+interruption controls do not establish ASGI cancellation delivery semantics.
+
+Human ACCEPT/DECLINE/DEFER remains separate from protected manual-use release.
+The draft, source evidence and imported-account limits stay visible. No sending,
+public hosting, credential read or real private inference follows from these tests.
