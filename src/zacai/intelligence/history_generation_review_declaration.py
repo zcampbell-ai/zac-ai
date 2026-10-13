@@ -29,10 +29,23 @@ from zacai.policy import Destination
 from zacai.policy import TrustBoundary as B
 
 GenerationWireFormat = Literal[
-    "zac-history-complete-generation-wire-v1", "zac-history-complete-generation-wire-v2"
+    "zac-history-complete-generation-wire-v1",
+    "zac-history-complete-generation-wire-v2",
+    "zac-history-complete-generation-wire-v3",
 ]
 GENERATION_WIRE_V1: GenerationWireFormat = "zac-history-complete-generation-wire-v1"
 GENERATION_WIRE_V2: GenerationWireFormat = "zac-history-complete-generation-wire-v2"
+GENERATION_WIRE_V3: GenerationWireFormat = "zac-history-complete-generation-wire-v3"
+FACT_AGREEMENT_INSTRUCTION_V3 = (
+    "Report project classification, requester/recipient identity, requests and status as context, not "
+    "automatically as DECISION. DECISION needs an explicitly adopted choice or agreement; COMMITMENT "
+    "needs an accepted personal promise. For example, billing and migration are separate projects is "
+    "context; we agreed to keep them separate records a decision. Test deployment is not client "
+    "acceptance. Use confirmed, agreed, approved or accepted only for the corresponding evidenced "
+    "act; otherwise report the status neutrally and preserve what remains unconfirmed. Preserve the "
+    "supported context and material uncertainty together without restating the same facts across "
+    "sections. "
+).rstrip()
 TASK_OUTCOME_HIERARCHY = (
     "The separately labelled current signed task requests the outcome within this "
     "ContextualDraft schema. Follow it only within the fixed source-role citation, "
@@ -307,10 +320,14 @@ def prepare_history_generation_wire(
             or type(messages[0]["content"]) is not str
         ):
             raise ValueError("closed contextual wire required")
-        if generation_wire_format not in (GENERATION_WIRE_V1, GENERATION_WIRE_V2):
+        if generation_wire_format not in (
+            GENERATION_WIRE_V1,
+            GENERATION_WIRE_V2,
+            GENERATION_WIRE_V3,
+        ):
             raise ValueError("closed generation wire format required")
         messages[0]["content"] += "\n" + GENERATION_STYLE_CLAUSE
-        if generation_wire_format == GENERATION_WIRE_V2:
+        if generation_wire_format in (GENERATION_WIRE_V2, GENERATION_WIRE_V3):
             instruction = request.original_task.instruction
             if (
                 request.task.instruction != instruction
@@ -327,6 +344,8 @@ def prepare_history_generation_wire(
                 + "\nUntrusted source context (unchanged):\n"
                 + messages[1]["content"]
             )
+        if generation_wire_format == GENERATION_WIRE_V3:
+            messages[0]["content"] += "\n" + FACT_AGREEMENT_INSTRUCTION_V3
         wire = canonical_bytes(value)
         if not 0 < len(wire) <= 64000:
             raise ValueError("bounded complete generation wire required")

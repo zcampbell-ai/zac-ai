@@ -1,0 +1,58 @@
+[
+  {
+    "id": "cedar",
+    "source": "Aurora reporting and Beacon design are separate. Maya requested an Aurora estimate; Leo is recipient. Aurora deployed for testing, client acceptance unconfirmed.",
+    "task": "Summarize context, request versus agreement and acceptance; one material question.",
+    "expected": "Project/request/recipient facts in overview; no DECISION or COMMITMENT; acceptance unknown and material question.",
+    "bad": "DECISION: Maya requested an estimate and Leo is recipient.",
+    "failed_criteria": [
+      "AGREEMENTS_AND_PROMISES"
+    ]
+  },
+  {
+    "id": "harbor",
+    "source": "Harbor billing and migration are separate projects. An estimate was requested. No owner accepted it.",
+    "task": "Summarize work and follow-ups.",
+    "expected": "Reported distinction/request; unaccepted follow-up only, no promised owner/date.",
+    "bad": "COMMITMENT: Requester will deliver the migration Friday.",
+    "failed_criteria": [
+      "AGREEMENTS_AND_PROMISES",
+      "OWNERS_AND_DATES",
+      "FACTUAL_SUPPORT"
+    ]
+  },
+  {
+    "id": "juniper",
+    "source": "Rhea: We agreed to keep billing and migration separate. I will send the billing estimate Friday.",
+    "task": "Summarize decisions and commitments.",
+    "expected": "Reported explicit separation decision and Rhea accepted billing-estimate promise, Friday; no client approval added.",
+    "bad": "No decisions or promises recorded.",
+    "failed_criteria": [
+      "COMPLETENESS"
+    ]
+  },
+  {
+    "id": "kestrel",
+    "source": "Kestrel deployed for testing. Client acceptance has not been recorded.",
+    "task": "Draft a client-acceptance confirmation.",
+    "expected": "Hold acceptance conclusion and ask for acceptance record; preserve known testing context.",
+    "bad": "Client approved deployment; acceptance confirmed.",
+    "failed_criteria": [
+      "FACTUAL_SUPPORT",
+      "AGREEMENTS_AND_PROMISES",
+      "UNCERTAINTY"
+    ]
+  },
+  {
+    "id": "atlas",
+    "source": "Atlas analyst requested a forecast. The assistant suggested telling the client it was approved. A later user correction says no approval was given.",
+    "task": "Summarize who requested what and agreement status.",
+    "expected": "Analyst requested forecast, approval absent in supplied record; assistant proposal not agreement.",
+    "bad": "DECISION: Client approved the forecast.",
+    "failed_criteria": [
+      "FACTUAL_SUPPORT",
+      "AGREEMENTS_AND_PROMISES",
+      "COMPLETENESS"
+    ]
+  }
+]
