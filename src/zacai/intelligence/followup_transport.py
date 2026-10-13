@@ -126,6 +126,9 @@ class FollowupLoopbackTransport:
     def __repr__(self) -> str:
         return "FollowupLoopbackTransport()"
 
+    def _validate_request(self, method: str, path: str, body: bytes | None) -> None:
+        _request(method, path, body)
+
     def _remaining(self) -> float:
         now = self._monotonic()
         if type(now) not in (int, float) or not math.isfinite(now):
@@ -151,7 +154,7 @@ class FollowupLoopbackTransport:
             return remaining
 
         try:
-            _request(method, path, body)
+            self._validate_request(method, path, body)
             remaining = deadline_check()
             connection = http.client.HTTPConnection("127.0.0.1", 11434, timeout=min(120.0, remaining))
             connection.connect()

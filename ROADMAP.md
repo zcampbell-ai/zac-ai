@@ -3642,3 +3642,30 @@ acceptance, email sending or Gmail draft creation. Next integrate the exact emai
 processing admission and internally gated generation, protected output and review,
 then checked owner release. LinkedIn/X and PERSONAL finance acceptance remain in
 the existing Goal; this input slice is not useful native workflow completion.
+
+### 2026-10-13: One-attempt business email generation and output custody
+
+Added the coherent original-owner email processing join. A separately observed
+processing POST binds the exact protected specification, original Task/Event,
+source preimages, recipient comparison, serialized request/body/schema, full input
+count and bounded LOCAL runtime pins. Canonical consent and a once-only claim are
+committed, encrypted, recovered and reopened before the internally gated transport
+can dispatch. Metadata/tokenizer callbacks and post-inference reads recheck the
+original owner, current dependencies and recovery. Output stays
+NEEDS_OWNER_SEMANTIC_REVIEW with all candidate permission flags false.
+
+Eleven genuine disposable PostgreSQL/native-age cases and 129 affected offline
+runtime/transport cases passed; strict typing across 240 sources and Ruff passed.
+A causal expiry test failed on unchanged predecessor code by observing one invented
+chat dispatch after permission expired. The correction samples the trusted clock
+fresh after final SQL reads and only shortens the same socket deadline, bounded by
+both original consent/session expiry and total latency. Complete code-only Opus
+review accepted the main slice and focused deadline correction. Inference in these
+SQL fixtures is invented; no actual private model processing or owner usefulness
+is claimed.
+
+No route or service is enabled. Next add authenticated human semantic assessment
+and checked release, reconcile relevant real-source availability, then prove a
+useful owner task with an actual admitted backend. Expired-session historical review
+and phone usability remain unfinished. No email sending or Gmail draft creation
+is implemented or authorized.

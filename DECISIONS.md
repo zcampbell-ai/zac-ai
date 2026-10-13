@@ -7334,3 +7334,31 @@ is not a historical message date, and mixed-source role metadata stays unknown.
 This slice is custody only. Processing, generation, independent semantic review,
 output recovery and owner release require their own concrete existing-roadmap
 joins. No outreach or private model use is authorized by capture or code review.
+
+### Preserve exact admitted email scope through execution (2026-10-13)
+
+Input custody does not authorize inference. Use a distinct observed original-owner
+processing action, canonical consent and a protected consumed claim. Retain the
+exact final admitted specification rather than rewriting a newer input-read
+observation into the original event. Compare underlying current instruction,
+evidence, metadata, recipient and budget fields while preserving both genuine
+observation times. The actual request always comes from protected admitted bytes.
+
+Reuse the existing fixed loopback transport through a closed email validator seam;
+its default retains the unchanged legacy validation. No proxy, endpoint override,
+retry, model pull or cloud fallback. Check schema with canonical bytes, full prompt
+count without double-counting cached tokens, fixed pins and actual outgoing bytes.
+Sanitize interruption arguments while leaving the committed attempt consumed.
+
+Sample the trusted side-effect-free host clock after final row reads. Convert
+remaining original permission conservatively to the same monotonic socket clock,
+and cap connect/read/shutdown deadlines by both permission and operation latency.
+A later check may shorten the deadline, never renew it. Socket cancellation does
+not attest or terminate remote model CPU work. Current-row checks cannot make an
+admitted external call reversible; later withdrawal withholds output.
+
+Protect and reopen actual output separately from candidate declarations. It remains
+unreviewed, not ready to deliver and not a current fact. Original-session custody
+reconciliation cannot replay inference or renew expiry. Human semantic assessment
+and checked release require the next concrete join; expired-session access cannot
+be inferred from this adapter.
