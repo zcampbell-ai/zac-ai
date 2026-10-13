@@ -576,6 +576,7 @@ def open_private_operator(
     named_factory: NamedOwnerHostFactory | None = None,
     gmail_factory: GmailOwnerHostFactory | None = None,
     email_factory: EmailOwnerHostFactory | None = None,
+    email_startup_failure_cleanup: Callable[[], None] | None = None,
     gmail_recovery_consent_enabled: bool = False,
     fragment_factory: Callable[[NamedOwnerHostInputs], FragmentPublicationWeb] | None = None,
     fragment_preparation_factory: Callable[[NamedOwnerHostInputs, NamedSessionOperation, str], FragmentPublicationWeb] | None = None,
@@ -609,6 +610,11 @@ def open_private_operator(
             or not callable(clock)
             or not callable(startup_loader)
             or (mode == PrivateOperatorMode.OWNER and not callable(view))
+            or (
+                email_startup_failure_cleanup is not None
+                and (not callable(email_startup_failure_cleanup)
+                     or mode != PrivateOperatorMode.OWNER or email_factory is None)
+            )
             or (
                 gmail_factory is not None
                 and (not callable(gmail_factory) or type(clock) is not HostObservedClock)
@@ -740,7 +746,17 @@ def open_private_operator(
                                 except BaseException:  # noqa: BLE001,S110 - finish actual drain before sanitized failure.
                                     pass
                     finally:
-                        _drain_threads(startup_threads)
+                        # Trusted email constructor resources can outlive a
+                        # successful factory return if later host/window setup
+                        # fails. Close them before a close-dependent worker drain
+                        # while the original physical mode lease is still held.
+                        try:
+                            if email_startup_failure_cleanup is not None:
+                                email_startup_failure_cleanup()
+                        except BaseException:  # noqa: BLE001,S110 - retain sanitized startup failure, always drain.
+                            pass
+                        finally:
+                            _drain_threads(startup_threads)
                     os.close(fd)
                     fd = None
                 finally:
