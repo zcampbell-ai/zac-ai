@@ -3786,3 +3786,19 @@ blocked TestClient's socketpair, rather than exposing a product failure.
 Actual Google/TLS, live B2 recovery, private model output, owner usefulness and
 iPhone operation remain release requirements. The next attended step is the
 reviewed foreground initializer using existing credentials and selected app data.
+
+### 2026-10-13: Real app leaf representation compatibility
+
+Preparing the two bounded selected email observations exposed explicit `parts:
+null` on leaf MIME parts. The reader had rejected both records. It now treats
+null children as no children while preserving the exact original serialized
+record, selected literal body, unknown fields, coverage and unverified flags.
+Non-list children and missing selected descendants still hold.
+
+Forty-seven existing/new invented controls, strict affected-source typing and
+Ruff passed; independent code-only Opus review accepted. Nine installed controls
+passed. Both actual selected returned-message serializations now prepare with
+exact raw and literal-body parity in a private staging folder. This is source
+preparation only: no canonical import, model inference, credential access,
+listener or communication occurred. The original representation failures remain
+part of the evidence, rather than being mistaken for real task acceptance.

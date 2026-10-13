@@ -7443,6 +7443,14 @@ capture paths do. They grant no processing or current-fact authority. Capture,
 generation consent, semantic assessment and manual-use release remain distinct.
 No successful test or manual-use release authorizes sending or outreach.
 
+### 2026-10-13: Nullable app leaf parts preserve original evidence
+
+The connected app can serialize a leaf MIME part with `parts: null`. Treat that
+as zero child parts only for traversal. Preserve null in the exact raw artifact,
+all fields and the selected literal body. Other non-list values still reject,
+and null cannot manufacture a selected descendant. This representation correction
+does not authenticate the account, promote source facts or authorize processing.
+
 ### 2026-10-13: Cold original-session email trial assembly
 
 Assemble the concrete email controller before sign-in, then bind it once on an

@@ -283,6 +283,10 @@ def _prepare(raw: bytes, scope: GmailAppObservationScopeV1) -> GmailAppObservati
                 raise ValueError("complete selected literal text outside finite bounds")
             selected, selected_mime = text, mime
         children = part.get("parts", [])
+        # App observations explicitly return null for leaf parts. Retain that
+        # field in the exact raw artifact; it contributes no child parts.
+        if children is None:
+            children = []
         if type(children) is not list or len(children) > 32:
             raise ValueError("bounded payload parts required")
         for i, child in enumerate(children):
