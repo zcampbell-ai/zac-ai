@@ -42,7 +42,7 @@ from zacai.interfaces.private_operator import (
     _drain_threads,
     open_private_operator,
 )
-from zacai.interfaces.private_startup import _configuration
+from zacai.interfaces.private_startup import _configuration, load_attended_owner_startup
 from zacai.policy import TrustBoundary as B
 from zacai.review_protection import DisposableStateRestoreVerifier
 
@@ -308,6 +308,7 @@ def run_attended(
                     directory=_OWNER,
                     escrow_confirmed_by_operator=True,
                     view=view,
+                    startup_loader=load_attended_owner_startup,
                     email_factory=factory,
                     email_startup_failure_cleanup=factory.close,
                     clock=HostObservedClock(lambda: datetime.now(UTC)),
@@ -371,6 +372,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         public["startup_construction"] = (
             "Actual prepare_owner_host calls the cold factory on the main startup thread before serve; original owner sign-in and first authenticated GET bind later"
         )
+        public["owner_credential_wait_seconds"] = 60
         public["model_digest"] = _DIGEST
         public["execute_command_capable"] = True
         public["execute_requirements"] = (

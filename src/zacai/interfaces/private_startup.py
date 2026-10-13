@@ -91,15 +91,17 @@ def _configuration(client_id: str, origin: str) -> None:
             raise ValueError("invalid private hostname")
 
 
-def _keychain_secret(name: str) -> str:
+def _keychain_secret(name: str, *, timeout_seconds: int = _TIMEOUT_SECONDS) -> str:
     # No public service/account selector; name comes only from fixed load calls.
+    if type(timeout_seconds) is not int or timeout_seconds not in (5, 60):
+        raise ValueError("fixed startup wait required")
     service = _SERVICES[name]
     completed = subprocess.run(
         ["/usr/bin/security", "find-generic-password", "-a", _ACCOUNT, "-s", service, "-w"],
         shell=False,
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
-        timeout=_TIMEOUT_SECONDS,
+        timeout=timeout_seconds,
         check=False,
         env={},
     )
@@ -168,6 +170,22 @@ def _explicit_closed[**P, R](function: Callable[P, R]) -> Callable[P, R]:
         raise kind("private interface startup configuration unavailable")
 
     return call
+
+
+@_explicit_closed
+def load_attended_owner_startup(*, client_id: str, origin: str) -> OwnerStartupConfiguration:
+    """Foreground CLI only: the same two fixed items, sixty seconds per wait.
+
+    Caller must already hold the existing attended operator lease/log/signal
+    controls. No automatic retry, new selector, environment fallback or native
+    prompt approval is provided. The general loader retains its five-second wait.
+    """
+    _configuration(client_id, origin)
+    client_secret = _keychain_secret(_CLIENT_SECRET, timeout_seconds=60)
+    key_hex = _keychain_secret(_SESSION_KEY, timeout_seconds=60)
+    if re.fullmatch(r"[0-9a-fA-F]{64}", key_hex) is None:
+        raise ValueError("invalid session key")
+    return OwnerStartupConfiguration(client_id, origin, client_secret, bytes.fromhex(key_hex))
 
 
 def _explicit_configuration(client_id: str, origin: str) -> None:

@@ -280,6 +280,7 @@ def test_attended_logging_signal_lease_cleanup_order_no_live_server(monkeypatch,
 
     @contextmanager
     def operator(**kwargs):
+        assert kwargs["startup_loader"] is e.load_attended_owner_startup
         assert logging.root.manager.disable == sys.maxsize
         assert all(signal.getsignal(s) is e._startup_interruption for s in original)
         events.append("lease-credential-host")
