@@ -57,6 +57,8 @@ TASK_OUTCOME_HIERARCHY = (
 MAX_AUTHORITY_BYTES = 64000
 MAX_DECLARATION_BYTES = MAX_PACKET_BYTES
 PURPOSE = "history_complete_independent_review"
+# Fresh declared recovery-inclusive reviewer capability; all other routes retain 60s.
+COMPLETE_RECOVERY_WINDOW_RUNTIME = "mac-loopback-history-typed-reference-review-recovery-120s-16k"
 GENERATION_STYLE_CLAUSE = (
     "Use concise prose in the owner's voice. Use no em dash in generated prose; "
     "retain exact punctuation in evidence quotes. Do not infer owner authorship "
@@ -421,7 +423,7 @@ class HistoryReviewPurposeProfileV1(Contract):
     context_window_tokens: Literal[8192, 16384]
     max_input_bytes: Literal[64000] = 64000
     max_output_tokens: int = Field(strict=True, ge=1, le=2048)
-    max_latency_ms: int = Field(strict=True, ge=1, le=60000)
+    max_latency_ms: int = Field(strict=True, ge=1, le=120000)
     max_estimated_cost_usd: float = Field(strict=True, ge=0, le=0, allow_inf_nan=False)
     expiry_rule: Literal["same_original_processing_expiry"] = "same_original_processing_expiry"
 
@@ -433,6 +435,10 @@ class HistoryReviewPurposeProfileV1(Contract):
             or self.run_id.int == 0
             or r.destination is not Destination.LOCAL
             or r.available is not True
+            or (
+                self.max_latency_ms > 60000
+                and r.identity.runtime_id != COMPLETE_RECOVERY_WINDOW_RUNTIME
+            )
             or r.capabilities != frozenset({PURPOSE})
             or self.max_output_tokens > r.max_output_tokens
             or r.estimated_latency_ms > self.max_latency_ms

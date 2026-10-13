@@ -17,8 +17,14 @@ from zacai.backup_artifacts import _assert_personal_custody_append_capacity
 from zacai.claude_local_custody import _SCOPE
 from zacai.contextual_protection import PersonalFragmentCleanupUncertain
 from zacai.ingestion.artifact_store import content_hash_of
-from zacai.intelligence.contextual_evaluation import ContextualOutcome
-from zacai.intelligence.contextual_review import render_contextual_preview
+from zacai.intelligence.contextual_evaluation import (
+    ContextualOutcome,
+    check_history_contextual_evaluation,
+)
+from zacai.intelligence.contextual_review import (
+    render_contextual_preview,
+    validate_contextual_review,
+)
 from zacai.intelligence.contextual_storage import _fragment_rows
 from zacai.intelligence.fragment_review_retention import _physical, _same
 from zacai.intelligence.history_contextual_codec import decode_history_contextual_packet
@@ -46,6 +52,7 @@ from zacai.intelligence.history_publication_generation import (
 from zacai.intelligence.history_publication_protection import protect_history_assessment
 from zacai.intelligence.history_publication_review import (
     CanonicalPersonalHistoryReviewAuthorization,
+    HistoryPublicationAssessmentV1,
     PersonalHistoryRetainedAssessment,
     capture_history_publication_assessment,
     release_history_reviewed_text,
@@ -116,6 +123,47 @@ def _reviewed_result_html(
     assessment: PersonalHistoryRetainedAssessment,
     text: str | None,
 ) -> str:
+    if assessment.outcome is ContextualOutcome.NEEDS_CLARIFICATION:
+        try:
+            # The unchanged caller has already protected/rechecked the original
+            # result. This branch displays one reviewed gap, never the held reply.
+            if (
+                type(gate) is not CanonicalPersonalHistoryReviewAuthorization
+                or type(assessment) is not PersonalHistoryRetainedAssessment
+                or type(assessment.assessment) is not HistoryPublicationAssessmentV1
+                or gate._phase != "DELIVERY_RELEASED"
+                or gate._result is not assessment
+                or gate._assessment is not assessment.assessment
+                or text is not None
+            ):
+                raise ValueError("original protected clarification result required")
+            packet = decode_history_contextual_packet(gate._packet_raw)
+            request = gate._generation._request
+            if (
+                packet.request() != request
+                or check_history_contextual_evaluation(
+                    assessment.assessment.evaluation, gate._packet_raw
+                )
+                is not ContextualOutcome.NEEDS_CLARIFICATION
+            ):
+                raise ValueError("exact all-PASS clarification evaluation required")
+            review = validate_contextual_review(packet.review, request.context())
+            gaps = (*review.conflicts, *review.clarifications)
+            if not gaps:
+                raise ValueError("a validated material question is required")
+            gap = gaps[0]
+            return (
+                '<section class="decision-card"><h1>One quick question</h1>'
+                "<p>I need one detail before I can finish. The full answer is still on hold. "
+                "This uses earlier conversations, so current details may need an update.</p>"
+                '<pre style="white-space:pre-wrap;overflow-wrap:anywhere">'
+                + escape(gap.question)
+                + "\nWhy it matters: "
+                + escape(gap.reason)
+                + "</pre></section>"
+            )
+        except Exception:  # noqa: BLE001,S110 - fixed withheld response, no private diagnostics
+            pass
     if assessment.outcome is not ContextualOutcome.REVIEWED_PASS or text is None:
         return (
             "<h1>Reply withheld</h1><p>"

@@ -41,7 +41,7 @@ def render_history_review_prompt(serialized_body: bytes) -> str:
         ):
             raise ValueError("bounded exact wire required")
         body = local._json(serialized_body)
-        data = local._json(body["messages"][1]["content"])
+        data = wire.decode_history_review_wire_body(local._json(body["messages"][1]["content"]))
         packet_raw = preparation._review_packet_raw(data["packet"], data["packet_representation"])
         from zacai.intelligence.history_contextual_codec import decode_history_contextual_packet
 
@@ -103,7 +103,9 @@ class OllamaQwenHistoryReviewTokenCounter(OllamaQwenReviewTokenCounter):
             ):
                 raise ValueError("bounded exact wire required")
             body = local._json(serialized_body)
-            declared = local._json(body["messages"][1]["content"])
+            declared = wire.decode_history_review_wire_body(
+                local._json(body["messages"][1]["content"])
+            )
             if (
                 declared["model_digest"] != self.model_digest
                 or declared["review_purpose"]["tokenizer_digest"] != self.tokenizer_digest

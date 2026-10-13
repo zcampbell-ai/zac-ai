@@ -1,0 +1,34 @@
+{
+  "default": {
+    "representation": "canonical-history-visible-segments-json-view-v3",
+    "body_sha256": "1bfbe019dbe26fdd8c8a0d46fb8ae130206750f48d2409f0c84b566fba57a45f",
+    "wire_sha256": "7a88cec13e80af309f33f113d7f955f309e077a583ea84f84241da87f9f4ac13",
+    "body_bytes": 27181,
+    "wire_bytes": 32183,
+    "budgets": {
+      "options": {
+        "num_ctx": 16384,
+        "num_predict": 512,
+        "temperature": 0
+      },
+      "max_latency_ms": 60000,
+      "expiry_rule": "same_original_processing_expiry"
+    }
+  },
+  "legacy": {
+    "representation": "canonical-history-request-object-v1",
+    "body_sha256": "8eb4be52f1c59904d7523010ca44c26147534b69e2e191c2c2d9439d91b0c21c",
+    "wire_sha256": "d0c16a7c806065ddfea6fe8f84fab7c4752c74a395643312febe62291b6e8580",
+    "body_bytes": 51812,
+    "wire_bytes": 63830,
+    "budgets": {
+      "options": {
+        "num_ctx": 16384,
+        "num_predict": 512,
+        "temperature": 0
+      },
+      "max_latency_ms": 60000,
+      "expiry_rule": "same_original_processing_expiry"
+    }
+  }
+}

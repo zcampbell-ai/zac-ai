@@ -1,0 +1,86 @@
+{
+  "source_commit": "7099d8ccb028564ad2066a8baff1ffc78b1e8b96",
+  "capture": "independent installed-code regeneration after review; exactly matches pre-candidate frozen hashes",
+  "source_snapshots": {
+    "src/zacai/intelligence/history_review_wire.py": {
+      "sha256": "d392ecca71a46a39291132d5b2c63f7a213df32cec85551aa3d4c11d5b47a1fa",
+      "commit_content_sha256": "d392ecca71a46a39291132d5b2c63f7a213df32cec85551aa3d4c11d5b47a1fa",
+      "git_blob_oid": "fff6a7340389e095e977e558a89b3209863a4e97"
+    },
+    "src/zacai/intelligence/history_review_prompt_counter.py": {
+      "sha256": "76de79ea512c7cdb20287b384b759230934c727536a72c21b7da6d1b6f9e4a81",
+      "commit_content_sha256": "76de79ea512c7cdb20287b384b759230934c727536a72c21b7da6d1b6f9e4a81",
+      "git_blob_oid": "b089718b765f2c5d2c95f7b9113e229dab93d5cd"
+    },
+    "src/zacai/intelligence/history_review_preparation.py": {
+      "sha256": "88d9cc82d0fa00587ff49c7f1ced0bfd9622717441b2b1fc3d8f7585570ccb13",
+      "commit_content_sha256": "88d9cc82d0fa00587ff49c7f1ced0bfd9622717441b2b1fc3d8f7585570ccb13",
+      "git_blob_oid": "8cb5f0217f94f6b7e2651b660122732a805da418"
+    },
+    "src/zacai/intelligence/local_review_runtime.py": {
+      "sha256": "10b73c27836729353d67ddf688d2008f4e7c33753bfd62b9b76c9676cc15cb0c",
+      "commit_content_sha256": "10b73c27836729353d67ddf688d2008f4e7c33753bfd62b9b76c9676cc15cb0c",
+      "git_blob_oid": "d38de445a70a925032ed26434b239ff8f2766ed7"
+    },
+    "src/zacai/intelligence/ollama_token_counter.py": {
+      "sha256": "41d789b8c146b7c52955b3a0fb9c22ae1b8d97b2706e512705ccf89e76a9535a",
+      "commit_content_sha256": "41d789b8c146b7c52955b3a0fb9c22ae1b8d97b2706e512705ccf89e76a9535a",
+      "git_blob_oid": "cf82ce5f50e4a8b69d72b65f8281d91dc2fb42fe"
+    },
+    "src/zacai/intelligence/history_review_runtime.py": {
+      "sha256": "33105b97b0e7bacb2ec0dadacb60e5291a4434b69898749e05d7d5abf96c3f59",
+      "commit_content_sha256": "33105b97b0e7bacb2ec0dadacb60e5291a4434b69898749e05d7d5abf96c3f59",
+      "git_blob_oid": "6f96c9feacd7aeca1a2f2d93d81b248d7bad80d4"
+    },
+    "src/zacai/intelligence/history_publication_review.py": {
+      "sha256": "7b6d11cc56cbea3d1864a60885e6c966db86daf4d046a08383618057a59b0478",
+      "commit_content_sha256": "7b6d11cc56cbea3d1864a60885e6c966db86daf4d046a08383618057a59b0478",
+      "git_blob_oid": "c709cda2db8bc505aa9cb4624f1cec1e717203d6"
+    },
+    "src/zacai/intelligence/history_context_metadata.py": {
+      "sha256": "c221b7d6c05ff8c6090f5bfe76f8dca42d765ea603e0abe0259c73a95825ba02",
+      "commit_content_sha256": "c221b7d6c05ff8c6090f5bfe76f8dca42d765ea603e0abe0259c73a95825ba02",
+      "git_blob_oid": "5447ed3e3175692e715568f2b9a446b7cd0f29a2"
+    },
+    "src/zacai/claude_large_original_message.py": {
+      "sha256": "38b91c4b1c1843a3df0faf10708fce8126672a11b6a780e430ccc4fb9c8c3585",
+      "commit_content_sha256": "38b91c4b1c1843a3df0faf10708fce8126672a11b6a780e430ccc4fb9c8c3585",
+      "git_blob_oid": "412628b3cca2b166b2eb7d413470b1cfde70601f"
+    },
+    "src/zacai/intelligence/contracts.py": {
+      "sha256": "36d3d5f2a463c4b29547bd3d2a3ae86484f59abcc16ac60cc6b5caafd26be494",
+      "commit_content_sha256": "36d3d5f2a463c4b29547bd3d2a3ae86484f59abcc16ac60cc6b5caafd26be494",
+      "git_blob_oid": "525a51f773aa6a4cff8ac465ad83910067f5e50a"
+    },
+    "tests/test_complete_review_lossless.py": {
+      "sha256": "adb3c0766d1d7317b63477b7858ef3a5d12150be9ea48997fac1ffcef2b282a8",
+      "commit_content_sha256": "adb3c0766d1d7317b63477b7858ef3a5d12150be9ea48997fac1ffcef2b282a8",
+      "git_blob_oid": "64071727c0616d0b9f16c91b0bd436d81f9ef587"
+    }
+  },
+  "fixture_inputs": {
+    "request.json": "da8f99b92e333a2edb462d705f8dd1e6f04cfad867f4054b4aeb321bab9b9af9",
+    "legacy-pins.json": "1677b987c18a25f30fdba8d9aa2d6bc8e1cbea6a6e0953e653b9bc1a1186ee62",
+    "review-profile.json": "fdca615ac484c7406a996b401600a8e2529e3591042642cd4af147e05d63bb7d",
+    "supported-packet.json": "91297a8053ffa7d1d938b671ce4646e46e6a03bd485c62f83460e161700f3d9c",
+    "README.md": "ab39e08018dbb5445d5d3b9baf58c13c63a77b442a744ce412cea81a71623c12",
+    "template.txt": "7b748474e99a3bfdba3b3cc058e6ab50c20447ec572b1e7c104691fff9ac2cce",
+    "rubric.txt": "806a058cb1a9e7d542f4326ba1f6eb06ea3b6083be9234e896a2ca3bd4ea4901"
+  },
+  "installed_renderer_digest": "1529269ea73877fa47981065feb603dc89ea991025ff9b436169c3697956b3ec",
+  "observed_baseline_post": {
+    "wire_bytes": 35078,
+    "wire_sha256": "4e8c79bdfe916e8043468289b6bd3428853cac02354ab1cd41210d5f4d0c592c",
+    "packet_sha256": "da9e3e95c8451f0cdaee5b25676f2045b06f62b8e74cfc53854695650411d542",
+    "scope": "separate authorized invented root assay, not same PUBLIC fixture; reconstructed using original retained purpose/rubric/template without rewriting them"
+  },
+  "git_object_format": "sha1",
+  "renderer_digest_source_order": [
+    "src/zacai/intelligence/ollama_token_counter.py",
+    "src/zacai/intelligence/local_review_runtime.py",
+    "src/zacai/intelligence/history_review_preparation.py",
+    "src/zacai/intelligence/history_review_wire.py",
+    "src/zacai/intelligence/history_review_prompt_counter.py"
+  ],
+  "renderer_digest_domain": "zac-history-review-renderer-v1\\x00"
+}

@@ -25,6 +25,7 @@ from zacai.intelligence.history_contextual_codec import (
     encode_history_contextual_request,
 )
 from zacai.intelligence.history_generation_review_declaration import (
+    COMPLETE_RECOVERY_WINDOW_RUNTIME,
     HistoryReviewPurposeProfileV1,
     history_review_profile_digest,
 )
@@ -370,11 +371,14 @@ def prepare_history_review_request(
         if type(route) is not ModelRoute:
             raise ValueError("typed declared local route required")
         route = ModelRoute.model_validate(route)
+        latency_cap = (
+            120_000 if route.identity.runtime_id == COMPLETE_RECOVERY_WINDOW_RUNTIME else 60_000
+        )
         if (
             type(max_output_tokens) is not int
             or not 1 <= max_output_tokens <= 2048
             or type(max_latency_ms) is not int
-            or not 1 <= max_latency_ms <= 60_000
+            or not 1 <= max_latency_ms <= latency_cap
         ):
             raise ValueError("bounded requested review budget required")
         if (
