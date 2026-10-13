@@ -1,5 +1,13 @@
 # Zac AI Decision Log
 
+## 2026-10-13: Constrained model evidence preserves resolver semantics
+
+Expose SOURCE_QUOTE, CURRENT_TASK_INTENT and CONVENTIONAL as closed discriminated
+model-output branches. Keep the valid JSON field shape and existing candidate
+resolver rules. Requests/schema digests change deliberately; earlier prepared
+requests remain stale and cannot silently inherit the tightened schema. Structural
+legality still does not establish whole-target entailment or reviewer identity.
+
 ## 2026-10-13: Passive email wire before runtime admission
 
 Reuse the existing offline tokenizer through an additive email renderer. Keep the

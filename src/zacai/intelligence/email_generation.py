@@ -36,13 +36,37 @@ from zacai.intelligence.meeting_review import Quote
 EvidenceId = Annotated[str, StringConstraints(strict=True, pattern=r"^[0-9a-f]{32}:e[1-9][0-9]*$")]
 
 
-class EmailOutputSupportV1(EmailContract):
-    category: Literal["FACT", "PROPOSAL", "OWNER_POSITION", "CONVENTIONAL"]
-    support_kind: Literal["SOURCE_QUOTE", "CURRENT_TASK_INTENT", "CONVENTIONAL"]
+class EmailSourceQuoteSupportV1(EmailContract):
+    category: Literal["FACT", "PROPOSAL", "OWNER_POSITION"]
+    support_kind: Literal["SOURCE_QUOTE"]
     explanation: LiteralText
-    evidence_ids: tuple[EvidenceId, ...] = Field(max_length=4)
-    instruction_text: LiteralText | None
-    convention: Literal["GREETING", "SIGNOFF"] | None
+    evidence_ids: tuple[EvidenceId, ...] = Field(min_length=1, max_length=4)
+    instruction_text: None
+    convention: None
+
+
+class EmailTaskIntentSupportV1(EmailContract):
+    category: Literal["PROPOSAL"]
+    support_kind: Literal["CURRENT_TASK_INTENT"]
+    explanation: LiteralText
+    evidence_ids: tuple[EvidenceId, ...] = Field(max_length=0)
+    instruction_text: LiteralText
+    convention: None
+
+
+class EmailConventionalSupportV1(EmailContract):
+    category: Literal["CONVENTIONAL"]
+    support_kind: Literal["CONVENTIONAL"]
+    explanation: LiteralText
+    evidence_ids: tuple[EvidenceId, ...] = Field(max_length=0)
+    instruction_text: None
+    convention: Literal["GREETING", "SIGNOFF"]
+
+
+EmailOutputSupportV1 = Annotated[
+    EmailSourceQuoteSupportV1 | EmailTaskIntentSupportV1 | EmailConventionalSupportV1,
+    Field(discriminator="support_kind"),
+]
 
 
 class EmailOutputParagraphV1(EmailContract):

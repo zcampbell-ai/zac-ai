@@ -213,7 +213,7 @@ def test_bad_output_support_rejects(req, mutation):
         raw["subject_support"] = None
     message = (
         "email model output unavailable or invalid"
-        if set(raw) - {"format", "subject", "subject_support", "paragraphs", "blocking_question"}
+        if mutation in {"recipient_field", "authority", "task_fact", "mixed_support"}
         else "email candidate unavailable or invalid"
     )
     with pytest.raises(ValueError, match="^" + message + "$") as error:

@@ -1,5 +1,34 @@
 # Zac AI Roadmap
 
+### 2026-10-13: Evidence branches pass actual contextual drafting
+
+The model-facing email schema now encodes three mutually exclusive evidence
+branches. Source quotes require source IDs and null instruction/convention fields;
+task intent permits proposals with an exact instruction and no source IDs;
+conventions permit only greetings/signoffs. Valid six-field output shape remains
+unchanged. These rules already existed in the candidate resolver; they now guide
+the backend grammar and reject illegal combinations at parsing.
+
+Root independently verified 184 affected tests and strict types across 234 sources.
+A fresh invented PUBLIC local run completed in 22.70 seconds, with 2,902 input tokens
+matching the offline count and 601 output tokens. It selected the right project,
+used source quotes for project details, omitted unrelated work and added no delivery
+commitment. Opus accepted the code; a short confirmation review also accepted it.
+The first review had repetitive output and is preserved as an efficiency failure;
+future code-only reviews use an explicit reviewer prompt, all-tool denial and finite
+output/turn/time limits. The final confirmation completed in 26.23 seconds.
+
+The owner approved the exact ChatGPT-assisted Vitamin Shoppe draft as useful and
+sounding like them. That private feedback is associated with the local snapshot,
+not copied into Git or promoted to a universal writing rule. No sending approved.
+The independent PUBLIC semantic paired assay distinguished the bad evidence
+attribution from its corrected control, but remains held on token-count mismatch
+(3,594 offline versus 3,574 backend, cached 0). No count adjustment was made.
+
+Actual private canonical task capture, processing admission, retained output and
+independent protected release still require the next BRAINSTORM integration joins.
+These tests and wording feedback do not establish native Caz or iPhone readiness.
+
 ### 2026-10-13: Actual public email trials and evidence correction
 
 Invented-data local trials verified the pinned backend and full offline input count.
