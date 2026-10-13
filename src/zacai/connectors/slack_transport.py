@@ -107,6 +107,7 @@ class SlackReadTransport:
         result: SlackReply | None = None
         failure = "Slack transport failed"
         throttle: int | None = None
+        fatal: BaseException | None = None
         try:
             secret = key.get_secret_value()
             if not secret or len(secret) > 4096 or any(not 33 <= ord(c) <= 126 for c in secret):
@@ -151,12 +152,19 @@ class SlackReadTransport:
             result = SlackReply(raw, scopes)
         except Exception:  # noqa: BLE001,S110 - do not expose private diagnostics or contexts
             pass
+        except BaseException as error:  # noqa: BLE001 - retain cancellation through cleanup
+            fatal = error
         finally:
             if connection is not None:
                 try:
                     connection.close()
-                except Exception:  # noqa: BLE001,S110
-                    pass
+                except BaseException as cleanup:  # noqa: BLE001 - cleanup uncertainty denies reply
+                    result = None
+                    throttle = None
+                    if fatal is None and not isinstance(cleanup, Exception):
+                        fatal = cleanup
+        if fatal is not None:
+            raise fatal
         if throttle is not None:
             raise SlackThrottleError(throttle)
         if result is None:
