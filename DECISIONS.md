@@ -7443,6 +7443,16 @@ capture paths do. They grant no processing or current-fact authority. Capture,
 generation consent, semantic assessment and manual-use release remain distinct.
 No successful test or manual-use release authorizes sending or outreach.
 
+### 2026-10-13: A held summary stays a conditional draft
+
+A separate derived summary can show useful overview/items alongside one material
+question, while canonical packet bytes and existing delivery gates remain intact.
+Use neutral draft headings: exact quoted spans alone do not prove entailment.
+When a material conflict or clarification exists, explicitly say the displayed
+items may change once it is resolved. Preserve inferred/proposed labels and do
+not imply a possibly superseded commitment is current. This helper remains
+unmounted until the actual delivery path is separately validated.
+
 ### 2026-10-13: Nullable app leaf parts preserve original evidence
 
 The connected app can serialize a leaf MIME part with `parts: null`. Treat that

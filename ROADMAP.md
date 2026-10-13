@@ -3802,3 +3802,17 @@ exact raw and literal-body parity in a private staging folder. This is source
 preparation only: no canonical import, model inference, credential access,
 listener or communication occurred. The original representation failures remain
 part of the evidence, rather than being mistaken for real task acceptance.
+
+### 2026-10-13: Held context summary without release confusion
+
+Added a separate pure draft-summary helper showing overview/items and only the
+first material conflict or clarification. Existing canonical renderers and packet
+bytes remain unchanged. A fixed caveat precedes items whenever a gap may change
+them; neutral draft headings avoid claiming semantic verification from quotes.
+
+DeepSeek authored the helper and two bounded corrections after Opus identified
+overconfident headings and missing conditional labeling. Root proved 66 focused
+offline cases including complete canonical packet byte/hash invariance. Strict
+affected-source typing and Ruff pass; complete follow-up Opus review accepted.
+Original failed fixture and rejected review remain preserved. The helper is
+unmounted, grants no release and does not prove actual model or task usefulness.

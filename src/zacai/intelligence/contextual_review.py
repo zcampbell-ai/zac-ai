@@ -257,3 +257,74 @@ def render_contextual_delivery_preview(review: ContextualReview, context: Review
     canonical = render_contextual_preview(review, context)
     content = canonical if review.conflicts or review.clarifications else _full_preview(review, delivery=True)
     return "Draft for review\n\n" + content
+
+
+def render_contextual_held_summary_preview(review: ContextualReview, context: ReviewContext) -> str:
+    """Draft summary preview while material gaps hold the full draft.
+
+    Pure and side-effect free. Validates the complete review/context first, then
+    shows draft overview and draft items. When any material gap exists, a fixed
+    concise caveat is inserted before "Draft items:", then only the first
+    material gap is shown in the existing conflicts-before-clarifications order.
+    Any remaining gaps are retained but merely counted, never listed as
+    questions. Conflicts stay explicitly unresolved; nothing is confirmed,
+    agreed, completed or newly released. Inferred/proposed labels and
+    unconfirmed ownership/date semantics are preserved. No em dashes in new
+    labels.
+    """
+    review = validate_contextual_review(review, context)
+
+    lines = ["Contextual draft summary preview", "Label: held for review (draft)"]
+
+    if review.overview:
+        lines.append("Draft overview:")
+        lines.extend("- " + _text(claim) for claim in review.overview)
+    else:
+        lines.append("Draft overview: none recorded in this draft.")
+
+    gaps = (*review.conflicts, *review.clarifications)
+    if gaps:
+        lines.append("Draft items may change once the material gap is resolved.")
+
+    lines.append("Draft items:")
+    if review.items:
+        for item in review.items:
+            details = []
+            if item.owner:
+                details.append("proposed owner: " + item.owner)
+            elif item.kind in (ItemKind.COMMITMENT, ItemKind.FOLLOW_UP):
+                details.append("owner unconfirmed")
+            if item.due_date:
+                details.append("proposed date: " + item.due_date.isoformat())
+            lines.append(
+                "- "
+                + item.kind.value.title().replace("_", " ")
+                + ": "
+                + _text(item)
+                + (" (" + "; ".join(details) + ")" if details else "")
+            )
+    else:
+        lines.append("None recorded in this draft.")
+
+    if not gaps:
+        lines.append(
+            "No material gap is recorded, but this remains a draft held for review."
+        )
+        lines.append("It is not released or confirmed by this preview.")
+        return "\n".join(lines)
+
+    gap = gaps[0]
+    if isinstance(gap, EvidenceConflict):
+        lines.append("First material gap: conflicting accounts, unresolved.")
+    else:
+        lines.append("First material gap: missing context, unresolved.")
+    lines.append(_text(gap))
+    lines.append(gap.question)
+    lines.append("Why it matters: " + gap.reason)
+
+    retained = len(gaps) - 1
+    if retained:
+        lines.append(
+            f"{retained} additional material gap(s) retained for follow-up."
+        )
+    return "\n".join(lines)
