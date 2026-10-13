@@ -3707,3 +3707,25 @@ Inference remains invented fixture behavior, not a real private model result.
 Next connect faithfully preserved real source observations into this workflow and
 prove owner usefulness. No route/service, fresh-session historical reader, phone
 readiness, Gmail draft or outbound communication is implemented by this slice.
+
+### 2026-10-13: Faithful Gmail app-observation reader
+
+Added exact as-returned EMAIL artifact preparation, explicit unverified account,
+role/date and attachment/thread coverage, and a current canonical pair reader that
+joins the existing email specification. It preserves original JSON and selected
+whole body, rejects Source/ACL/revision/byte drift and does not fabricate native
+provider RAW/profile or ChatGPT view records. Existing native provider preparation
+functions are unchanged; only two app-specific artifact kinds are added.
+
+Root ran ten genuine canonical-reader PostgreSQL cases, including valid latest
+lineage and earlier raw custody with later companion inspection, and 66 offline
+bridge/native compatibility cases. The original reader failed four causal whitespace
+controls; fixed data-only framing preserves literal edges and CRLF through the
+unchanged canonical Text contract, task, specification and serialized request.
+Strict typing/lint passed. Complete dependency-context Opus review and focused
+framing review accepted; the initial REQUEST_CHANGES receipt is preserved.
+
+This layer does not authenticate capture, recovery, acquisition account or model
+processing. Next integrate actual original-owner app capture/protection/input
+admission and prove the real client task. No model/service/Gmail draft or outbound
+communication is added. Private native usefulness and phone readiness remain open.

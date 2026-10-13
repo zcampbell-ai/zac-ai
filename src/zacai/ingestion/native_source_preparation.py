@@ -35,6 +35,7 @@ class NativeSourcePreparationError(ValueError):
 ArtifactKind = Literal[
     'provider-profile-json', 'provider-message-json', 'decoded-rfc822',
     'provider-account-json', 'provider-page-json', 'canonical-message-json',
+    'app-observation-json', 'app-observation-companion-json',
 ]
 
 

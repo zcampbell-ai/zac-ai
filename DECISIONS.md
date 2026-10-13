@@ -7400,3 +7400,26 @@ writes can leave confidential noncanonical artifacts. The protection layer compo
 with the host's original-session expiry checks; it is not a standalone owner grant.
 Actual phone, fresh-session history and primary correspondence readiness remain
 unproved. Original-source roles/dates and independent model permissions are preserved.
+
+### 2026-10-13: App observations remain explicitly unverified evidence
+
+Preserve complete returned JSON and one selected whole body representation with
+an exact companion. Account association and sender/quoted roles remain unverified;
+reported message dates stay separate from raw custody, companion inspection and
+capture. Canonical EMAIL rows and current-tip/ACL checks establish custody integrity,
+not provider identity. A previously retained identical raw observation may be
+inspected later without rewriting its original Source capture time.
+
+Full namespace lineage deliberately repeats selected current Source columns across
+multiple rows. Preserve complete before/after preimages rather than requiring one
+row and rejecting legitimate revisions. Inherited EmailContract always revalidates
+copied scopes; shared row predicates bind exact hash/boundary/effective labels.
+
+Wrap selected body in fixed data-only labels to preserve leading/trailing whitespace
+through the unchanged canonical Text normalization. Originals and companion body
+hashes remain exact. Labels are not an injection/security boundary, message content
+or owner instruction. Source quotation still concerns an unverified derived passage;
+human review must evaluate actual body support, not infer a message claim from labels.
+Selected bodies are nonblank and bounded at 12,000 codepoints, below the existing
+100,000-character Text ceiling after framing. No permission or current fact follows
+from successful parsing, reader tests or a declaration flag.
