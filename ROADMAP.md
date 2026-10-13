@@ -1,5 +1,25 @@
 # Zac AI Roadmap
 
+### 2026-10-13: Actual public email trials and evidence correction
+
+Invented-data local trials verified the pinned backend and full offline input count.
+The simple draft completed in 19.85 seconds (2,186 input, 409 output tokens), kept
+concise wording and avoided an unapproved delivery promise. A contextual trial
+completed in 19.24 seconds (2,280 input, 450 output) and chose the right project,
+but semantic inspection found source-only details falsely attributed to the short
+current task instruction. Its structurally valid candidate is not accepted.
+
+Reviewed prompt guidance now distinguishes source-derived details from task intent
+and omits unrelated project exclusions from the client email. Two fresh corrective
+trials improved source citation but failed the existing resolver because SOURCE_QUOTE
+also supplied instruction_text. Both remain held. Opus accepted the final prompt
+correction; 84 affected tests passed. The next bounded change encodes mutually
+exclusive support fields in the model schema instead of relying on prose alone.
+
+No private source processing, canonical import, native authenticated task execution,
+independent runtime review or sending occurred. Actual private email readiness still
+requires the existing BRAINSTORM admission, protection and review joins.
+
 ### 2026-10-13: Passive local email model preparation
 
 The email family now has a local payload, exact offline tokenizer count and closed
