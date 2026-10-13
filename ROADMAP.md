@@ -3685,3 +3685,25 @@ Root validation: 86 guarded parser/preparation/counter checks and 21 existing
 session/review controls passed on the corrected current-source snapshot. Strict
 types and Ruff passed. No SQL, model dispatch or private record processing occurred
 in these tests. Opus reviewed code and invented controls only.
+
+### 2026-10-13: Human email assessment and manual-use release
+
+Installed original-session read of completed protected email output, followed by
+actual owner ACCEPT/DECLINE/DEFER assessment and a separate protected manual-use
+release. Review may outlive the original ten-minute generator window while the
+original owner session remains current; it never renews processing. Whole recipient,
+subject, body, evidence, current Source preimages and canonical assessment lineage
+remain bound. Later decline/defer invalidates an older release. Candidate permission
+flags remain false and release grants no sending.
+
+Nineteen genuine disposable PostgreSQL/native-age/encrypted-session cases passed,
+plus 79 guarded offline controls and one actual cross-process canonical-byte test.
+Strict typing across 243 sources and Ruff passed. Complete code-only Opus review
+accepted the source/test packet; root checked current-tip rejection and unshifted
+recovery coverage. One causal expiry test aligns mutable backup-run audit timestamps
+with its invented host clock; the other recovery tests use unshifted actual time.
+Inference remains invented fixture behavior, not a real private model result.
+
+Next connect faithfully preserved real source observations into this workflow and
+prove owner usefulness. No route/service, fresh-session historical reader, phone
+readiness, Gmail draft or outbound communication is implemented by this slice.

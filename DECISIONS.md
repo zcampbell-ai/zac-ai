@@ -7378,3 +7378,25 @@ subset interpretation; it does not attest local binary identity. Old trial/profi
 pins and holds remain unchanged. Independent code-only Opus review accepted this
 finite parser delta. Root strengthened duplicate injection and one-token capacity
 controls without changing production code after review.
+
+### 2026-10-13: Owner review does not renew email processing
+
+A current original owner session may read a completed recoverable email output
+and assess its exact recipient, full text and evidence after generation consent
+expires. Fresh session/cross-device identity is not inferred from matching actor
+fields. Bind actual CSRF/session/request and the server-published whole manifest;
+acceptance requires an explicit complete-scope confirmation.
+
+Store ACCEPT/DECLINE/DEFER as immutable canonical USER_INSTRUCTION revisions and
+manual-use release as a separate MANUAL record with real recovery. Check current
+Source tips before/after callbacks and under transaction/advisory guards. Receipt
+reconciliation preserves committed custody only, never inference or a new decision.
+Leave candidate flags false and sending unapproved. A later declined/deferred tip
+holds a previous release. Human acceptance is an owner's judgment, not automated
+proof of entailment or current facts.
+
+One published manifest per host is a deliberate current usability limit. Rejected
+writes can leave confidential noncanonical artifacts. The protection layer composes
+with the host's original-session expiry checks; it is not a standalone owner grant.
+Actual phone, fresh-session history and primary correspondence readiness remain
+unproved. Original-source roles/dates and independent model permissions are preserved.
