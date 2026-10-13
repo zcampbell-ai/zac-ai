@@ -58,8 +58,8 @@ class BrainstormEmailInputProtection:
     target lease. Non-cooperating administrators still require an exclusive host
     recovery window. Existing receipts are never overwritten, including corrupt
     ones. Historical full snapshots remain recoverable as unrelated work grows;
-    The selected inventory covers the exact owner instruction and both native
-    original/companion Sources in every selected pair; no contextual packet is used.
+    The selected inventory covers the exact owner instruction and both Sources
+    in each closed native-view or app-observation pair; no contextual packet.
     Selected provenance or current ACL/context changes can hold release. The
     host must reconcile that hold rather than silently replacing its receipt.
     """

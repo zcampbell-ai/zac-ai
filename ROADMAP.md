@@ -3729,3 +3729,31 @@ This layer does not authenticate capture, recovery, acquisition account or model
 processing. Next integrate actual original-owner app capture/protection/input
 admission and prove the real client task. No model/service/Gmail draft or outbound
 communication is added. Private native usefulness and phone readiness remain open.
+
+### 2026-10-13: Original-owner Gmail app input composition
+
+Connected faithful app-observation preparation to the existing original-owner
+email input POST, atomic canonical EMAIL/instruction capture, encrypted checkpoint
+reopen and receipt-only reconciliation. Server-held bytes, selection digest,
+cookie/CSRF, current Source tips and original session remain bound. Existing
+processing consent and human assessment/manual-use release remain separate.
+Native input serialization is unchanged; no service or sending is added.
+
+The predecessor failed all eleven real cases during preparation because recursive
+serialization produced dictionary references. Typed-reference lookup corrects that
+failure without weakening final validation. Twelve genuine disposable PostgreSQL,
+native-age and encrypted-session cases now pass, including current same-hash raw
+custody reuse and non-READ-COMMITTED append refusal. Ninety-nine guarded offline
+controls, strict typing across 246 sources and affected Ruff checks pass. Complete
+code-only Opus review accepted the corrected packet with the locking and
+idempotency dependencies supplied; inherited reader/protection layers were
+previously reviewed separately.
+
+The shared advisory lock already enforces transaction isolation; no duplicate
+gateway was introduced to address the earlier review concern. Evidence lives in
+`/private/tmp/caz-email-app-input-corrected-root-tbnak9tg` and
+`/private/tmp/caz-email-app-input-corrected-opus-rkycg1f1`.
+
+Model inference in the tests is invented. Real source refresh/capture, mounted
+owner actions, actual private generation and owner usefulness remain required.
+App account/sender metadata stays unverified and attachments remain references.

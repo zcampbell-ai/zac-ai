@@ -19,7 +19,7 @@ from urllib.parse import parse_qs, urlsplit
 from uuid import UUID, uuid5
 
 from pydantic import AwareDatetime, Field, StringConstraints, field_validator, model_validator
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 from starlette.requests import Request
 
@@ -31,6 +31,7 @@ from zacai.ingestion.artifact_store import (
     canonical_bytes,
     content_hash_of,
 )
+from zacai.ingestion.gmail_app_observation import GmailAppObservationPreparationV1
 from zacai.intelligence.contextual_storage import _fragment_rows
 from zacai.intelligence.contracts import (
     ContextItem,
@@ -47,6 +48,11 @@ from zacai.intelligence.email_draft import (
     prepare_email_draft_specification,
 )
 from zacai.intelligence.fragment_review_retention import _physical, _same
+from zacai.intelligence.local_followup_runtime import _raise_interruption
+from zacai.interfaces.email_app_input import (
+    EmailAppInputSelectionV1,
+    check_email_app_preparations,
+)
 from zacai.interfaces.named_session_binding import NamedSessionOperation, VerifiedNamedSession
 from zacai.interfaces.private_web import _USER, _cookie
 from zacai.policy import DataClassification as C
@@ -56,6 +62,7 @@ from zacai.state import Source, SourceSystem
 from zacai.state_repository import get_current_source_revision, record_source
 
 if TYPE_CHECKING:
+    from zacai.intelligence.gmail_app_email_source import GmailAppEmailSourceV1
     from zacai.interfaces.email_input_protection import BrainstormEmailInputProtection
 
 _BOUNDS = frozenset({B.BRAINSTORM})
@@ -136,7 +143,9 @@ class EmailOwnerInstructionV1(EmailContract):
     original_text: Annotated[str, StringConstraints(strict=True, min_length=1, max_length=2000)] = (
         Field(repr=False)
     )
-    selection: EmailInputSelectionV1 = Field(repr=False)
+    selection: EmailInputSelectionV1 | EmailAppInputSelectionV1 = Field(
+        repr=False, discriminator="format"
+    )
     recorded_at: AwareDatetime
     processing_authorized: Literal[False] = False
 
@@ -247,6 +256,7 @@ class _EmailOwnerPost:
     instruction: EmailOwnerInstructionV1 = field(repr=False)
     operation: NamedSessionOperation = field(repr=False)
     _key: object = field(repr=False)
+    app_preparations: tuple[GmailAppObservationPreparationV1, ...] = field(default=(), repr=False)
     _once: list[bool] = field(default_factory=lambda: [False], repr=False)
     _lock: Lock = field(default_factory=Lock, repr=False)
 
@@ -272,13 +282,16 @@ def observe_email_input_post(
     body: bytes,
     operation: NamedSessionOperation,
     request_id: UUID,
-    selection: EmailInputSelectionV1,
+    selection: EmailInputSelectionV1 | EmailAppInputSelectionV1,
+    app_preparations: tuple[GmailAppObservationPreparationV1, ...] = (),
 ) -> _EmailOwnerPost:
     """Concrete CSRF/origin/cookie-bound instruction POST, no inference admission.
 
     Controller must supply its original body bytes and server-held selection/request
     ID; a client cannot replace the selected canonical references in the form.
     """
+    interruption: type[BaseException] | None = None
+    exit_code: int | None = 1
     try:
         if (
             type(request) is not Request
@@ -293,7 +306,15 @@ def observe_email_input_post(
             or request.headers.getlist("content-type") != ["application/x-www-form-urlencoded"]
         ):
             raise ValueError("closed original instruction POST required")
-        selection = EmailInputSelectionV1.model_validate(selection)
+        if type(selection) is EmailInputSelectionV1:
+            selection = EmailInputSelectionV1.model_validate(selection)
+            if app_preparations != ():
+                raise ValueError("native action may not carry app observation payloads")
+        elif type(selection) is EmailAppInputSelectionV1:
+            selection = EmailAppInputSelectionV1.model_validate(selection)
+            check_email_app_preparations(selection, app_preparations, operation.host_clock())
+        else:
+            raise ValueError("closed email source input family required")
         continuity = operation._source
         origin = json.loads(continuity._context)["origin"]
         if request.headers.getlist("host") != [urlsplit(origin).netloc] or request.headers.getlist(
@@ -337,9 +358,14 @@ def observe_email_input_post(
             selection=selection,
             recorded_at=now,
         )
-        return _EmailOwnerPost(instruction, operation, _POST_KEY)
-    except Exception:  # noqa: BLE001,S110 - no POST/body/identity diagnostics
-        pass
+        if isinstance(selection, EmailAppInputSelectionV1):
+            check_email_app_preparations(selection, app_preparations, now)
+        return _EmailOwnerPost(instruction, operation, _POST_KEY, app_preparations)
+    except BaseException as error:  # noqa: BLE001 - sanitize original action interruption
+        interruption = type(error)
+        if isinstance(error, SystemExit):
+            exit_code = error.code if error.code is None or type(error.code) is int else 1
+    _raise_interruption(interruption, exit_code)
     raise EmailInputError("email owner instruction not observed")
 
 
@@ -487,13 +513,291 @@ class CanonicalBrainstormEmailInput:
             _read_only(session)
             return loaded, rows
 
+    def prepare_app_selection(
+        self,
+        *,
+        preparations: tuple[GmailAppObservationPreparationV1, ...],
+        recipient: EmailRecipientComparisonV1 | None,
+        max_output_tokens: int,
+        max_latency_ms: int,
+        max_estimated_cost_usd: float,
+    ) -> EmailAppInputSelectionV1:
+        """Current-original-owner read preparation; no capture or processing grant."""
+        from zacai.interfaces.email_app_input import prepare_email_app_input_selection
+
+        result = None
+        interruption: type[BaseException] | None = None
+        exit_code: int | None = 1
+        try:
+            first = self._operation.recheck(self._protection._binding)
+            if not any(
+                s.boundary is B.BRAINSTORM and C.CONFIDENTIAL in s.classifications
+                for s in first.principal.scopes
+            ):
+                raise ValueError("actual current business owner read required")
+            result = prepare_email_app_input_selection(
+                preparations=preparations,
+                recipient=recipient,
+                max_output_tokens=max_output_tokens,
+                max_latency_ms=max_latency_ms,
+                max_estimated_cost_usd=max_estimated_cost_usd,
+            )
+            prior_refs, before = self._app_prior(result)
+            current = {r.content_hash: r for r in prior_refs}
+            # Resolve only exact currently retained same-hash refs. Each expected
+            # namespace is also checked, so unrelated equal bytes cannot be adopted.
+            pairs = []
+            for pair in result.app:
+                data = pair.model_dump(mode="python")
+                for field, expected in (
+                    ("original_reference", pair.original_reference),
+                    ("companion_reference", pair.companion_reference),
+                ):
+                    if expected.content_hash in current:
+                        actual = current[expected.content_hash]
+                        rows = [dict(row) for row in before if dict(row)["id"] == actual.source_id]
+                        namespace = (
+                            pair.raw_namespace
+                            if field == "original_reference"
+                            else pair.companion_namespace
+                        )
+                        if rows and all(row["external_ref"] == namespace for row in rows):
+                            data[field] = actual
+                pairs.append(type(pair).model_validate(data))
+            result = EmailAppInputSelectionV1.model_validate(
+                result.model_copy(update={"app": tuple(pairs)})
+            )
+            check_email_app_preparations(result, preparations, self._operation.host_clock())
+            final = self._operation.recheck(first.binding_digest)
+            if not _same_owner(first, final):
+                raise ValueError("original owner changed during app read preparation")
+            with self._factory() as session:
+                if prior_refs and _current_rows(session, prior_refs) != before:
+                    raise ValueError(
+                        "same-hash canonical app identities changed during owner callback"
+                    )
+            if self._operation.host_clock() >= first.effective_expires_at:
+                raise ValueError("original app selection session expired")
+        except BaseException as error:  # noqa: BLE001 - sanitize original owner interruption
+            result = None
+            interruption = type(error)
+            if isinstance(error, SystemExit):
+                exit_code = error.code if error.code is None or type(error.code) is int else 1
+        _raise_interruption(interruption, exit_code)
+        if result is None:
+            raise EmailInputError("original owner app selection unavailable")
+        return result
+
+    def _app(
+        self, selection: EmailAppInputSelectionV1, recorded_at: datetime
+    ) -> tuple[tuple[GmailAppEmailSourceV1, ...], tuple[tuple[tuple[str, object], ...], ...]]:
+        from zacai.intelligence.gmail_app_email_source import load_gmail_app_email_source
+
+        observed = self._operation.host_clock()
+        with self._factory() as union:
+            union.execute(text("SET TRANSACTION ISOLATION LEVEL READ COMMITTED, READ ONLY"))
+            physical = _physical(union)
+            _read_only(union)
+            before = _current_rows(union, selection.references())
+            loaded = []
+            for pair in selection.app:
+                with self._factory() as s:
+                    source = load_gmail_app_email_source(
+                        s,
+                        self._artifacts,
+                        original_reference=pair.original_reference,
+                        companion_reference=pair.companion_reference,
+                        as_of=observed,
+                        authorized_boundaries=_BOUNDS,
+                        allowed_classifications=_LABELS,
+                    )
+                if (
+                    source.preparation.artifacts[0].external_ref != pair.raw_namespace
+                    or source.preparation.artifacts[1].external_ref != pair.companion_namespace
+                    or source.preparation.companion.scope.inspected_at != pair.inspected_at
+                    or source.raw_source_captured_at > recorded_at
+                    or source.companion_source_captured_at > recorded_at
+                ):
+                    raise ValueError("exact app source custody must precede original instruction")
+                loaded.append(source)
+            if _current_rows(union, selection.references()) != before:
+                raise ValueError("complete app source preimages changed during literal reads")
+            _same(union, physical)
+            _read_only(union)
+            return tuple(loaded), before
+
+    def _app_prior(
+        self, selection: EmailAppInputSelectionV1
+    ) -> tuple[tuple[EvidenceReference, ...], tuple[tuple[tuple[str, object], ...], ...]]:
+        refs = []
+        from zacai.state_repository import get_current_source_revision
+
+        with self._factory() as session:
+            session.execute(text("SET TRANSACTION ISOLATION LEVEL READ COMMITTED, READ ONLY"))
+            for pair in selection.app:
+                for namespace in (pair.raw_namespace, pair.companion_namespace):
+                    foreign = list(
+                        session.execute(
+                            select(Source.id, Source.system, Source.trust_boundary)
+                            .where(Source.external_ref == namespace)
+                            .limit(130)
+                        )
+                    )
+                    if len(foreign) > 129 or any(
+                        row.system is not SourceSystem.EMAIL
+                        or row.trust_boundary is not B.BRAINSTORM
+                        for row in foreign
+                    ):
+                        raise ValueError("closed app namespace conflict")
+                    prior = get_current_source_revision(
+                        session,
+                        system=SourceSystem.EMAIL,
+                        external_ref=namespace,
+                        trust_boundary=B.BRAINSTORM,
+                    )
+                    if prior is not None:
+                        if type(prior.content_hash) is not str:
+                            raise ValueError("exact prior app artifact digest required")
+                        refs.append(
+                            EvidenceReference(
+                                source_id=prior.id,
+                                content_hash=prior.content_hash,
+                                trust_boundary=B.BRAINSTORM,
+                                effective_classification=C.CONFIDENTIAL,
+                            )
+                        )
+            return tuple(refs), _current_rows(session, tuple(refs)) if refs else ()
+
+    def _capture_app(self, post: _EmailOwnerPost) -> SavedEmailInputV1:
+        value = post.instruction
+        if not isinstance(value.selection, EmailAppInputSelectionV1):
+            raise TypeError("closed app original action required")
+        selection = value.selection
+        check_email_app_preparations(selection, post.app_preparations, value.recorded_at)
+        self._owner(value)
+        prior_refs, prior_rows = self._app_prior(selection)
+        prior_ids = {r.source_id for r in prior_refs}
+        raw = encode_email_owner_instruction(value)
+        digest = content_hash_of(raw)
+        plans = tuple(a for p in post.app_preparations for a in p.artifacts)
+        refs = selection.references()
+        locations = []
+        for plan in plans:
+            location = self._artifacts.put(B.BRAINSTORM, plan.content_hash, plan.original_bytes)
+            if (
+                self._artifacts.get_bounded(B.BRAINSTORM, location, max_bytes=128000)
+                != plan.original_bytes
+            ):
+                raise ValueError("exact app artifact custody readback differs")
+            locations.append(location)
+        instruction_location = self._artifacts.put(B.BRAINSTORM, digest, raw)
+        if self._artifacts.get_bounded(B.BRAINSTORM, instruction_location, max_bytes=40000) != raw:
+            raise ValueError("exact app owner instruction artifact differs")
+        self._owner(value)  # Last actual owner callback before canonical append.
+        with self._factory() as session:
+            _lock(session, value.request_id)
+            for namespace in sorted(plan.external_ref for plan in plans):
+                _lock(session, uuid5(_NAMESPACE, "app-capture-namespace/" + namespace))
+            physical = _physical(session)
+            if (
+                _find(
+                    session,
+                    f"email-owner-instruction/{value.request_id}",
+                    SourceSystem.USER_INSTRUCTION,
+                )
+                is not None
+            ):
+                raise ValueError("original app input action replayed")
+            if prior_refs and _current_rows(session, prior_refs) != prior_rows:
+                raise ValueError("prior app Source preimages changed during artifact callbacks")
+            # The locked namespace union must still contain exactly the previously
+            # observed tips, including no new first insert after preparation.
+            from zacai.state_repository import get_current_source_revision
+
+            actual_ids = set()
+            for plan in plans:
+                foreign = list(
+                    session.execute(
+                        select(Source.id, Source.system, Source.trust_boundary)
+                        .where(Source.external_ref == plan.external_ref)
+                        .limit(130)
+                    )
+                )
+                if len(foreign) > 129 or any(
+                    row.system is not SourceSystem.EMAIL or row.trust_boundary is not B.BRAINSTORM
+                    for row in foreign
+                ):
+                    raise ValueError("app source namespace changed")
+                tip = get_current_source_revision(
+                    session,
+                    system=SourceSystem.EMAIL,
+                    external_ref=plan.external_ref,
+                    trust_boundary=B.BRAINSTORM,
+                )
+                if tip is not None:
+                    actual_ids.add(tip.id)
+                matching = list(
+                    session.scalars(
+                        select(Source)
+                        .where(
+                            Source.external_ref == plan.external_ref,
+                            Source.content_hash == plan.content_hash,
+                        )
+                        .limit(2)
+                    )
+                )
+                if len(matching) > 1 or matching and (tip is None or matching[0].id != tip.id):
+                    raise ValueError(
+                        "historical app observation cannot revive a stale current source"
+                    )
+            if actual_ids != prior_ids:
+                raise ValueError("original app namespace tips changed")
+            _same(session, physical)
+            if self._operation.host_clock() >= value.original_session_expires_at:
+                raise ValueError("original app capture session expired before append")
+            for plan, ref, location in zip(plans, refs, locations, strict=True):
+                source, _ = record_source(
+                    session,
+                    trust_boundary=B.BRAINSTORM,
+                    data_classification=C.CONFIDENTIAL,
+                    system=SourceSystem.EMAIL,
+                    external_ref=plan.external_ref,
+                    content_hash=plan.content_hash,
+                    content_location=location,
+                    captured_at=value.recorded_at,
+                    preallocated_source_id=ref.source_id,
+                )
+                if source.id != ref.source_id or source.captured_at > value.recorded_at:
+                    raise ValueError("actual canonical app source identity/time differs")
+            source, _ = record_source(
+                session,
+                trust_boundary=B.BRAINSTORM,
+                data_classification=C.CONFIDENTIAL,
+                system=SourceSystem.USER_INSTRUCTION,
+                external_ref=f"email-owner-instruction/{value.request_id}",
+                content_hash=digest,
+                content_location=instruction_location,
+                captured_at=value.recorded_at,
+            )
+            scope = EmailInputCheckpointScope(source.id, digest, value.recorded_at)
+            _same(session, physical)
+            if self._operation.host_clock() >= value.original_session_expires_at:
+                raise ValueError("original app capture session expired before commit")
+            session.commit()
+        receipt = self._protection.protect(scope)
+        return self.load(scope, receipt)
+
     def capture(self, post: _EmailOwnerPost) -> SavedEmailInputV1:
+        interruption: type[BaseException] | None = None
+        exit_code: int | None = 1
         try:
             if type(post) is not _EmailOwnerPost or post.operation is not self._operation:
                 raise ValueError("actual original email post required")
             post.consume()
             value = post.instruction
             self._owner(value)
+            if isinstance(value.selection, EmailAppInputSelectionV1):
+                return self._capture_app(post)
             _, expected = self._native(value.selection, value.recorded_at)
             self._owner(value)
             raw = encode_email_owner_instruction(value)
@@ -532,8 +836,11 @@ class CanonicalBrainstormEmailInput:
                 session.commit()
             receipt = self._protection.protect(scope)
             return self.load(scope, receipt)
-        except Exception:  # noqa: BLE001,S110 - post-commit failure remains pending custody
-            pass
+        except BaseException as error:  # noqa: BLE001 - sanitize original input interruption
+            interruption = type(error)
+            if isinstance(error, SystemExit):
+                exit_code = error.code if error.code is None or type(error.code) is int else 1
+        _raise_interruption(interruption, exit_code)
         raise EmailInputError("email input not captured and protected; reconcile pending custody")
 
     def reconcile(self, request_id: UUID) -> SavedEmailInputV1:
@@ -542,6 +849,8 @@ class CanonicalBrainstormEmailInput:
         Requires this exact original operation/session. Immutable receipt corruption
         holds. Nothing here renews expiry, writes a new instruction or replays capture.
         """
+        interruption: type[BaseException] | None = None
+        exit_code: int | None = 1
         try:
             if type(request_id) is not UUID or request_id.int == 0:
                 raise ValueError("original instruction identity required")
@@ -573,13 +882,18 @@ class CanonicalBrainstormEmailInput:
             # The real concrete protector issues/reopens the immutable receipt.
             receipt = self._protection.protect(scope)
             return self.load(scope, receipt)
-        except Exception:  # noqa: BLE001,S110 - never acknowledge guessed/pending custody
-            pass
+        except BaseException as error:  # noqa: BLE001 - sanitize original input interruption
+            interruption = type(error)
+            if isinstance(error, SystemExit):
+                exit_code = error.code if error.code is None or type(error.code) is int else 1
+        _raise_interruption(interruption, exit_code)
         raise EmailInputError("original email custody reconciliation unavailable")
 
     def load(
         self, scope: EmailInputCheckpointScope, receipt: EmailInputRecoveryReceiptV1
     ) -> SavedEmailInputV1:
+        interruption: type[BaseException] | None = None
+        exit_code: int | None = 1
         try:
             self._protection.recheck(scope, receipt)
             ref = EvidenceReference(
@@ -594,7 +908,14 @@ class CanonicalBrainstormEmailInput:
                 if _current_rows(session, (ref,)) != instruction_rows:
                     raise ValueError("instruction preimage changed during canonical read")
             self._owner(value)
-            loaded, native_rows = self._native(value.selection, value.recorded_at)
+            loaded: tuple[LoadedChatGPTNativeView, ...]
+            app_loaded: tuple[GmailAppEmailSourceV1, ...]
+            if isinstance(value.selection, EmailAppInputSelectionV1):
+                app_loaded, native_rows = self._app(value.selection, value.recorded_at)
+                loaded = ()
+            else:
+                loaded, native_rows = self._native(value.selection, value.recorded_at)
+                app_loaded = ()
             expected_rows = _source_row_groups(instruction_rows)
             native_groups = _source_row_groups(native_rows)
             if set(expected_rows) & set(native_groups):
@@ -630,29 +951,45 @@ class CanonicalBrainstormEmailInput:
                 event=event,
                 required_capabilities=frozenset({"email_draft"}),
                 instruction=value.original_text,
-                context=tuple(
-                    ContextItem(reference=p.original_reference, untrusted_text=p.selected_text)
-                    for p in loaded
+                context=(
+                    tuple(item for source in app_loaded for item in source.context_items())
+                    if isinstance(value.selection, EmailAppInputSelectionV1)
+                    else tuple(
+                        ContextItem(reference=p.original_reference, untrusted_text=p.selected_text)
+                        for p in loaded
+                    )
                 ),
                 max_output_tokens=value.selection.max_output_tokens,
                 max_latency_ms=value.selection.max_latency_ms,
                 max_estimated_cost_usd=value.selection.max_estimated_cost_usd,
             )
-            if task.instruction != value.original_text or any(
-                c.untrusted_text != p.selected_text
-                for c, p in zip(task.context, loaded, strict=True)
+            if task.instruction != value.original_text or (
+                not isinstance(value.selection, EmailAppInputSelectionV1)
+                and any(
+                    c.untrusted_text != p.selected_text
+                    for c, p in zip(task.context, loaded, strict=True)
+                )
             ):
                 raise ValueError("literal input normalization forbidden")
-            spec = prepare_email_draft_specification(
-                task=task,
-                recipient=value.selection.recipient,
-                sources=tuple(
-                    EmailSourceMetadataV1(
-                        reference=c.reference, reported_role="UNKNOWN", reported_at=None
-                    )
-                    for c in task.context
-                ),
-            )
+            if isinstance(value.selection, EmailAppInputSelectionV1):
+                from zacai.intelligence.gmail_app_email_source import (
+                    prepare_gmail_app_email_specification,
+                )
+
+                spec = prepare_gmail_app_email_specification(
+                    task=task, observations=app_loaded, recipient=value.selection.recipient
+                )
+            else:
+                spec = prepare_email_draft_specification(
+                    task=task,
+                    recipient=value.selection.recipient,
+                    sources=tuple(
+                        EmailSourceMetadataV1(
+                            reference=c.reference, reported_role="UNKNOWN", reported_at=None
+                        )
+                        for c in task.context
+                    ),
+                )
             self._protection.recheck(scope, receipt)
             self._owner(value)
             with self._factory() as session:
@@ -675,6 +1012,9 @@ class CanonicalBrainstormEmailInput:
             if self._operation.host_clock() >= value.original_session_expires_at:
                 raise ValueError("original owner window expired before input release")
             return SavedEmailInputV1(ref, spec, value, receipt)
-        except Exception:  # noqa: BLE001,S110 - no decoded private input in diagnostics
-            pass
+        except BaseException as error:  # noqa: BLE001 - sanitize original input interruption
+            interruption = type(error)
+            if isinstance(error, SystemExit):
+                exit_code = error.code if error.code is None or type(error.code) is int else 1
+        _raise_interruption(interruption, exit_code)
         raise EmailInputError("email canonical input unavailable or unprotected")

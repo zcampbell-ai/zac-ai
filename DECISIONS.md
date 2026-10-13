@@ -7423,3 +7423,22 @@ human review must evaluate actual body support, not infer a message claim from l
 Selected bodies are nonblank and bounded at 12,000 codepoints, below the existing
 100,000-character Text ceiling after framing. No permission or current fact follows
 from successful parsing, reader tests or a declaration flag.
+
+### 2026-10-13: Reuse the existing email input path for app observations
+
+Use a closed app selection in the existing original-owner POST and protection
+path. Preserve literal instruction and native serialization. Validate server-held
+preparations and current identities rather than treating a caller declaration as
+provider authentication or permission. Resolve same-hash identities from typed
+references before recursive serialization; revalidate the complete selection.
+
+Canonical app capture takes existing request and namespace locks. The shared
+`_lock` enforces READ COMMITTED before append. `record_source` returns an exact
+same-hash/preallocated identity unchanged; locked current-tip checks separately
+prevent historical revision revival. Earlier raw custody remains dated correctly
+when a later companion inspection is recorded.
+
+Refused capture can leave noncanonical content-addressed artifacts, as existing
+capture paths do. They grant no processing or current-fact authority. Capture,
+generation consent, semantic assessment and manual-use release remain distinct.
+No successful test or manual-use release authorizes sending or outreach.
