@@ -7312,3 +7312,25 @@ serving path retains auto mode. LOCAL execution disarms both interrupt handlers
 before raising its first interrupt, then retains existing physical drain and
 restoration behavior. Fixed diagnostic observations provide no source-access or
 owner-readiness authority. A consumed failed startup is not replayable.
+
+### Business email input custody and original-session reconciliation (2026-10-13)
+
+Use canonical USER_INSTRUCTION Sources and the existing Zac Event/IntelligenceTask
+contracts for email input, with a distinct closed email-input recovery prefix.
+Do not fabricate a contextual meeting packet or reuse a PERSONAL grant. The
+original observed POST is consumed once, and a fresh POST cannot replay its
+request ID. A committed instruction whose receipt write fails can be protected
+and reopened only under its original still-valid named owner session, without
+rewriting the instruction or renewing permission. Expired or changed-session
+pending custody stays held for operator reconciliation, not automatic replay.
+
+Canonical readers use READ COMMITTED with read-only transactions where applicable.
+Retain the verified instruction/native row preimages through callbacks and compare
+them again before release. A commit race can leave pending custody; it cannot
+establish a successful input acknowledgment. Preserve exact instruction and source
+text or hold if existing text normalization would alter them. Custody chronology
+is not a historical message date, and mixed-source role metadata stays unknown.
+
+This slice is custody only. Processing, generation, independent semantic review,
+output recovery and owner release require their own concrete existing-roadmap
+joins. No outreach or private model use is authorized by capture or code review.

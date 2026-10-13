@@ -3619,3 +3619,26 @@ This closes retained task recovery, not the missing owner processing/runtime
 joins or successful independent review of a useful task. The latest actual local
 model trial remains held at independent review; lossless review-input preparation
 is the next separate change.
+
+### 2026-10-13: Canonical business email input custody
+
+Added the first closed BRAINSTORM email input path. An observed original owner POST
+binds the exact instruction to one or two retained canonical ChatGPT view pairs.
+The path stores the instruction in Zac State, verifies current Source/ACL/lineage
+rows, protects and recovers the instruction and dependencies through existing
+encrypted artifact/State/journal machinery, then assembles the existing Zac Event,
+IntelligenceTask and email specification. Reported roles and dates remain unknown
+when the whole source cannot authenticate them.
+
+Thirteen genuine disposable PostgreSQL/native-age cases passed, including actual
+ACL/revision changes during callbacks, replay denial, ciphertext corruption and
+original-session-only pending-custody reconciliation. Twenty owner/session/codec
+unit cases, strict typing across 236 sources and Ruff passed. Independent code-only
+Opus review accepted the frozen slice. Local recovery proves mechanics, not live
+off-device availability or deployment.
+
+The route is not mounted. This checkpoint grants no model processing, semantic
+acceptance, email sending or Gmail draft creation. Next integrate the exact email
+processing admission and internally gated generation, protected output and review,
+then checked owner release. LinkedIn/X and PERSONAL finance acceptance remain in
+the existing Goal; this input slice is not useful native workflow completion.
