@@ -16,7 +16,10 @@ from zacai.intelligence.email_draft import (
     EmailDraftSpecificationV1,
 )
 from zacai.intelligence.email_generation import prepare_email_generation_request
-from zacai.intelligence.email_local_wire import prepare_email_local_payload
+from zacai.intelligence.email_local_wire import (
+    context_tokens_for_route,
+    prepare_email_local_payload,
+)
 from zacai.interfaces.email_input import EmailInputRecoveryReceiptV1
 
 ACTION = "Generate this exact email candidate once locally for my review. Do not send it."
@@ -53,7 +56,7 @@ class EmailProcessingManifestV1(EmailContract):
     request_digest: Digest
     body_digest: Digest
     schema_digest: Digest
-    full_prompt_tokens: int = Field(strict=True, ge=1, le=8192)
+    full_prompt_tokens: int = Field(strict=True, ge=1, le=16384)
 
     @model_validator(mode="after")
     def bindings(self) -> Self:
@@ -68,7 +71,7 @@ class EmailProcessingManifestV1(EmailContract):
             or self.schema_digest != content_hash_of(request.schema_json.encode())
             or self.body_digest
             != content_hash_of(prepare_email_local_payload(request, self.route, self.model_digest))
-            or self.full_prompt_tokens + task.max_output_tokens > 8192
+            or self.full_prompt_tokens + task.max_output_tokens > context_tokens_for_route(self.route)
             or self.route.estimated_cost_usd != 0
         ):
             raise ValueError("exact finite email manifest required")

@@ -46,10 +46,13 @@ class NoProvider:
 
 
 @pytest.fixture
-def web_case(genuine_case, tmp_path, monkeypatch):
+def web_case(genuine_case, tmp_path, monkeypatch, request):
     f = genuine_case
+    large = getattr(request, "param", None) == "16k"
     returned = observation()
     returned["payload"]["parts"][0]["body"]["content"] = "<script>INVENTED_SOURCE</script>\n"
+    if large:
+        returned["payload"]["parts"][0]["body"]["content"] += "x," * 5500
     prep = prepare_gmail_app_observation(**args(returned, inspected_at=f.clock()))
     model_root = tmp_path / "synthetic-model-files"
     model_root.mkdir()
@@ -58,7 +61,7 @@ def web_case(genuine_case, tmp_path, monkeypatch):
         identity={
             "provider_id": "ollama",
             "model_id": "qwen3.8:27b-mlx",
-            "runtime_id": "mac-loopback-email-8k",
+            "runtime_id": "mac-loopback-email-16k" if large else "mac-loopback-email-8k",
         },
         destination="LOCAL",
         capabilities=frozenset({"email_draft"}),
@@ -100,7 +103,7 @@ def web_case(genuine_case, tmp_path, monkeypatch):
         manifest = controller._manifest
         assert manifest is not None
         assert counter.count_prompt_tokens(body) == manifest.full_prompt_tokens
-        assert json.loads(body)["options"]["num_ctx"] == 8192
+        assert json.loads(body)["options"]["num_ctx"] == (16384 if large else 8192)
         if callback[0]:
             callback[0]()
         support = {
@@ -496,3 +499,15 @@ def test_actual_asgi_blank_request_explains_no_custody_without_private_details(w
     assert c.calls == [] and c.controller._phase == "NEW"
     assert source_count(c, "email-owner-instruction/") == before
     assert "invented-email-owner" not in response.text
+
+
+@pytest.mark.parametrize("web_case", ["16k"], indirect=True)
+def test_actual_asgi_large_email_context_reaches_review_without_truncation(web_case):
+    c=web_case
+    output=generate(c)
+    assert c.controller._manifest is not None
+    assert c.controller._manifest.full_prompt_tokens + c.controller._manifest.specification.task().max_output_tokens > 8192
+    assert c.controller._manifest.full_prompt_tokens + c.controller._manifest.specification.task().max_output_tokens <= 16384
+    assert c.controller._manifest.route.identity.runtime_id == "mac-loopback-email-16k"
+    assert output.status_code == 200 and c.calls.count("/api/chat")==1
+    assert c.controller._release is None

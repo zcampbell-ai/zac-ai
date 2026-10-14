@@ -30,6 +30,7 @@ from zacai.config import get_secret
 from zacai.contextual_protection import BrainstormContextualProtector
 from zacai.ingestion.artifact_store import LocalFilesystemArtifactStore
 from zacai.intelligence.contracts import ModelRoute
+from zacai.intelligence.email_local_wire import LARGE_CONTEXT_TOKENS, LARGE_RUNTIME
 from zacai.intelligence.email_processing_runtime import FixedLocalEmailRuntimeV1
 from zacai.intelligence.local_followup_runtime import _raise_interruption
 from zacai.intelligence.ollama_token_counter import OllamaQwenEmailTokenCounter
@@ -164,7 +165,7 @@ class _ConfiguredEmailFactory:
                 identity={
                     "provider_id": "ollama",
                     "model_id": "qwen3.8:27b-mlx",
-                    "runtime_id": "mac-loopback-email-8k",
+                    "runtime_id": LARGE_RUNTIME,
                 },
                 destination="LOCAL",
                 capabilities=frozenset({"email_draft"}),
@@ -374,6 +375,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         public["owner_credential_wait_seconds"] = 60
         public["model_digest"] = _DIGEST
+        public["runtime_id"] = LARGE_RUNTIME
+        public["model_context_tokens"] = LARGE_CONTEXT_TOKENS
         public["execute_command_capable"] = True
         public["execute_requirements"] = (
             "Current callback/escrow confirmation and exact attended terminal attestation; startup is not capture/inference/send consent."

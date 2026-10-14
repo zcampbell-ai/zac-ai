@@ -57,7 +57,7 @@ class EmailLoopbackTransport(FollowupLoopbackTransport):
         options = value["options"]
         if (
             value.get("model") != email_local_wire.MODEL
-            or options.get("num_ctx") != 8192
+            or options.get("num_ctx") not in (8192, 16384)
             or type(options.get("num_ctx")) is not int
             or type(options.get("num_predict")) is not int
             or not 1 <= options["num_predict"] <= 2048

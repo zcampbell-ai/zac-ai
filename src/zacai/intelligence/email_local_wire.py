@@ -32,6 +32,8 @@ MODEL = "qwen3.8:27b-mlx"
 RUNTIME = "mac-loopback-email-8k"
 CAPABILITY = "email_draft"
 CONTEXT_TOKENS = 8192
+LARGE_RUNTIME = "mac-loopback-email-16k"
+LARGE_CONTEXT_TOKENS = 16384
 MAX_PAYLOAD_BYTES = 64000
 MAX_RESPONSE_BYTES = 128000
 
@@ -49,24 +51,36 @@ class ParsedEmailLocalResponseV1:
     reported_prompt_eval_cached_count: int | None
 
 
+def context_tokens_for_route(route: ModelRoute) -> int:
+    """Exact finite runtime identity capacity, never a default or inferred upgrade."""
+    runtime = route.identity.runtime_id
+    if runtime == RUNTIME:
+        return CONTEXT_TOKENS
+    if runtime == LARGE_RUNTIME:
+        return LARGE_CONTEXT_TOKENS
+    raise ValueError("unsupported email runtime")
+
+
 def _payload(request: EmailGenerationRequestV1, route: ModelRoute, model_digest: str) -> bytes:
     if type(request) is not EmailGenerationRequestV1:
         raise ValueError("wrong request family")
     if request != prepare_email_generation_request(request.specification):
         raise ValueError("modified request")
+    if isinstance(route, ModelRoute):
+        context_tokens_for_route(route)  # Reject lookalikes before contract normalization.
     route = ModelRoute.model_validate(route)
+    context_tokens = context_tokens_for_route(route)
     task = request.specification.task()
     if (
         route.destination != Destination.LOCAL
         or route.identity.provider_id != "ollama"
         or route.identity.model_id != MODEL
-        or route.identity.runtime_id != RUNTIME
         or route.capabilities != frozenset({CAPABILITY})
         or not task.required_capabilities <= route.capabilities
         or not route.available
         or type(model_digest) is not str
         or not re.fullmatch(r"[0-9a-f]{64}", model_digest)
-        or not 0 < task.max_output_tokens <= route.max_output_tokens < CONTEXT_TOKENS
+        or not 0 < task.max_output_tokens <= route.max_output_tokens < context_tokens
         or task.max_latency_ms < route.estimated_latency_ms
         or task.max_estimated_cost_usd < route.estimated_cost_usd
     ):
@@ -90,7 +104,7 @@ def _payload(request: EmailGenerationRequestV1, route: ModelRoute, model_digest:
             "options": {
                 "temperature": 0,
                 "num_predict": task.max_output_tokens,
-                "num_ctx": CONTEXT_TOKENS,
+                "num_ctx": context_tokens,
             },
         },
         ensure_ascii=False,
@@ -126,10 +140,11 @@ def count_email_local_prompt(
         if type(counter) is not OllamaQwenEmailTokenCounter or counter.model_digest != model_digest:
             raise ValueError("explicit email counter/pin required")
         body = _payload(request, route, model_digest)
+        context_tokens = context_tokens_for_route(route)
         count = counter.count_prompt_tokens(body)
-        if type(count) is not int or not 0 < count <= CONTEXT_TOKENS:
+        if type(count) is not int or not 0 < count <= context_tokens:
             raise ValueError("invalid exact count")
-        if count + request.specification.task().max_output_tokens > CONTEXT_TOKENS:
+        if count + request.specification.task().max_output_tokens > context_tokens:
             raise ValueError("full prompt and output reservation exceed context")
         return count
     except Exception:  # noqa: BLE001,S110 - no source/tokenizer diagnostics
@@ -146,13 +161,14 @@ def _parse(
     elapsed_ms: float,
 ) -> ParsedEmailLocalResponseV1:
     _payload(request, route, model_digest)
+    context_tokens = context_tokens_for_route(route)
     task = request.specification.task()
     if (
         type(raw) is not bytes
         or not 0 < len(raw) <= MAX_RESPONSE_BYTES
         or type(expected_prompt_tokens) is not int
         or expected_prompt_tokens <= 0
-        or expected_prompt_tokens + task.max_output_tokens > CONTEXT_TOKENS
+        or expected_prompt_tokens + task.max_output_tokens > context_tokens
         or type(elapsed_ms) not in (int, float)
         or not math.isfinite(elapsed_ms)
         or not 0 <= elapsed_ms <= task.max_latency_ms
@@ -198,7 +214,7 @@ def _parse(
         or incoming != expected_prompt_tokens
         or type(outgoing) is not int
         or not 0 < outgoing <= task.max_output_tokens
-        or expected_prompt_tokens + outgoing > CONTEXT_TOKENS
+        or expected_prompt_tokens + outgoing > context_tokens
     ):
         raise ValueError("full count parity/output capacity required")
     cached = data.get("prompt_eval_cached_count")

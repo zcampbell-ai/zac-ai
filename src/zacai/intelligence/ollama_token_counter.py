@@ -55,7 +55,10 @@ def render_email_prompt(serialized_body: bytes) -> str:
     """Explicit email schema on the unchanged verified Qwen two-turn renderer."""
     from zacai.intelligence.email_generation import EmailModelOutputV1
 
-    return _render_prompt(serialized_body, EmailModelOutputV1.model_json_schema())
+    return _render_prompt(
+        serialized_body, EmailModelOutputV1.model_json_schema(),
+        context_tokens=frozenset({8192, 16384}), max_predict_tokens=16384,
+    )
 
 
 def _render_prompt(
@@ -64,6 +67,7 @@ def _render_prompt(
     *,
     context_tokens: frozenset[int] = frozenset({8192}),
     alternate_schemas: tuple[dict[str, Any], ...] = (),
+    max_predict_tokens: int = 8192,
 ) -> str:
     """Only the exact two-turn no-thinking review payload is supported."""
     try:
@@ -102,7 +106,7 @@ def _render_prompt(
             or type(options["num_ctx"]) is not int
             or options["num_ctx"] not in context_tokens
             or type(options["num_predict"]) is not int
-            or not 0 < options["num_predict"] < 8192
+            or not 0 < options["num_predict"] < min(max_predict_tokens, options["num_ctx"])
         ):
             raise ValueError("unsupported options")
         messages = body["messages"]
