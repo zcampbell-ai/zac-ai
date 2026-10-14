@@ -125,7 +125,7 @@ def test_actual_signed_session_post_exact_instruction_and_closed_codec(case):
         ("request_id", str(uuid4())),
         ("selection_digest", "f" * 64),
         ("extra", "invented"),
-        ("instruction", " padded "),
+        ("instruction", " \n\t"),
     ],
 )
 def test_bad_original_action_holds_fixed_boundary(case, field, value):
@@ -243,3 +243,11 @@ def test_source_row_groups_preserve_instruction_native_and_lineage_preimages():
         before[2][:-2] + (("content_location", "changed"), before[2][-1]),
     )
     assert _source_row_groups(after) != groups
+
+
+@pytest.mark.parametrize("text", ["Follow up.\n", " Follow up. ", "\r\nFollow up.\r\n"])
+def test_actual_post_keeps_nonblank_outer_whitespace(case, text):
+    observed = observe(case, instruction=text).instruction
+    assert observed.original_text == text
+    assert decode_email_owner_instruction(encode_email_owner_instruction(observed)).original_text == text
+    assert observed.processing_authorized is False

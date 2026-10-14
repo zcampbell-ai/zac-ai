@@ -161,7 +161,7 @@ class EmailOwnerInstructionV1(EmailContract):
         if (
             self.request_id.int == 0
             or self.issuer != "https://accounts.google.com"
-            or self.original_text != self.original_text.strip()
+            or not self.original_text.strip()
             or len(self.original_text.encode("utf-8", errors="strict")) > 8000
             or self.original_text.startswith("\ufeff")
             or not self.original_session_issued_at
@@ -950,7 +950,10 @@ class CanonicalBrainstormEmailInput:
                 ),
                 event=event,
                 required_capabilities=frozenset({"email_draft"}),
-                instruction=value.original_text,
+                # Canonical Task Text trims surrounding whitespace. Preserve the
+                # exact submitted text in the immutable instruction artifact;
+                # derive only the model-facing task direction here.
+                instruction=value.original_text.strip(),
                 context=(
                     tuple(item for source in app_loaded for item in source.context_items())
                     if isinstance(value.selection, EmailAppInputSelectionV1)
@@ -963,7 +966,7 @@ class CanonicalBrainstormEmailInput:
                 max_latency_ms=value.selection.max_latency_ms,
                 max_estimated_cost_usd=value.selection.max_estimated_cost_usd,
             )
-            if task.instruction != value.original_text or (
+            if task.instruction != value.original_text.strip() or (
                 not isinstance(value.selection, EmailAppInputSelectionV1)
                 and any(
                     c.untrusted_text != p.selected_text

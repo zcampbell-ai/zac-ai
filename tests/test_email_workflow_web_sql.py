@@ -461,3 +461,38 @@ def test_two_actual_asgi_competing_original_submits_one_inference_one_hold(web_c
         "request_id", str(c.controller._request_id)
     )
     assert actual.instruction == "Ask Mira for the revised estimate. Keep it concise."
+
+
+def test_actual_asgi_pasted_request_captures_exact_outer_whitespace(web_case):
+    from zacai.interfaces.email_input import (
+        EmailInputCheckpointScope,
+        load_email_instruction_subject,
+    )
+    c = web_case
+    first = c.client.get("/prepare-caz-email")
+    text = "\r\nAsk Mira for the revised estimate. Keep it concise.\r\n"
+    prepared = post(c, "/prepare-caz-email", fields(first) | {"instruction": text})
+    assert prepared.status_code == 200 and "Draft once locally" in prepared.text
+    assert c.calls == [] and c.controller._phase == "PREPARED"
+    assert c.controller._manifest.specification.task().instruction == text.strip()
+    with c.f.pair.factory() as session:
+        row = session.scalar(select(Source).where(Source.external_ref == f"email-owner-instruction/{c.controller._request_id}"))
+        assert row is not None
+        scope = EmailInputCheckpointScope(row.id, row.content_hash, row.captured_at)
+        stored = load_email_instruction_subject(session, c.f.pair.artifacts, scope)
+        assert stored.original_text == text and stored.processing_authorized is False
+    output = post(c, "/generate-caz-email", fields(prepared))
+    assert output.status_code == 200 and "Review your draft" in output.text
+    assert c.calls.count("/api/chat") == 1
+
+
+def test_actual_asgi_blank_request_explains_no_custody_without_private_details(web_case):
+    c = web_case
+    first = c.client.get("/prepare-caz-email")
+    before = source_count(c, "email-owner-instruction/")
+    response = post(c, "/prepare-caz-email", fields(first) | {"instruction": " \r\n\t"})
+    assert response.status_code == 503
+    assert response.text == "Email action not acknowledged. Review protected custody."
+    assert c.calls == [] and c.controller._phase == "NEW"
+    assert source_count(c, "email-owner-instruction/") == before
+    assert "invented-email-owner" not in response.text

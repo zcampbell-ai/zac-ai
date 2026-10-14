@@ -140,3 +140,24 @@ def test_existing_native_instruction_serialization_bytes_remain_exact():
     assert encoded == canonical_bytes(expected)
     assert decode_email_owner_instruction(encoded).selection == native
     assert b'"app"' not in encoded
+
+
+@pytest.mark.parametrize("text", ["Ask for an update.\n", " Ask for an update.", "\r\nAsk for an update.\r\n", "\tAsk for an update. "])
+def test_nonblank_pasted_request_preserves_outer_whitespace_exactly(text):
+    value = instruction(selection(prepared()))
+    data = value.model_dump(mode="python")
+    data["original_text"] = text
+    observed = EmailOwnerInstructionV1.model_validate(data)
+    encoded = encode_email_owner_instruction(observed)
+    reopened = decode_email_owner_instruction(encoded)
+    assert observed.original_text == reopened.original_text == text
+    assert reopened.processing_authorized is False
+    assert encode_email_owner_instruction(reopened) == encoded
+
+
+@pytest.mark.parametrize("text", ["", " ", "\n\r\n\t", "\ufeffAsk for an update."])
+def test_empty_blank_and_bom_requests_remain_rejected(text):
+    data = instruction(selection(prepared())).model_dump(mode="python")
+    data["original_text"] = text
+    with pytest.raises(ValueError):
+        EmailOwnerInstructionV1.model_validate(data)
