@@ -7,6 +7,7 @@ source recovery, credential availability or production processing authority.
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from datetime import timedelta
+from threading import Event, local
 from uuid import uuid4
 
 import pytest
@@ -292,23 +293,92 @@ def test_expiry_after_recovery_denies_commit(fixture):
         claim(s, approval)
 
 
-def test_concurrent_cooperating_claims_one_winner(fixture):
+def test_concurrent_cooperating_claims_one_winner(fixture, monkeypatch):
     s = fixture
     approval = issue(s)
-    # Actual canonical assembly is separately tested; this memory factory has
-    # a shared active-session counter, so concurrent refresh is shape-only here.
+    # Canonical assembly is separately tested. This schedule isolates ledger
+    # contention and post-commit recovery using the fixed assembled snapshot.
     s.authority._refresh = lambda: s.snapshot
+    committed, contended, second_acquired, recovered = (Event() for _ in range(4))
+    roles = local()
+    factory = s.client._factory
+    original_commit = factory.commit
+    original_execute = factory.execute
+    original_protect = s.authority._recovery.protect_claim
 
-    def attempt():
+    def commit(session):
+        original_commit(session)
+        if getattr(roles, "name", None) == "first" and any(
+            row.external_ref.startswith("packet-followup-claim/")
+            for row in session.pending.values()
+        ):
+            assert session.locked and s.active_sessions == 1
+            committed.set()
+            assert contended.wait(5), "second caller never contended for the lock"
+
+    def contention():
+        assert s.active_sessions == 1
+        if roles.name == "second":
+            contended.set()
+        else:
+            # Final acknowledgement may wait for the losing caller to release.
+            assert roles.name == "first" and recovered.is_set()
+
+    def execute(session, statement, parameters=None):
+        result = original_execute(session, statement, parameters)
+        if parameters is not None and getattr(roles, "name", None) == "second":
+            assert session.locked and contended.is_set()
+            second_acquired.set()
+            assert recovered.wait(5), "first caller never completed claim recovery"
+        return result
+
+    def protect_claim(*, claimed, request):
+        assert roles.name == "first" and committed.is_set()
+        assert second_acquired.wait(5), "second caller never acquired the released lock"
+        # The first caller has closed its transaction. The second owns a
+        # different session/lock; that must not invalidate the original callback.
+        assert s.active_sessions == 0 and s.total_active_sessions == 1
+        try:
+            return original_protect(claimed=claimed, request=request)
+        finally:
+            recovered.set()
+
+    monkeypatch.setattr(factory, "commit", commit)
+    monkeypatch.setattr(factory, "execute", execute)
+    monkeypatch.setattr(s.authority._recovery, "protect_claim", protect_claim)
+    s.on_lock_contention = contention
+
+    def attempt(role):
+        roles.name = role
+        if role == "second":
+            assert committed.wait(5), "first caller never committed its claim"
         try:
             return claim(s, approval)
         except module.FollowupAuthorizationError:
             return None
 
     with ThreadPoolExecutor(max_workers=2) as pool:
-        results = list(pool.map(lambda _: attempt(), range(2)))
+        first = pool.submit(attempt, "first")
+        second = pool.submit(attempt, "second")
+        results = [first.result(timeout=10), second.result(timeout=10)]
+    assert all(event.is_set() for event in (committed, contended, second_acquired, recovered))
+    assert results[0] is not None and results[1] is None
     assert sum(result is not None for result in results) == 1
     assert sum(x.external_ref.startswith("packet-followup-claim/") for x in s.sources.values()) == 1
+    assert len(s.protected_claims) == 1
+    assert s.active_sessions == s.total_active_sessions == 0
+
+
+def test_claim_recovery_still_rejects_callers_own_open_session(fixture):
+    s = fixture
+    asserted = claim(s, issue(s))
+    before = len(s.protected_claims)
+    with s.client._factory():
+        assert s.active_sessions == s.total_active_sessions == 1
+        with pytest.raises(AssertionError):
+            s.authority._recovery.protect_claim(claimed=asserted, request=s.request)
+    assert len(s.protected_claims) == before
+    assert s.active_sessions == s.total_active_sessions == 0
 
 
 def test_claim_bytes_or_reference_substitution_denied(fixture):

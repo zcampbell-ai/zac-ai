@@ -158,6 +158,28 @@ was rejected for incorrect fixture assumptions. The third/final correction passe
 The three-call usage estimate is below $0.10, with billing unreconciled; no extra
 retry or readiness claim follows. Genuine canonical integration remains separate.
 
+### October 15 capability audit, code versus useful readiness
+
+A read-only source/caller audit found reusable canonical state, evidence/custody,
+approval, recovery and bounded execution components. These do not constitute a
+finished personal AI service: `main.py` is a health entry point, route eligibility
+filters without automatic selection/dispatch, and no durable specialist registry
+or shared task dispatcher was established by this audit. The selected-history
+application is implemented, while its authenticated entry integration is staged.
+
+The next substantive delivery gaps are (1) verified coverage and permitted
+assignment-specific retrieval, (2) a useful saved/recoverable assignment through
+an authenticated familiar tool, and (3) a specialist workflow demonstrated across
+two compatible permitted model adapters. These are acceptance outcomes, not a
+new competing roadmap or prerequisites to complete all infrastructure at once.
+
+The existing contextual host accepts a runtime protocol, but rebuilding context
+currently creates fresh task/event IDs. Two ordinary executions can therefore
+show equivalent evidence without demonstrating the same canonical task across
+models. Any portability proof must retain the exact prepared task/evidence and
+preserve fresh authorization, independent one-use attempts and result attribution;
+mock adapters or changed route labels do not prove two real model backends.
+
 ### Transition cleanup gate, owner requested October 15
 
 Audit the existing code before removing custom-interface work. Retain canonical

@@ -6,7 +6,7 @@ serialization or actual off-device recovery. No model/tool/HTTP dispatch exists.
 
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
-from threading import RLock
+from threading import RLock, get_ident
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -28,13 +28,46 @@ from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 
 
+class SessionState(SimpleNamespace):
+    """Track transactions belonging to the current cooperating caller.
+
+    Another thread may have an open session waiting for, or holding, its own
+    advisory lock while this caller performs recovery outside its transaction.
+    Keep the aggregate separately so tests can still detect leaked sessions.
+    """
+
+    def __init__(self, **values):
+        self._session_guard = RLock()
+        self._session_counts = {}
+        super().__init__(**values)
+
+    @property
+    def active_sessions(self):
+        with self._session_guard:
+            return self._session_counts.get(get_ident(), 0)
+
+    @active_sessions.setter
+    def active_sessions(self, value):
+        with self._session_guard:
+            assert value >= 0
+            if value:
+                self._session_counts[get_ident()] = value
+            else:
+                self._session_counts.pop(get_ident(), None)
+
+    @property
+    def total_active_sessions(self):
+        with self._session_guard:
+            return sum(self._session_counts.values())
+
+
 @pytest.fixture
 def fixture(monkeypatch):
     packet = selected()
     receipt = checkpoint(packet)
     identity = Identity(GOOGLE_ISSUER, "invented-owner")
     scopes = (BoundaryScope(B.BRAINSTORM, frozenset({C.CONFIDENTIAL})),)
-    state = SimpleNamespace(
+    state = SessionState(
         packet=packet,
         receipt=receipt,
         owner=OwnerGrant(identity, scopes),
@@ -56,13 +89,16 @@ def fixture(monkeypatch):
 
     class Session:
         def __enter__(self):
-            state.active_sessions += 1
-            state.session_opens += 1
+            self.owner_thread = get_ident()
+            with state._session_guard:
+                state.active_sessions += 1
+                state.session_opens += 1
             self.pending = {}
             self.locked = False
             return self
 
         def __exit__(self, *args):
+            assert self.owner_thread == get_ident()
             state.active_sessions -= 1
             if self.locked:
                 lock.release()
@@ -75,7 +111,11 @@ def fixture(monkeypatch):
             if parameters is not None:
                 assert str(statement) == "SELECT pg_advisory_xact_lock(:key)"
                 assert type(parameters["key"]) is int
-                lock.acquire()
+                assert self.owner_thread == get_ident() and not self.locked
+                if not lock.acquire(blocking=False):
+                    if getattr(state, "on_lock_contention", None):
+                        state.on_lock_contention()
+                    lock.acquire()
                 self.locked = True
                 state.locks += 1
                 return None
