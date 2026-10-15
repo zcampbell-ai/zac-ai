@@ -675,3 +675,18 @@ read history/send messages. Prepare exact non-secret app/account/redirect and
 scope facts before a separate owner-authorized attended attempt. Keep warm setup
 and later saved-identity verification distinct. Bot conversation and history
 intake are not supplied by this operator.
+
+
+## Slack-only retained evidence
+
+The explicit Slack-only proposal/envelope uses the same canonical native Source,
+retained-inventory and encrypted preparation recovery path as mixed capture.
+Keep its declared format, proposal hash, exact selected dependency union and
+original owner decision intact. Empty Gmail records do not imply a format or
+permission. Reopening selected context does not renew capture or authorize a
+model call, and must check current rights to every dependency, including account
+metadata that was not chosen as the quoted span.
+
+Installed recovery acceptance used invented records and throwaway identities.
+No live Slack connection, private history import or actual off-device recovery
+is established by those controls.

@@ -12,6 +12,9 @@ import pytest
 from sqlalchemy import text
 
 from tests.conftest import assert_safe_test_database_url
+from tests.sql_isolation import (
+    isolated_committed_factory as isolated_committed_factory,  # noqa: PLC0414
+)
 from tests.test_fireflies_protection import keypair
 from tests.test_native_contextual_assembly_sql import (
     private_store as private_store,  # noqa: PLC0414
@@ -52,11 +55,11 @@ from zacai.state_repository import (
     "fault", [None, "denied_owner", "own_acl", "dependency_acl", "journal", "meeting", "project"]
 )
 def test_actual_native_pair_cold_protection_and_read_existing(
-    test_session_factory, private_store, tmp_path, monkeypatch, project, fault
+    isolated_committed_factory, private_store, tmp_path, monkeypatch, project, fault
 ):
     if fault == "project" and not project:
         pytest.skip("Project-version mutation requires the genuine project selection")
-    factory = test_session_factory
+    factory = isolated_committed_factory
     engine = factory.kw["bind"]
     assert_safe_test_database_url(str(engine.url))
     with engine.connect() as connection:

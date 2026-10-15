@@ -13,7 +13,7 @@ import pytest
 from sqlalchemy import select
 
 from tests import test_native_batch_inventory as base
-from zacai.ingestion.artifact_store import content_hash_of
+from zacai.ingestion.artifact_store import canonical_bytes, content_hash_of
 from zacai.intelligence import native_evidence_context as m
 from zacai.intelligence.contracts import ContextItem, Importance, IntelligenceTask, ZacEvent
 from zacai.intelligence.meeting_review import ReviewContext
@@ -631,3 +631,57 @@ def test_exact_serializer_line_terminator_ceiling_with_positive_subspan(fixture)
     assert len(value.splitlines()[0]) == 1500
     with pytest.raises(m.NativeEvidenceContextError):
         project(fixture, (choice(sources[-1], value),))
+
+
+@pytest.fixture
+def slack_only_fixture(tmp_path, monkeypatch, request):
+    # This entire module is root-only SQL execution. Reuse original task fixture
+    # with the real Slack-only persisted inventory, no fake projection gate.
+    monkeypatch.setattr(base, 'saved', base.slack_saved)
+    iterator = fixture.__wrapped__(tmp_path, monkeypatch, request)
+    yield next(iterator)
+    try:
+        next(iterator)
+    except StopIteration:
+        pass
+
+
+def test_explicit_single_slack_group_projects_only_selected_original_span(slack_only_fixture):
+    sql, args, sources, _, _ = slack_only_fixture
+    selected = choice(sources[-1], 'Invented private body', start=9, end=16)
+    before = list(sql.execute(select(*Source.__table__.columns)))
+    result = project(slack_only_fixture, (selected,))
+    assert result.context.task.context[-1].untrusted_text == 'private'
+    assert result.context.task.required_capabilities == args['context'].task.required_capabilities
+    assert result.context.task.instruction == args['context'].task.instruction
+    assert result.context.task.event.event_id != args['context'].task.event.event_id
+    assert len(result.metadata) == 1
+    assert result.metadata[0].source_span.start == 9
+    assert all(x.system is SourceSystem.SLACK for x in sources)
+    assert before == list(sql.execute(select(*Source.__table__.columns)))
+    assert not sql.new and not sql.dirty and not sql.deleted
+
+
+@pytest.mark.parametrize('family', ['zac-native-selected-batch-evidence-v1', 'unknown-format', 'three_slack_groups'])
+def test_single_slack_group_crossed_or_unknown_family_holds_before_provider_body(slack_only_fixture, family):
+    sql, args, sources, _, _ = slack_only_fixture
+    batch = sql.get(Source, args['batch_reference'].source_id)
+    store = args['artifacts']
+    value = json.loads(store.get(B.BRAINSTORM, batch.content_location))
+    if family == 'three_slack_groups':
+        value['selections'] *= 3
+    else:
+        value['format'] = family
+    raw = canonical_bytes(value)
+    # Explicit invented SQLite corruption fixture; real PG rows are append-only.
+    batch.content_hash = content_hash_of(raw)
+    batch.content_location = store.put(B.BRAINSTORM, batch.content_hash, raw)
+    sql.commit()
+    args['batch_reference'] = base.ref(batch)
+    reads = []
+    observed = CountingStore(store, lambda _count, location: reads.append(location))
+    selected = choice(sources[-1], 'Invented private body')
+    with pytest.raises(m.NativeEvidenceContextError):
+        project(slack_only_fixture, (selected,), artifacts=observed)
+    assert reads == [batch.content_location]
+    assert all(source.content_location not in reads for source in sources)

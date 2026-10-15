@@ -93,6 +93,34 @@ Actual connector readiness and useful memory coverage still require verification
   is claimed. This track does not depend on another UI or the owner-contract
   extraction. Cross-archive discovery remains additional unfinished work.
 
+### October 15 Slack-only evidence and cold recovery
+
+Explicit Slack-only capture now reuses the canonical native writer, retained
+inventory and selected-context recovery path without requiring a Gmail record.
+The original mixed Gmail/Slack format remains unchanged. Closed format/provider
+and group bounds still apply before original artifacts are expanded. One Slack
+selection can be reopened after commit, used as meeting-review evidence and
+recovered through the existing encrypted State/artifact/journal checks.
+
+Root verified the installed joined slice with 342 passing controls and one
+inapplicable project case skipped, including six genuine Slack cold-recovery
+cases. Independent review and complete code-only Opus review accepted the six
+source changes. Wrong owner, selected and unselected dependency ACL changes, and
+failed backup journal status prevent release. Local invented object clients and
+escrow declarations in tests do not establish private off-device readiness.
+
+The first broader run exposed test isolation failures: committed invented Sources
+from another module were outside the next test's artifact root. Both original
+modules passed separately. An opt-in guarded schema reset now isolates only the
+writer and cold-recovery modules before and after each case. All 149 original
+assertions and full-boundary recovery semantics remain unchanged; the identical
+joined module order now passes. No production Source filtering was added.
+
+This is evidence intake and the existing contextual meeting-review consumer, not
+a conversational Slack bot or general task executor. Actual Slack identity,
+source access, private processing permission and useful owner results remain
+separate acceptance requirements. Gmail is not a dependency of this slice.
+
 ### October 15 selected-context application checkpoint
 
 A bounded application preparation service now calls the existing Claude selector

@@ -68,11 +68,15 @@ class NativeBatchCaptureReceipt:
 
 
 def prepare_native_batch_proposal(*, batch_id: UUID, gmail_inputs: tuple[GmailCaptureInput, ...],
-                                  slack_inputs: tuple[SlackCaptureInput, ...]) -> bytes:
+                                  slack_inputs: tuple[SlackCaptureInput, ...],
+                                  family: Literal["mixed", "slack_only"] = "mixed") -> bytes:
     """Exact existing-wire capture snapshot, not permission to fetch those wires."""
     result = None
     try:
-        if (type(batch_id) is not UUID or type(gmail_inputs) is not tuple or not 1 <= len(gmail_inputs) <= 6
+        slack_only = type(family) is str and family == 'slack_only'
+        if type(family) is not str or family not in ('mixed', 'slack_only'):
+            raise ValueError('closed explicit capture family')
+        if (type(batch_id) is not UUID or type(gmail_inputs) is not tuple or not (len(gmail_inputs) == 0 if slack_only else 1 <= len(gmail_inputs) <= 6)
             or type(slack_inputs) is not tuple or not 1 <= len(slack_inputs) <= 2):
             raise ValueError('closed batch')
         gmail: list[dict[str, object]] = []
@@ -94,11 +98,11 @@ def prepare_native_batch_proposal(*, batch_id: UUID, gmail_inputs: tuple[GmailCa
                 raise ValueError('closed Slack input')
             slack.append({'selection':slack_item.selection.model_dump(mode='json'),
                 'account_digest':_hash(slack_item.account_response),'wire_digest':_hash(slack_item.page_response)})
-        if len({(x['account_ref'],x['expected_email']) for x in gmail}) != 1:
+        if not slack_only and len({(x['account_ref'],x['expected_email']) for x in gmail}) != 1:
             raise ValueError('one mailbox')
         if len({canonical_bytes(x.selection.account.model_dump(mode='json')) for x in slack_inputs}) != 1:
             raise ValueError('one Slack account')
-        if len({x.profile_response for x in gmail_inputs}) != 1:
+        if not slack_only and len({x.profile_response for x in gmail_inputs}) != 1:
             raise ValueError('shared Gmail profile snapshot differs')
         if len({x.account_response for x in slack_inputs}) != 1:
             raise ValueError('shared Slack account snapshot differs')
@@ -106,7 +110,7 @@ def prepare_native_batch_proposal(*, batch_id: UUID, gmail_inputs: tuple[GmailCa
             raise ValueError('duplicate mail selection')
         if len({canonical_bytes(x.selection.model_dump(mode='json')) for x in slack_inputs}) != len(slack_inputs):
             raise ValueError('duplicate Slack selection')
-        result = canonical_bytes({'format':'zac-native-batch-capture-proposal-v1','batch_id':str(batch_id),
+        result = canonical_bytes({'format':('zac-native-slack-batch-capture-proposal-v1' if slack_only else 'zac-native-batch-capture-proposal-v1'),'batch_id':str(batch_id),
             'status':'PROPOSED_NOT_APPROVED','boundary':B.BRAINSTORM.value,'classification':C.CONFIDENTIAL.value,
             'gmail':gmail,'slack':slack,'purpose':'CANDIDATE_CONTEXT_ONLY','provider_calls':0,
             'model_calls':0,'business_fact_changes':False,'new_permission':False})
@@ -120,7 +124,7 @@ def prepare_native_batch_proposal(*, batch_id: UUID, gmail_inputs: tuple[GmailCa
 def record_native_batch(session: Session, *, artifacts: ArtifactStore, proposal_raw: bytes,
                         approved_proposal_hash: str, approval_reference: EvidenceReference,
                         gmail_inputs: tuple[GmailCaptureInput, ...], slack_inputs: tuple[SlackCaptureInput, ...],
-                        captured_at: datetime) -> NativeBatchCaptureReceipt:
+                        captured_at: datetime, family: Literal["mixed", "slack_only"] = "mixed") -> NativeBatchCaptureReceipt:
     """Append exact evidence under caller transaction; no commit/protect/approval.
 
     Host authenticates approved_proposal_hash externally. Existing approval
@@ -142,7 +146,8 @@ def record_native_batch(session: Session, *, artifacts: ArtifactStore, proposal_
         _clean(session)
         payload = json.loads(proposal_raw)
         batch_id = UUID(payload['batch_id'])
-        expected = prepare_native_batch_proposal(batch_id=batch_id,gmail_inputs=gmail_inputs,slack_inputs=slack_inputs)
+        expected = prepare_native_batch_proposal(batch_id=batch_id,gmail_inputs=gmail_inputs,slack_inputs=slack_inputs,family=family)
+        envelope_format = ('zac-native-slack-selected-batch-evidence-v1' if family == 'slack_only' else 'zac-native-selected-batch-evidence-v1')
         if proposal_raw != expected or approved_proposal_hash != content_hash_of(expected):
             raise ValueError('exact approved snapshot')
         initial_approval = _approval(session,artifacts,approval_reference)
@@ -158,7 +163,7 @@ def record_native_batch(session: Session, *, artifacts: ArtifactStore, proposal_
             if len(existing_raw) > 256_000:
                 raise ValueError('metadata capacity')
             previous = json.loads(existing_raw)
-            if (previous['format'] != 'zac-native-selected-batch-evidence-v1'
+            if (previous['format'] != envelope_format
                 or previous['role'] != 'CANDIDATE_CONTEXT'
                 or any(previous[k] is not False for k in ('permission_granted','recovery_verified','facts_confirmed','complete_history_verified'))):
                 raise ValueError('metadata disposition')
@@ -213,7 +218,7 @@ def record_native_batch(session: Session, *, artifacts: ArtifactStore, proposal_
                     group.append(_reference(source))
                 refs.append(tuple(group))
             raw = compose_native_batch_envelope(batch_id=batch_id,proposal_digest=approved_proposal_hash,
-                approval_reference=approval_reference,prepared=prepared,artifact_references=tuple(refs),observed_at=observed)
+                approval_reference=approval_reference,prepared=prepared,artifact_references=tuple(refs),observed_at=observed,family=family)
             if len(raw) > 256_000:
                 raise ValueError('metadata capacity')
             if existing_raw is not None and raw != existing_raw:

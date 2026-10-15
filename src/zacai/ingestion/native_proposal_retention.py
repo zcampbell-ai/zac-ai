@@ -12,7 +12,7 @@ of already durable commits. Hosts must disable traceback local capture.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -85,6 +85,7 @@ def _proposal(
     expected: str,
     gmail: tuple[GmailCaptureInput, ...],
     slack: tuple[SlackCaptureInput, ...],
+    family: Literal["mixed", "slack_only"] = "mixed",
 ) -> str:
     if (
         type(batch_id) is not UUID
@@ -92,7 +93,7 @@ def _proposal(
         or not 0 < len(raw) <= MAX_PROPOSAL_BYTES
         or type(expected) is not str
         or content_hash_of(raw) != expected
-        or prepare_native_batch_proposal(batch_id=batch_id, gmail_inputs=gmail, slack_inputs=slack)
+        or prepare_native_batch_proposal(batch_id=batch_id, gmail_inputs=gmail, slack_inputs=slack, family=family)
         != raw
     ):
         raise ValueError("exact bounded public proposal")
@@ -167,6 +168,7 @@ def retain_native_proposal(
     gmail_inputs: tuple[GmailCaptureInput, ...],
     slack_inputs: tuple[SlackCaptureInput, ...],
     retained_at: datetime,
+    family: Literal["mixed", "slack_only"] = "mixed",
 ) -> EvidenceReference:
     """Return uncommitted integrity reference only. Host owns permission/commit.
 
@@ -180,7 +182,7 @@ def retain_native_proposal(
         _assert_ledger_isolation(session)
         now = _time(retained_at)
         external = _proposal(
-            batch_id, proposal_raw, expected_proposal_hash, gmail_inputs, slack_inputs
+            batch_id, proposal_raw, expected_proposal_hash, gmail_inputs, slack_inputs, family
         )
         prior = _rows(session, external)
         location: str | None = None

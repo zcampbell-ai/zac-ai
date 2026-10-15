@@ -7,6 +7,7 @@ read, ArtifactStore operation, Source commit, recovery or dispatch occurs here.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from zacai.ingestion.artifact_store import canonical_bytes, content_hash_of
@@ -25,6 +26,7 @@ def compose_native_batch_envelope(
     prepared: tuple[NativeSourcePreparation, ...],
     artifact_references: tuple[tuple[EvidenceReference, ...], ...],
     observed_at: datetime,
+    family: Literal["mixed", "slack_only"] = "mixed",
 ) -> bytes:
     """Candidate evidence only. Neither supplied approval nor refs grant effects.
 
@@ -33,14 +35,17 @@ def compose_native_batch_envelope(
     """
     result = None
     try:
+        slack_only = type(family) is str and family == 'slack_only'
+        if type(family) is not str or family not in ('mixed', 'slack_only'):
+            raise ValueError('closed explicit capture family')
         if (type(batch_id) is not UUID or type(observed_at) is not datetime
             or observed_at.utcoffset() is None or type(proposal_digest) is not str
             or len(proposal_digest) != 64 or any(c not in '0123456789abcdef' for c in proposal_digest)
-            or type(prepared) is not tuple or not 2 <= len(prepared) <= 8
+            or type(prepared) is not tuple or not (1 <= len(prepared) <= 2 if slack_only else 2 <= len(prepared) <= 8)
             or type(artifact_references) is not tuple or len(artifact_references) != len(prepared)):
             raise ValueError('closed batch')
         approval = _reference(approval_reference)
-        if {item.provider for item in prepared} != {'gmail', 'slack'}:
+        if {item.provider for item in prepared} != ({'slack'} if slack_only else {'gmail', 'slack'}):
             raise ValueError('both selected providers required')
         if sum(item.provider == 'gmail' for item in prepared) > 6 or sum(item.provider == 'slack' for item in prepared) > 2:
             raise ValueError('batch bounds')
@@ -85,7 +90,7 @@ def compose_native_batch_envelope(
                 'declared_selection_digest': content_hash_of(item.declared_selection_bytes),
                 'artifacts': artifacts, 'next_cursor': item.next_cursor,
                 'selected_page_exhausted': item.selected_page_exhausted, 'retention_limited': item.retention_limited})
-        result = canonical_bytes({'format': 'zac-native-selected-batch-evidence-v1', 'batch_id': str(batch_id),
+        result = canonical_bytes({'format': ('zac-native-slack-selected-batch-evidence-v1' if slack_only else 'zac-native-selected-batch-evidence-v1'), 'batch_id': str(batch_id),
             'proposal_digest': proposal_digest, 'approval_reference': approval,
             'boundary': B.BRAINSTORM.value, 'classification': C.CONFIDENTIAL.value,
             'observed_at': observed_at.isoformat(), 'selections': selections,

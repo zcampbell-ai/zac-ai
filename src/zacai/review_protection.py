@@ -176,7 +176,7 @@ class DisposableStateRestoreVerifier:
                                 ).all()
                             if (
                                 len(rows) != len(expected_historical_source_hashes)
-                                or dict(rows) != expected_historical_source_hashes
+                                or {sid: digest for sid, digest in rows} != expected_historical_source_hashes
                             ):
                                 raise ValueError(
                                     "complete historical Source union differs"

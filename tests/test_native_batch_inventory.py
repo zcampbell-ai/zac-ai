@@ -587,3 +587,160 @@ def test_approval_original_observation_guard_precedes_its_private_read(saved, fu
         inventory = m.load_native_batch_inventory(sql, **args)
         assert inventory.approval_reference == args["approval_reference"]
         assert location in reads
+
+
+@pytest.fixture
+def slack_saved(tmp_path):
+    engine = create_engine("sqlite://")
+    Source.__table__.create(engine)
+    SourceClassificationElevation.__table__.create(engine)
+    sql = InventedSqliteSession(engine, expire_on_commit=False)
+    store = LocalFilesystemArtifactStore(tmp_path / "artifacts")
+    s = slack_inputs()
+    gm = ()
+    sl = (SlackCaptureInput(s["selection"], s["account_response"], s["page_response"]),)
+    bid = uuid4()
+    proposal = prepare_native_batch_proposal(batch_id=bid, gmail_inputs=gm, slack_inputs=sl, family="slack_only")
+    approval = put_source(
+        sql,
+        store,
+        SourceSystem.USER_INSTRUCTION,
+        "invented-instruction/" + str(uuid4()),
+        b"Invented human instruction, externally authenticated only in a future host",
+    )
+    prepared = (prepare_slack_sources(**s),)
+    groups = []
+    sources = []
+    for plan in prepared:
+        group = []
+        for artifact in plan.artifacts:
+            row = put_source(
+                sql, store, artifact.system, artifact.external_ref, artifact.original_bytes
+            )
+            sources.append(row)
+            group.append(ref(row))
+        groups.append(tuple(group))
+    raw = compose_native_batch_envelope(
+        batch_id=bid,
+        proposal_digest=content_hash_of(proposal),
+        approval_reference=ref(approval),
+        prepared=prepared,
+        artifact_references=tuple(groups),
+        observed_at=NOW,
+        family="slack_only",
+    )
+    batch = put_source(sql, store, SourceSystem.MANUAL, "native-source-batch/" + str(bid), raw)
+    sql.commit()
+    args = {
+        "artifacts": store,
+        "batch_reference": ref(batch),
+        "approval_reference": ref(approval),
+        "approved_proposal_raw": proposal,
+        "as_of": NOW + timedelta(seconds=1),
+    }
+    yield sql, args, sources, batch, raw
+    sql.close()
+    engine.dispose()
+
+
+# Root-only execution: this module uses SQL. Connector team only authors it.
+def test_slack_only_inventory_reopens_exact_wire_and_preserves_limits(slack_saved, monkeypatch):
+    sql, a, sources, _batch, raw = slack_saved
+    def forbidden(*args, **kwargs): raise AssertionError('Gmail branch forbidden')
+    monkeypatch.setattr(m, 'prepare_gmail_source', forbidden)
+    before = list(sql.execute(select(*Source.__table__.columns)))
+    first = m.load_native_batch_inventory(sql, **a)
+    assert len(first.artifact_references) == 1
+    assert all(x.system is SourceSystem.SLACK for x in sources)
+    sql.expunge_all()
+    second = m.load_native_batch_inventory(sql, **a)
+    assert first == second
+    m.verify_native_batch_inventory_rows(sql, artifacts=a['artifacts'], inventory=second, as_of=a['as_of'])
+    assert before == list(sql.execute(select(*Source.__table__.columns)))
+    choice = json.loads(raw)['selections'][0]
+    assert choice['next_cursor'] == 'NEXT' and choice['selected_page_exhausted'] is False
+    assert not second.complete_history_verified and not second.processing_authorized
+
+
+@pytest.mark.parametrize('fault', ['unknown', 'mixed_envelope', 'mixed_proposal', 'gmail_added'])
+def test_slack_only_family_mismatch_denied_before_original_page_read(slack_saved, fault):
+    sql, a, sources, batch, raw = slack_saved
+    value = json.loads(raw)
+    proposal = json.loads(a['approved_proposal_raw'])
+    if fault == 'unknown': value['format'] = 'zac-native-unknown-v1'
+    if fault == 'mixed_envelope': value['format'] = 'zac-native-selected-batch-evidence-v1'
+    if fault == 'mixed_proposal': proposal['format'] = 'zac-native-batch-capture-proposal-v1'
+    if fault == 'gmail_added': proposal['gmail'] = [{}]
+    a['approved_proposal_raw'] = canonical_bytes(proposal)
+    value['proposal_digest'] = content_hash_of(a['approved_proposal_raw'])
+    revised = canonical_bytes(value)
+    batch.content_hash = content_hash_of(revised)
+    batch.content_location = a['artifacts'].put(B.BRAINSTORM, batch.content_hash, revised)
+    sql.commit()
+    a['batch_reference'] = ref(batch)
+    original = a['artifacts']
+    read = []
+    class Observe:
+        def get(self, boundary, location):
+            read.append(location)
+            return original.get(boundary, location)
+    with pytest.raises(m.NativeBatchInventoryError):
+        m.load_native_batch_inventory(sql, **{**a, 'artifacts': Observe()})
+    assert all(source.content_location not in read for source in sources)
+
+
+def _slack_pg_args(sql, store):
+    from zacai.ingestion import native_source_capture as writer
+    s = slack_inputs()
+    sl = (SlackCaptureInput(s['selection'], s['account_response'], s['page_response']),)
+    proposal = prepare_native_batch_proposal(batch_id=uuid4(), gmail_inputs=(), slack_inputs=sl, family='slack_only')
+    approval = put_source(sql, store, SourceSystem.USER_INSTRUCTION, 'invented-slack-instruction/'+str(uuid4()), b'Invented explicit selected-page approval; human authentication remains external')
+    return {'artifacts': store, 'proposal_raw': proposal, 'approved_proposal_hash': content_hash_of(proposal), 'approval_reference': ref(approval), 'gmail_inputs': (), 'slack_inputs': sl, 'captured_at': NOW, 'family': 'slack_only'}, writer
+
+
+def test_root_only_slack_writer_orm_reopen_and_savepoint_rollback(db_session, tmp_path):
+    # Genuine database run belongs to Core. ORM reopen shares its rollback-only
+    # outer transaction; this is not a committed process cold-reopen claim.
+    store = LocalFilesystemArtifactStore(tmp_path/'slack-artifacts')
+    a, writer = _slack_pg_args(db_session, store)
+    first = writer.record_native_batch(db_session, **a)
+    from zacai.ingestion.native_proposal_retention import retain_native_proposal
+    proposal_ref = retain_native_proposal(db_session, artifacts=store,
+        batch_id=first_batch_id(a), proposal_raw=a['proposal_raw'],
+        expected_proposal_hash=a['approved_proposal_hash'], gmail_inputs=(),
+        slack_inputs=a['slack_inputs'], retained_at=NOW, family='slack_only')
+    loaded = {'artifacts': store, 'batch_reference': first.batch_reference, 'approval_reference': first.approval_reference, 'approved_proposal_raw': a['proposal_raw'], 'as_of': NOW+timedelta(minutes=1)}
+    original = m.load_native_batch_inventory(db_session, **loaded)
+    recovery = m.prepare_native_batch_recovery_selection(db_session, artifacts=store, inventory=original, proposal_reference=proposal_ref, approved_proposal_raw=a['proposal_raw'], as_of=loaded['as_of'])
+    assert not recovery.recovery_verified and not recovery.processing_authorized
+    with Session(bind=db_session.connection(), join_transaction_mode='create_savepoint') as reopened:
+        assert m.load_native_batch_inventory(reopened, **loaded) == original
+    transaction = db_session.begin_nested()
+    other, writer = _slack_pg_args(db_session, store)
+    attempted = writer.record_native_batch(db_session, **other)
+    transaction.rollback()
+    assert db_session.get(Source, attempted.batch_reference.source_id) is None
+    assert m.load_native_batch_inventory(db_session, **loaded) == original
+
+
+def test_root_only_slack_late_classification_failure_holds(db_session, tmp_path):
+    from zacai.state_repository import elevate_source_classification
+    store = LocalFilesystemArtifactStore(tmp_path/'slack-artifacts')
+    a, writer = _slack_pg_args(db_session, store)
+    receipt = writer.record_native_batch(db_session, **a)
+    target = receipt.artifact_references[0][-1].source_id
+    class RaiseClassification:
+        changed = False
+        def get(self, boundary, location):
+            value = store.get(boundary, location)
+            if not self.changed:
+                self.changed = True
+                elevate_source_classification(db_session, source_id=target, new_classification=C.HIGHLY_RESTRICTED, trust_boundary=B.BRAINSTORM, reason='invented root-only late ACL control', elevated_by='invented-test-owner')
+            return value
+    with pytest.raises(m.NativeBatchInventoryError):
+        m.load_native_batch_inventory(db_session, artifacts=RaiseClassification(), batch_reference=receipt.batch_reference, approval_reference=receipt.approval_reference, approved_proposal_raw=a['proposal_raw'], as_of=NOW+timedelta(minutes=1))
+
+
+def first_batch_id(args):
+    from uuid import UUID
+    return UUID(json.loads(args['proposal_raw'])['batch_id'])

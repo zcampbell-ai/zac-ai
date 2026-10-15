@@ -411,7 +411,7 @@ def _native_dependency_roles(
     from zacai.policy import TrustBoundary as B
 
     controls = (batch, approval, proposal)
-    if type(groups) is not tuple or not 2 <= len(groups) <= 8:
+    if type(groups) is not tuple or not 1 <= len(groups) <= 8:
         raise ValueError("bounded exact artifact groups required")
     if len({r.source_id for r in controls}) != 3:
         raise ValueError("distinct native role controls required")

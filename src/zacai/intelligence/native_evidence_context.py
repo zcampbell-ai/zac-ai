@@ -150,8 +150,17 @@ class _ScopedArtifacts:
             if len(raw) > 256_000:
                 raise ValueError("metadata capacity")
             envelope = json.loads(raw, object_pairs_hook=_pairs)
+            declared_family = envelope.get("format")
+            if declared_family not in (
+                "zac-native-selected-batch-evidence-v1",
+                "zac-native-slack-selected-batch-evidence-v1",
+            ):
+                raise ValueError("closed dependency envelope family")
+            slack_only = declared_family == "zac-native-slack-selected-batch-evidence-v1"
             groups = envelope.get("selections")
-            if type(groups) is not list or not 2 <= len(groups) <= 8:
+            if type(groups) is not list or not (
+                1 <= len(groups) <= 2 if slack_only else 2 <= len(groups) <= 8
+            ):
                 raise ValueError("bounded dependency groups")
             dependencies: dict[UUID, EvidenceReference] = dict(self.refs)
             for group in groups:

@@ -477,3 +477,36 @@ def test_hash_consistent_oversized_retained_source_isolates_read_capacity(inputs
             expected_proposal_hash=digest,
             as_of=NOW,
         )
+
+
+# Root-only SQL execution; authored here, not collected by connector team.
+def test_slack_only_explicit_retention_and_reload(inputs):
+    sql, a = inputs
+    a['gmail_inputs'] = ()
+    a['family'] = 'slack_only'
+    a['proposal_raw'] = m.prepare_native_batch_proposal(batch_id=a['batch_id'], gmail_inputs=(), slack_inputs=a['slack_inputs'], family='slack_only')
+    a['expected_proposal_hash'] = content_hash_of(a['proposal_raw'])
+    reference = m.retain_native_proposal(sql, **a)
+    sql.commit()
+    sql.expunge_all()
+    loaded = load_args(a, reference)
+    loaded.pop('family')
+    assert m.load_retained_native_proposal(sql, **loaded) == a['proposal_raw']
+    second = m.retain_native_proposal(sql, **{**a, 'retained_at': NOW+timedelta(seconds=2)})
+    assert second == reference
+
+
+@pytest.mark.parametrize('family', ['mixed', 'unknown', None])
+def test_slack_only_retention_needs_explicit_matching_family_before_store(inputs, family):
+    sql, a = inputs
+    a['gmail_inputs'] = ()
+    a['proposal_raw'] = m.prepare_native_batch_proposal(batch_id=a['batch_id'], gmail_inputs=(), slack_inputs=a['slack_inputs'], family='slack_only')
+    a['expected_proposal_hash'] = content_hash_of(a['proposal_raw'])
+    class NoRead:
+        calls = 0
+        def get(self, *args): self.calls += 1; raise AssertionError('unexpected private read')
+        def put(self, *args): self.calls += 1; raise AssertionError('unexpected private write')
+    store = NoRead()
+    with pytest.raises(m.NativeProposalRetentionError):
+        m.retain_native_proposal(sql, **{**a, 'artifacts': store, 'family': family})
+    assert store.calls == 0

@@ -63,3 +63,35 @@ def test_malformed_or_wrong_scope_declarations_hold_without_private_context(faul
     a['artifact_references']=tuple(groups);a['prepared']=tuple(prepared)
     with pytest.raises(m.NativeBatchEnvelopeError) as e:m.compose_native_batch_envelope(**a)
     assert e.value.__context__ is None and str(e.value)=='native selected batch composition held'
+
+
+def test_explicit_slack_only_family_composes_one_selection():
+    a = args()
+    a['prepared'] = a['prepared'][1:]
+    a['artifact_references'] = a['artifact_references'][1:]
+    with pytest.raises(m.NativeBatchEnvelopeError):
+        m.compose_native_batch_envelope(**a)
+    value = json.loads(m.compose_native_batch_envelope(**a, family="slack_only"))
+    assert value['format'] == 'zac-native-slack-selected-batch-evidence-v1'
+    assert [x['provider'] for x in value['selections']] == ['slack']
+    assert value['complete_history_verified'] is False
+
+
+@pytest.mark.parametrize('fault', ['mixed', 'three', 'unknown', 'personal', 'restricted'])
+def test_slack_only_envelope_closed_family_and_access(fault):
+    a = args()
+    family = 'slack_only'
+    if fault != 'mixed':
+        a['prepared'] = a['prepared'][1:]
+        a['artifact_references'] = a['artifact_references'][1:]
+    if fault == 'three':
+        a['prepared'] *= 3
+        a['artifact_references'] *= 3
+    if fault == 'unknown': family = 'slack'
+    if fault in ('personal', 'restricted'):
+        groups = list(a['artifact_references'])
+        refs = list(groups[0])
+        refs[0] = refs[0].model_copy(update={'trust_boundary': B.PERSONAL} if fault == 'personal' else {'effective_classification': C.HIGHLY_RESTRICTED})
+        groups[0] = tuple(refs)
+        a['artifact_references'] = tuple(groups)
+    with pytest.raises(m.NativeBatchEnvelopeError): m.compose_native_batch_envelope(**a, family=family)

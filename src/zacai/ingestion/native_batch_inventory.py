@@ -292,7 +292,6 @@ def _load(
     if pinned_approval != approval_ref or batch_ref.source_id == approval_ref.source_id:
         raise ValueError("exact original instruction differs")
     approval = _row(session, approval_ref, SourceSystem.USER_INSTRUCTION, observed)
-    _read(session, artifacts, approval, MAX_ARTIFACT_BYTES)
     proposal = _object(approved_proposal_raw, 32_000)
     proposal_digest = content_hash_of(approved_proposal_raw)
     if _digest(envelope["proposal_digest"]) != proposal_digest or proposal.get("batch_id") != str(
@@ -316,10 +315,21 @@ def _load(
             "new_permission",
         },
     )
+    family: Literal["mixed", "slack_only"]
+    if (proposal["format"], envelope["format"]) == (
+        "zac-native-batch-capture-proposal-v1", "zac-native-selected-batch-evidence-v1"
+    ):
+        family = "mixed"
+    elif (proposal["format"], envelope["format"]) == (
+        "zac-native-slack-batch-capture-proposal-v1", "zac-native-slack-selected-batch-evidence-v1"
+    ):
+        family = "slack_only"
+    else:
+        raise ValueError("closed matching original family required")
     gmail, slack, selections = proposal["gmail"], proposal["slack"], envelope["selections"]
     if (
         type(gmail) is not list
-        or not 1 <= len(gmail) <= 6
+        or not (len(gmail) == 0 if family == "slack_only" else 1 <= len(gmail) <= 6)
         or type(slack) is not list
         or not 1 <= len(slack) <= 2
         or type(selections) is not list
@@ -337,6 +347,8 @@ def _load(
         or sum(len(choice["artifacts"]) - 2 for choice in slack_choices) > 50
     ):
         raise ValueError("pre-read Slack aggregate bound")
+    # Reject unknown/mismatched families and counts before instruction/provider bytes.
+    _read(session, artifacts, approval, MAX_ARTIFACT_BYTES)
     prepared: list[NativeSourcePreparation] = []
     gm: list[GmailCaptureInput] = []
     sl: list[SlackCaptureInput] = []
@@ -464,7 +476,7 @@ def _load(
         raise ValueError("native reference bound")
     if (
         prepare_native_batch_proposal(
-            batch_id=batch_id, gmail_inputs=tuple(gm), slack_inputs=tuple(sl)
+            batch_id=batch_id, gmail_inputs=tuple(gm), slack_inputs=tuple(sl), family=family
         )
         != approved_proposal_raw
     ):
@@ -476,6 +488,7 @@ def _load(
         prepared=tuple(prepared),
         artifact_references=tuple(groups),
         observed_at=observed,
+        family=family,
     )
     provenance: dict[str, SourceSystem] = {}
     for row in rows.values():
@@ -540,7 +553,7 @@ def _verify_rows(
         or type(inventory.provenance) is not tuple
         or not 2 <= len(inventory.provenance) <= MAX_REFERENCES
         or type(inventory.artifact_references) is not tuple
-        or not 2 <= len(inventory.artifact_references) <= 8
+        or not 1 <= len(inventory.artifact_references) <= 8
     ):
         raise ValueError("bounded exact inventory metadata required")
     _digest(inventory.proposal_digest)
@@ -646,9 +659,13 @@ def _verify_rows(
         },
     )
     selections = envelope["selections"]
+    if envelope["format"] not in (
+        "zac-native-selected-batch-evidence-v1", "zac-native-slack-selected-batch-evidence-v1"
+    ):
+        raise ValueError("closed retained family")
+    slack_only = envelope["format"] == "zac-native-slack-selected-batch-evidence-v1"
     if (
-        envelope["format"] != "zac-native-selected-batch-evidence-v1"
-        or envelope["batch_id"] != str(inventory.batch_id)
+        envelope["batch_id"] != str(inventory.batch_id)
         or envelope["proposal_digest"] != inventory.proposal_digest
         or envelope["boundary"] != B.BRAINSTORM.value
         or envelope["classification"] != C.CONFIDENTIAL.value
@@ -666,7 +683,7 @@ def _verify_rows(
         != inventory.approval_reference
         or _time(datetime.fromisoformat(envelope["observed_at"])) != inventory.original_observed_at
         or type(selections) is not list
-        or not 2 <= len(selections) <= 8
+        or not (1 <= len(selections) <= 2 if slack_only else 2 <= len(selections) <= 8)
     ):
         raise ValueError("inventory differs from retained original envelope")
     retained_groups = []
@@ -706,7 +723,7 @@ def _verify_rows(
             declared_roles[ref.source_id] = role
             refs.append(ref)
         retained_groups.append(tuple(refs))
-    if not 1 <= mail_groups <= 6 or not 1 <= slack_groups <= 2:
+    if not (mail_groups == 0 if slack_only else 1 <= mail_groups <= 6) or not 1 <= slack_groups <= 2:
         raise ValueError("closed retained provider counts")
     if tuple(retained_groups) != inventory.artifact_references:
         raise ValueError("original selected groups omitted or reordered")

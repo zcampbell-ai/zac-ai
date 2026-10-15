@@ -545,3 +545,41 @@ def test_empty_history_still_fails_closed_if_runtime_ignores_schema(section):
     else:
         assert error.value.code == GenerationFailure.CITATION
     assert error.value.__context__ is None
+
+
+
+def native_role_args():
+    from zacai.intelligence.contracts import EvidenceReference
+    def reference():
+        return EvidenceReference(source_id=uuid4(), content_hash='a'*64, trust_boundary=B.BRAINSTORM, effective_classification=C.CONFIDENTIAL)
+    return reference(), reference(), reference(), ((reference(), reference()),)
+
+
+def test_single_native_role_group_roundtrips_without_granting_family_or_authority():
+    import json
+
+    from zacai.ingestion.artifact_store import canonical_bytes
+    from zacai.intelligence.contextual_generation import _native_dependency_roles
+    from zacai.intelligence.contracts import EvidenceReference
+    batch, approval, proposal, groups = native_role_args()
+    roles = _native_dependency_roles(batch, approval, proposal, groups)
+    loaded = json.loads(canonical_bytes(roles))
+    decoded = tuple(tuple(EvidenceReference.model_validate(r) for r in group) for group in loaded['artifact_references'])
+    assert decoded == groups
+    assert loaded['batch_reference'] == batch.model_dump(mode='json')
+    assert set(loaded) == {'batch_reference','approval_reference','proposal_reference','artifact_references'}
+    assert roles == _native_dependency_roles(batch, approval, proposal, decoded)
+
+
+@pytest.mark.parametrize('fault', ['empty','nine','duplicate_group','control_alias','small_group','personal','restricted'])
+def test_native_role_group_shape_never_relaxes_identity_or_access_declarations(fault):
+    from zacai.intelligence.contextual_generation import _native_dependency_roles
+    batch, approval, proposal, groups = native_role_args()
+    if fault == 'empty': groups = ()
+    if fault == 'nine': groups = groups*9
+    if fault == 'duplicate_group': groups = groups*2
+    if fault == 'control_alias': approval = batch
+    if fault == 'small_group': groups = (groups[0][:1],)
+    if fault == 'personal': groups = ((groups[0][0].model_copy(update={'trust_boundary':B.PERSONAL}), groups[0][1]),)
+    if fault == 'restricted': groups = ((groups[0][0].model_copy(update={'effective_classification':C.HIGHLY_RESTRICTED}), groups[0][1]),)
+    with pytest.raises(ValueError): _native_dependency_roles(batch, approval, proposal, groups)

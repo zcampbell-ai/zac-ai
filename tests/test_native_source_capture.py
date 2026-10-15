@@ -502,3 +502,136 @@ def test_actual_native_preparer_namespaces_are_system_disjoint(setup):
     assert all(p.system is SourceSystem.EMAIL and p.external_ref.startswith('gmail/') for p in gmail.artifacts)
     assert all(p.system is SourceSystem.SLACK and p.external_ref.startswith('slack/') for p in selected.artifacts)
     assert {p.external_ref for p in gmail.artifacts}.isdisjoint(p.external_ref for p in selected.artifacts)
+
+
+def test_explicit_slack_only_write_and_replay_without_gmail(setup, monkeypatch):
+    session, a = setup
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Gmail preparation forbidden")
+    monkeypatch.setattr(m, 'prepare_gmail_source', forbidden)
+    bid = uuid4()
+    with pytest.raises(m.NativeBatchCaptureError):
+        m.prepare_native_batch_proposal(batch_id=bid, gmail_inputs=(), slack_inputs=a['slack_inputs'])
+    raw = m.prepare_native_batch_proposal(batch_id=bid, gmail_inputs=(), slack_inputs=a['slack_inputs'], family='slack_only')
+    assert json.loads(raw)['format'] == 'zac-native-slack-batch-capture-proposal-v1'
+    a = {**a, 'gmail_inputs': (), 'family': 'slack_only', 'proposal_raw': raw, 'approved_proposal_hash': content_hash_of(raw)}
+    first = m.record_native_batch(session, **a)
+    value = envelope(session, a, first)
+    assert value['format'] == 'zac-native-slack-selected-batch-evidence-v1'
+    assert all(x.system is not SourceSystem.EMAIL for x in session.rows)
+    before = [(x.id, x.captured_at, x.content_hash) for x in session.rows]
+    second = m.record_native_batch(session, **{**a, 'captured_at': NOW+timedelta(minutes=1)})
+    assert first.batch_reference == second.batch_reference
+    assert not second.new_source_ids and second.original_observed_at == NOW
+    assert before == [(x.id, x.captured_at, x.content_hash) for x in session.rows]
+
+
+@pytest.fixture
+def slack_only_setup(setup):
+    session, a = setup
+    raw = m.prepare_native_batch_proposal(batch_id=uuid4(), gmail_inputs=(), slack_inputs=a['slack_inputs'], family='slack_only')
+    return session, {**a, 'gmail_inputs': (), 'family': 'slack_only', 'proposal_raw': raw, 'approved_proposal_hash': content_hash_of(raw)}
+
+
+@pytest.mark.parametrize('family', ['', 'SLACK_ONLY', None, True, 1])
+def test_slack_only_unknown_family_is_not_inferred(slack_only_setup, family):
+    session, a = slack_only_setup
+    before = list(session.rows)
+    with pytest.raises(m.NativeBatchCaptureError):
+        m.record_native_batch(session, **{**a, 'family': family})
+    assert session.rows == before and session.savepoints == 0
+
+
+@pytest.mark.parametrize('fault', ['foreign_account', 'approval_hash', 'mixed_default', 'restricted_approval', 'wrong_boundary'])
+def test_slack_only_account_approval_and_boundary_holds_before_writes(slack_only_setup, fault):
+    from dataclasses import replace
+    session, a = slack_only_setup
+    if fault == 'foreign_account':
+        i = a['slack_inputs'][0]
+        sl = (replace(i, account_response=wire(ok=True, team_id='TOTHER', user_id='UTEST')),)
+        raw = m.prepare_native_batch_proposal(batch_id=uuid4(), gmail_inputs=(), slack_inputs=sl, family='slack_only')
+        a = {**a, 'slack_inputs': sl, 'proposal_raw': raw, 'approved_proposal_hash': content_hash_of(raw)}
+    elif fault == 'approval_hash': a['approved_proposal_hash'] = 'f'*64
+    elif fault == 'mixed_default': del a['family']
+    elif fault == 'restricted_approval': session.acl[a['approval_reference'].source_id] = C.HIGHLY_RESTRICTED
+    else: session.rows[0].trust_boundary = B.PERSONAL
+    before = [(x.id, x.content_hash) for x in session.rows]
+    with pytest.raises(m.NativeBatchCaptureError): m.record_native_batch(session, **a)
+    assert before == [(x.id, x.content_hash) for x in session.rows]
+    assert session.savepoints == 0
+
+
+def test_same_batch_id_cannot_change_explicit_family(setup):
+    session, a = setup
+    first = m.record_native_batch(session, **a)
+    bid = UUID(json.loads(a['proposal_raw'])['batch_id'])
+    raw = m.prepare_native_batch_proposal(batch_id=bid, gmail_inputs=(), slack_inputs=a['slack_inputs'], family='slack_only')
+    before = [(x.id, x.content_hash) for x in session.rows]
+    with pytest.raises(m.NativeBatchCaptureError):
+        m.record_native_batch(session, **{**a, 'gmail_inputs': (), 'family': 'slack_only', 'proposal_raw': raw, 'approved_proposal_hash': content_hash_of(raw)})
+    assert before == [(x.id, x.content_hash) for x in session.rows]
+    assert envelope(session, a, first)['format'] == 'zac-native-selected-batch-evidence-v1'
+
+
+def test_slack_only_release_failure_returns_no_receipt(slack_only_setup):
+    session, a = slack_only_setup
+    session.fail_release = True
+    before = [(x.id, x.content_hash) for x in session.rows]
+    with pytest.raises(m.NativeBatchCaptureError): m.record_native_batch(session, **a)
+    assert before == [(x.id, x.content_hash) for x in session.rows]
+
+
+def test_slack_only_selected_page_cursor_is_not_history_completeness(slack_only_setup):
+    session, a = slack_only_setup
+    receipt = m.record_native_batch(session, **a)
+    value = envelope(session, a, receipt)
+    choice = value['selections'][0]
+    assert choice['next_cursor'] == 'NEXT'
+    assert choice['selected_page_exhausted'] is False
+    assert value['complete_history_verified'] is False
+    assert all(x is False for x in (receipt.committed, receipt.recovery_verified, receipt.permission_granted))
+
+
+def test_slack_only_history_and_replies_share_account_and_preserve_exact_pages(slack_only_setup):
+    from zacai.connectors.slack_wire import RepliesSelection
+    session, a = slack_only_setup
+    initial = a['slack_inputs'][0]
+    reply = m.SlackCaptureInput(RepliesSelection(**initial.selection.model_dump(), parent_ts='150.123456'), initial.account_response, wire(ok=True, messages=[{'ts':'151.000001','thread_ts':'150.123456','text':'Invented reply'}], response_metadata={'next_cursor':''}, is_limited=True))
+    sl = (initial, reply)
+    raw = m.prepare_native_batch_proposal(batch_id=uuid4(), gmail_inputs=(), slack_inputs=sl, family='slack_only')
+    a = {**a, 'slack_inputs':sl,'proposal_raw':raw,'approved_proposal_hash':content_hash_of(raw)}
+    receipt = m.record_native_batch(session, **a)
+    value = envelope(session,a,receipt)
+    assert len(receipt.artifact_references) == 2
+    assert receipt.artifact_references[0][0] == receipt.artifact_references[1][0]
+    assert value['selections'][1]['retention_limited'] is True
+    assert value['selections'][1]['selected_page_exhausted'] is True
+    assert value['complete_history_verified'] is False
+    for i, item in enumerate(sl):
+        source=session.get(Source,receipt.artifact_references[i][1].source_id)
+        assert a['artifacts'].get(B.BRAINSTORM, source.content_location) == item.page_response
+
+
+def test_slack_only_over_fifty_messages_denied_before_any_source_write(slack_only_setup):
+    from dataclasses import replace
+    session,a=slack_only_setup
+    item=a['slack_inputs'][0]
+    page=wire(ok=True,messages=[{'ts':f'150.{i:06d}','text':'Invented bounded message'} for i in range(51)],response_metadata={'next_cursor':''})
+    sl=(replace(item,page_response=page),)
+    raw=m.prepare_native_batch_proposal(batch_id=uuid4(),gmail_inputs=(),slack_inputs=sl,family='slack_only')
+    before=[x.id for x in session.rows]
+    with pytest.raises(m.NativeBatchCaptureError):
+        m.record_native_batch(session, **{**a,'slack_inputs':sl,'proposal_raw':raw,'approved_proposal_hash':content_hash_of(raw)})
+    assert before==[x.id for x in session.rows] and session.savepoints==0
+
+
+def test_slack_only_retention_reconstruction_requires_explicit_family(slack_only_setup):
+    from zacai.ingestion.native_proposal_retention import _proposal
+    _session, a = slack_only_setup
+    bid = UUID(json.loads(a['proposal_raw'])['batch_id'])
+    expected = 'native-source-proposal/'+str(bid)
+    with pytest.raises(m.NativeBatchCaptureError):
+        _proposal(bid, a['proposal_raw'], a['approved_proposal_hash'], (), a['slack_inputs'])
+    assert _proposal(bid, a['proposal_raw'], a['approved_proposal_hash'], (), a['slack_inputs'], 'slack_only') == expected
+    with pytest.raises(m.NativeBatchCaptureError):
+        _proposal(bid, a['proposal_raw'], a['approved_proposal_hash'], (), a['slack_inputs'], 'unknown')

@@ -13,6 +13,9 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy import func, select
 
+from tests.sql_isolation import (
+    isolated_committed_factory as isolated_committed_factory,  # noqa: PLC0414
+)
 from tests.test_native_source_preparation import gmail_inputs, slack_inputs
 from zacai.ingestion import native_source_capture as m
 from zacai.ingestion.artifact_store import (
@@ -31,6 +34,12 @@ from zacai.state_repository import (
 )
 
 NOW = datetime(2026, 10, 6, tzinfo=UTC)
+
+
+@pytest.fixture(autouse=True)
+def _isolated_writer_schema(isolated_committed_factory):
+    """Local only: reset before db_session opens, clean after its rollback."""
+    yield
 
 
 class ObservedStore(LocalFilesystemArtifactStore):
