@@ -659,3 +659,19 @@ lineage and ACL checks; unselected recovered history is not promoted to fact.
 
 Actual private capture and off-device acceptance remain separate gates. Installed
 recovery tests used only invented disposable records and throwaway identities.
+
+
+## Attended Slack operator readiness
+
+The installed operator composes reviewed owner authentication, fixed Slack
+configuration and physically drained warm/saved identity actions. Invalid cookie
+or CSRF requests are rejected before spending the legitimate action. Once an
+actual authenticated action enters, uncertainty remains terminal and cannot be
+repaired by rerunning the same attempt. Existing/unknown SDK namespaces stay held.
+
+Synthetic installed tests and code review do not establish a registered Slack
+app, trusted HTTPS ingress, available credentials, live identity or permission to
+read history/send messages. Prepare exact non-secret app/account/redirect and
+scope facts before a separate owner-authorized attended attempt. Keep warm setup
+and later saved-identity verification distinct. Bot conversation and history
+intake are not supplied by this operator.

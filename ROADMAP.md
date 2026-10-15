@@ -246,6 +246,21 @@ origin anchoring remains a separate security improvement before stronger claims.
 Local fsync supports process-restart consistency, not a guarantee against power
 loss, deliberate same-UID deletion or snapshot rollback.
 
+### October 15 attended Slack operator composition
+
+The corrected Slack operator is installed after independent and complete Opus
+code-only acceptance. Installed invented-data controls passed with native calls,
+provider access and SQL denied. Failed canonical review cannot unlock execution;
+invalid cookies/CSRF do not spend a legitimate action; blocking completion work
+is physically drained; uncertain listener shutdown remains held. The dedicated
+Slack secret loader keeps its native inspection behavior and separate role.
+
+Actual HTTPS ingress, app registration, attended warm identity and fresh-owner
+saved identity still need exact non-secret configuration and their separate owner
+authorizations. No credential was read or live installation attempted by these
+checks. Slack history ingestion and bot task conversation remain distinct
+unfinished capabilities. Native Gmail remains deferred.
+
 ### October 15 saved Slack identity verification
 
 Integrated the bounded warm-v2 installation evidence and new-owner cold identity
