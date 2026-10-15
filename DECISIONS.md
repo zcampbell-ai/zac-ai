@@ -1,5 +1,42 @@
 # Zac AI Decision Log
 
+## 2026-10-15: Memory and workflows first, interfaces and models replaceable
+Status: Accepted
+
+Decision:
+Reaffirm D001: Caz owns durable memory, context, workflow and agent definitions,
+history and permissions. A specialist role describes its responsibilities, inputs,
+outputs, tools, quality requirements and escalation rules independently of the
+model executing it. Providers supply replaceable bounded reasoning or generation.
+The external approval/security/credential gateway remains authoritative.
+
+Delivery consequence:
+Prioritize verified context coverage, relevant retrieval and completed durable
+workflows ahead of custom interface construction. Slack is the first candidate
+familiar conversational entry point; Slack history ingestion is a separate source
+capability. Gmail context remains useful but is not a global delivery dependency.
+Reuse tested foundations and existing contracts rather than restarting the build.
+Preserve the original roadmap phases and the OCE evaluation gate.
+
+Reason and tradeoff:
+The owner needs minimally directed useful work and natural clarifications, not a
+competing general chat product. Familiar interfaces reduce custom UI effort, but
+retain their own permissions, platform constraints and delivery acceptance checks.
+Model portability requires demonstrations with compatible permitted adapters, not
+an assumption that models have equal capabilities or unrestricted access.
+
+Acceptance and limits:
+Show a real assignment using relevant permitted evidence, one focused question for
+a material gap, a useful saved result and feedback that improves later work.
+Preserve source dates, conflicting evidence and distinctions between historical
+claims and current facts. Personal and company context stay isolated. Concise
+owner-facing writing uses no em dashes. Archived history does not establish usable
+memory; code/tests do not establish live connector or workflow readiness.
+This decision authorizes roadmap alignment, not new source permissions, external
+model processing, credential access, outreach or financial transactions. Earlier
+interface-first delivery priorities are superseded; existing evidence is retained.
+
+
 ## 2026-10-13: Constrained model evidence preserves resolver semantics
 
 Expose SOURCE_QUOTE, CURRENT_TASK_INTENT and CONVENTIONAL as closed discriminated

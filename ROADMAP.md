@@ -1,6 +1,122 @@
 # Zac AI Roadmap
 
-### 2026-10-13: Evidence branches pass actual contextual drafting
+## 2026-10-15: Current delivery priority, model-independent memory and workflows
+
+The owner reaffirmed the original architecture and changed the delivery emphasis:
+Caz owns memory, context, workflow definitions and agent responsibilities; models
+execute bounded tasks through replaceable adapters. Familiar communication tools
+provide access. A custom chat application is optional and is deferred. This section
+supersedes earlier interface-first delivery ordering, including the October 5 Goal
+criteria below, without removing unfinished capabilities or historical evidence.
+Accepted direction and implementation status are distinct. See the October 15
+accepted decision in DECISIONS.md and the original D001 decision.
+
+Continue the existing phases through useful end-to-end slices in this order:
+
+1. **Verify the context baseline (Phases 2/3).** Reconcile actual retained sources,
+   accounts, date ranges, permissions, recovery and gaps. Prioritize existing
+   approved Claude/ChatGPT material and meeting/project records. Preserved archives
+   are not searchable memory or verified current facts. Classify mixed history
+   before permitted use; keep PERSONAL and BRAINSTORM isolated.
+2. **Make relevant memory usable (Phases 2/4).** Retrieve permitted evidence with
+   source, date, role and current-fact status. Separate historical statements,
+   assistant suggestions, estimates, current owner confirmations and preferences.
+   Resolve conflicting material through one focused question when needed. Retain
+   corrections and exemplars so future work improves without erasing history.
+3. **Complete a durable workflow (Phases 4/6).** Reuse existing task/event contracts
+   and approval gateway for assignment, context selection, clarification, bounded
+   execution, saved deliverable, evidence and honest status. Reopen work without
+   repeating generation or expired approvals. Prove useful work on approved records
+   before expanding infrastructure; neither Gmail nor complete history blocks all
+   other progress. No outbound communication without explicit owner approval.
+4. **Define specialists and prove model portability (Phases 5/7).** Each role has
+   required inputs, outputs, tools, permissions, quality criteria and escalation
+   rules owned by Caz, independent of a provider conversation. Reuse existing
+   adapters first; demonstrate one workflow across different permitted model
+   adapters without changing canonical memory or task semantics. Select models by
+   capability, measured quality, privacy, latency and cost. Model interchangeability
+   does not mean every model is suitable or authorized for every record.
+5. **Deliver through familiar tools (Phases 3/5/8).** Prioritize Slack as the first
+   candidate conversational entry point, with natural short replies and questions.
+   Company-history ingestion and bot interaction are separate permissions and
+   acceptance checks. Test real task delivery and continuity there; add replaceable
+   voice access after the text workflow works. Defer custom UI polish and general
+   chat construction; preserve tested existing code for optional future use.
+6. **Expand on the proven core (Phases 7/9/10).** Add business/project intelligence,
+   personal brand/content, personal finance and further specialist workflows in
+   bounded slices. Finance requires current verified holdings, liabilities, goals
+   and relevant tax/cost-basis records before useful personalized recommendations;
+   historical estimates alone are insufficient. Transactions and communications
+   keep their separate explicit approval gates. Preserve the OCE evaluation before
+   custom production multi-agent control-plane work.
+
+These are dependency priorities, not a requirement to finish an entire phase or
+import every source before delivering value. Connector preparation and independent
+workflow work may proceed in parallel. Gmail remains a source adapter, not a
+prerequisite for Caz memory or Slack interaction. ChatGPT app connections are not
+proof that a Caz-owned connector is installed or working.
+
+Acceptance for this direction: a real assignment uses relevant retained context
+with minimal repeated instruction, asks a natural question for a material gap,
+returns a useful source-backed deliverable in Zac's concise voice with no em dashes,
+and preserves the result and correction for later work. Demonstrate boundary checks,
+restart behavior and model portability separately. Report source coverage and
+accepted real workflows, not readiness inferred from archives, test counts or UI.
+Actual connector readiness and useful memory coverage still require verification.
+
+
+#### October 15 execution evidence and next useful capability
+
+- Static audit completed across 249 Python source modules before extraction.
+  Shared clock handling has now moved verbatim into `zacai.host_clock`; the old
+  interface path reexports the exact classes. Caller imports are migrated, with
+  class-identity compatibility tested and the frame-based revocation test kept
+  attached to the callable's defining module.
+- Initial affected session/authorization/connector regression run: 146 passed.
+  After import-only formatting: all changed Python files pass Ruff, both clock
+  modules pass strict mypy, and 51 focused clock/session tests pass. No private
+  model generation or live connector acceptance is established by these checks.
+- Independent Claude Opus review is pending: the bounded code-only attempt ended
+  with terminal sign-in unavailable. It supplied no engineering verdict. An
+  independent local static review is separately assigned; it is not Opus review.
+- The context audit found `propose_claude_task_context` has no production caller.
+  The actual personal-history factory uses configured message spans. Existing
+  source-backed selection/assembly libraries are useful foundations, but this
+  does not establish assignment-driven retrieval or whole-history understanding.
+- Next delivery track: connect bounded task-specific selection within an explicitly
+  approved retained cohort to existing protected preparation. Bind clarifications
+  to the exact authenticated assignment/source/session, preserve correction
+  ancestry, expose missing coverage and keep later model processing separate.
+  A staged implementation is assigned; no installed or useful-owner acceptance
+  is claimed. This track does not depend on another UI or the owner-contract
+  extraction. Cross-archive discovery remains additional unfinished work.
+
+### Transition cleanup gate, owner requested October 15
+
+Audit the existing code before removing custom-interface work. Retain canonical
+state/events, source custody, recovery, authentication, authorization and durable
+workflow behavior. Move shared capabilities behind transport-neutral boundaries
+incrementally, preserving behavior and relevant regression coverage; Slack and
+future entry points must use the same gateway rather than bypass it. Retire only
+presentation or superseded adapter paths whose callers and replacement behavior
+have been reconciled. Do not delete a package based on its directory name.
+
+Initial static inventory on October 15: 249 Python source modules, 71 under
+interfaces, and 37 modules outside interfaces importing that package. Dependencies
+include session binding, clocks, owner grants and private-host facilities; the
+intelligence decision-card renderer also imports the shared presentation stylesheet.
+These counts describe imports, not quality or implementation completeness. This
+is evidence for staged separation, not proof that any module is safe to remove.
+
+Before each cleanup slice: identify callers and current hosts, preserve a Git
+checkpoint, make the smallest cohesive change, run the relevant behavior and
+boundary tests, and retain independent code-only review for material changes.
+Coordinate installed-source changes with existing connector work and active owner
+attempts. No new live credential access, model processing or communication is
+implied by this cleanup. Finish the caller/behavior audit before choosing the first
+code-removal slice; the repository-wide static scan alone does not complete it.
+
+## 2026-10-13: Evidence branches pass actual contextual drafting
 
 The model-facing email schema now encodes three mutually exclusive evidence
 branches. Source quotes require source IDs and null instruction/convention fields;
@@ -565,7 +681,7 @@ For each phase:
 - [ ] Run workflows in shadow mode and compare with Zac's decisions.
 - [ ] Measure missed items, false positives, and usefulness.
 
-## Phase 5 - Model Routing and Shared Text Interface
+## Phase 5 - Model Routing and Replaceable Text Access
 - [ ] Implement a replaceable model-provider interface.
 - [ ] Integrate the fast local model benchmarked in Phase 1 into the replaceable model-provider interface.
 - [ ] Integrate the stronger local model benchmarked in Phase 1 into the replaceable model-provider interface.
@@ -573,9 +689,9 @@ For each phase:
 - [ ] Route by privacy, quality, latency, cost, tools, and availability.
 - [ ] Add caching, usage accounting, budget alerts, and limits.
 - [ ] Verify fallback behavior never weakens privacy restrictions.
-- [ ] Provide manual text chat with shared state and source references.
+- [ ] Provide conversational text access through a replaceable entry point with shared state and source references. A custom chat UI is optional and deferred.
 - [ ] Support private access from laptop, phone, and browser.
-- [ ] Keep optional ChatGPT and Slack interfaces replaceable.
+- [ ] Keep ChatGPT, Slack and any future custom interface replaceable. Verify Slack history ingestion separately from conversational bot access.
 
 ## Phase 6 - Approvals and Verified Actions
 - [ ] Create the approval and action interface.
