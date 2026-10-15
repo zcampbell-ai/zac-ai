@@ -93,6 +93,29 @@ Actual connector readiness and useful memory coverage still require verification
   is claimed. This track does not depend on another UI or the owner-contract
   extraction. Cross-archive discovery remains additional unfinished work.
 
+### October 15 selected-context application checkpoint
+
+A bounded application preparation service now calls the existing Claude selector
+within one explicitly approved PERSONAL retained pair/cohort. It binds a proposal
+and clarification to the actual original owner session, exact task/cohort/source
+configuration and fixed deadline; accepted whole-message spans feed the existing
+protected declaration preparation. Processing approval is still separate.
+
+Root verified 15 application-boundary controls and the existing selector/resolution
+suites (55 combined controls). A genuine guarded PostgreSQL/native-age integration
+case also passed using invented retained history, real owner-session continuity,
+actual custody loading, actual declaration save/reopen and whole-boundary recovery.
+No model runtime or external communication was invoked. Independent Claude Opus
+code-only review accepted this application slice. Its remaining nonblocking notes
+include mirrored configuration validation and transport interruption semantics.
+
+This is application code, not an installed Slack conversation or general historical
+retrieval service. The current existing web preparation adapter still uses its
+fixed-selection factory. Next delivery work must connect the structured proposal,
+one-question answer and saved declaration through a reviewed authenticated adapter;
+a Slack message cannot manufacture the existing owner-session capability. Complete
+archive discovery, current-fact validation and useful owner output remain unfinished.
+
 ### Transition cleanup gate, owner requested October 15
 
 Audit the existing code before removing custom-interface work. Retain canonical
