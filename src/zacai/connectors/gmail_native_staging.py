@@ -217,11 +217,16 @@ class _AppleBindings:
             raise
 
     def add(self, keychain: int, access: int, service: str, account: str, data: bytes) -> int:
+        return self._add_labelled(keychain, access, service, account, data, _LABEL)
+
+    def _add_labelled(
+        self, keychain: int, access: int, service: str, account: str, data: bytes, label: str
+    ) -> int:
         query, references = self._query(service, account)
         try:
-            label = self._text(_LABEL)
-            references.append(label)
-            self._set(query, self._constant("kSecAttrLabel"), label)
+            label_ref = self._text(label)
+            references.append(label_ref)
+            self._set(query, self._constant("kSecAttrLabel"), label_ref)
             self._set(query, self._constant("kSecUseKeychain"), keychain)
             self._set(query, self._constant("kSecAttrAccess"), access)
             buffer = ctypes.create_string_buffer(data, len(data))

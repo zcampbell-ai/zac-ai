@@ -63,14 +63,17 @@ class _SecurityHeaders(BaseHTTPMiddleware):
         self, app: ASGIApp, *, google_start_path: str | None = None,
         gmail_consent_enabled: bool = False,
         gmail_recovery_consent_enabled: bool = False,
+        slack_consent_enabled: bool = False,
     ) -> None:
         if (google_start_path not in (None, "/login", "/enroll")
-            or type(gmail_recovery_consent_enabled) is not bool):
+            or type(gmail_recovery_consent_enabled) is not bool
+            or type(slack_consent_enabled) is not bool):
             raise ValueError("private sign-in policy unavailable")
         super().__init__(app)
         self._google_start_path = google_start_path
         self._gmail_consent_enabled = gmail_consent_enabled
         self._gmail_recovery_consent_enabled = gmail_recovery_consent_enabled
+        self._slack_consent_enabled = slack_consent_enabled
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         response = await call_next(request)
@@ -109,6 +112,15 @@ class _SecurityHeaders(BaseHTTPMiddleware):
             response.headers["Referrer-Policy"] = (
                 "same-origin" if consent_page else "no-referrer"
             )
+        if self._slack_consent_enabled and request.url.path.startswith("/connections/slack"):
+            consent_page = (request.method == "GET"
+                and request.url.path == "/connections/slack"
+                and not request.url.query and response.status_code == 200)
+            if consent_page:
+                response.headers["Content-Security-Policy"] = _HEADERS[
+                    "Content-Security-Policy"
+                ].replace("form-action 'self';", "form-action 'self' https://slack.com;")
+            response.headers["Referrer-Policy"] = "same-origin" if consent_page else "no-referrer"
         return response
 
 
@@ -150,6 +162,7 @@ def create_private_web(
     named_questions: NamedFollowupWeb | None = None,
     gmail_connections: GmailConnectionWeb | None = None,
     gmail_recovery_consent_enabled: bool = False,
+    slack_consent_enabled: bool = False,
     fragment_publication: FragmentPublicationWeb | None = None,
     fragment_preparation: FragmentPreparationWeb | None = None,
     history_preparation: HistoryPreparationWeb | None = None,
@@ -164,6 +177,13 @@ def create_private_web(
     Optional trusted work_choices mounts non-executing preference capture only.
     Disabled default exposes no choice route; no executable approval is granted.
     """
+    if (type(slack_consent_enabled) is not bool
+        or (slack_consent_enabled and (work_choices is not None
+            or named_questions is not None or gmail_connections is not None
+            or gmail_recovery_consent_enabled or fragment_publication is not None
+            or fragment_preparation is not None or history_preparation is not None
+            or email_workflow is not None))):
+        raise ValueError("closed exclusive Slack consent policy required")
     if email_workflow is not None and any(controller is not None for controller in (
         named_questions, gmail_connections, fragment_publication, fragment_preparation, history_preparation
     )):
@@ -250,6 +270,7 @@ def create_private_web(
         _SecurityHeaders, google_start_path="/login",
         gmail_consent_enabled=gmail_connections is not None,
         gmail_recovery_consent_enabled=gmail_recovery_consent_enabled,
+        slack_consent_enabled=slack_consent_enabled,
     )
 
     def valid_host(request: Request) -> bool:

@@ -340,6 +340,7 @@ def prepare_owner_host(
     gmail_factory: GmailOwnerHostFactory | None = None,
     email_factory: EmailOwnerHostFactory | None = None,
     gmail_recovery_consent_enabled: bool = False,
+    slack_consent_enabled: bool = False,
     fragment_factory: Callable[[NamedOwnerHostInputs], FragmentPublicationWeb] | None = None,
     fragment_preparation_factory: Callable[[NamedOwnerHostInputs, NamedSessionOperation, str], FragmentPublicationWeb] | None = None,
     history_preparation_factory: Callable[[NamedOwnerHostInputs, NamedSessionOperation, str], HistoryPublicationWeb] | None = None,
@@ -354,7 +355,14 @@ def prepare_owner_host(
     """
     result: PreparedOwnerHost | None = None
     try:
-        if type(gmail_recovery_consent_enabled) is not bool:
+        if (type(gmail_recovery_consent_enabled) is not bool
+            or type(slack_consent_enabled) is not bool
+            or (slack_consent_enabled and (type(clock) is not HostObservedClock
+                or work_choices is not None or named_factory is not None
+                or gmail_factory is not None or email_factory is not None
+                or gmail_recovery_consent_enabled or fragment_factory is not None
+                or fragment_preparation_factory is not None
+                or history_preparation_factory is not None))):
             raise ValueError("closed recovery consent policy required")
         _validate(configuration, directory)
         if named_factory is not None and (
@@ -496,6 +504,7 @@ def prepare_owner_host(
             gmail_connections=gmail,
             email_workflow=email,
             gmail_recovery_consent_enabled=gmail_recovery_consent_enabled,
+                slack_consent_enabled=slack_consent_enabled,
             fragment_publication=fragment,
             fragment_preparation=preparation,
             history_preparation=history_preparation,

@@ -158,6 +158,22 @@ was rejected for incorrect fixture assumptions. The third/final correction passe
 The three-call usage estimate is below $0.10, with billing unreconciled; no extra
 retry or readiness claim follows. Genuine canonical integration remains separate.
 
+### October 15 Slack consent and warm-installation source integration
+
+The independently reviewed nine-file Slack candidate is integrated into the
+local source tree. It provides exclusive authenticated BRAINSTORM consent and
+separately invoked warm native-installation machinery. Current browser consent
+explicitly does not save credentials. Cold reopening, actual source capture,
+conversational Slack delivery and live owner acceptance remain unfinished.
+No native installation, credentials, provider request or source import ran.
+
+Root verified 193 invented integration controls, strict checking of nine source
+files, and two genuine existing email-host SQL/recovery compatibility tests.
+The initial isolated SQL setup lacked the migration assets required by the real
+restore path; copying unchanged assets resolved that setup failure. Path-sensitive
+pin-mutation tests were then run with matching installed source and test roots.
+These checks establish code integration, not a connected or usable Slack agent.
+
 ### October 15 capability audit, code versus useful readiness
 
 A read-only source/caller audit found reusable canonical state, evidence/custody,

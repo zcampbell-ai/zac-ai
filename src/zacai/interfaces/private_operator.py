@@ -577,6 +577,7 @@ def open_private_operator(
     email_factory: EmailOwnerHostFactory | None = None,
     email_startup_failure_cleanup: Callable[[], None] | None = None,
     gmail_recovery_consent_enabled: bool = False,
+    slack_consent_enabled: bool = False,
     fragment_factory: Callable[[NamedOwnerHostInputs], FragmentPublicationWeb] | None = None,
     fragment_preparation_factory: Callable[[NamedOwnerHostInputs, NamedSessionOperation, str], FragmentPublicationWeb] | None = None,
     history_preparation_factory: Callable[[NamedOwnerHostInputs, NamedSessionOperation, str], HistoryPublicationWeb] | None = None,
@@ -602,6 +603,13 @@ def open_private_operator(
             threading.current_thread() is not threading.main_thread()
             or type(mode) is not PrivateOperatorMode
             or type(gmail_recovery_consent_enabled) is not bool
+            or type(slack_consent_enabled) is not bool
+            or (slack_consent_enabled and (mode != PrivateOperatorMode.OWNER
+                or type(clock) is not HostObservedClock or work_choices is not None
+                or named_factory is not None or gmail_factory is not None
+                or email_factory is not None or gmail_recovery_consent_enabled
+                or fragment_factory is not None or fragment_preparation_factory is not None
+                or history_preparation_factory is not None))
             or type(escrow_confirmed_by_operator) is not bool
             or not escrow_confirmed_by_operator
             or not isinstance(directory, Path)
@@ -703,6 +711,7 @@ def open_private_operator(
                 gmail_factory=gmail_factory,
                 email_factory=email_factory,
                 gmail_recovery_consent_enabled=gmail_recovery_consent_enabled,
+                slack_consent_enabled=slack_consent_enabled,
                 fragment_factory=fragment_factory,
                 fragment_preparation_factory=fragment_preparation_factory,
                 history_preparation_factory=history_preparation_factory,
