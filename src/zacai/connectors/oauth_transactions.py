@@ -167,6 +167,78 @@ class OAuthTransactionAuthority:
         os.close(fd)
         _guard(self._lock_path)
 
+    @classmethod
+    @_closed
+    def open_existing(
+        cls,
+        directory: Path,
+        *,
+        key: bytes,
+        continuity: NamedSessionContinuity,
+        registration_backend: RegistrationAuthority,
+    ) -> OAuthTransactionAuthority:
+        """Authenticate existing encrypted evidence under its existing lock.
+
+        No directory, lock, ledger, registration or grant is created or renewed.
+        This is not reconciliation, owner authentication, or installed authority.
+        The returned canonical object retains its existing explicitly invoked
+        operations; callers must independently enforce their current host gate.
+        """
+        if (
+            cls is not OAuthTransactionAuthority
+            or not isinstance(directory, Path)
+            or not directory.is_absolute()
+            or directory.resolve() != directory
+            or type(key) is not bytes
+            or len(key) != 32
+            or type(continuity) is not NamedSessionContinuity
+            or not callable(getattr(registration_backend, "attest", None))
+            or not callable(getattr(registration_backend, "generation", None))
+        ):
+            raise ValueError("exact existing OAuth dependencies required")
+        lock_path = directory / "provider-oauth-transactions.lock"
+        ledger_path = directory / "provider-oauth-transactions.bin"
+        expected_children = {lock_path.name, ledger_path.name}
+        paths = (directory, lock_path, ledger_path)
+        identities = tuple(
+            (info.st_dev, info.st_ino)
+            for index, path in enumerate(paths)
+            for info in (_guard(path, directory=index == 0),)
+        )
+
+        def existing() -> None:
+            if directory.resolve() != directory or {
+                path.name for path in directory.iterdir()
+            } != expected_children:
+                raise ValueError("complete original OAuth evidence required")
+            for index, path in enumerate(paths):
+                info = _guard(path, directory=index == 0)
+                if (info.st_dev, info.st_ino) != identities[index]:
+                    raise ValueError("original OAuth evidence replaced")
+
+        existing()
+        value = object.__new__(cls)
+        value._directory, value._path, value._lock_path = directory, ledger_path, lock_path
+        value._continuity, value._backend = continuity, registration_backend
+        value._issuance_uncertain = False
+        value._context = b"zac-provider-oauth-transactions-v1\x00" + continuity._context
+        value._cipher = AESGCM(
+            HKDF(
+                algorithm=SHA256(),
+                length=32,
+                salt=b"zac-provider-oauth-transactions-v1",
+                info=value._context,
+            ).derive(key)
+        )
+        value._origin = json.loads(continuity._context)["origin"]
+        value._host = value._origin.removeprefix("https://")
+        with value._locked() as current:
+            existing()
+            value._read()
+            current()
+            existing()
+        return value
+
     @contextmanager
     def _locked(self) -> Iterator[Callable[[], None]]:
         """Original lock plus a private duplicate retaining its acquired flock.

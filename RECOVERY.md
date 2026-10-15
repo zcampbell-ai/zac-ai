@@ -576,3 +576,19 @@ This proof covers the original export holding, including mixed personal and busi
 `run_local_claude_custody` acknowledges only a committed canonical original/companion pair reopened under the current PERSONAL owner. Acknowledgment is explicitly `COMMITTED_REOPENED_RECOVERY_PENDING`. It supplies no backup receipt, model consent or current-fact verification. An interruption or failed reopen may follow a completed commit; stop and reconcile instead of automatically retrying. Artifact orphans may remain after a failed capture. Terminal approval binds the verified canonical proposal hash and clears pending input.
 
 The two root-owned real PostgreSQL checks used invented originals, actual canonical record/read functions and signed invented owner grants; terminal attendance was simulated. They establish capture/reopen and precommit revocation rollback mechanics only. Actual PERSONAL enrollment, first canonical capture and full artifact/State/journal off-device recovery remain unfinished.
+
+### Existing OAuth ledger inspection (2026-10-15)
+
+`OAuthTransactionAuthority.open_existing()` opens only the existing private
+directory, original lock and authenticated encrypted ledger. It never creates
+missing files, initializes storage, attests registration, renews an owner grant
+or contacts a provider. Missing/corrupt evidence or any extra child, including
+a crash-left temporary file, requires manual reconciliation; do not delete or
+reset files to force reopening. Callers must supply a canonical resolved path.
+
+Successful opening is point-in-time evidence, not a current owner permission,
+antirollback proof or uncertainty reconciliation. The in-process uncertainty
+flag does not carry between objects; the separate durable host halt and exact
+original transaction/SDK witnesses remain mandatory. Later explicitly invoked
+operations retain their existing checks. This method alone does not make Slack
+cold reopening ready or authorize credential reads, provider access or capture.
