@@ -165,6 +165,22 @@ runtime prompt-count parity must be demonstrated before profile enablement.
 A finite PUBLIC-only local conformance experiment is prepared separately; it
 cannot establish canonical protected-workflow or private-context portability.
 
+### October 15 actual local-counter observation
+
+A finite PUBLIC-only experiment used the same invented task with both installed
+models through their actual token counters and existing LocalReviewRuntime.
+Both reported exactly 1,311 prompt tokens, matching the offline counts. The 9B
+attempt took about 7.8 seconds and failed the current-plus-historical citation
+requirement. The 27B attempt took about 13.8 seconds and passed citation binding.
+Both outputs still need semantic caution: their summary overstates collective
+agreement. No failed output was repaired, retried or released as a valid review.
+
+The complete invented fixture, outputs, usage and root assessment are retained in
+`benchmarks/results/2026-10-15-counter-runtime-conformance.json`. These observations
+support keeping 9B unpromoted for this workflow. One task, fixed model order and
+one Ollama transport do not prove general model quality, production latency,
+cross-provider portability or private canonical workflow acceptance.
+
 ### October 15 selected-context application checkpoint
 
 A bounded application preparation service now calls the existing Claude selector

@@ -1,0 +1,409 @@
+{
+  "format": "caz-public-counter-runtime-observation-v1",
+  "observed_on": "2026-10-15",
+  "classification": "PUBLIC",
+  "trust_boundary": "SHARED",
+  "fixture": {
+    "meeting_source_id": "00000000-0000-0000-0000-000000003afd",
+    "related_source_ids": [
+      "00000000-0000-0000-0000-000000003afe"
+    ],
+    "semantic_review": {
+      "checks": [
+        "Does the result preserve testing the fix before release?",
+        "Does it preserve the earlier report as historical context?",
+        "Does every paraphrase follow from its cited excerpt?",
+        "Did it invent agreement, completed work, owners or deadlines?"
+      ],
+      "status": "UNREVIEWED_BY_HUMAN",
+      "warning": "Schema and exact citation validation do not prove semantic correctness."
+    },
+    "task": {
+      "context": [
+        {
+          "reference": {
+            "content_hash": "466b69fbd1ba540c42759ea0b042f766706c38f46218865447bccfbf15f40f7d",
+            "effective_classification": "PUBLIC",
+            "source_id": "00000000-0000-0000-0000-000000003afd",
+            "trust_boundary": "SHARED"
+          },
+          "untrusted_text": "Alex: We will test the reporting fix.\nSam: Do not release until tests pass."
+        },
+        {
+          "reference": {
+            "content_hash": "ced8f9030ab26542cf169a11a6e04b85cf30f3b4b6f0e7a86ee627ad00740d9e",
+            "effective_classification": "PUBLIC",
+            "source_id": "00000000-0000-0000-0000-000000003afe",
+            "trust_boundary": "SHARED"
+          },
+          "untrusted_text": "Alex: Last week we reproduced the reporting failure."
+        }
+      ],
+      "contract_version": 1,
+      "event": {
+        "causation_id": null,
+        "confidence": 1.0,
+        "contract_version": 1,
+        "correlation_id": "00000000-0000-0000-0000-000000003b01",
+        "data_classification": "PUBLIC",
+        "event_id": "00000000-0000-0000-0000-000000003b00",
+        "event_type": "public.invented.counter_conformance",
+        "importance": "FYI",
+        "observed_at": "2026-10-15T00:00:00Z",
+        "occurred_at": "2026-10-15T00:00:00Z",
+        "processing_status": "NEW",
+        "producer": "fixed.root.public.trial",
+        "provenance": [
+          {
+            "content_hash": "466b69fbd1ba540c42759ea0b042f766706c38f46218865447bccfbf15f40f7d",
+            "effective_classification": "PUBLIC",
+            "source_id": "00000000-0000-0000-0000-000000003afd",
+            "trust_boundary": "SHARED"
+          },
+          {
+            "content_hash": "ced8f9030ab26542cf169a11a6e04b85cf30f3b4b6f0e7a86ee627ad00740d9e",
+            "effective_classification": "PUBLIC",
+            "source_id": "00000000-0000-0000-0000-000000003afe",
+            "trust_boundary": "SHARED"
+          }
+        ],
+        "related_entities": [],
+        "trust_boundary": "SHARED"
+      },
+      "instruction": "Review this explicitly invented public meeting and its selected earlier context.",
+      "max_estimated_cost_usd": 0.0,
+      "max_latency_ms": 120000,
+      "max_output_tokens": 1600,
+      "required_capabilities": [
+        "compact_meeting_review"
+      ],
+      "task_id": "00000000-0000-0000-0000-000000003aff"
+    }
+  },
+  "attempts": [
+    {
+      "actual_prompt_usage_equals_counter": true,
+      "classification": "PUBLIC",
+      "context_tokens": 8192,
+      "counter_initialization_ms": 180.07958307862282,
+      "counter_input_tokens": 1311,
+      "failed_stage": "EXACT_CITATION_VALIDATION",
+      "generate_wall_ms": 7798.95337484777,
+      "limits": [
+        "One invented PUBLIC compact-review task, one planned generation attempt per model.",
+        "Both models use one Ollama transport. This is not cross-provider portability.",
+        "No canonical Source/audit/protection/owner-permission workflow was exercised.",
+        "No private-context, email, history, contextual-review or production-readiness claim.",
+        "Runtime locality/version metadata is trusted reporting, not hostile-host attestation.",
+        "Single samples; model loading, caching and fixed order can affect latency.",
+        "Socket timeout and late-response rejection are not a hard process-kill deadline.",
+        "Same-UID output deletion or snapshot rollback is outside this once-only guard."
+      ],
+      "manifest_digest": "203e30078279db51132b9e026ceb7bb21330e5b1af67ef190671b375c9770404",
+      "model": "qwen3.5:9b-mlx",
+      "model_route": {
+        "available": true,
+        "capabilities": [
+          "compact_meeting_review"
+        ],
+        "destination": "LOCAL",
+        "estimated_cost_usd": 0.0,
+        "estimated_latency_ms": 120000.0,
+        "identity": {
+          "model_id": "qwen3.5:9b-mlx",
+          "provider_id": "ollama",
+          "runtime_id": "mac-loopback"
+        },
+        "max_input_characters": 64000,
+        "max_output_tokens": 1600
+      },
+      "parsed_generated_draft": {
+        "continuity": [
+          {
+            "evidence_ids": [
+              "e3"
+            ],
+            "inferred": true,
+            "text": "Reporting failure reproduced last week by Alex."
+          }
+        ],
+        "items": [
+          {
+            "due_date": null,
+            "evidence_ids": [
+              "e1"
+            ],
+            "inferred": false,
+            "kind": "FOLLOW_UP",
+            "owner": null,
+            "text": "Test the reporting fix now."
+          },
+          {
+            "due_date": null,
+            "evidence_ids": [
+              "e2"
+            ],
+            "inferred": false,
+            "kind": "COMMITMENT",
+            "owner": null,
+            "text": "Do not release until tests pass."
+          }
+        ],
+        "summary": [
+          {
+            "evidence_ids": [
+              "e1"
+            ],
+            "inferred": false,
+            "text": "Team agreed to test the reporting fix before release."
+          },
+          {
+            "evidence_ids": [
+              "e2"
+            ],
+            "inferred": false,
+            "text": "Release blocked until tests pass successfully."
+          }
+        ]
+      },
+      "preflight_ms": 186.72775011509657,
+      "prompt_plus_reservation_fits": true,
+      "required_runtime_version_accepted": "0.35.1",
+      "reserved_output_tokens": 1600,
+      "semantic_review": {
+        "checks": [
+          "Does the result preserve testing the fix before release?",
+          "Does it preserve the earlier report as historical context?",
+          "Does every paraphrase follow from its cited excerpt?",
+          "Did it invent agreement, completed work, owners or deadlines?"
+        ],
+        "status": "UNREVIEWED_BY_HUMAN",
+        "warning": "Schema and exact citation validation do not prove semantic correctness."
+      },
+      "serialized_body_bytes": 7689,
+      "serialized_body_sha256": "3fb1b8ced80e5ac15a815002212a82eef75645f919a31e47ae2cfd46b3a84f7b",
+      "status": "FAILED_TERMINAL_NO_RETRY",
+      "task_id": "00000000-0000-0000-0000-000000003aff",
+      "total_attempt_wall_ms": 8175.603208132088,
+      "trust_boundary": "SHARED",
+      "usage": {
+        "cost_usd": 0.0,
+        "input_tokens": 1311,
+        "latency_ms": 7783.885292010382,
+        "output_tokens": 253
+      }
+    },
+    {
+      "actual_prompt_usage_equals_counter": true,
+      "classification": "PUBLIC",
+      "context_tokens": 8192,
+      "counter_initialization_ms": 198.88016604818404,
+      "counter_input_tokens": 1311,
+      "generate_wall_ms": 13790.374625008553,
+      "limits": [
+        "One invented PUBLIC compact-review task, one planned generation attempt per model.",
+        "Both models use one Ollama transport. This is not cross-provider portability.",
+        "No canonical Source/audit/protection/owner-permission workflow was exercised.",
+        "No private-context, email, history, contextual-review or production-readiness claim.",
+        "Runtime locality/version metadata is trusted reporting, not hostile-host attestation.",
+        "Single samples; model loading, caching and fixed order can affect latency.",
+        "Socket timeout and late-response rejection are not a hard process-kill deadline.",
+        "Same-UID output deletion or snapshot rollback is outside this once-only guard."
+      ],
+      "manifest_digest": "5642e97495e1a088883805981563dcdc4a040c2f53388b7a41d1f24d3622cf7e",
+      "model": "qwen3.8:27b-mlx",
+      "model_route": {
+        "available": true,
+        "capabilities": [
+          "compact_meeting_review"
+        ],
+        "destination": "LOCAL",
+        "estimated_cost_usd": 0.0,
+        "estimated_latency_ms": 120000.0,
+        "identity": {
+          "model_id": "qwen3.8:27b-mlx",
+          "provider_id": "ollama",
+          "runtime_id": "mac-loopback"
+        },
+        "max_input_characters": 64000,
+        "max_output_tokens": 1600
+      },
+      "parsed_generated_draft": {
+        "continuity": [
+          {
+            "evidence_ids": [
+              "e1",
+              "e3"
+            ],
+            "inferred": false,
+            "text": "Follows last week's reproduction of the reporting failure."
+          }
+        ],
+        "items": [
+          {
+            "due_date": null,
+            "evidence_ids": [
+              "e1"
+            ],
+            "inferred": false,
+            "kind": "COMMITMENT",
+            "owner": "Alex",
+            "text": "Test the reporting fix."
+          },
+          {
+            "due_date": null,
+            "evidence_ids": [
+              "e2"
+            ],
+            "inferred": false,
+            "kind": "DECISION",
+            "owner": null,
+            "text": "Do not release until tests pass."
+          }
+        ],
+        "summary": [
+          {
+            "evidence_ids": [
+              "e1",
+              "e2"
+            ],
+            "inferred": false,
+            "text": "Team agreed to test the reporting fix before release."
+          }
+        ]
+      },
+      "preflight_ms": 38.098915945738554,
+      "prompt_plus_reservation_fits": true,
+      "required_runtime_version_accepted": "0.35.1",
+      "reserved_output_tokens": 1600,
+      "semantic_review": {
+        "checks": [
+          "Does the result preserve testing the fix before release?",
+          "Does it preserve the earlier report as historical context?",
+          "Does every paraphrase follow from its cited excerpt?",
+          "Did it invent agreement, completed work, owners or deadlines?"
+        ],
+        "status": "UNREVIEWED_BY_HUMAN",
+        "warning": "Schema and exact citation validation do not prove semantic correctness."
+      },
+      "serialized_body_bytes": 7690,
+      "serialized_body_sha256": "9945d042139f818032b9ed07179680ff13552d3e14bdcb774aa3013e5abaa06d",
+      "status": "COUNTER_RUNTIME_AND_CITATION_CONFORMANCE_ONLY",
+      "task_id": "00000000-0000-0000-0000-000000003aff",
+      "total_attempt_wall_ms": 14037.74887509644,
+      "trust_boundary": "SHARED",
+      "usage": {
+        "cost_usd": 0.0,
+        "input_tokens": 1311,
+        "latency_ms": 13781.419167062268,
+        "output_tokens": 254
+      },
+      "validated_review": {
+        "continuity": [
+          {
+            "inferred": false,
+            "quotes": [
+              {
+                "end": 37,
+                "source_id": "00000000-0000-0000-0000-000000003afd",
+                "start": 0,
+                "text": "Alex: We will test the reporting fix."
+              },
+              {
+                "end": 52,
+                "source_id": "00000000-0000-0000-0000-000000003afe",
+                "start": 0,
+                "text": "Alex: Last week we reproduced the reporting failure."
+              }
+            ],
+            "text": "Follows last week's reproduction of the reporting failure."
+          }
+        ],
+        "contract_version": 1,
+        "data_classification": "PUBLIC",
+        "items": [
+          {
+            "due_date": null,
+            "inferred": false,
+            "kind": "COMMITMENT",
+            "owner": "Alex",
+            "quotes": [
+              {
+                "end": 37,
+                "source_id": "00000000-0000-0000-0000-000000003afd",
+                "start": 0,
+                "text": "Alex: We will test the reporting fix."
+              }
+            ],
+            "text": "Test the reporting fix."
+          },
+          {
+            "due_date": null,
+            "inferred": false,
+            "kind": "DECISION",
+            "owner": null,
+            "quotes": [
+              {
+                "end": 75,
+                "source_id": "00000000-0000-0000-0000-000000003afd",
+                "start": 38,
+                "text": "Sam: Do not release until tests pass."
+              }
+            ],
+            "text": "Do not release until tests pass."
+          }
+        ],
+        "summary": [
+          {
+            "inferred": false,
+            "quotes": [
+              {
+                "end": 37,
+                "source_id": "00000000-0000-0000-0000-000000003afd",
+                "start": 0,
+                "text": "Alex: We will test the reporting fix."
+              },
+              {
+                "end": 75,
+                "source_id": "00000000-0000-0000-0000-000000003afd",
+                "start": 38,
+                "text": "Sam: Do not release until tests pass."
+              }
+            ],
+            "text": "Team agreed to test the reporting fix before release."
+          }
+        ],
+        "task_id": "00000000-0000-0000-0000-000000003aff"
+      }
+    }
+  ],
+  "root_assessment": {
+    "both_actual_prompt_counts_equal_offline_counter": true,
+    "prompt_tokens_each": 1311,
+    "nine_b_citation_acceptance": false,
+    "nine_b_reason": "Continuity cites only historical e3, without required current meeting evidence. Do not repair citations or retry the consumed attempt.",
+    "twenty_seven_b_citation_acceptance": true,
+    "semantic_cautions": [
+      "Both summaries state team agreement more strongly than the invented source demonstrates.",
+      "9B adds urgency with now that is not in the source.",
+      "27B assigns Alex as commitment owner from Alex saying we; precise owner attribution deserves review."
+    ],
+    "decision": "Do not automatically promote9B for this meeting-review workflow. Token counter conformance passed; output acceptance did not. Retain27B semantic review, no broad quality or readiness conclusion.",
+    "limits": [
+      "One invented task and one attempt per model.",
+      "Both use Ollama, not separate provider transports.",
+      "No canonical private-memory workflow or owner usefulness acceptance.",
+      "Fixed order, loading and cache effects prevent general speed claims."
+    ]
+  },
+  "evidence_hashes": {
+    "1-entered.json": "cf1932d5769de36a0fae0933954529a1e529564b17386940ad3c82356c388c7d",
+    "1-result.json": "c9c3da7e275e4c41cfba317fdc5f6f6657bfb8b31d5b15f4bbf45f9efe2ce222",
+    "2-entered.json": "afb642c5647f9a3560d86684e9d02eb2f67693a97d77133a4993601d133c5805",
+    "2-result.json": "8cc0b3f7279f459374501f8603797e57136fc6983c2f98b8dc2a30eee604c857",
+    "fixture.json": "0e911079f42adf542de52bc0c21a40bf955c7359e9905d2304e9f0664f4c459f",
+    "plan.json": "a134619f162b7206f1c0d8a5da585de6f2159cef089f41bfb7b1c894360cc5df",
+    "summary.json": "bc559a1be7af82fb8accd2a048bae57d41bc4378d28c4fd39aceb8e2039e2e71"
+  },
+  "script_sha256": "dda5e5462625363bde8dab9510954c105fc9dc92471ad35474a17e58ade6e30d"
+}
