@@ -8,6 +8,7 @@ import pytest
 
 from tests.test_email_generation import req as source_req
 from tests.test_ollama_token_counter import installed as source_installed
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import content_hash_of
 from zacai.intelligence.contracts import ModelRoute
 from zacai.intelligence.email_local_wire import prepare_email_local_payload
@@ -31,7 +32,6 @@ from zacai.interfaces.email_processing_contracts import (
     EmailProcessingManifestV1,
     request_digest,
 )
-from zacai.interfaces.host_clock import HostObservedClock
 
 
 @pytest.fixture

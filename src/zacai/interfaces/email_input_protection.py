@@ -22,6 +22,7 @@ from sqlalchemy import text
 from zacai import backup
 from zacai.backup_artifacts import age_decrypt, age_encrypt, backup_object_key_for
 from zacai.contextual_protection import BrainstormContextualProtector
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import (
     LocalFilesystemArtifactStore,
     canonical_bytes,
@@ -35,7 +36,6 @@ from zacai.interfaces.email_input import (
     email_input_receipt_key,
     load_email_instruction_subject,
 )
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionOperation
 from zacai.policy import TrustBoundary as B
 from zacai.review_authorization import _assert_ledger_isolation

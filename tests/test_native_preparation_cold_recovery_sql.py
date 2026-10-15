@@ -20,11 +20,11 @@ from tests.test_native_preparation_retention_sql import prepare
 from zacai import backup
 from zacai.backup_artifacts import LocalDirectoryBackupStore, age_decrypt, age_encrypt
 from zacai.contextual_protection import BrainstormContextualProtector
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion import native_preparation_recovery as m
 from zacai.ingestion.artifact_store import canonical_bytes, content_hash_of
 from zacai.ingestion.native_preparation_recovery import BrainstormNativePreparationRecovery
 from zacai.intelligence.contextual_generation import encode_native_contextual_request
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionContinuity
 from zacai.interfaces.private_web import BoundaryScope, OwnerGrant
 from zacai.interfaces.session_store import Identity

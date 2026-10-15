@@ -11,11 +11,11 @@ import pytest
 from tests.test_local_followup_runtime import route
 from tests.test_named_followup_decision import fixture as declared_fixture
 from tests.test_ollama_token_counter import installed as installed  # noqa: PLC0414
+from zacai.host_clock import HostObservedClock
 from zacai.intelligence.followup_prompt_counter import OllamaQwenFollowupTokenCounter
 from zacai.interfaces import named_candidate_rows as rows
 from zacai.interfaces import named_decision_binding as module
 from zacai.interfaces.followup_authorization import FollowupHostSnapshot, scope_from_snapshot
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_decision_admission import QuestionRecoveryInputs
 from zacai.interfaces.named_followup_decision import named_manifest_digest
 from zacai.interfaces.named_runtime_binding import FixedLocalNamedRuntimeBinding

@@ -20,8 +20,8 @@ from functools import wraps
 from zacai.connectors.gmail_client_secret import _configuration
 from zacai.connectors.oauth_configuration import OAuthConfiguration
 from zacai.connectors.provider_oauth_evidence import SlackRotation
+from zacai.host_clock import HostObservedClock
 from zacai.interfaces.gmail_connection_web import GmailConnectionFatal, GmailHostGuard
-from zacai.interfaces.host_clock import HostObservedClock
 
 
 class GmailRegistrationError(ValueError):

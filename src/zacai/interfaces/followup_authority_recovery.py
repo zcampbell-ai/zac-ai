@@ -32,6 +32,7 @@ from zacai import backup
 from zacai.backup_artifacts import age_decrypt, age_encrypt, backup_object_key_for
 from zacai.brainstorm_identity_recovery import verify_brainstorm_recovered_identity
 from zacai.contextual_protection import BrainstormContextualProtector
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import canonical_bytes, content_hash_of
 from zacai.intelligence.contextual_storage import load_contextual_packet
 from zacai.intelligence.contracts import Contract, Digest, EvidenceReference
@@ -55,7 +56,6 @@ from zacai.interfaces.followup_authorization import (
     scope_from_snapshot,
     validate_followup_consent,
 )
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_decision_inventory import NamedDecisionInventory
 from zacai.interfaces.private_web import OwnerGrant
 from zacai.interfaces.text_turn_capture import decode_text_turn

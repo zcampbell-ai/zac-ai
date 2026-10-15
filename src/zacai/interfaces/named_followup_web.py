@@ -15,8 +15,8 @@ from threading import RLock
 from typing import Protocol
 from urllib.parse import parse_qs
 
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import content_hash_of
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_admission_store import (
     NamedAdmissionRecord,
     SqliteNamedAdmissionStore,

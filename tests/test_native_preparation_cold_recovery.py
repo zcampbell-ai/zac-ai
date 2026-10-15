@@ -24,9 +24,9 @@ from tests.test_native_evidence_context import fixture as fixture  # noqa: PLC04
 from tests.test_native_preparation_retention import retained as retained  # noqa: PLC0414
 from zacai.backup_artifacts import LocalDirectoryBackupStore, backup_object_key_for
 from zacai.contextual_protection import BrainstormContextualProtector, ProtectedState
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion import native_preparation_recovery as m
 from zacai.ingestion.artifact_store import content_hash_of
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionContinuity
 from zacai.interfaces.private_web import BoundaryScope, OwnerGrant
 from zacai.interfaces.session_store import Identity

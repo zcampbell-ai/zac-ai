@@ -7,6 +7,7 @@ import pytest
 
 from zacai.connectors.gmail_native_reader import _AppleInspectionBindings
 from zacai.connectors.gmail_native_staging import _MAX_DATA
+from zacai.host_clock import HostObservedClock
 
 
 class Primitive:
@@ -474,7 +475,7 @@ def test_activation_expiry_clock_revocation_blocks_actual_provider_dispatch(tmp_
             while frame:
                 if (
                     frame.f_code.co_name == "__call__"
-                    and frame.f_globals.get("__name__") == "zacai.interfaces.host_clock"
+                    and frame.f_globals.get("__name__") == HostObservedClock.__call__.__module__
                     and frame.f_back is not None
                     and frame.f_back.f_code.co_name == "_current"
                     and frame.f_back.f_globals.get("__name__")

@@ -37,8 +37,8 @@ from zacai.connectors.oauth_configuration import OAuthConfiguration
 from zacai.connectors.oauth_exchange import OAuthExchangeTransport
 from zacai.connectors.oauth_host_guard import OAuthHostGuard
 from zacai.connectors.oauth_transactions import OAuthTransactionAuthority
+from zacai.host_clock import HostObservedClock
 from zacai.interfaces.gmail_connection_web import GmailConnectionWeb
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionContinuity
 from zacai.interfaces.oidc_identity import IdentityProvider
 from zacai.interfaces.private_host import NamedOwnerHostInputs

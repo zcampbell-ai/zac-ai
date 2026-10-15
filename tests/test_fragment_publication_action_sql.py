@@ -37,12 +37,12 @@ from tests.test_personal_fragment_protection_sql import (
     clean_factory as clean_factory,  # noqa: PLC0414
 )
 from tests.test_private_host import ORIGIN, OWNER
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import content_hash_of
 from zacai.intelligence import fragment_publication_admission as admission
 from zacai.intelligence import fragment_review_declaration as declaration
 from zacai.intelligence import fragment_review_retention as retention
 from zacai.interfaces import fragment_publication_web as web
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionContinuity
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B

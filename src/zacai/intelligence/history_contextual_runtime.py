@@ -119,6 +119,7 @@ def history_contextual_runtime_digest() -> str:
         "review_protection.py",
         "ingestion/artifact_store.py",
         "interfaces/named_session_binding.py",
+        "host_clock.py",
         "interfaces/host_clock.py",
         "policy.py",
         "gateway.py",

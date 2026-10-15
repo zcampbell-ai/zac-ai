@@ -8,8 +8,8 @@ from uuid import uuid4
 import pytest
 from fastapi import FastAPI
 
+from zacai.host_clock import HostObservedClock
 from zacai.interfaces import named_worker_lifecycle as m
-from zacai.interfaces.host_clock import HostObservedClock
 
 
 @pytest.fixture

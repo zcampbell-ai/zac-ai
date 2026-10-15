@@ -448,6 +448,7 @@ from pydantic import model_validator as _fragment_validator
 from zacai.backup_artifacts import LocalDirectoryBackupStore as _FragmentLocalObjects
 from zacai.backup_artifacts import PersonalFullOriginalBackupPlan as _FragmentPlan
 from zacai.backup_artifacts_s3 import S3CompatibleBackupObjectStore as _FragmentS3Objects
+from zacai.host_clock import HostObservedClock as _FragmentClock
 from zacai.ingestion.artifact_store import LocalFilesystemArtifactStore as _FragmentArtifacts
 from zacai.intelligence.contracts import Contract as _FragmentContract
 from zacai.intelligence.contracts import Digest as _FragmentDigest
@@ -458,7 +459,6 @@ from zacai.intelligence.history_fragment_contextual_codec import (
 from zacai.intelligence.history_fragment_contextual_codec import (
     HistoryFragmentContextualRequestV1 as _FragmentRequest,
 )
-from zacai.interfaces.host_clock import HostObservedClock as _FragmentClock
 from zacai.interfaces.named_session_binding import (
     NamedSessionOperation as _FragmentOperation,
 )
@@ -600,8 +600,8 @@ class PersonalHistoryFragmentProtector:
         from zacai.backup_artifacts import LocalDirectoryBackupStore
         from zacai.backup_artifacts_s3 import S3CompatibleBackupObjectStore
         from zacai.claude_original_capture import observe_claude_artifact_root
+        from zacai.host_clock import HostObservedClock
         from zacai.ingestion.artifact_store import LocalFilesystemArtifactStore
-        from zacai.interfaces.host_clock import HostObservedClock
         from zacai.interfaces.named_session_binding import NamedSessionOperation
         from zacai.review_protection import assert_local_review_state_engine
 

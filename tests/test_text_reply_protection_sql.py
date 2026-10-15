@@ -25,6 +25,7 @@ from zacai import backup, backup_artifacts, contextual_protection
 from zacai.backup_artifacts import LocalDirectoryBackupStore, age_decrypt
 from zacai.contextual_protection import BrainstormContextualProtector
 from zacai.contextual_recovery_record import encode_recovery_receipt
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import content_hash_of
 from zacai.intelligence.contextual_evaluation import decode_contextual_packet
 from zacai.intelligence.contracts import ModelRoute, RouteIdentity, UsageObservation
@@ -38,7 +39,6 @@ from zacai.interfaces.followup_authorization import (
     _raw,
     scope_from_snapshot,
 )
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.oidc_identity import GOOGLE_ISSUER
 from zacai.interfaces.private_web import BoundaryScope, InterfacePrincipal, OwnerGrant
 from zacai.interfaces.session_store import Identity

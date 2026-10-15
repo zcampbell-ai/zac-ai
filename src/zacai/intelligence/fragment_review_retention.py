@@ -19,6 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, SessionTransaction, sessionmaker
 
 from zacai import contextual_authorization as auth
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import (
     LocalFilesystemArtifactStore,
     canonical_bytes,
@@ -42,7 +43,6 @@ from zacai.intelligence.history_fragment_contextual_codec import (
     HistoryFragmentContextualRequestV1,
     decode_history_fragment_contextual_request,
 )
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionOperation
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B

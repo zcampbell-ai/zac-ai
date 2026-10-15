@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from zacai import backup
 from zacai.backup_artifacts import age_decrypt, age_encrypt, backup_object_key_for
 from zacai.contextual_protection import BrainstormContextualProtector
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import canonical_bytes, content_hash_of
 from zacai.intelligence.contextual_storage import load_contextual_packet
 from zacai.intelligence.contracts import EvidenceReference
@@ -35,7 +36,6 @@ from zacai.interfaces.followup_authorization import (
     decode_followup_consent,
     encode_followup_consent,
 )
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.text_reply_capture import (
     TextReply,
     TextReplyCheckpointScope,

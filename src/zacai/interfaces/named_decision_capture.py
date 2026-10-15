@@ -29,11 +29,11 @@ from sqlalchemy.sql import visitors
 from sqlalchemy.sql.elements import ClauseElement, TextClause
 
 from zacai.backup_artifacts import backup_object_key_for
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import ArtifactStore, content_hash_of
 from zacai.intelligence.contracts import Contract, Digest, EvidenceReference
 from zacai.intelligence.followup_generation import FollowupRequest, prepare_followup_request
 from zacai.interfaces.followup_authorization import _owner_digest
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_decision_inventory import load_named_decision_inventory
 from zacai.interfaces.named_followup_decision import (
     NamedFollowupDecision,

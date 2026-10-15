@@ -21,11 +21,11 @@ from uuid import UUID
 from pydantic import AwareDatetime, ConfigDict, Field, field_validator, model_validator
 from sqlalchemy.orm import Session, sessionmaker
 
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import ArtifactStore, canonical_bytes, content_hash_of
 from zacai.intelligence.contracts import Contract, Digest, EvidenceReference, ModelRoute
 from zacai.intelligence.followup_generation import FollowupRequest, prepare_followup_request
 from zacai.intelligence.text_followup import FOLLOWUP_CAPABILITY
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.private_web import InterfacePrincipal, OwnerGrant
 from zacai.interfaces.text_followup_context import AssembledFollowup
 from zacai.policy import DataClassification as C

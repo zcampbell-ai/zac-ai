@@ -35,6 +35,7 @@ from zacai.connectors.gmail_quarantine_journal import (
 from zacai.connectors.oauth_configuration import OAuthConfiguration
 from zacai.connectors.oauth_host_guard import OAuthHostGuard
 from zacai.connectors.oauth_transactions import OAuthTransactionAuthority
+from zacai.host_clock import HostObservedClock
 from zacai.interfaces.gmail_diagnostic_host import (
     GmailDiagnosticHostError,
     GmailDiagnosticHostFatal,
@@ -42,7 +43,6 @@ from zacai.interfaces.gmail_diagnostic_host import (
     _closed,
     _ClosedRegistration,
 )
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionContinuity
 from zacai.interfaces.oidc_identity import IdentityProvider
 from zacai.interfaces.private_host import NamedOwnerHostInputs, PreparedOwnerHost

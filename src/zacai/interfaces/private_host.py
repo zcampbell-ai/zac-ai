@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, cast
 
 from fastapi import FastAPI
 
-from zacai.interfaces.host_clock import HostObservedClock
+from zacai.host_clock import HostObservedClock
 from zacai.interfaces.oidc_identity import AuthlibGoogleIdentity, IdentityProvider
 from zacai.interfaces.owner_enrollment import OwnerEnrollment, create_owner_enrollment
 from zacai.interfaces.owner_store import OwnerGrantStore

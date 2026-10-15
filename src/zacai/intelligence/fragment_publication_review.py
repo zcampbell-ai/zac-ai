@@ -2188,6 +2188,7 @@ _AUTHENTICATED_GRAPH_FILES = (
     "zacai/interfaces/gmail_installed_web.py",
     "zacai/interfaces/gmail_recovery_host.py",
     "zacai/interfaces/gmail_recovery_web.py",
+    "zacai/host_clock.py",
     "zacai/interfaces/host_clock.py",
     "zacai/interfaces/named_admission_store.py",
     "zacai/interfaces/named_browser_pointer.py",

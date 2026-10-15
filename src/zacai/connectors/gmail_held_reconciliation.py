@@ -27,7 +27,7 @@ from zacai.connectors.connector_authority import _guard, _json
 from zacai.connectors.gmail_client_secret import _configuration
 from zacai.connectors.oauth_configuration import OAuthConfiguration
 from zacai.connectors.oauth_transactions import OAuthTransactionAuthority
-from zacai.interfaces.host_clock import HostObservedClock
+from zacai.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionContinuity
 
 _GENERATION = re.compile(r"[0-9a-f]{32}")

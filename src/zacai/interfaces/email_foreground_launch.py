@@ -28,6 +28,7 @@ from sqlalchemy.orm import sessionmaker
 from zacai.backup_artifacts_s3 import S3CompatibleBackupObjectStore
 from zacai.config import get_secret
 from zacai.contextual_protection import BrainstormContextualProtector
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import LocalFilesystemArtifactStore
 from zacai.intelligence.contracts import ModelRoute
 from zacai.intelligence.email_local_wire import LARGE_CONTEXT_TOKENS, LARGE_RUNTIME
@@ -36,7 +37,6 @@ from zacai.intelligence.local_followup_runtime import _raise_interruption
 from zacai.intelligence.ollama_token_counter import OllamaQwenEmailTokenCounter
 from zacai.interfaces.email_foreground import _EmailForegroundFactory, proposal
 from zacai.interfaces.email_workflow_web import EmailWorkflowWeb
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.private_host import NamedOwnerHostInputs
 from zacai.interfaces.private_operator import (
     PrivateOperatorMode,

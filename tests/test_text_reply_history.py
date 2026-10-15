@@ -5,8 +5,8 @@ from datetime import timedelta
 import pytest
 
 from tests.test_text_reply_capture import fixture as reply_fixture
+from zacai.host_clock import HostObservedClock
 from zacai.interfaces import text_reply_capture as m
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import (
     NamedSessionOperation,
     VerifiedNamedSession,

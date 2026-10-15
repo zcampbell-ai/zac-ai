@@ -35,7 +35,7 @@ from zacai.connectors.gmail_held_diagnostic import HeldGmailDiagnostic
 from zacai.connectors.gmail_held_reconciliation import HeldGmailReconciliation
 from zacai.connectors.oauth_configuration import OAuthConfiguration
 from zacai.connectors.oauth_transactions import OAuthTransactionAuthority
-from zacai.interfaces.host_clock import HostObservedClock
+from zacai.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionContinuity
 from zacai.interfaces.oidc_identity import IdentityProvider
 from zacai.interfaces.private_host import NamedOwnerHostInputs, PreparedOwnerHost

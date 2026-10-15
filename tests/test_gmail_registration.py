@@ -13,8 +13,8 @@ from zacai.connectors.gmail_registration import (
     ReviewedGmailRegistration,
 )
 from zacai.connectors.provider_oauth_evidence import SlackRotation
+from zacai.host_clock import HostObservedClock
 from zacai.interfaces.gmail_connection_web import GmailConnectionFatal
-from zacai.interfaces.host_clock import HostObservedClock
 
 NOW = datetime(2026, 10, 7, 16, tzinfo=UTC)
 GENERATION = "invented-approved-console-review-2026-10-07"

@@ -23,6 +23,7 @@ from zacai import backup_artifacts, contextual_protection
 from zacai.backup_artifacts import LocalDirectoryBackupStore
 from zacai.contextual_protection import BrainstormContextualProtector
 from zacai.contextual_recovery_record import encode_recovery_receipt
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import canonical_bytes, content_hash_of
 from zacai.intelligence.contextual_storage import load_contextual_packet
 from zacai.intelligence.contracts import EvidenceReference, UsageObservation
@@ -38,7 +39,6 @@ from zacai.interfaces.followup_authorization import (
     FollowupHostSnapshot,
     _owner_digest,
 )
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_admission_store import SqliteNamedAdmissionStore
 from zacai.interfaces.named_browser_pointer import (
     NamedAdmissionReuseCoordinator,

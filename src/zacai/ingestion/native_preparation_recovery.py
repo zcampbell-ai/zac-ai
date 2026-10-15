@@ -28,6 +28,7 @@ from zacai import backup
 from zacai.backup_artifacts import age_decrypt, age_encrypt, backup_object_key_for
 from zacai.brainstorm_identity_recovery import verify_brainstorm_recovered_identity
 from zacai.contextual_protection import BrainstormContextualProtector
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import canonical_bytes, content_hash_of
 from zacai.ingestion.native_contextual_preparation_retention import (
     PairedNativePreparationReferences,
@@ -43,7 +44,6 @@ from zacai.intelligence import native_contextual_assembly as assembly
 from zacai.intelligence.contextual_generation import encode_native_contextual_request
 from zacai.intelligence.contracts import Contract, Digest, EvidenceReference
 from zacai.interfaces.checkpoint_lease import checkpoint_lease
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionOperation, VerifiedNamedSession
 from zacai.interfaces.private_web import InterfacePrincipal
 from zacai.policy import DataClassification as C

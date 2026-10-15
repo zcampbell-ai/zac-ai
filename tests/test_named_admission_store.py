@@ -10,9 +10,9 @@ from uuid import uuid4
 import pytest
 
 from tests.test_named_followup_decision import fixture as named_fixture
+from zacai.host_clock import HostObservedClock
 from zacai.intelligence.contracts import EvidenceReference
 from zacai.interfaces import named_admission_store as m
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 

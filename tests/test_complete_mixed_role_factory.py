@@ -21,13 +21,13 @@ from tests.test_history_generation_review_declaration import (
 from tests.test_history_generation_review_declaration import prepared as prepared  # noqa: PLC0414
 from tests.test_ollama_token_counter import installed as installed  # noqa: PLC0414
 from tests.test_review_generation import synthetic_context
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import LocalFilesystemArtifactStore, content_hash_of
 from zacai.intelligence.contracts import IntelligenceTask
 from zacai.intelligence.history_contextual_codec import decode_history_contextual_request
 from zacai.intelligence.meeting_review import ReviewContext
 from zacai.intelligence.ollama_token_counter import OllamaQwenContextualTokenCounter
 from zacai.interfaces import personal_history_factory as m
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionOperation
 from zacai.interfaces.private_host import NamedOwnerHostInputs
 from zacai.policy import DataClassification as C

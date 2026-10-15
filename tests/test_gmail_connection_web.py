@@ -18,8 +18,8 @@ from zacai.connectors.oauth_transactions import (
     OAuthTransactionAuthority,
     OAuthTransactionUnconfirmed,
 )
+from zacai.host_clock import HostObservedClock
 from zacai.interfaces.gmail_connection_web import GmailConnectionWeb
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionContinuity
 from zacai.interfaces.private_host import PrivateHostError, prepare_owner_host
 from zacai.interfaces.private_web import BoundaryScope

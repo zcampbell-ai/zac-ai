@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from zacai.backup_artifacts import backup_object_key_for
 from zacai.contextual_recovery_record import ContextualRecoveryReceipt
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import canonical_bytes, content_hash_of
 from zacai.intelligence.contracts import Contract, Digest, EvidenceReference, UsageObservation
 from zacai.intelligence.followup_generation import FollowupRequest, prepare_followup_request
@@ -47,7 +48,6 @@ from zacai.interfaces.followup_authorization import (
 from zacai.interfaces.followup_authorization import (
     FollowupConsent as FollowupConsent,  # noqa: PLC0414 - preserve legacy test/caller export
 )
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.private_web import InterfacePrincipal, OwnerGrant
 from zacai.interfaces.reply_final_snapshot import verify_reply_final_snapshot
 from zacai.interfaces.text_followup_context import CanonicalFollowupAssembler

@@ -22,11 +22,11 @@ from zacai import backup
 from zacai.backup_artifacts import LocalDirectoryBackupStore
 from zacai.claude_local_custody import _SCOPE
 from zacai.contextual_protection import ContextualProtectionError, PersonalHistoryFragmentProtector
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import LocalFilesystemArtifactStore, content_hash_of
 from zacai.intelligence.history_fragment_contextual_codec import (
     encode_history_fragment_contextual_request,
 )
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionContinuity
 from zacai.interfaces.sqlite_sessions import SqliteSessionStore
 from zacai.policy import TrustBoundary as B

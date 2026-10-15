@@ -21,8 +21,8 @@ from tests.test_fragment_preparation_web import (
     setup as setup,
 )
 from tests.test_private_host import CONFIG, NOW
+from zacai.host_clock import HostObservedClock
 from zacai.interfaces import private_operator as operator
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.owner_enrollment import OwnerEnrollment
 from zacai.interfaces.private_web import _USER, BoundaryScope, create_private_web
 from zacai.policy import DataClassification, TrustBoundary

@@ -35,6 +35,7 @@ from zacai.claude_original_capture import (
     _root_check,
 )
 from zacai.gateway import ActionRequest, ActionType, GatewayOutcome, evaluate_gateway
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import (
     LocalFilesystemArtifactStore,
     canonical_bytes,
@@ -44,7 +45,6 @@ from zacai.intelligence.contextual_storage import _fragment_rows
 from zacai.intelligence.contracts import Contract, Digest, EvidenceReference
 from zacai.intelligence.fragment_publication_generation import _same_output_commit_transaction
 from zacai.intelligence.fragment_review_retention import _physical, _same
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionOperation, VerifiedNamedSession
 from zacai.interfaces.owner_store import OwnerGrantStore
 from zacai.interfaces.private_host import NamedOwnerHostInputs

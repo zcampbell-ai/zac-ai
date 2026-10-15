@@ -19,9 +19,9 @@ from tests.test_fragment_review_declaration import (
 from tests.test_fragment_review_declaration import declared
 from tests.test_history_fragment_consent_records import case as case  # noqa: PLC0414
 from zacai.claude_local_custody import _SCOPE
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import content_hash_of
 from zacai.interfaces import fragment_publication_web as m
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionContinuity
 from zacai.interfaces.private_web import OwnerGrant
 from zacai.interfaces.session_store import Identity

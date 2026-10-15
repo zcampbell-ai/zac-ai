@@ -29,6 +29,7 @@ from tests.test_fragment_publication_controller import (
 )
 from tests.test_fragment_publication_post import body, request
 from tests.test_private_host import CONFIG, NOW
+from zacai.host_clock import HostObservedClock
 from zacai.intelligence import contextual_evaluation as evaluation
 from zacai.intelligence import contextual_review as preview
 from zacai.intelligence import fragment_publication_generation as generation
@@ -38,7 +39,6 @@ from zacai.intelligence import history_fragment_contextual_codec as codec
 from zacai.intelligence import local_contextual_runtime as local
 from zacai.interfaces import fragment_publication_web as web
 from zacai.interfaces import private_operator as operator
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.private_web import create_private_web
 
 

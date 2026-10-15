@@ -28,6 +28,7 @@ from zacai.contextual_protection import (
     PersonalHistoryFragmentProtector,
 )
 from zacai.gateway import ActionRequest, ActionType, GatewayOutcome, evaluate_gateway
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import (
     LocalFilesystemArtifactStore,
     canonical_bytes,
@@ -72,7 +73,6 @@ from zacai.intelligence.history_review_retention import (
     _parts,
     history_declaration_owner,
 )
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionOperation
 from zacai.policy import AccessRequest, Destination
 from zacai.policy import DataClassification as C

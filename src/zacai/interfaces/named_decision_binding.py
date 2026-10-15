@@ -14,10 +14,10 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from zacai.contextual_recovery_record import ContextualRecoveryReceipt, encode_recovery_receipt
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import canonical_bytes, content_hash_of
 from zacai.intelligence.followup_generation import prepare_followup_request
 from zacai.interfaces.followup_authorization import FollowupHostSnapshot, scope_from_snapshot
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_candidate_rows import verify_named_candidate_rows
 from zacai.interfaces.named_decision_admission import QuestionRecoveryInputs
 from zacai.interfaces.named_followup_decision import (

@@ -23,9 +23,9 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import canonical_bytes
 from zacai.interfaces.followup_authorization import _owner_digest
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_admission_store import (
     IssuedAdmission,
     NamedAdmissionRecord,

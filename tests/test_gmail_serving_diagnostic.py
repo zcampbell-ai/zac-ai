@@ -11,12 +11,12 @@ import pytest
 from fastapi import FastAPI
 
 from tests.test_oauth_configuration import gmail
+from zacai.host_clock import HostObservedClock
 from zacai.interfaces.gmail_recovery_host import (
     GmailRecoveryHostError,
     GmailRecoveryHostFatal,
     GmailRecoveryHostPlan,
 )
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.private_operator import PrivateOperatorWindow
 from zacai.interfaces.private_server_lifecycle import (
     PrivateServerLifecycle,

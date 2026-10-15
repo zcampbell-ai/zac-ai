@@ -18,8 +18,8 @@ from tests.test_complete_history_contextual_storage_sql import (
 )
 from zacai import chatgpt_native_custody as m
 from zacai.claude_original_capture import observe_claude_artifact_root
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import LocalFilesystemArtifactStore, content_hash_of
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionContinuity
 from zacai.interfaces.owner_enrollment import OwnerEnrollment
 from zacai.interfaces.owner_store import OwnerGrantStore

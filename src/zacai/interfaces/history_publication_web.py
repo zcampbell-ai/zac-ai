@@ -16,6 +16,7 @@ from starlette.requests import Request
 from zacai.backup_artifacts import _assert_personal_custody_append_capacity
 from zacai.claude_local_custody import _SCOPE
 from zacai.contextual_protection import PersonalFragmentCleanupUncertain
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import content_hash_of
 from zacai.intelligence.contextual_evaluation import ContextualOutcome
 from zacai.intelligence.contextual_review import render_contextual_preview
@@ -76,7 +77,6 @@ from zacai.intelligence.local_contextual_runtime import _context_tokens, _fragme
 from zacai.intelligence.local_review_runtime import _http, verify_model
 from zacai.intelligence.ollama_token_counter import OllamaQwenContextualTokenCounter
 from zacai.interfaces.history_publication_action import _observe_history_http_post
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionContinuity, NamedSessionOperation
 from zacai.interfaces.owner_store import OwnerGrantStore
 from zacai.interfaces.personal_history_factory import (

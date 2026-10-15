@@ -7,11 +7,11 @@ import pytest
 
 from tests.test_followup_consent_versions import consents as consents  # noqa: PLC0414
 from tests.test_named_decision_inventory import fixture as named_fixture
+from zacai.host_clock import HostObservedClock
 from zacai.interfaces import followup_authority_recovery as authority
 from zacai.interfaces import followup_authorization as authorization
 from zacai.interfaces import named_decision_capture
 from zacai.interfaces.followup_authorization import FollowupConsentV2
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_followup_decision import named_decision_consent_id
 
 

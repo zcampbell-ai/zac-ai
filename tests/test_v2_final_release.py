@@ -289,7 +289,7 @@ def test_new_reply_cannot_backdate_past_last_validation_window(monkeypatch, endi
 
 
 def test_v2_protection_clock_and_named_binding_must_match(fixture):
-    from zacai.interfaces.host_clock import HostObservedClock
+    from zacai.host_clock import HostObservedClock
 
     s = fixture
     kwargs = {
@@ -432,7 +432,7 @@ def test_reply_protector_final_named_callback_inventory_mutation_holds(
 
 def test_concrete_reply_protector_private_clock_property_sanitized(tmp_path, monkeypatch):
     from tests.test_text_reply_protection import protected
-    from zacai.interfaces.host_clock import HostObservedClock
+    from zacai.host_clock import HostObservedClock
     from zacai.interfaces.text_reply_protection import (
         BrainstormTextReplyProtection,
         TextReplyProtectionError,

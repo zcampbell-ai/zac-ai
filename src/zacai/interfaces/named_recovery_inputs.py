@@ -24,10 +24,10 @@ from zacai.contextual_recovery_record import (
     RecoveryLocator,
     encode_recovery_receipt,
 )
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import canonical_bytes, content_hash_of
 from zacai.intelligence.contracts import EvidenceReference
 from zacai.intelligence.review_context import _unique_pairs
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_admission_store import NamedAdmissionRecord
 from zacai.interfaces.named_decision_admission import QuestionRecoveryInputs
 from zacai.interfaces.named_decision_capture import (

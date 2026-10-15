@@ -18,8 +18,8 @@ from threading import RLock, Thread
 from typing import TYPE_CHECKING, Literal, TypeVar, cast
 from uuid import UUID
 
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import canonical_bytes, content_hash_of
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_admission_store import NamedAdmissionRecord, SqliteNamedAdmissionStore
 
 if TYPE_CHECKING:

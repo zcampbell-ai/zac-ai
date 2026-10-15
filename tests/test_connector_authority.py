@@ -27,7 +27,7 @@ from zacai.connectors.connector_authority import (
     review_scope_digest,
 )
 from zacai.connectors.slack_wire import SlackAccount
-from zacai.interfaces.host_clock import HostObservedClock
+from zacai.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionContinuity
 from zacai.interfaces.private_web import BoundaryScope, OwnerGrant
 from zacai.interfaces.session_store import Identity

@@ -7,8 +7,8 @@ from datetime import timedelta
 import pytest
 
 from tests.test_gmail_app_observation import NOW, args, observation
+from zacai.host_clock import HostObservedClock
 from zacai.interfaces import email_foreground as e
-from zacai.interfaces.host_clock import HostObservedClock
 
 
 @pytest.fixture

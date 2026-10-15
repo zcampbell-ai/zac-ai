@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from zacai.contextual_recovery_record import ContextualRecoveryReceipt
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import canonical_bytes, content_hash_of
 from zacai.intelligence.contracts import EvidenceReference
 from zacai.intelligence.followup_generation import (
@@ -35,7 +36,6 @@ from zacai.interfaces.followup_authorization import (
     decode_followup_consent,
     load_named_consent_inventory,
 )
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_admission_store import (
     NamedAdmissionRecord,
     SqliteNamedAdmissionStore,

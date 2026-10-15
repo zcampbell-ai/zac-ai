@@ -24,10 +24,10 @@ from zacai import backup
 from zacai.backup_artifacts import age_decrypt, age_encrypt, backup_object_key_for
 from zacai.brainstorm_identity_recovery import verify_brainstorm_recovered_identity
 from zacai.contextual_protection import BrainstormContextualProtector
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import canonical_bytes, content_hash_of
 from zacai.intelligence.contracts import EvidenceReference
 from zacai.interfaces.checkpoint_lease import checkpoint_lease
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_decision_capture import (
     NamedDecisionCheckpointScope,
     NamedDecisionRecoveryReceipt,

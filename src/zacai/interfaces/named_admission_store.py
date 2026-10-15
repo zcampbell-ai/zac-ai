@@ -28,9 +28,9 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from pydantic import AwareDatetime, ConfigDict, Field, model_validator
 
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import canonical_bytes, content_hash_of
 from zacai.intelligence.contracts import Contract, Digest, EvidenceReference
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_followup_decision import NamedFollowupManifest, encode_named_manifest
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B

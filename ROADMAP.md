@@ -76,9 +76,11 @@ Actual connector readiness and useful memory coverage still require verification
   After import-only formatting: all changed Python files pass Ruff, both clock
   modules pass strict mypy, and 51 focused clock/session tests pass. No private
   model generation or live connector acceptance is established by these checks.
-- Independent Claude Opus review is pending: the bounded code-only attempt ended
-  with terminal sign-in unavailable. It supplied no engineering verdict. An
-  independent local static review is separately assigned; it is not Opus review.
+- Independent Claude Opus code-only review accepted the final extraction and pin
+  corrections after terminal sign-in was restored. An independent unpaid local
+  static review also accepted the corrections. Three implementation inventories
+  now cover both clock files; all six byte-mutation sensitivity cases pass. No
+  live service, private context processing or owner usefulness was tested.
 - The context audit found `propose_claude_task_context` has no production caller.
   The actual personal-history factory uses configured message spans. Existing
   source-backed selection/assembly libraries are useful foundations, but this

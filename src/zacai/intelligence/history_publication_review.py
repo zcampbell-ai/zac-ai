@@ -367,6 +367,7 @@ def history_publication_review_graph_digest() -> str:
         "backup_artifacts.py",
         "review_protection.py",
         "interfaces/named_session_binding.py",
+        "host_clock.py",
         "interfaces/host_clock.py",
         "policy.py",
         "gateway.py",

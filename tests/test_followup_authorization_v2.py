@@ -7,10 +7,10 @@ from uuid import uuid4
 import pytest
 
 from tests.test_followup_authorization import fixture as legacy_fixture
+from zacai.host_clock import HostObservedClock
 from zacai.intelligence.contracts import EvidenceReference
 from zacai.interfaces import followup_authorization as module
 from zacai.interfaces import named_decision_capture, named_decision_inventory
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_followup_decision import named_decision_consent_id
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B

@@ -5,8 +5,8 @@ from types import SimpleNamespace
 
 import pytest
 
+from zacai.host_clock import HostObservedClock
 from zacai.interfaces import named_session_binding as m
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.private_web import BoundaryScope, OwnerGrant
 from zacai.interfaces.session_store import Identity
 from zacai.interfaces.sqlite_sessions import SqliteSessionStore

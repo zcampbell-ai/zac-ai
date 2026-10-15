@@ -17,8 +17,8 @@ from fastapi.testclient import TestClient
 
 from tests.test_named_admission_store import fixture as admission_fixture
 from tests.test_private_host import CONFIG, NOW, ORIGIN, InventedIdentity, enroll
+from zacai.host_clock import HostObservedClock
 from zacai.interfaces.followup_authorization import _owner_digest
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_admission_store import SqliteNamedAdmissionStore
 from zacai.interfaces.named_browser_pointer import (
     NamedAdmissionReuseCoordinator,

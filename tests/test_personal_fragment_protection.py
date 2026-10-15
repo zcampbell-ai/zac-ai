@@ -20,6 +20,7 @@ from tests.test_fragment_contextual_storage import payload
 from zacai import contextual_protection as m
 from zacai.backup_artifacts import LocalDirectoryBackupStore, PersonalFullOriginalBackupPlan
 from zacai.claude_local_custody import _SCOPE
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import (
     LocalFilesystemArtifactStore,
     canonical_bytes,
@@ -29,7 +30,6 @@ from zacai.intelligence.contextual_storage import history_fragment_packet_proven
 from zacai.intelligence.history_fragment_contextual_codec import (
     decode_history_fragment_contextual_packet,
 )
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionOperation, VerifiedNamedSession
 from zacai.interfaces.private_web import InterfacePrincipal
 from zacai.interfaces.session_store import Identity

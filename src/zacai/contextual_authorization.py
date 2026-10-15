@@ -553,6 +553,7 @@ def prepared_native_contextual_digest(request: ContextualRequestV2) -> str:
     raise ContextualAuthorizationError("native contextual request unavailable or invalid")
 
 # Explicit dormant PERSONAL fragment records; original V1 declarations unchanged.
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import LocalFilesystemArtifactStore
 from zacai.intelligence.contextual_storage import (
     _fragment_profile_lineage,
@@ -566,7 +567,6 @@ from zacai.intelligence.history_fragment_contextual_codec import (
     HistoryFragmentContextualRequestV1,
     encode_history_fragment_contextual_request,
 )
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionOperation, VerifiedNamedSession
 from zacai.interfaces.private_web import BoundaryScope
 from zacai.state_repository import record_source

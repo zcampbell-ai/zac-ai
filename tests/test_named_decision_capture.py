@@ -30,7 +30,7 @@ def fixture(monkeypatch):
     # Existing nested invented fixtures retain the original canonical turn store.
     while not hasattr(old, "_factory"):
         old = old._assembler._capture
-    from zacai.interfaces.host_clock import HostObservedClock
+    from zacai.host_clock import HostObservedClock
     s.host_clock = HostObservedClock(lambda: s.now)
 
     class Admission:

@@ -14,6 +14,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 
 from zacai.contextual_recovery_record import ContextualRecoveryReceipt, encode_recovery_receipt
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import canonical_bytes, content_hash_of
 from zacai.intelligence.contracts import EvidenceReference
 from zacai.intelligence.followup_generation import FollowupRequest, prepare_followup_request
@@ -22,7 +23,6 @@ from zacai.interfaces.followup_authorization import (
     _owner_digest,
     scope_from_snapshot,
 )
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_admission_store import NamedAdmissionRecord, SqliteNamedAdmissionStore
 from zacai.interfaces.named_candidate_rows import verify_named_candidate_rows
 from zacai.interfaces.named_decision_capture import _find_named

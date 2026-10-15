@@ -18,7 +18,7 @@ from tests.test_gmail_native_staging import InventedBindings
 from tests.test_oauth_configuration import gmail
 from tests.test_private_host import CONFIG, NOW, ORIGIN, InventedIdentity, enroll
 from zacai.connectors.oauth_exchange import OAuthExchangeTransport
-from zacai.interfaces.host_clock import HostObservedClock
+from zacai.host_clock import HostObservedClock
 from zacai.interfaces.private_startup import OwnerStartupLoader
 
 ACCESS = "invented-concrete-setup-access"

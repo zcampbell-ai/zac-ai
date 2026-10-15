@@ -28,6 +28,7 @@ from zacai.contextual_protection import (
     PersonalFragmentRecoveryReceipt,
     PersonalHistoryFragmentProtector,
 )
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import (
     LocalFilesystemArtifactStore,
     canonical_bytes,
@@ -69,7 +70,6 @@ from zacai.intelligence.local_contextual_runtime import (
     FragmentLocalContextualRuntime,
 )
 from zacai.intelligence.personal_fragment_output import PersonalFragmentRetainedOutput
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionOperation, VerifiedNamedSession
 from zacai.policy import DataClassification as C
 from zacai.policy import Destination

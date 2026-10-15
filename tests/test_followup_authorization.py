@@ -14,12 +14,12 @@ import pytest
 from tests.test_text_followup_context import assemble
 from tests.test_text_followup_context import fixture as assembly_fixture
 from zacai import review_authorization
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import canonical_bytes, content_hash_of
 from zacai.intelligence.contracts import ModelRoute, RouteIdentity
 from zacai.intelligence.followup_generation import prepare_followup_request
 from zacai.intelligence.text_followup import FollowupContext, TextFollowupError
 from zacai.interfaces import followup_authorization as module
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.private_web import OwnerGrant
 from zacai.interfaces.session_store import Identity
 from zacai.policy import DataClassification as C

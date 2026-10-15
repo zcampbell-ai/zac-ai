@@ -24,6 +24,7 @@ from tests.test_fireflies_protection import keypair
 from zacai import backup_artifacts, contextual_protection
 from zacai.backup_artifacts import LocalDirectoryBackupStore
 from zacai.contextual_protection import BrainstormContextualProtector
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import LocalFilesystemArtifactStore
 from zacai.interfaces.email_input import (
     CanonicalBrainstormEmailInput,
@@ -34,7 +35,6 @@ from zacai.interfaces.email_input import (
     observe_email_input_post,
 )
 from zacai.interfaces.email_input_protection import BrainstormEmailInputProtection
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionContinuity
 from zacai.interfaces.owner_enrollment import OwnerEnrollment
 from zacai.interfaces.owner_store import OwnerGrantStore

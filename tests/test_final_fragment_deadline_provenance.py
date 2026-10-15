@@ -30,11 +30,11 @@ from tests.test_personal_fragment_factory import (
     post_case as post_case,
 )
 from zacai import review_authorization
+from zacai.host_clock import HostObservedClock
 from zacai.intelligence import fragment_publication_generation as generation
 from zacai.intelligence import fragment_publication_review as review
 from zacai.intelligence.contracts import EvidenceReference
 from zacai.interfaces import personal_fragment_factory as factory
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 

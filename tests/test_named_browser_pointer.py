@@ -184,7 +184,7 @@ def test_coordinator_cache_capacity_holds_without_store_or_session_eviction(fixt
 
 
 def test_coordinator_rejects_store_clock_mismatch(fixture):
-    from zacai.interfaces.host_clock import HostObservedClock
+    from zacai.host_clock import HostObservedClock
     s = fixture
     s.store._clock = HostObservedClock(lambda: s.now)
     with pytest.raises(m.NamedBrowserPointerError):
@@ -192,7 +192,7 @@ def test_coordinator_rejects_store_clock_mismatch(fixture):
 
 
 def test_actual_operation_different_clock_identity_denied_before_session_read(fixture):
-    from zacai.interfaces.host_clock import HostObservedClock
+    from zacai.host_clock import HostObservedClock
     s = fixture
     alternative = NamedSessionContinuity(**{
         **s.continuity_args, 'clock': HostObservedClock(lambda: s.now),

@@ -22,6 +22,7 @@ from pydantic import AwareDatetime, Field
 
 from zacai.backup_artifacts_s3 import S3CompatibleBackupObjectStore
 from zacai.contextual_protection import BrainstormContextualProtector
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import LocalFilesystemArtifactStore
 from zacai.ingestion.gmail_app_observation import (
     MAX_OBSERVATION_BYTES,
@@ -34,7 +35,6 @@ from zacai.intelligence.email_processing_runtime import FixedLocalEmailRuntimeV1
 from zacai.intelligence.local_followup_runtime import _raise_interruption
 from zacai.intelligence.local_review_runtime import _json
 from zacai.interfaces.email_workflow_web import EmailWorkflowWeb
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionContinuity
 from zacai.interfaces.private_host import NamedOwnerHostInputs
 from zacai.interfaces.private_operator import (

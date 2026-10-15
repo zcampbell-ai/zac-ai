@@ -7,8 +7,8 @@ from tests.test_email_app_input_sql import app_case as app_case  # noqa: PLC0414
 from tests.test_email_app_input_sql import clean_factory as clean_factory  # noqa: PLC0414
 from tests.test_email_app_input_sql import genuine_case as genuine_case  # noqa: PLC0414
 from tests.test_private_host import CONFIG, ORIGIN, STATE, InventedIdentity, enroll
+from zacai.host_clock import HostObservedClock
 from zacai.interfaces.email_workflow_web import EmailWorkflowWeb
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionContinuity
 from zacai.interfaces.private_host import PrivateHostError, prepare_owner_host
 from zacai.interfaces.private_operator import (

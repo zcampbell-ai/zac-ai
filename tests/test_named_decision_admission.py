@@ -11,10 +11,10 @@ from uuid import uuid4
 import pytest
 
 from tests.test_named_followup_decision import fixture as named_fixture
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import content_hash_of
 from zacai.interfaces import named_decision_admission as m
 from zacai.interfaces.followup_authorization import FollowupHostSnapshot
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_admission_store import SqliteNamedAdmissionStore
 from zacai.interfaces.named_followup_decision import encode_named_decision
 from zacai.interfaces.named_session_binding import NamedSessionContinuity

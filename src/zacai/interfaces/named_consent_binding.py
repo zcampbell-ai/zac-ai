@@ -15,12 +15,12 @@ from typing import cast
 
 from sqlalchemy.orm import Session
 
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import canonical_bytes, content_hash_of
 from zacai.interfaces.followup_authorization import (
     FollowupConsentV2,
     load_named_consent_inventory,
 )
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_admission_store import NamedAdmissionRecord
 from zacai.interfaces.named_decision_admission import CanonicalNamedDecisionAdmission
 from zacai.interfaces.named_decision_capture import NamedDecisionRecoveryReceipt

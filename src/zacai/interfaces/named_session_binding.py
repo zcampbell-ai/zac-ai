@@ -20,8 +20,8 @@ from urllib.parse import urlsplit
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import canonical_bytes
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.private_web import InterfacePrincipal, OwnerGrant
 from zacai.interfaces.session_store import UserSession
 from zacai.interfaces.sqlite_sessions import SqliteSessionStore

@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from zacai import contextual_authorization as auth
 from zacai.backup_artifacts import _assert_personal_custody_append_capacity
 from zacai.claude_original_capture import _artifact_profile, _root_check
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import (
     LocalFilesystemArtifactStore,
     canonical_bytes,
@@ -51,7 +52,6 @@ from zacai.intelligence.history_review_retention import (
 from zacai.intelligence.history_review_retention import (
     _ids as _publication_ids,
 )
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 from zacai.review_authorization import _lock

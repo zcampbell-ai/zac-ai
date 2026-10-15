@@ -405,7 +405,7 @@ def test_closed_receipt_codec_no_authority_injection(declaration_protection, fau
 def writer(retained, monkeypatch):
     """Real files/Session lifecycle; SQL lock/rows/owner are explicitly simulated."""
     f = retained
-    from zacai.interfaces.host_clock import HostObservedClock
+    from zacai.host_clock import HostObservedClock
 
     f.active = 0
     f.pending = []

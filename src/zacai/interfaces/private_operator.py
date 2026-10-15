@@ -52,7 +52,7 @@ from typing import TYPE_CHECKING, Literal, Protocol
 
 from fastapi import FastAPI
 
-from zacai.interfaces.host_clock import HostObservedClock
+from zacai.host_clock import HostObservedClock
 from zacai.interfaces.oidc_identity import IdentityProvider
 from zacai.interfaces.owner_enrollment import PendingOwner
 from zacai.interfaces.private_host import (

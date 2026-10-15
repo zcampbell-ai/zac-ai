@@ -298,7 +298,7 @@ def test_complete_body_over_budget_never_captured(factory_case, monkeypatch):
 
 
 def test_wrong_original_operation_host_inputs_before_protector(factory_case):
-    from zacai.interfaces.host_clock import HostObservedClock
+    from zacai.host_clock import HostObservedClock
 
     f = factory_case
     wrong = replace(f.s.inputs, clock=HostObservedClock(lambda: f.s.f.now[0]))

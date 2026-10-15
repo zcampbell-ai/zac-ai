@@ -6,7 +6,7 @@ from threading import Event, Lock
 
 import pytest
 
-from zacai.interfaces.host_clock import HostClockError, HostObservedClock
+from zacai.host_clock import HostClockError, HostObservedClock
 
 NOW = datetime(2026, 10, 5, 12, tzinfo=UTC)
 
@@ -147,3 +147,12 @@ def test_noncallable_reader_and_authority_constructor_fields_denied():
         HostObservedClock(None)
     with pytest.raises(TypeError):
         HostObservedClock(lambda: NOW, processing_authorized=True)
+
+
+def test_legacy_imports_preserve_exact_class_identity():
+    from zacai.interfaces.host_clock import HostClockError as LegacyError
+    from zacai.interfaces.host_clock import HostObservedClock as LegacyClock
+
+    assert LegacyClock is HostObservedClock
+    assert LegacyError is HostClockError
+    assert type(LegacyClock(lambda: NOW)) is HostObservedClock

@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from zacai.contextual_protection import PersonalHistoryFragmentProtector
+    from zacai.host_clock import HostObservedClock
     from zacai.intelligence.fragment_publication_admission import (
         PersonalFragmentPublicationAdmissionReceiptV1,
         RetainedFragmentPublicationAdmission,
@@ -60,7 +61,6 @@ if TYPE_CHECKING:
         RetainedFragmentWithdrawal,
     )
     from zacai.intelligence.ollama_token_counter import OllamaQwenContextualTokenCounter
-    from zacai.interfaces.host_clock import HostObservedClock
 
 _TOKEN = re.compile(r"[A-Za-z0-9_-]{43}")
 _ACTION_SEAL = object()

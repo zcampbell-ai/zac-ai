@@ -17,6 +17,7 @@ from zacai.contextual_authorization import (
     _FRAGMENT_OWNER_SCOPE,
     _assert_fragment_generation_unconsumed,
 )
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import LocalFilesystemArtifactStore, content_hash_of
 from zacai.intelligence.contextual_storage import _fragment_rows, _history_reconstruct
 from zacai.intelligence.contracts import EvidenceReference
@@ -37,7 +38,6 @@ from zacai.intelligence.history_generation_review_declaration import (
     encode_history_generation_review_declaration,
     history_generation_review_declaration_digest,
 )
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.interfaces.named_session_binding import NamedSessionOperation, VerifiedNamedSession
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B

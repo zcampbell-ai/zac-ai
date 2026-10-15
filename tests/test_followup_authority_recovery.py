@@ -18,10 +18,10 @@ from tests.test_fireflies_protection import keypair
 from zacai import backup
 from zacai.backup_artifacts import LocalDirectoryBackupStore, age_encrypt, backup_object_key_for
 from zacai.contextual_protection import BrainstormContextualProtector, ProtectedState
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import content_hash_of
 from zacai.intelligence.contracts import EvidenceReference
 from zacai.interfaces import followup_authority_recovery as module
-from zacai.interfaces.host_clock import HostObservedClock
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 from zacai.state import Base
