@@ -5,11 +5,12 @@ from __future__ import annotations
 import secrets
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from html import escape
 from threading import Lock, RLock
 from urllib.parse import parse_qs, urlsplit
+from uuid import UUID
 
 from starlette.requests import Request
 
@@ -22,6 +23,7 @@ from zacai.intelligence.contextual_evaluation import ContextualOutcome
 from zacai.intelligence.contextual_review import render_contextual_preview
 from zacai.intelligence.contextual_storage import _fragment_rows
 from zacai.intelligence.fragment_review_retention import _physical, _same
+from zacai.intelligence.history_context_metadata import ClaudeMessageMetadata, HistoryMessageSpan
 from zacai.intelligence.history_contextual_codec import decode_history_contextual_packet
 from zacai.intelligence.history_contextual_runtime import (
     LocalHistoryContextualRuntime,
@@ -86,6 +88,10 @@ from zacai.interfaces.personal_history_factory import (
 )
 from zacai.interfaces.private_host import NamedOwnerHostInputs
 from zacai.interfaces.private_web import _USER, _cookie
+from zacai.personal_history_task_selection import (
+    PersonalHistoryTaskPreparation,
+    PersonalTaskContextOutcome,
+)
 from zacai.review_authorization import _lock
 
 _NATIVE_MONOTONIC = time.monotonic
@@ -633,6 +639,75 @@ def _instruction(value: object) -> str:
     return value
 
 
+@dataclass(frozen=True, repr=False)
+class _SelectedHistoryPreparationFactory:
+    configuration: PersonalHistoryTaskConfiguration
+    review_counter: OllamaQwenHistoryReviewTokenCounter
+    rubric_utf8: bytes
+    template_utf8: bytes
+    approved_message_ids: tuple[UUID, ...]
+
+    def __call__(
+        self, inputs: NamedOwnerHostInputs, operation: NamedSessionOperation, instruction: str,
+    ) -> HistoryPublicationWeb:
+        raise HistoryPreparationError("context confirmation required before preparation")
+
+    def start(
+        self, inputs: NamedOwnerHostInputs, operation: NamedSessionOperation, instruction: str,
+    ) -> tuple[PersonalHistoryTaskPreparation, PersonalTaskContextOutcome]:
+        service = PersonalHistoryTaskPreparation(
+            configuration=self.configuration, inputs=inputs,
+            approved_message_ids=self.approved_message_ids,
+        )
+        return service, service.propose(operation=operation, instruction=instruction)
+
+    def resolve(
+        self, inputs: NamedOwnerHostInputs, operation: NamedSessionOperation,
+        instruction: str, service: PersonalHistoryTaskPreparation, option_number: int,
+    ) -> PersonalTaskContextOutcome:
+        if service._configuration is not self.configuration or service._inputs is not inputs:
+            raise HistoryPreparationError("original context configuration required")
+        return service.resolve_choice(
+            operation=operation, instruction=instruction,
+            approved_message_ids=self.approved_message_ids, option_number=option_number,
+        )
+
+    def finish(
+        self, inputs: NamedOwnerHostInputs, operation: NamedSessionOperation,
+        instruction: str, service: PersonalHistoryTaskPreparation,
+        option_number: int | None,
+    ) -> HistoryPublicationWeb:
+        if service._configuration is not self.configuration or service._inputs is not inputs:
+            raise HistoryPreparationError("original context configuration required")
+        prepared = service.prepare(
+            operation=operation, instruction=instruction,
+            approved_message_ids=self.approved_message_ids, option_number=option_number,
+        )
+        spans: list[HistoryMessageSpan] = []
+        for entry in prepared.request.sidecar.entries:
+            if type(entry) is not ClaudeMessageMetadata:
+                raise HistoryPreparationError("exact retained context required")
+            spans.append(HistoryMessageSpan(
+                message_id=entry.message_id, character_start=entry.character_start,
+                character_end=entry.character_end,
+            ))
+        configuration = replace(self.configuration, selections=tuple(spans))
+        return HistoryPublicationWeb(
+            continuity=operation._source, prepared=prepared, configuration=configuration,
+            review_counter=self.review_counter, rubric_utf8=self.rubric_utf8,
+            template_utf8=self.template_utf8,
+        )
+
+
+@dataclass(frozen=True, repr=False)
+class _PendingHistoryContext:
+    service: PersonalHistoryTaskPreparation
+    outcome: PersonalTaskContextOutcome
+    operation: NamedSessionOperation
+    instruction: str
+    operation_pins: tuple[object, object, object]
+
+
 class HistoryPreparationWeb:
     """One trusted factory call after exact current owner POST, not consent.
 
@@ -672,6 +747,7 @@ class HistoryPreparationWeb:
         self._continuity_pins = (c._sessions, c._owner, c._clock, c._context, c._key)
         self._phase = "NEW"
         self._controller: HistoryPublicationWeb | None = None
+        self._pending_context: _PendingHistoryContext | None = None
         self._lock = RLock()
 
     @staticmethod
@@ -707,12 +783,113 @@ class HistoryPreparationWeb:
         finally:
             self._lock.release()
 
-    def prepare(self, *, request: Request, body: bytes) -> HistoryPublicationWeb:
+    def context_page(self, *, cookie: str, csrf: str) -> str:
+        """Render retained proposal without Source/selection/consent writes or renewal.
+
+        Security checks may advance the shared process-local clock watermark.
+        No source retrieval, selection, declaration or model work runs on GET.
+        """
         if not self._lock.acquire(blocking=False):
             raise HistoryPreparationError("local task preparation unavailable")
         try:
-            if self._phase != "NEW":
+            pending = self._pending_context
+            i, c = self._inputs, self.continuity
+            if (self._phase not in {"CONTEXT", "RESOLVED"} or type(pending) is not _PendingHistoryContext
+                or type(self._factory) is not _SelectedHistoryPreparationFactory
+                or any(a is not b for a, b in zip(self._pins, (i, self._factory, c), strict=True))
+                or (c._sessions, c._owner, c._clock, c._context, c._key) != self._continuity_pins
+                or any(a is not b for a, b in zip(pending.operation_pins,
+                    (pending.operation._read, pending.operation._host_clock, pending.operation._source),
+                    strict=True)) or pending.operation._source is not c):
+                raise ValueError("original pending context required")
+            current = c.for_cookie(cookie).establish()
+            original = pending.operation.recheck(current.binding_digest)
+            session = i.sessions.peek_user(cookie, i.clock())
+            if (original != current or session is None
+                or not secrets.compare_digest(csrf, session.csrf)
+                or current.principal.scopes != _SCOPE):
+                raise ValueError("original context session required")
+            pending.service._check(pending.operation)
+            selection = pending.outcome.selection
+            warning = ("<p>This uses only the approved history selection, not your full history. "
+                "Historical statements are not confirmed current facts.</p>")
+            preparation_warning = ("<p>Preparing the task encrypts and backs up the full PERSONAL inventory "
+                "and retains a local plaintext recovery copy. "
+                "AI processing requires a separate later approval.</p>")
+            prefix = '<p><strong>Task:</strong> ' + escape(pending.instruction) + '</p>'
+            if selection.outcome == "MISSING_CONTEXT":
+                content = prefix + '<p>I could not find enough usable context in this approved history.</p>'
+                content += '<p>' + escape(selection.non_choice_reason or "More context is needed.") + '</p>'
+            else:
+                hidden = ('<input type="hidden" name="csrf" value="'
+                    + escape(csrf, quote=True) + '">')
+                if selection.outcome == "CLARIFICATION":
+                    content = prefix + '<p>' + escape(selection.question or "Which history should I use?") + '</p>'
+                    button = "Show this history"
+                    options = ''.join('<option value="' + str(number) + '">' + escape(option.display_label)
+                        + '</option>' for number, option in enumerate(selection.options, 1))
+                    controls = ('<input type="hidden" name="action" value="choose_context">'
+                        '<label for="context-option">Choose one history</label>'
+                        '<select id="context-option" name="option">' + options + '</select>')
+                elif selection.outcome == "PROPOSED":
+                    button = "Use this history and prepare task"
+                    warning += preparation_warning
+                    if selection.preview is None:
+                        raise ValueError("complete selected context preview required")
+                    preview = selection.preview
+                    if (preview.original_task.instruction != pending.instruction
+                        or preview.context.task.instruction != pending.instruction):
+                        raise ValueError("exact disclosed task required")
+                    originals = [item for item in preview.context.task.context
+                        if item.reference == selection.original_reference]
+                    if len(originals) != 1:
+                        raise ValueError("exact selected original context required")
+                    original_text = originals[0].untrusted_text
+                    content = prefix + '<p>Use this history for your task?</p><ul>'
+                    for entry in preview.sidecar.entries:
+                        if (type(entry) is not ClaudeMessageMetadata
+                            or entry.current_original_reference != selection.original_reference
+                            or entry.current_companion_reference != selection.companion_reference
+                            or not 0 <= entry.context_character_start < entry.context_character_end <= len(original_text)):
+                            raise ValueError("exact selected history display required")
+                        selected_text = original_text[entry.context_character_start:entry.context_character_end]
+                        if (len(selected_text) != entry.character_end - entry.character_start
+                            or content_hash_of(selected_text.encode()) != entry.selected_text_hash):
+                            raise ValueError("selected passage display differs")
+                        excerpt = selected_text[:140] + ("..." if len(selected_text) > 140 else "")
+                        metadata = ("Retained Claude history; historical " + entry.historical_role
+                            + "; reported " + entry.reported_created_at.date().isoformat())
+                        content += ('<li><p>' + escape(metadata) + '</p><p>Excerpt: '
+                            + escape(excerpt) + '</p><details><summary>Full selected passage</summary>'
+                            + '<pre style="white-space:pre-wrap;overflow-wrap:anywhere">'
+                            + escape(selected_text) + '</pre></details></li>')
+                    content += '</ul>'
+                    controls = '<input type="hidden" name="action" value="confirm_context">'
+                else:
+                    raise ValueError("closed context outcome required")
+                content += (warning + '<form method="post" action="/prepare-caz-task" accept-charset="UTF-8">'
+                    + hidden + controls + '<button type="submit">' + button + '</button></form>')
+            pending.service._check(pending.operation)
+            if pending.operation.recheck(current.binding_digest) != current:
+                raise ValueError("original context session changed")
+            with i.clock._lock:
+                final_observed = i.clock._last
+            if final_observed is None or final_observed >= self._factory.configuration.expires_at:
+                raise ValueError("original context window expired")
+            return content
+        except BaseException:  # noqa: BLE001,S110 - GET never consumes or mutates the task
+            pass
+        finally:
+            self._lock.release()
+        raise HistoryPreparationError("local task preparation unavailable")
+
+    def prepare(self, *, request: Request, body: bytes) -> HistoryPublicationWeb | None:
+        if not self._lock.acquire(blocking=False):
+            raise HistoryPreparationError("local task preparation unavailable")
+        try:
+            if self._phase not in {"NEW", "CONTEXT", "RESOLVED"}:
                 raise HistoryPreparationError("local task preparation unavailable")
+            initial_phase = self._phase
             result = None
             uncertain = False
             try:
@@ -739,18 +916,40 @@ class HistoryPreparationWeb:
                     encoding="utf-8",
                     errors="strict",
                 )
-                if (
-                    set(fields) != {"action", "csrf", "instruction"}
-                    or any(len(v) != 1 for v in fields.values())
-                    or fields["action"] != ["prepare"]
-                ):
-                    raise ValueError("closed preparation fields required")
-                instruction = _instruction(fields["instruction"][0])
+                if any(len(v) != 1 for v in fields.values()):
+                    raise ValueError("single preparation fields required")
+                option_number: int | None = None
+                if initial_phase == "NEW":
+                    if set(fields) != {"action", "csrf", "instruction"} or fields["action"] != ["prepare"]:
+                        raise ValueError("closed preparation fields required")
+                    instruction = _instruction(fields["instruction"][0])
+                else:
+                    pending = self._pending_context
+                    if (type(self._factory) is not _SelectedHistoryPreparationFactory
+                        or type(pending) is not _PendingHistoryContext):
+                        raise ValueError("original pending context required")
+                    context_kind = pending.outcome.selection.outcome
+                    if context_kind == "PROPOSED":
+                        if set(fields) != {"action", "csrf"} or fields["action"] != ["confirm_context"]:
+                            raise ValueError("closed context confirmation required")
+                    elif context_kind == "CLARIFICATION":
+                        if (set(fields) != {"action", "csrf", "option"}
+                            or fields["action"] != ["choose_context"]
+                            or not fields["option"][0].isascii()
+                            or not fields["option"][0].isdigit()
+                            or str(int(fields["option"][0])) != fields["option"][0]):
+                            raise ValueError("closed context answer required")
+                        option_number = int(fields["option"][0])
+                        if not 1 <= option_number <= len(pending.outcome.selection.options):
+                            raise ValueError("exact displayed context option required")
+                    else:
+                        raise ValueError("no available complete context")
+                    instruction = pending.instruction
                 cookie = _cookie(request, _USER)
                 operation = c.for_cookie(cookie)
                 if operation._source is not c:
                     raise ValueError("original operation continuity required")
-                operation_pins = (operation._read, operation._host_clock, operation._source)
+                operation_pins: tuple[object, object, object] = (operation._read, operation._host_clock, operation._source)
                 before = operation.establish()
                 current = i.sessions.peek_user(cookie, i.clock())
                 after = operation.recheck(before.binding_digest)
@@ -763,7 +962,54 @@ class HistoryPreparationWeb:
                     or self._phase != "ENTERED"
                 ):
                     raise ValueError("current exact owner preparation required")
-                controller = self._factory(i, operation, instruction)
+                if type(self._factory) is _SelectedHistoryPreparationFactory:
+                    if initial_phase == "NEW":
+                        service, outcome = self._factory.start(i, operation, instruction)
+                        if (operation.recheck(before.binding_digest) != before
+                            or self._phase != "ENTERED"
+                            or any(a is not b for a, b in zip(self._pins, (i, self._factory, c), strict=True))
+                            or (c._sessions, c._owner, c._clock, c._context, c._key) != self._continuity_pins
+                            or any(a is not b for a, b in zip(operation_pins,
+                                (operation._read, operation._host_clock, operation._source), strict=True))):
+                            raise ValueError("original context operation changed")
+                        service._check(operation)
+                        self._pending_context = _PendingHistoryContext(
+                            service, outcome, operation, instruction, operation_pins,
+                        )
+                        self._phase = "CONTEXT"
+                        return None
+                    pending = self._pending_context
+                    assert type(pending) is _PendingHistoryContext
+                    if (pending.operation._source is not c
+                        or pending.operation.recheck(before.binding_digest) != before
+                        or any(a is not b for a, b in zip(pending.operation_pins,
+                            (pending.operation._read, pending.operation._host_clock,
+                             pending.operation._source), strict=True))):
+                        raise ValueError("original context operation required")
+                    operation = pending.operation
+                    operation_pins = pending.operation_pins
+                    if option_number is not None:
+                        if initial_phase != "CONTEXT":
+                            raise ValueError("only the original offered choice may be resolved")
+                        resolved = self._factory.resolve(
+                            i, operation, instruction, pending.service, option_number,
+                        )
+                        if (self._phase != "ENTERED" or resolved.selection.outcome != "PROPOSED"
+                            or operation.recheck(before.binding_digest) != before
+                            or any(a is not b for a, b in zip(operation_pins,
+                                (operation._read, operation._host_clock, operation._source), strict=True))
+                            or any(a is not b for a, b in zip(self._pins, (i, self._factory, c), strict=True))
+                            or (c._sessions, c._owner, c._clock, c._context, c._key) != self._continuity_pins):
+                            raise ValueError("original resolved operation changed")
+                        pending.service._check(operation)
+                        self._pending_context = replace(pending, outcome=resolved)
+                        self._phase = "RESOLVED"
+                        return None
+                    controller = self._factory.finish(
+                        i, operation, instruction, pending.service, None,
+                    )
+                else:
+                    controller = self._factory(i, operation, instruction)
                 if self._phase != "ENTERED" or type(controller) is not HistoryPublicationWeb:
                     raise ValueError("exact once-only controller required")
                 if (
@@ -826,14 +1072,17 @@ class HistoryPreparationWeb:
                 ):
                     raise ValueError("original declaration session/window required")
                 self._controller = controller
+                self._pending_context = None
                 self._phase = "PREPARED"
                 result = controller
             except PersonalFragmentCleanupUncertain:
                 self._phase = "HELD"
+                self._pending_context = None
                 self._controller = None
                 uncertain = True
             except BaseException:  # noqa: BLE001 - hold and sanitize interrupted callbacks too
                 self._phase = "HELD"
+                self._pending_context = None
                 self._controller = None
             if result is None:
                 if uncertain:
@@ -852,11 +1101,15 @@ def personal_history_publication_factory(
     review_counter: OllamaQwenHistoryReviewTokenCounter,
     rubric_utf8: bytes,
     template_utf8: bytes,
+    approved_message_ids: tuple[UUID, ...] | None = None,
 ) -> Callable[[NamedOwnerHostInputs, NamedSessionOperation, str], HistoryPublicationWeb]:
     """Trusted configured cohort only; no startup/GET capture or processing.
 
     The real request-bound operation is used once to prepare custody and its
     immutable protector. Processing still needs the later original APPROVE POST.
+    Supplying approved_message_ids opts into bounded task-context proposal and
+    an explicit same-session confirmation/question through HistoryPreparationWeb.
+    Omitting it preserves the original fixed-selection preparation behavior.
     """
     if (
         type(configuration) is not PersonalHistoryTaskConfiguration
@@ -867,6 +1120,15 @@ def personal_history_publication_factory(
         or not 0 < len(template_utf8) <= 16000
     ):
         raise HistoryPublicationWebError("exact complete factory configuration required")
+
+    if approved_message_ids is not None:
+        if (type(approved_message_ids) is not tuple or not 1 <= len(approved_message_ids) <= 64
+            or any(type(value) is not UUID or not value.int for value in approved_message_ids)
+            or len(set(approved_message_ids)) != len(approved_message_ids)):
+            raise HistoryPublicationWebError("exact approved history cohort required")
+        return _SelectedHistoryPreparationFactory(
+            configuration, review_counter, rubric_utf8, template_utf8, approved_message_ids,
+        )
 
     def prepare(
         inputs: NamedOwnerHostInputs, operation: NamedSessionOperation, instruction: str

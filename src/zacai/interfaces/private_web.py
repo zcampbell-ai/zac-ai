@@ -924,6 +924,10 @@ def create_private_web(
                     try:
                         history_preparation.prepared_controller()
                     except HistoryPreparationError:
+                        if history_preparation._phase in {"CONTEXT", "RESOLVED"}:
+                            form = await run_in_threadpool(history_preparation.context_page,
+                                cookie=cookie, csrf=signed[0].csrf)
+                            return HTMLResponse(history_document(form))
                         if history_preparation._phase != "NEW":
                             return Response("Task preparation stopped. Stop and reconcile; do not retry.", status_code=503)
                         from zacai.claude_local_custody import _SCOPE as preparation_scope

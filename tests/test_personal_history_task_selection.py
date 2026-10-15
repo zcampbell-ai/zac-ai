@@ -287,3 +287,104 @@ def test_interrupted_custody_read_is_private_safe_and_terminal(case, monkeypatch
     with pytest.raises(PersonalTaskSelectionError):
         app.propose(operation=s.operation, instruction="Summarize Sales Audit")
     assert s.opened == before and not s.preparations
+
+
+def test_resolve_choice_discloses_before_preparation_then_confirms_same_option(case):
+    s = case
+    app = s.make()
+    first = app.propose(operation=s.operation, instruction="Summarize Sales Audit")
+    option = next(i for i, v in enumerate(first.selection.options, 1)
+                  if v.selected_message_ids == (MID,))
+    resolved = app.resolve_choice(
+        operation=s.operation, instruction="Summarize Sales Audit",
+        approved_message_ids=(MID, OTHER), option_number=option,
+    )
+    assert resolved.selection.outcome == "PROPOSED" and app._phase == "RESOLVED"
+    assert tuple(e.message_id for e in resolved.selection.preview.sidecar.entries) == (MID,)
+    assert not s.preparations and not resolved.processing_authorized
+    assert app._selection is first.selection  # Original comparison binding is retained.
+    prepare(s, app, "Summarize Sales Audit")
+    assert tuple(span.message_id for span in s.preparations[-1][0].selections) == (MID,)
+
+
+@pytest.mark.parametrize("fault", ["task", "cohort", "new-session", "revoked", "deadline", "pair", "different-choice"])
+def test_resolved_confirmation_rejects_changed_original_context_or_answer(case, fault):
+    s = case
+    app = s.make()
+    app.propose(operation=s.operation, instruction="Summarize Sales Audit")
+    app.resolve_choice(operation=s.operation, instruction="Summarize Sales Audit",
+        approved_message_ids=(MID, OTHER), option_number=1)
+    instruction, kwargs = "Summarize Sales Audit", {}
+    if fault == "task":
+        instruction = "Summarize Icon Park"
+    elif fault == "cohort":
+        kwargs["approved_message_ids"] = (MID,)
+    elif fault == "new-session":
+        cookie = s.sessions.start_user(s.owner.identity, s.now)
+        kwargs["operation"] = s.continuity.for_cookie(cookie)
+    elif fault == "revoked":
+        s.sessions.revoke(s.cookie)
+    elif fault == "deadline":
+        s.now = s.configuration.expires_at
+    elif fault == "pair":
+        s.read = s.current_read(prepared(text="Changed Sales Audit scope", selected_ids=(MID,)))
+    elif fault == "different-choice":
+        kwargs["option_number"] = 2
+    with pytest.raises(PersonalTaskSelectionError):
+        prepare(s, app, instruction, **kwargs)
+    assert not s.preparations
+
+
+def test_resolve_choice_is_one_shot_and_cannot_silently_change_option(case):
+    s = case
+    app = s.make()
+    app.propose(operation=s.operation, instruction="Summarize Sales Audit")
+    app.resolve_choice(operation=s.operation, instruction="Summarize Sales Audit",
+        approved_message_ids=(MID, OTHER), option_number=1)
+    with pytest.raises(PersonalTaskSelectionError):
+        app.resolve_choice(operation=s.operation, instruction="Summarize Sales Audit",
+            approved_message_ids=(MID, OTHER), option_number=2)
+    with pytest.raises(PersonalTaskSelectionError):
+        prepare(s, app, "Summarize Sales Audit")
+    assert not s.preparations
+
+
+@pytest.mark.parametrize("fault", ["span", "selected-hash"])
+def test_initial_proposal_refuses_changed_selected_entries_with_same_comparison_binding(
+    case, monkeypatch, fault,
+):
+    from zacai.intelligence.history_context_metadata import (
+        HistoryMessageSpan,
+        prepare_claude_history_context_preview,
+    )
+    from zacai.intelligence.history_contextual_codec import prepare_history_contextual_request
+
+    s = case
+    app = s.make()
+    shown = app.propose(operation=s.operation, instruction="Summarize Icon Park")
+    assert shown.selection.outcome == "PROPOSED"
+    actual_selector = m.propose_claude_task_context
+
+    def changed_selection(original, read, **kwargs):
+        fresh = actual_selector(original, read, **kwargs)
+        assert fresh.selection_binding_digest == shown.selection.selection_binding_digest
+        if fault == "span":
+            prior = fresh.preview.sidecar.entries[0]
+            changed = prepare_claude_history_context_preview(
+                original, read,
+                selections=(HistoryMessageSpan(message_id=prior.message_id,
+                    character_start=1, character_end=prior.character_end),),
+                observed_at=kwargs["observed_at"], route=kwargs["route"],
+            )
+            request = prepare_history_contextual_request(
+                changed, original_context=original, route=kwargs["route"],
+            )
+            return replace(fresh, preview=changed, request=request)
+        entry = fresh.preview.sidecar.entries[0].model_copy(update={"selected_text_hash": "0" * 64})
+        sidecar = fresh.preview.sidecar.model_copy(update={"entries": (entry,)})
+        return replace(fresh, preview=replace(fresh.preview, sidecar=sidecar))
+
+    monkeypatch.setattr(m, "propose_claude_task_context", changed_selection)
+    with pytest.raises(PersonalTaskSelectionError):
+        prepare(s, app, "Summarize Icon Park")
+    assert not s.preparations and app._phase == "HELD"

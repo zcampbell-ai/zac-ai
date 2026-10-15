@@ -155,6 +155,10 @@ class PersonalHistoryTaskPreparation:
             raise PersonalTaskSelectionError("task context preparation unavailable")
         self._phase = "NEW"
         self._selection: ClaudeTaskSelection | None = None
+        self._proposed_digest: str | None = None
+        self._resolved: ClaudeTaskSelection | None = None
+        self._resolved_option: int | None = None
+        self._resolved_digest: str | None = None
         self._instruction: str | None = None
         self._session_binding: str | None = None
         self._lock = RLock()
@@ -249,9 +253,56 @@ class PersonalHistoryTaskPreparation:
             self._phase = "ENTERED"
             self._instruction = _instruction(instruction)
             self._selection = self._select(operation, self._instruction)
+            if self._selection.outcome == "PROPOSED":
+                self._proposed_digest = self._selected_digest(self._selection)
             self._phase = "PROPOSED"
             return PersonalTaskContextOutcome(self._selection)
         except BaseException:  # noqa: BLE001 - an interruption also consumes the attempt
+            self._phase = "HELD"
+        finally:
+            self._lock.release()
+        raise PersonalTaskSelectionError("task context preparation unavailable")
+
+    @staticmethod
+    def _selected_digest(selection: ClaudeTaskSelection) -> str:
+        if selection.outcome != "PROPOSED" or selection.preview is None:
+            raise ValueError("complete resolved context required")
+        return content_hash_of(canonical_bytes({
+            "binding": selection.selection_binding_digest,
+            "instruction": selection.instruction,
+            "selected": [entry.model_dump(mode="json", exclude={"projection_observed_at"})
+                         for entry in selection.preview.sidecar.entries],
+        }))
+
+    def resolve_choice(
+        self, *, operation: NamedSessionOperation, instruction: str,
+        approved_message_ids: tuple[UUID, ...], option_number: int,
+    ) -> PersonalTaskContextOutcome:
+        """Read/revalidate one answer for disclosure; no declaration or processing.
+
+        Original task/cohort/session/deadline remain fixed. The retained initial
+        proposal remains the comparison basis. Later prepare() must confirm this
+        exact resolved choice without supplying another option.
+        """
+        if not self._lock.acquire(blocking=False):
+            raise PersonalTaskSelectionError("task context preparation unavailable")
+        try:
+            if (
+                self._phase != "PROPOSED" or self._selection is None
+                or self._selection.outcome != "CLARIFICATION"
+                or instruction != self._instruction or approved_message_ids != self._ids
+                or type(option_number) is not int
+                or not 1 <= option_number <= len(self._selection.options)
+            ):
+                raise ValueError("exact original context answer required")
+            self._phase = "ENTERED"
+            selected = self._select(operation, instruction, option_number=option_number)
+            digest = self._selected_digest(selected)
+            self._check(operation)
+            self._resolved, self._resolved_option, self._resolved_digest = selected, option_number, digest
+            self._phase = "RESOLVED"
+            return PersonalTaskContextOutcome(selected)
+        except BaseException:  # noqa: BLE001 - interrupted read consumes the transient operation
             self._phase = "HELD"
         finally:
             self._lock.release()
@@ -271,14 +322,30 @@ class PersonalHistoryTaskPreparation:
             raise PersonalTaskSelectionError("task context preparation unavailable")
         try:
             if (
-                self._phase != "PROPOSED" or self._selection is None
+                self._phase not in {"PROPOSED", "RESOLVED"} or self._selection is None
                 or instruction != self._instruction or approved_message_ids != self._ids
-                or (self._selection.outcome == "CLARIFICATION") != (option_number is not None)
                 or self._selection.outcome not in {"PROPOSED", "CLARIFICATION"}
             ):
                 raise ValueError("exact original task/cohort/choice required")
+            resolved = self._phase == "RESOLVED"
+            selected_option: int | None
+            if resolved:
+                if (option_number is not None or self._resolved is None
+                    or self._resolved_option is None or self._resolved_digest is None):
+                    raise ValueError("confirm the exact resolved context without another choice")
+                selected_option = self._resolved_option
+            else:
+                if (self._selection.outcome == "CLARIFICATION") != (option_number is not None):
+                    raise ValueError("exact original task/cohort/choice required")
+                selected_option = option_number
             self._phase = "ENTERED"
-            selected = self._select(operation, instruction, option_number=option_number)
+            selected = self._select(operation, instruction, option_number=selected_option)
+            if resolved and self._selected_digest(selected) != self._resolved_digest:
+                raise ValueError("previously disclosed context changed")
+            if (not resolved and self._selection.outcome == "PROPOSED"
+                and (self._proposed_digest is None
+                     or self._selected_digest(selected) != self._proposed_digest)):
+                raise ValueError("previously proposed context changed")
             if selected.outcome != "PROPOSED" or selected.preview is None:
                 raise ValueError("available whole context selection required")
             spans_list: list[HistoryMessageSpan] = []

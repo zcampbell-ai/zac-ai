@@ -158,6 +158,35 @@ was rejected for incorrect fixture assumptions. The third/final correction passe
 The three-call usage estimate is below $0.10, with billing unreconciled; no extra
 retry or readiness claim follows. Genuine canonical integration remains separate.
 
+### October 15 selected-history entry and real-export feasibility
+
+The bounded selected-history application now has an authenticated entry flow:
+propose, ask one branch-selection question when necessary, display exact full
+hash-checked passages, then confirm before canonical preparation. Confirmation
+revalidates the disclosed spans; choosing a branch alone does not prepare or
+process anything. Default fixed-selection behavior remains available. Separate
+original-session processing approval is still required after preparation.
+
+Independent Opus V2/V3 code-only reviews accepted the changes. Root verified
+both initial-proposal and resolved-choice paths with genuine disposable SQL and
+local encrypted recovery, then tested the merged context/email composition.
+These invented fixtures do not establish a real retained owner cohort.
+
+Important actual-data limitation: the existing dated Claude metadata handoff
+reports zero complete message lineages across 2,501 records. Both the selector
+and whole-message projection require complete lineage. This export therefore
+cannot use that whole-history path while those metadata conditions hold. Do not
+weaken or bypass the checks to force a result. The next real-history assignment
+should reuse the existing explicitly incomplete dated-fragment workflow, which
+preserves missing-parent/ancestor warnings and requires its own exact selection,
+custody, recovery and processing approvals. Archive-wide retrieval and useful
+feedback across subsequent tasks remain incomplete.
+
+A finite local candidate-search script is prepared outside the repository.
+It returns only identifiers/dates/hashes, but its content search exceeds the
+recorded structural-indexing permission and therefore awaits owner approval.
+No archive content search, canonical import or model processing ran in this slice.
+
 ### October 15 Slack consent and warm-installation source integration
 
 The independently reviewed nine-file Slack candidate is integrated into the
