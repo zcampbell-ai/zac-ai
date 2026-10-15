@@ -143,6 +143,21 @@ pins must fail closed and need freshly reviewed preparation. Do not migrate,
 renew or replay old processing authority automatically. This extraction adds no
 identity provider, source connection, model processing or live owner readiness.
 
+### October 15 bounded external test contribution
+
+An authorized finite DeepSeek task supplied 17 additional selected-context
+application failure controls: concurrent prepare dispatches at most once, interrupted
+or failed final callbacks remain terminal, invalid context choices cannot prepare,
+and revocation/deadline changes before or during preparation prevent replay.
+Root inspected returned code before execution; all 17 passed, then 32 combined
+application controls passed after import-only fixture/lint cleanup. No production
+logic was substituted. Canonical preparation in these controls is an explicit spy.
+
+The first response exhausted its output budget without code; the second candidate
+was rejected for incorrect fixture assumptions. The third/final correction passed.
+The three-call usage estimate is below $0.10, with billing unreconciled; no extra
+retry or readiness claim follows. Genuine canonical integration remains separate.
+
 ### Transition cleanup gate, owner requested October 15
 
 Audit the existing code before removing custom-interface work. Retain canonical
