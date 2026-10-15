@@ -149,6 +149,22 @@ attended launch still requires reconciled host configuration, a current exact
 owner grant and a separately scoped credential attempt. No actual private
 catalog was captured and no source/model/outbound permission was expanded.
 
+### October 15 smaller local-model counter preparation
+
+An additive compact-review token counter now accepts the fixed Qwen 3.5 9B
+profile while leaving the 27B counter and runtime unchanged. It retains original
+wire/model identity, declared manifest and tokenizer hashes, strict supported
+payload shape, token reservation and the existing locality/version/usage and
+one-attempt guards. It does not add contextual/history/email support, a second
+transport or an enabled model profile.
+
+The installed 9B and unchanged 27B counter suites pass 76 invented controls;
+strict affected-source typing and Ruff pass. Independent review and complete
+code-only Opus review accepted the new counter. Actual installed-tokenizer and
+runtime prompt-count parity must be demonstrated before profile enablement.
+A finite PUBLIC-only local conformance experiment is prepared separately; it
+cannot establish canonical protected-workflow or private-context portability.
+
 ### October 15 selected-context application checkpoint
 
 A bounded application preparation service now calls the existing Claude selector
