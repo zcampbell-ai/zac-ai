@@ -158,6 +158,36 @@ was rejected for incorrect fixture assumptions. The third/final correction passe
 The three-call usage estimate is below $0.10, with billing unreconciled; no extra
 retry or readiness claim follows. Genuine canonical integration remains separate.
 
+### October 15 refreshed company-context catalog
+
+Authorized managed ChatGPT connector reads refreshed the local navigation
+holding without native credential access or canonical State import. ClickUp
+returned all eight spaces at requested depth two: 92 folders and 310 lists.
+The one CRM Accounts list returned 137 unique records over two exhausted pages;
+reported labels were 32 active, 13 dormant, 56 archived and 36 prospect. These
+labels remain as-of observations, not verified current business relationships.
+Slack returned 185 visible public/private channel memberships, including 36
+archived channels. No Slack messages, DMs or complete history were retrieved.
+Independent reconciliation checked counts, IDs, pagination and rendered fields.
+
+The candidate navigation index covers all 137 account rows. All 32 reportedly
+active rows have a name-based folder candidate; this does not establish project
+or SOW identity. Sandbox, Library and archive paths remain separate, and distinct
+project lists are preserved. Space-level pagination does not prove all possible
+nested, hidden or task-level content. This extends the earlier partial catalog;
+it does not mean Caz can already retrieve that material as canonical memory.
+
+Managed Gmail verified the owner's work account and supplied three sent messages
+from one operational thread. Provisional voice observations remain narrow; a
+cross-thread search was stopped on RATE_LIMIT_EXCEEDED without extra body reads
+or retries. No mailbox changes or native Gmail activation occurred. Private email
+bodies remain outside Git and were excluded from the durable catalog packet.
+
+The private existing work folder contains
+`caz-connected-context-catalog-20261015/manifest.json`, the exact source catalog,
+audited coverage receipt, candidate navigation index and provisional style review.
+No source relationship, current fact or downstream model permission was promoted.
+
 ### October 15 selected-history entry and real-export feasibility
 
 The bounded selected-history application now has an authenticated entry flow:
