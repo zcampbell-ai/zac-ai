@@ -188,6 +188,34 @@ The private existing work folder contains
 audited coverage receipt, candidate navigation index and provisional style review.
 No source relationship, current fact or downstream model permission was promoted.
 
+### October 15 managed-app catalog preparation
+
+Added one offline preparation boundary for managed ClickUp/Slack navigation
+observations. It preserves exact supplied JSON and a hash-bound companion,
+distinguishes assembled catalogs from declared returned tool responses, and
+retains declared dates, pagination and coverage limits. These are MANUAL
+observations, never native provider messages, owner instructions or confirmed
+customer/project facts. Neither origin nor representation is authenticated by
+the preparer.
+
+The first candidate could not preserve the existing holding's classification or
+size. The accepted successor explicitly carries CONFIDENTIAL or HIGHLY_RESTRICTED
+unchanged in both artifact plans and accepts at most 256,000 raw bytes. Existing
+native/Gmail artifact contracts remain unchanged. A dedicated observation plan
+is not a drop-in canonical capture adapter; the host must reconstruct and bind
+the exact authorized scope, bytes and classification before any append.
+
+Root and independent offline controls passed, including exact-byte preservation,
+malformed input, forged scopes, boundary/classification denial and false-only
+authority declarations. The installed new/Gmail preparation controls passed 106
+cases, with strict affected-source typing and Ruff passing. Complete Claude Opus
+code-only review accepted the two-file packet. No private catalog was used in
+tests or sent for review.
+
+Canonical owner-bound capture, full artifact/State/journal recovery and relevant
+task retrieval remain explicit missing joins. No actual import, source connection,
+model processing, credential access or live readiness follows from preparation.
+
 ### October 15 selected-history entry and real-export feasibility
 
 The bounded selected-history application now has an authenticated entry flow:
