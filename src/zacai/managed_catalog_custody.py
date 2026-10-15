@@ -42,6 +42,7 @@ from zacai.managed_catalog_admission import (
     catalog_claim_root,
     claim_catalog_capture,
 )
+from zacai.managed_catalog_recovery import CatalogRecoveryReceiptV1, publish_catalog_receipt
 from zacai.owner_authority import BoundaryScope, Identity
 from zacai.policy import TrustBoundary as B
 from zacai.review_authorization import _lock
@@ -144,6 +145,7 @@ class ManagedCatalogCheckpoint:
     verified_at: datetime
     full_source_inventory_digest: str
     protection: ProtectedState
+    recovery_receipt: CatalogRecoveryReceiptV1
     processing_authorized: Literal[False] = field(default=False, init=False)
     current_facts_verified: Literal[False] = field(default=False, init=False)
     off_device_verified: Literal[False] = field(default=False, init=False)
@@ -617,6 +619,34 @@ class CanonicalManagedCatalogCapture:
                     raise ValueError("terminal catalog recovery preimages changed")
                 require()
                 verified = self._clock()
+                receipt = publish_catalog_receipt(
+                    protector=self._protector,
+                    operation=self._operation,
+                    expected_identity=self._identity,
+                    original_binding=decision.owner.binding_digest,
+                    references=refs,
+                    request_id=self._request_id,
+                    selection_digest=self._digest,
+                    captured_at=decision.observed_at,
+                    verified_at=verified,
+                    full_inventory_utf8=inventory,
+                    protection=protected,
+                )
+                if (
+                    type(receipt) is not CatalogRecoveryReceiptV1
+                    or receipt.references != refs
+                    or receipt.request_id != self._request_id
+                    or receipt.selection_digest != self._digest
+                    or receipt.captured_at != decision.observed_at
+                    or receipt.verified_at != verified
+                    or receipt.full_source_inventory_digest != content_hash_of(inventory)
+                    or receipt.artifact_backup_run_id != protected.artifact_backup_run_id
+                    or receipt.state_object != protected.state_object
+                    or receipt.journal_object != protected.journal_object
+                    or receipt.state_plaintext_hash != protected.state_plaintext_hash
+                    or receipt.journal_plaintext_hash != protected.journal_plaintext_hash
+                ):
+                    raise ValueError("exact durable catalog receipt required")
             self._owner(decision)
             if self._readback(refs, decision.observed_at) != rows or self._inventory() != inventory:
                 raise ValueError("catalog source changed before acknowledgement")
@@ -632,6 +662,7 @@ class CanonicalManagedCatalogCapture:
                 final_time,
                 content_hash_of(inventory),
                 protected,
+                receipt,
             )
             self._phase = "COMPLETE"
         except BaseException:  # noqa: BLE001 - committed/interrupt uncertainty is terminal

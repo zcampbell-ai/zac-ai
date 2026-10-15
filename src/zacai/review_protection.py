@@ -94,10 +94,46 @@ class DisposableStateRestoreVerifier:
         current_business_state: Engine | None = None,
         current_selected_sources: Engine | None = None,
         operational_journal: bytes | None = None,
+        expected_historical_source_hashes: dict[UUID, str | None] | None = None,
     ) -> None:
         try:
             if not snapshot or len(snapshot) > _MAX_STATE_BYTES or not expected_sources:
                 raise ValueError("invalid recovery inventory")
+            if expected_historical_source_hashes is not None:
+                # Complete historical membership, including metadata-only Sources.
+                # This never broadens the CURRENT selected provenance comparison.
+                if (
+                    type(expected_historical_source_hashes) is not dict
+                    or not 1 <= len(expected_historical_source_hashes) <= 4096
+                    or any(
+                        type(sid) is not UUID
+                        or not sid.int
+                        or digest is not None
+                        and (
+                            type(digest) is not str
+                            or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+                        )
+                        for sid, digest in expected_historical_source_hashes.items()
+                    )
+                ):
+                    raise ValueError("bounded exact historical Source union required")
+                expected_historical_source_hashes = dict(
+                    expected_historical_source_hashes
+                )
+                if type(expected_sources) is not dict or any(
+                    type(sid) is not UUID
+                    or not sid.int
+                    or type(digest) is not str
+                    or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+                    for sid, digest in expected_sources.items()
+                ):
+                    raise ValueError("exact selected Source hash mapping required")
+                expected_sources = dict(expected_sources)
+                if any(
+                    expected_historical_source_hashes.get(sid) != digest
+                    for sid, digest in expected_sources.items()
+                ):
+                    raise ValueError("selected Sources absent from historical union")
             if current_selected_sources is not None:
                 assert_local_review_state_engine(current_selected_sources)
                 if any(
@@ -130,6 +166,21 @@ class DisposableStateRestoreVerifier:
                         backup.verify_restored_boundary_stream(
                             engine, io.BytesIO(snapshot), boundary=B.BRAINSTORM
                         )
+                        if expected_historical_source_hashes is not None:
+                            with Session(engine) as historical:
+                                rows = historical.execute(
+                                    select(Source.id, Source.content_hash)
+                                    .where(Source.trust_boundary == B.BRAINSTORM)
+                                    .order_by(Source.id)
+                                    .limit(4097)
+                                ).all()
+                            if (
+                                len(rows) != len(expected_historical_source_hashes)
+                                or dict(rows) != expected_historical_source_hashes
+                            ):
+                                raise ValueError(
+                                    "complete historical Source union differs"
+                                )
                         if operational_journal is not None:
                             if not 0 < len(operational_journal) <= 4_000_000:
                                 raise ValueError("operational journal outside capacity")

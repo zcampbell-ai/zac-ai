@@ -10,6 +10,7 @@ not off-device availability, source truth, or permission for processing.
 import csv
 import io
 import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from uuid import uuid4
@@ -21,7 +22,13 @@ from tests.test_complete_history_contextual_storage_sql import (
     clean_factory as clean_factory,  # noqa: PLC0414
 )
 from tests.test_fireflies_protection import keypair
-from tests.test_managed_catalog_post import make_catalog_post_case, observe
+from tests.test_managed_catalog_post import (
+    CLIENT,
+    ORIGIN,
+    catalog_preparation,
+    make_catalog_post_case,
+    observe,
+)
 from zacai import backup
 from zacai import managed_catalog_custody as m
 from zacai.backup_artifacts import (
@@ -30,7 +37,10 @@ from zacai.backup_artifacts import (
     backup_object_key_for,
 )
 from zacai.contextual_protection import BrainstormContextualProtector
+from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import LocalFilesystemArtifactStore, content_hash_of
+from zacai.interfaces.named_session_binding import NamedSessionContinuity
+from zacai.managed_catalog_recovery import decode_catalog_receipt
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 from zacai.review_protection import DisposableStateRestoreVerifier
@@ -51,10 +61,28 @@ def service(f):
 
 @pytest.fixture
 def sql_catalog(clean_factory, monkeypatch):
-    with TemporaryDirectory(
-        prefix="caz-managed-catalog-sql-", dir="/private/tmp"
-    ) as name:
+    with TemporaryDirectory(prefix="caz-managed-catalog-sql-", dir="/private/tmp") as name:
         f = make_catalog_post_case(Path(name))
+        # Real backup-run timestamps need a real advancing host clock. Preserve
+        # all original fault hooks; rebuild only invented auth/review inputs.
+        f.clock = HostObservedClock(lambda: datetime.now(UTC))
+        f.now = f.clock()
+        f.cookie = f.sessions.start_user(f.identity, f.now)
+        f.continuity = NamedSessionContinuity(
+            sessions=f.sessions,
+            owner=f.owners.load,
+            clock=f.clock,
+            key=f.key,
+            origin=ORIGIN,
+            client_id=CLIENT,
+        )
+        f.operation = f.continuity.for_cookie(f.cookie)
+        f.preparation = catalog_preparation(f.now)
+        f.request_id, f.expires_at = uuid4(), f.now + timedelta(minutes=5)
+        f.csrf = f.sessions.peek_user(f.cookie, f.now).csrf
+        f.selection_digest = m.catalog_capture_review_digest(
+            f.request_id, f.preparation, f.expires_at
+        )
         f.factory = clean_factory
         f.engine = clean_factory.kw["bind"]
         assert f.engine.url.database == "zacai_test"
@@ -65,9 +93,7 @@ def sql_catalog(clean_factory, monkeypatch):
         # An unselected retained Source must survive complete boundary recovery.
         f.seed_raw = b"Invented unrelated retained catalog navigation context."
         f.seed_hash = content_hash_of(f.seed_raw)
-        location = f.artifacts.put_durable(
-            B.BRAINSTORM, f.seed_hash, f.seed_raw, max_bytes=256000
-        )
+        location = f.artifacts.put_durable(B.BRAINSTORM, f.seed_hash, f.seed_raw, max_bytes=256000)
         with f.factory() as session:
             source, created = record_source(
                 session,
@@ -118,9 +144,7 @@ def sql_catalog(clean_factory, monkeypatch):
         with backup._admin_connection() as admin:
             assert (
                 admin.scalar(
-                    text(
-                        "SELECT count(*) FROM pg_database WHERE datname='zacai_restore_test'"
-                    )
+                    text("SELECT count(*) FROM pg_database WHERE datname='zacai_restore_test'")
                 )
                 == 0
             )
@@ -131,9 +155,7 @@ def selected_rows(f):
     namespaces = [a.external_ref for a in f.preparation.artifacts]
     namespaces.append(f"managed-app-catalog-owner-capture/{f.request_id}")
     with f.factory() as session:
-        return list(
-            session.scalars(select(Source).where(Source.external_ref.in_(namespaces)))
-        )
+        return list(session.scalars(select(Source).where(Source.external_ref.in_(namespaces))))
 
 
 def held(capture, decision):
@@ -148,9 +170,7 @@ def held(capture, decision):
 def custody_fingerprint(f):
     with f.factory() as session:
         sources = tuple(session.scalars(select(Source.id).order_by(Source.id)))
-        runs = tuple(
-            session.scalars(select(ArtifactBackupRun.id).order_by(ArtifactBackupRun.id))
-        )
+        runs = tuple(session.scalars(select(ArtifactBackupRun.id).order_by(ArtifactBackupRun.id)))
     objects = tuple(
         sorted(
             (str(p.relative_to(f.root)), content_hash_of(p.read_bytes()))
@@ -175,11 +195,9 @@ def test_complete_hr_pair_owner_decision_and_full_boundary_recovery(sql_catalog)
     checkpoint = f.capture.capture(f.decision)
     assert checkpoint.request_id == f.request_id
     assert checkpoint.selection_digest == f.selection_digest
-    assert checkpoint.captured_at == f.now
+    assert checkpoint.captured_at == f.decision.observed_at
     assert checkpoint.verified_at >= checkpoint.captured_at
-    assert (
-        checkpoint.processing_authorized is checkpoint.current_facts_verified is False
-    )
+    assert checkpoint.processing_authorized is checkpoint.current_facts_verified is False
     assert checkpoint.off_device_verified is False
     refs = checkpoint.references
     assert len(refs) == 3 and len({r.source_id for r in refs}) == 3
@@ -188,12 +206,9 @@ def test_complete_hr_pair_owner_decision_and_full_boundary_recovery(sql_catalog)
     for index, ref in enumerate(refs):
         source = rows[ref.source_id]
         assert source.trust_boundary is ref.trust_boundary is B.BRAINSTORM
-        assert (
-            source.data_classification
-            is ref.effective_classification
-            is C.HIGHLY_RESTRICTED
-        )
-        assert source.content_hash == ref.content_hash and source.captured_at == f.now
+        assert source.data_classification is ref.effective_classification is C.HIGHLY_RESTRICTED
+        assert source.content_hash == ref.content_hash
+        assert source.captured_at == f.decision.observed_at
         assert source.system is (
             SourceSystem.MANUAL if index < 2 else SourceSystem.USER_INSTRUCTION
         )
@@ -205,9 +220,7 @@ def test_complete_hr_pair_owner_decision_and_full_boundary_recovery(sql_catalog)
                 trust_boundary=B.BRAINSTORM,
             )
             assert tip.id == source.id
-        retained = f.artifacts.get_bounded(
-            B.BRAINSTORM, source.content_location, max_bytes=256000
-        )
+        retained = f.artifacts.get_bounded(B.BRAINSTORM, source.content_location, max_bytes=256000)
         assert content_hash_of(retained) == ref.content_hash
         if index < 2:
             assert retained == f.preparation.artifacts[index].original_bytes
@@ -217,9 +230,7 @@ def test_complete_hr_pair_owner_decision_and_full_boundary_recovery(sql_catalog)
             assert attestation["companion_digest"] == refs[1].content_hash
             assert attestation["selection_digest"] == f.selection_digest
             assert attestation["processing_authorized"] is False
-        encrypted = f.reader.get_object(
-            backup_object_key_for(B.BRAINSTORM, ref.content_hash)
-        )
+        encrypted = f.reader.get_object(backup_object_key_for(B.BRAINSTORM, ref.content_hash))
         assert age_decrypt(encrypted, f.identity_path) == retained
     assert (
         age_decrypt(
@@ -229,10 +240,36 @@ def test_complete_hr_pair_owner_decision_and_full_boundary_recovery(sql_catalog)
         == f.seed_raw
     )
     protected = checkpoint.protection
-    assert len(f.restore_calls) == 1
+    # Original whole-business comparison PLUS mandatory receipt publication's
+    # historical-union/selected-current comparison both use genuine restoration.
+    assert len(f.restore_calls) == 2
     snapshot, expected, kwargs = f.restore_calls[0]
     assert expected == {r.source_id: r.content_hash for r in refs}
     assert kwargs["current_business_state"] is f.engine
+    receipt_snapshot, receipt_expected, receipt_kwargs = f.restore_calls[1]
+    assert receipt_snapshot == snapshot and receipt_expected == expected
+    with f.factory() as session:
+        complete_historical = dict(
+            session.execute(
+                select(Source.id, Source.content_hash).where(Source.trust_boundary == B.BRAINSTORM)
+            ).all()
+        )
+    assert receipt_kwargs == {
+        "current_selected_sources": f.engine,
+        "operational_journal": kwargs["operational_journal"],
+        "expected_historical_source_hashes": complete_historical,
+    }
+    receipt = checkpoint.recovery_receipt
+    assert receipt.references == refs
+    assert receipt.captured_at == checkpoint.captured_at
+    assert receipt.captured_at <= receipt.verified_at <= checkpoint.verified_at
+    assert receipt.artifact_backup_run_id == protected.artifact_backup_run_id
+    assert (
+        decode_catalog_receipt(
+            age_decrypt(f.reader.get_object(receipt.receipt_object), f.identity_path)
+        )
+        == receipt
+    )
     for key, ciphertext_hash, plaintext_hash in (
         (
             protected.state_object,
@@ -259,9 +296,7 @@ def test_complete_hr_pair_owner_decision_and_full_boundary_recovery(sql_catalog)
         live_run = session.get(ArtifactBackupRun, protected.artifact_backup_run_id)
         assert live_run.status is ArtifactBackupRunStatus.SUCCEEDED
         assert live_run.artifacts_checked == 4 and live_run.artifacts_failed == 0
-    assert checkpoint.full_source_inventory_digest == content_hash_of(
-        f.capture._inventory()
-    )
+    assert checkpoint.full_source_inventory_digest == content_hash_of(f.capture._inventory())
     assert_terminal_replay(f)
 
 
@@ -274,8 +309,7 @@ def test_uncertain_actual_commit_is_persisted_but_never_acknowledged_or_replayed
     def before_commit(session):
         if armed[0] and session.scalar(
             select(Source.id).where(
-                Source.external_ref
-                == f"managed-app-catalog-owner-capture/{f.request_id}"
+                Source.external_ref == f"managed-app-catalog-owner-capture/{f.request_id}"
             )
         ):
             session.info["invented_catalog_commit_uncertainty"] = True
@@ -283,9 +317,7 @@ def test_uncertain_actual_commit_is_persisted_but_never_acknowledged_or_replayed
     def after_commit(session):
         if session.info.pop("invented_catalog_commit_uncertainty", False):
             armed[0] = False
-            raise RuntimeError(
-                "invented acknowledgement loss after actual PostgreSQL commit"
-            )
+            raise RuntimeError("invented acknowledgement loss after actual PostgreSQL commit")
 
     event.listen(f.factory.class_, "before_commit", before_commit)
     event.listen(f.factory.class_, "after_commit", after_commit)
@@ -301,9 +333,7 @@ def test_uncertain_actual_commit_is_persisted_but_never_acknowledged_or_replayed
     assert_terminal_replay(f)
 
 
-def test_actual_journal_object_readback_failure_holds_committed_capture(
-    sql_catalog, monkeypatch
-):
+def test_actual_journal_object_readback_failure_holds_committed_capture(sql_catalog, monkeypatch):
     f = sql_catalog
     original = f.reader.get_object
     attempted = []
@@ -324,24 +354,18 @@ def test_actual_journal_object_readback_failure_holds_committed_capture(
 
 
 @pytest.mark.parametrize("changed", ["retained-selected-bytes", "unselected-inventory"])
-def test_fresh_readback_after_genuine_restore_denies_changed_custody(
-    sql_catalog, changed
-):
+def test_fresh_readback_after_genuine_restore_denies_changed_custody(sql_catalog, changed):
     f = sql_catalog
 
     def drift():
         if changed == "retained-selected-bytes":
             # Deliberate local fixture fault after actual decrypt/restore success.
-            path = f.artifacts._path_for(
-                B.BRAINSTORM, f.preparation.artifacts[0].content_hash
-            )
+            path = f.artifacts._path_for(B.BRAINSTORM, f.preparation.artifacts[0].content_hash)
             path.write_bytes(b"Invented altered retained bytes after recovery")
         else:
             raw = b"Invented unrelated Source arriving after full recovery"
             digest = content_hash_of(raw)
-            location = f.artifacts.put_durable(
-                B.BRAINSTORM, digest, raw, max_bytes=256000
-            )
+            location = f.artifacts.put_durable(B.BRAINSTORM, digest, raw, max_bytes=256000)
             with f.factory() as session:
                 record_source(
                     session,
@@ -368,11 +392,7 @@ def test_server_size_gate_returns_no_text_rows_before_recovery(
 ):
     f = sql_catalog
     # Unicode exercises octet_length rather than a Python/SQL character count.
-    excerpts = (
-        ["\u2603" * 1_333_334]
-        if size_shape == "one-wide-row"
-        else ["x" * 2_000_001] * 2
-    )
+    excerpts = ["\u2603" * 1_333_334] if size_shape == "one-wide-row" else ["x" * 2_000_001] * 2
     namespaces = []
     for excerpt in excerpts:
         namespace = f"invented-oversized-inventory/{uuid4()}"
@@ -395,9 +415,7 @@ def test_server_size_gate_returns_no_text_rows_before_recovery(
         # Numeric-only confirmation of actual committed PostgreSQL fixture size.
         widths = list(
             session.scalars(
-                select(func.octet_length(Source.excerpt)).where(
-                    Source.external_ref.in_(namespaces)
-                )
+                select(func.octet_length(Source.excerpt)).where(Source.external_ref.in_(namespaces))
             )
         )
     assert sum(widths) > 4_000_000

@@ -76,7 +76,8 @@ def custody(post_case, monkeypatch):  # noqa: F811 - imported real owner fixture
         "c" * 64,
         "d" * 64,
     )
-    f.on_append = f.on_protect = f.on_require = None
+    f.on_append = f.on_protect = f.on_require = f.on_publish = None
+    f.publications = []
 
     @contextmanager
     def lease(protector, lock):
@@ -114,6 +115,54 @@ def custody(post_case, monkeypatch):  # noqa: F811 - imported real owner fixture
             f.on_protect()
         return f.protected
 
+    def publish(**kwargs):
+        f.effects.append("receipt-publication")
+        assert "lease-released" not in f.effects
+        assert "full-recovery" in f.effects
+        assert kwargs == {
+            "protector": f.protector,
+            "operation": f.operation,
+            "expected_identity": f.identity,
+            "original_binding": f.decision.owner.binding_digest,
+            "references": f.refs,
+            "request_id": f.request_id,
+            "selection_digest": f.selection_digest,
+            "captured_at": f.decision.observed_at,
+            "verified_at": f.now,
+            "full_inventory_utf8": f.inventory,
+            "protection": f.protected,
+        }
+        f.publications.append(kwargs)
+        receipt = m.CatalogRecoveryReceiptV1(
+            request_id=f.request_id,
+            selection_digest=f.selection_digest,
+            references=f.refs,
+            captured_at=f.decision.observed_at,
+            verified_at=f.now,
+            full_source_inventory_digest=m.content_hash_of(f.inventory),
+            historical_source_hashes=tuple(
+                sorted(
+                    ((r.source_id, r.content_hash) for r in f.refs), key=lambda item: str(item[0])
+                )
+            ),
+            artifact_backup_run_id=f.protected.artifact_backup_run_id,
+            state_ciphertext_hash=f.protected.state_ciphertext_hash,
+            state_plaintext_hash=f.protected.state_plaintext_hash,
+            journal_ciphertext_hash=f.protected.journal_ciphertext_hash,
+            journal_plaintext_hash=f.protected.journal_plaintext_hash,
+        )
+        # Match actual namespace rather than weakening production validation.
+        # Initial protector return must already carry these exact locators.
+        assert kwargs["protection"] == f.protected
+        return f.on_publish(receipt) if f.on_publish else receipt
+
+    prefix = f"BRAINSTORM/state/managed-app-catalog-{f.request_id}"
+    f.protected = replace(
+        f.protected,
+        state_object=f"{prefix}/{f.protected.state_ciphertext_hash}.age",
+        journal_object=f"{prefix}/journal-{f.protected.journal_ciphertext_hash}.age",
+    )
+    monkeypatch.setattr(m, "publish_catalog_receipt", publish)
     monkeypatch.setattr(m, "checkpoint_lease", lease)
     monkeypatch.setattr(m.CanonicalManagedCatalogCapture, "_append", append)
     monkeypatch.setattr(m.CanonicalManagedCatalogCapture, "_readback", readback)
@@ -438,3 +487,78 @@ def test_claim_removed_during_final_readback_cannot_acknowledge(custody, monkeyp
     monkeypatch.setattr(f.capture, "_readback", remove_during_final_read)
     assert_held(f)
     assert f.capture._phase == "HELD" and len(f.calls) == 1
+
+
+def test_receipt_publication_required_inside_original_lease_after_recovery(custody):
+    f = custody
+    result = f.capture.capture(f.decision)
+    assert result.recovery_receipt.references == result.references
+    assert result.recovery_receipt.request_id == result.request_id
+    assert f.effects.index("full-recovery") < f.effects.index("receipt-publication")
+    assert f.effects.index("receipt-publication") < f.effects.index("lease-released")
+    assert len(f.publications) == 1
+
+
+@pytest.mark.parametrize(
+    "failure", ["missing", "exception", "request", "selection", "inventory", "state"]
+)
+def test_receipt_absence_failure_or_changed_binding_never_acknowledges(custody, failure):
+    f = custody
+
+    def change(receipt):
+        if failure == "missing":
+            return None
+        if failure == "exception":
+            raise RuntimeError("invented receipt acknowledgement uncertainty")
+        updates = {
+            "request": {"request_id": uuid4()},
+            "selection": {"selection_digest": "f" * 64},
+            "inventory": {"full_source_inventory_digest": "f" * 64},
+            "state": {"state_plaintext_hash": "f" * 64},
+        }
+        return receipt.model_copy(update=updates[failure])
+
+    f.on_publish = change
+    assert_held(f)
+    assert f.capture._phase == "HELD"
+    assert len(f.publications) == 1
+    assert_held(f)
+    assert len(f.publications) == 1
+
+
+@pytest.mark.parametrize("change", ["deadline", "birth"])
+def test_changes_during_receipt_publication_hold_terminal_acknowledgement(custody, change):
+    f = custody
+
+    def mutate(receipt):
+        if change == "deadline":
+            f.now = f.expires_at
+        else:
+            (f.capture._claim_root / str(f.request_id) / "birth.json").unlink()
+        return receipt
+
+    f.on_publish = mutate
+    assert_held(f)
+    assert len(f.publications) == 1
+
+
+@pytest.mark.parametrize(
+    "failure", ["invalid-recovery", "recovery-exception", "selected-drift", "inventory-drift"]
+)
+def test_failed_or_uncertain_recovery_never_publishes_receipt(custody, failure):
+    f = custody
+
+    def change():
+        if failure == "invalid-recovery":
+            f.protected = None
+        elif failure == "recovery-exception":
+            raise KeyboardInterrupt()
+        elif failure == "selected-drift":
+            f.rows = b"invented changed selected rows"
+        else:
+            f.inventory = b"invented changed full inventory"
+
+    f.on_protect = change
+    assert_held(f)
+    assert f.publications == []
+    assert "receipt-publication" not in f.effects

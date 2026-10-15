@@ -634,6 +634,28 @@ A race during first root creation can leave another action held. Ordinary fsync
 is not a Darwin power-loss durability guarantee, nor protection against deliberate
 same-UID deletion or snapshot rollback.
 
-This release does not supply durable catalog receipt reopening or enable actual
-private capture. Those remain separate acceptance gates. Source/artifact recovery
-checks here used only invented disposable records.
+Catalog capture now publishes an encrypted receipt only after full recovery
+verification, under the original action and checkpoint lease. Fresh owner sessions
+can reopen that dated receipt without renewing capture or processing permission.
+Missing/corrupt receipts, changed selected revisions or current ACL denial stay
+held. Unrelated current Source additions do not invalidate the selected originals.
+The pure navigation projection is not an authorization primitive: a trusted host
+must perform an actual fresh authenticated reopen in the same request before
+releasing private lookup results. No production lookup caller is mounted.
+
+The host must exclusively control the receipt prefix and writer credentials, keep
+agents outside that write gateway, and ensure every participating writer uses
+PostgreSQL lease 73403416. No foreign/admin writer or restore may change the prefix
+during publication or verification. Canonical Sources, local artifacts, encryption
+identity, fixed reader/writer configuration and geography remain trusted host
+prerequisites, not properties proven by constructing these classes.
+
+The exists check plus unconditional put refuses known prior objects within this
+cooperating window. It is not atomic cloud immutability. Public-recipient age
+encryption does not authenticate the sender. Whole historical recovery proves
+consistency against a trusted writer's snapshot/journal/artifact union, not against
+a fully re-forged chain. Selected originals retain separate live canonical hash,
+lineage and ACL checks; unselected recovered history is not promoted to fact.
+
+Actual private capture and off-device acceptance remain separate gates. Installed
+recovery tests used only invented disposable records and throwaway identities.

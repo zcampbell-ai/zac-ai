@@ -220,12 +220,31 @@ Root verified the installed combination with invented PostgreSQL/native-age
 records, including the causal rollback regression. Independent and complete
 Claude Opus code-only reviews accepted the restart and nonblocking-file fixes.
 
-Durable receipt publication, fresh-session reopening and relevant task retrieval
-remain separate unfinished integration gates. Actual private catalog capture is
-not enabled. No import, source connection, model processing, credential access or
-live readiness follows from these tests. Local fsync supports process-restart
-consistency, not a guarantee against power loss, deliberate same-UID deletion or
-snapshot rollback.
+Durable encrypted receipt publication and fresh-session read-only reopening are
+now integrated. Completion requires a verified receipt; a missing receipt cannot
+be repaired by replaying capture. Reopening rechecks the selected originals and
+current ACL/lineage, verifies the complete historical artifact/State/journal union,
+and permits unrelated later Source growth. Root's installed genuine PostgreSQL
+and age controls passed alongside existing recovery regressions using invented
+records. Independent and complete Opus code-only reviews accepted the correction
+that decodes and pins the same receipt ciphertext.
+
+A pure deterministic navigation consumer returns exact name/title matches with
+JSON-pointer provenance, source hashes, dates and declared coverage. Ambiguity and
+bounded absence remain explicit. It has no authenticated production caller and
+does not grant authority from a returned value. Actual private capture, a trusted
+fresh-reopen lookup request and useful real assignment acceptance remain missing.
+No source connection, private import or model-processing permission follows.
+
+Recovery assumes trusted canonical custody, exclusive gateway control of the
+receipt prefix/writer and cooperating checkpoint writers under the shared lease.
+Unconditional object put is not storage-enforced create-only, and age does not
+authenticate the sender. Historical-union checks prove consistency against that
+trusted writer's receipt, not authenticity against a fully forged backup chain.
+Unselected recovered history is not promoted to current facts. Canonical historical
+origin anchoring remains a separate security improvement before stronger claims.
+Local fsync supports process-restart consistency, not a guarantee against power
+loss, deliberate same-UID deletion or snapshot rollback.
 
 ### October 15 saved Slack identity verification
 

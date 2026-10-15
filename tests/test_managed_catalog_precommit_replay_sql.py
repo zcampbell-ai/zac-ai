@@ -3,7 +3,8 @@
 Authored, not collected or executed by this reviewer. Uses invented fixture,
 actual guarded PostgreSQL rollback, and local durable artifact writes. The
 second attempt is stopped at its first artifact call, before any new write or
-recovery operation. Current V4 is expected to FAIL its terminal-replay assertion.
+recovery operation. Mandatory receipt publication remains unreachable after the
+original precommit rollback; fresh-controller replay must remain terminal.
 """
 
 from sqlalchemy import event, select
@@ -32,8 +33,7 @@ def test_precommit_rollback_cannot_revive_same_original_request_in_fresh_control
     def abort_before_commit(session):
         if session.scalar(
             select(Source.id).where(
-                Source.external_ref
-                == f"managed-app-catalog-owner-capture/{f.request_id}"
+                Source.external_ref == f"managed-app-catalog-owner-capture/{f.request_id}"
             )
         ):
             entered.append(True)
@@ -49,11 +49,14 @@ def test_precommit_rollback_cannot_revive_same_original_request_in_fresh_control
     assert f.capture._phase == "HELD" and not f.restore_calls
     # Actual private artifact writes happened before the transaction rolled back.
     for artifact in f.preparation.artifacts:
-        assert f.artifacts.get_bounded(
-            artifact.boundary,
-            f.artifacts.location_for(artifact.content_hash),
-            max_bytes=256000,
-        ) == artifact.original_bytes
+        assert (
+            f.artifacts.get_bounded(
+                artifact.boundary,
+                f.artifacts.location_for(artifact.content_hash),
+                max_bytes=256000,
+            )
+            == artifact.original_bytes
+        )
 
     fresh = service(f)
     # Same request_id, same digest/deadline, same cookie and exact actual POST.
