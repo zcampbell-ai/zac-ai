@@ -592,3 +592,28 @@ flag does not carry between objects; the separate durable host halt and exact
 original transaction/SDK witnesses remain mandatory. Later explicitly invoked
 operations retain their existing checks. This method alone does not make Slack
 cold reopening ready or authorize credential reads, provider access or capture.
+
+### Saved Slack identity verification limits (2026-10-15)
+
+The installed v2 source supports separately reviewed warm installation evidence
+and a fresh-owner cold identity action. It does not establish an actual working
+Slack connection. A concrete operator/HTTPS composition, exact current app review
+and fresh scoped authorization are required before native or provider use.
+
+Use one trusted setup thread. Mount saved-account routes before serving; do not
+mutate routes concurrently with startup. Each new cold action has its own owner
+review and execution, loaded-once ledger row, one saved DATA read and one identity
+request. It never refreshes or re-exchanges credentials. Failed review or execution
+does not refund a spent attempt.
+
+Any existing, partial, unknown or v1 installation namespace stays held. Preserve
+its evidence and reconcile explicitly; do not delete it, adopt a credential or
+create another namespace merely to get past exclusive initialization. No v1
+migration or actual absence of older installations has been verified.
+
+Completed-row digests bind the current exact SDK schema. A legitimate later
+invalidation to held must deny reuse. Future schema migration needs an explicit
+compatible recovery plan. Authenticated unlocked ledger reads are coherent
+snapshots, not proof of freshness across separate reads or provider effects;
+the canonical locked credential action remains authoritative. Sticky host halt
+or unconfirmed durable cleanup requires reconciliation, never automatic retry.

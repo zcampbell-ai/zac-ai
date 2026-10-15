@@ -216,6 +216,38 @@ Canonical owner-bound capture, full artifact/State/journal recovery and relevant
 task retrieval remain explicit missing joins. No actual import, source connection,
 model processing, credential access or live readiness follows from preparation.
 
+### October 15 saved Slack identity verification
+
+Integrated the bounded warm-v2 installation evidence and new-owner cold identity
+verification path. A fresh authenticated owner reviews the exact saved account
+and scopes before a separate execution request. Original held OAuth and completed
+SDK evidence must still match. Canonical loaded-once consumption precedes one
+saved native credential read and one identity request; no exchange, refresh,
+overwrite, history retrieval or bot action is added by the cold path.
+
+Opus initially requested corrections to SDK uncertainty handling and route-mount
+lifecycle. Causal invented tests failed on the prior code and passed after the
+fixes. The corrected source retains uncertainty through normally returning cleanup,
+persists a sticky host halt when required, and refuses all saved-route collisions
+or mounting after serving starts. Independent follow-up review and complete
+code-only Opus follow-up accepted the corrections and documented dependency
+contracts. The isolated connector suite passed 255 controls; root's confined installed
+checks passed 56 cold/warm controls. Strict affected-source typing and installed
+Ruff pass. One test import-spacing adjustment preserves the exact accepted AST.
+
+Completed-row witnesses remain exact-version contracts; invalidating a completed
+row must deny reuse. Authenticated unlocked ledger reads are coherent snapshots,
+not cross-record freshness transactions. Unknown or v1 namespaces remain held for
+explicit reconciliation, with no automatic migration or deletion. Composition is
+single-threaded: mount routes before serving.
+
+No actual Slack installation, native/provider acceptance or HTTPS transport was
+performed. A concrete attended operator composition, nonsecret app configuration
+and fresh scoped owner authorization remain required. Slack-only history intake
+and conversational bot operation are separate unfinished capabilities. Existing
+canonical SQL/shared host code was unchanged, so no SQL regression was required
+for this identity-only delta; installed checks denied SQL, network and native APIs.
+
 ### October 15 selected-history entry and real-export feasibility
 
 The bounded selected-history application now has an authenticated entry flow:

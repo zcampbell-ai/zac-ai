@@ -105,6 +105,13 @@ class Native:
     "case",
     [
         "success",
+        "oauth_hold_uncertain",
+        "oauth_hold_after_write",
+        "oauth_hold_cancel",
+        "sdk_late_held",
+        "sdk_generation",
+        "sdk_state",
+        "sdk_uncertain",
         "collision",
         "wrong_pair",
         "bad_acl",
@@ -193,11 +200,25 @@ def test_saved_pair_to_actual_canonical_preflight(tmp_path, monkeypatch, case):
                     == 200
                 )
                 fresh = host._controller._fresh
+                if case == "success":
+                    from zacai.connectors.slack_native_installation import SlackInstallationError
+
+                    alternate = tmp_path / "alternate-installation"
+                    with pytest.raises(SlackInstallationError):
+                        SlackPendingInstallation.prepare(
+                            fresh=fresh,
+                            host=host,
+                            plan=plan,
+                            directory=alternate,
+                            keychain_path=native_path,
+                            bindings_factory=lambda: native,
+                        )
+                    assert not alternate.exists() and native.calls == []
                 backend = SlackPendingInstallation.prepare(
                     fresh=fresh,
                     host=host,
                     plan=plan,
-                    directory=tmp_path / "installation",
+                    directory=values["directory"] / "slack-installation",
                     keychain_path=native_path,
                     bindings_factory=lambda: native,
                 )
@@ -248,8 +269,8 @@ def test_saved_pair_to_actual_canonical_preflight(tmp_path, monkeypatch, case):
                 }:
                     original = backend._record
 
-                    def fail(name):
-                        original(name)
+                    def fail(name, **kwargs):
+                        original(name, **kwargs)
                         if name == "active":
                             raise OSError("invented active fsync/readback failure")
 
@@ -283,6 +304,26 @@ def test_saved_pair_to_actual_canonical_preflight(tmp_path, monkeypatch, case):
 
                     monkeypatch.setattr(host._guard, "_sync_directory", fail_sync)
 
+                if case in {"sdk_generation", "sdk_state", "sdk_uncertain"}:
+                    original_digest = backend._completed_sdk_digest
+
+                    def tamper_completed(gateway):
+                        with sdk._locked():
+                            value = sdk._read()
+                            old = value["rows"][str(plan.attempt_id)]
+                            assert old["state"] == "completed" and old["loaded"] is True
+                            if case == "sdk_generation":
+                                old["generation"] = "invented-other-generation"
+                            elif case == "sdk_state":
+                                old["state"] = "held"
+                            else:
+                                old["uncertain"] = True
+                            sdk._write(value)
+                            assert sdk._read()["rows"][str(plan.attempt_id)] == old
+                        return original_digest(gateway)
+
+                    monkeypatch.setattr(backend, "_completed_sdk_digest", tamper_completed)
+
                 # Causal proof: exact canonical row is loaded durably before Add.
                 original_add = native.add
 
@@ -294,10 +335,44 @@ def test_saved_pair_to_actual_canonical_preflight(tmp_path, monkeypatch, case):
                     return original_add(*args)
 
                 native.add = guarded_add
+                if case in {"oauth_hold_uncertain", "oauth_hold_after_write", "oauth_hold_cancel"}:
+                    oauth_authority = fresh._owner._operation._authority
+                    original_oauth_write = oauth_authority._write
+
+                    def fail_oauth_hold(value):
+                        if any(row["state"] == "held" for row in value["rows"].values()):
+                            if case == "oauth_hold_after_write":
+                                original_oauth_write(value)
+                            if case == "oauth_hold_cancel":
+                                raise KeyboardInterrupt("invented original OAuth hold cancellation")
+                            raise OSError("invented original OAuth hold write failure")
+                        original_oauth_write(value)
+
+                    monkeypatch.setattr(oauth_authority, "_write", fail_oauth_hold)
+                if case == "sdk_late_held":
+                    original_record = backend._record
+
+                    def record_then_hold(name, **kwargs):
+                        original_record(name, **kwargs)
+                        if name == "active":
+                            with sdk._locked():
+                                value = sdk._read()
+                                value["rows"][str(plan.attempt_id)]["state"] = "held"
+                                sdk._write(value)
+
+                    monkeypatch.setattr(backend, "_record", record_then_hold)
                 response = client.post(
                     "/connector-execute", data={"csrf": form["csrf"]}, headers={"Origin": ORIGIN}
                 )
                 assert response.status_code == (200 if case == "success" else 403)
+                if case in {"oauth_hold_uncertain", "oauth_hold_after_write", "oauth_hold_cancel"}:
+                    assert fresh._owner._authority._issuance_uncertain is True
+                    assert handles["errors"] == [
+                        "SlackInstallationCancellationUnconfirmed" if case == "oauth_hold_cancel"
+                        else "SlackInstallationUnconfirmed"
+                    ]
+                    assert host._halted and host._guard._halt_path.is_file()
+                    monkeypatch.setattr(oauth_authority, "_write", original_oauth_write)
                 with sdk._locked():
                     row = sdk._read()["rows"][str(plan.attempt_id)]
                 assert row["loaded"] is True
@@ -398,6 +473,13 @@ def test_saved_pair_to_actual_canonical_preflight(tmp_path, monkeypatch, case):
                         "identity_team",
                         "identity_scope",
                         "active_write_failure",
+                        "sdk_generation",
+                        "sdk_state",
+                        "sdk_uncertain",
+                        "oauth_hold_uncertain",
+                        "oauth_hold_after_write",
+                        "oauth_hold_cancel",
+                        "sdk_late_held",
                         "unconfirmed_hold",
                         "cancelled_hold",
                         "halt_before_marker_failure",
@@ -425,6 +507,37 @@ def test_saved_pair_to_actual_canonical_preflight(tmp_path, monkeypatch, case):
                     assert backend._active is True
                     assert row["coverage"]["identity_matched"] is True
                     assert row["coverage"]["requests"] == 1
+                    import hashlib
+
+                    from zacai.connectors.connector_authority import _json
+                    from zacai.connectors.slack_native_installation import _v2_correlate, _v2_read
+
+                    pending = _v2_read(
+                        backend._directory,
+                        state="pending",
+                        key=host._continuity._key,
+                        context=host._continuity._context,
+                    )
+                    active = _v2_read(
+                        backend._directory,
+                        state="active",
+                        key=host._continuity._key,
+                        context=host._continuity._context,
+                    )
+                    _v2_correlate(pending, active)
+                    assert (
+                        active["original_sdk_completed_row_digest"]
+                        == hashlib.sha256(_json(row)).hexdigest()
+                    )
+                    assert active["original_sdk_attempt_id"] == str(plan.attempt_id)
+                    with fresh._owner._authority._locked():
+                        oauth_row = fresh._owner._authority._read()["rows"][
+                            active["oauth_state_hash"]
+                        ]
+                    assert oauth_row["state"] == "held" and oauth_row["loaded"] is True
+                    assert oauth_row["execution"] == active["oauth_execution_digest"]
+                    assert oauth_row["binding"] == active["owner_binding"]
+                    assert fresh._owner._saved_identity_current is None
                     # Native pair DATA is canonical and not written as plaintext operational metadata.
                     assert json.loads(native.payload)["access_token"] == "invented-access"
                     for file in backend._directory.rglob("*.bin"):
