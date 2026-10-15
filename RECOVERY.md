@@ -617,3 +617,23 @@ compatible recovery plan. Authenticated unlocked ledger reads are coherent
 snapshots, not proof of freshness across separate reads or provider effects;
 the canonical locked credential action remains authoritative. Sticky host halt
 or unconfirmed durable cleanup requires reconciliation, never automatic retry.
+
+
+## Managed catalog capture admission
+
+The unmounted managed-catalog capture capability derives a private claim root
+beside its manifest-cache file, named `<cache filename>.managed-catalog-claims`.
+Its canonical parent must be owned by the current user with mode 0700. Request
+birth, comparison record and directory fsyncs precede artifact or database writes.
+The record contains comparison metadata, not catalog bodies or credentials.
+
+A partial root, existing request, interrupted capture or uncertain acknowledgement
+requires reconciliation. Preserve these files and the original request evidence;
+do not delete/reset claims or mint another request to bypass a held attempt.
+A race during first root creation can leave another action held. Ordinary fsync
+is not a Darwin power-loss durability guarantee, nor protection against deliberate
+same-UID deletion or snapshot rollback.
+
+This release does not supply durable catalog receipt reopening or enable actual
+private capture. Those remain separate acceptance gates. Source/artifact recovery
+checks here used only invented disposable records.

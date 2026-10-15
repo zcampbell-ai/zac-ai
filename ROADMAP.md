@@ -212,9 +212,20 @@ cases, with strict affected-source typing and Ruff passing. Complete Claude Opus
 code-only review accepted the two-file packet. No private catalog was used in
 tests or sent for review.
 
-Canonical owner-bound capture, full artifact/State/journal recovery and relevant
-task retrieval remain explicit missing joins. No actual import, source connection,
-model processing, credential access or live readiness follows from preparation.
+Owner-bound capture and its immediate whole-boundary recovery are now implemented
+as an unmounted shared capability, separate from web presentation. Durable local
+request admission precedes private effects and prevents a fresh controller from
+replaying the same request after rollback. Existing or partial claims stay held.
+Root verified the installed combination with invented PostgreSQL/native-age
+records, including the causal rollback regression. Independent and complete
+Claude Opus code-only reviews accepted the restart and nonblocking-file fixes.
+
+Durable receipt publication, fresh-session reopening and relevant task retrieval
+remain separate unfinished integration gates. Actual private catalog capture is
+not enabled. No import, source connection, model processing, credential access or
+live readiness follows from these tests. Local fsync supports process-restart
+consistency, not a guarantee against power loss, deliberate same-UID deletion or
+snapshot rollback.
 
 ### October 15 saved Slack identity verification
 
