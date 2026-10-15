@@ -77,6 +77,7 @@ from zacai.policy import TrustBoundary as B
 if TYPE_CHECKING:
     from zacai.interfaces.fragment_publication_web import FragmentPublicationWeb
     from zacai.interfaces.history_publication_web import HistoryPublicationWeb
+    from zacai.interfaces.managed_catalog_web import ManagedCatalogWeb
     from zacai.interfaces.named_session_binding import NamedSessionOperation
     from zacai.interfaces.work_choice_web import WorkChoiceWeb
 
@@ -581,6 +582,7 @@ def open_private_operator(
     fragment_factory: Callable[[NamedOwnerHostInputs], FragmentPublicationWeb] | None = None,
     fragment_preparation_factory: Callable[[NamedOwnerHostInputs, NamedSessionOperation, str], FragmentPublicationWeb] | None = None,
     history_preparation_factory: Callable[[NamedOwnerHostInputs, NamedSessionOperation, str], HistoryPublicationWeb] | None = None,
+    managed_catalog_factory: Callable[[NamedOwnerHostInputs], ManagedCatalogWeb] | None = None,
     clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     startup_loader: StartupLoader = load_owner_startup,
     identities: IdentityProvider | None = None,
@@ -669,6 +671,15 @@ def open_private_operator(
             )
         ):
             raise ValueError("invalid operator inputs")
+        if managed_catalog_factory is not None and (
+            mode != PrivateOperatorMode.OWNER or not callable(managed_catalog_factory)
+            or type(clock) is not HostObservedClock or work_choices is not None
+            or named_factory is not None or gmail_factory is not None or email_factory is not None
+            or gmail_recovery_consent_enabled or slack_consent_enabled
+            or fragment_factory is not None or fragment_preparation_factory is not None
+            or history_preparation_factory is not None
+        ):
+            raise ValueError("exclusive owner catalog window required")
         if mode in (
             PrivateOperatorMode.PERSONAL_ENROLLMENT,
             PrivateOperatorMode.BRAINSTORM_HR_ENROLLMENT,
@@ -715,6 +726,7 @@ def open_private_operator(
                 fragment_factory=fragment_factory,
                 fragment_preparation_factory=fragment_preparation_factory,
                 history_preparation_factory=history_preparation_factory,
+                managed_catalog_factory=managed_catalog_factory,
             )
         if type(prepared) is PreparedOwnerHost and prepared.named is not None:
             # Actual retained flock is acquired above and not released until

@@ -329,3 +329,81 @@ def test_actual_effective_classification_elevation_holds_existing_selected_memor
     with pytest.raises(recovery.CatalogRecoveryError):
         fresh_reader(f).reopen(decision_reference=checkpoint.references[2])
     assert custody_fingerprint(f) == before
+
+
+def test_actual_final_release_checks_current_rows_without_second_restore_or_write(actual_catalog):
+    f = actual_catalog
+    checkpoint = f.capture.capture(f.decision)
+    reader = fresh_reader(f)
+    binding = reader._op.establish().binding_digest
+    opened = reader.reopen(decision_reference=checkpoint.references[2])
+    before = custody_fingerprint(f)
+    restores = len(f.restore_calls)
+    checked = reader.recheck_reopened(reopened=opened, original_binding=binding)
+    assert checked >= opened.checked_at
+    assert len(f.restore_calls) == restores and custody_fingerprint(f) == before
+    with pytest.raises(recovery.CatalogRecoveryError):
+        reader.recheck_reopened(reopened=opened, original_binding=binding)
+    assert len(f.restore_calls) == restores and custody_fingerprint(f) == before
+
+
+@pytest.mark.parametrize("changed", ["selected-revision", "effective-classification"])
+def test_actual_final_release_denies_changes_after_successful_reopen(actual_catalog, changed):
+    f = actual_catalog
+    if changed == "effective-classification":
+        # A genuine CONF capture is needed for monotonic CONF -> HR elevation.
+        f.owners.revoke()
+        f.now = f.operation.host_clock()
+        f.scopes = (BoundaryScope(B.BRAINSTORM, frozenset({C.CONFIDENTIAL})),)
+        save_owner(f)
+        f.preparation = catalog_preparation(f.now, classification=C.CONFIDENTIAL)
+        f.request_id, f.expires_at = uuid4(), f.now + timedelta(minutes=5)
+        f.selection_digest = custody.catalog_capture_review_digest(
+            f.request_id, f.preparation, f.expires_at
+        )
+        f.capture, f.decision = service(f), observe(f)
+    checkpoint = f.capture.capture(f.decision)
+    reader = fresh_reader(f)
+    binding = reader._op.establish().binding_digest
+    opened = reader.reopen(decision_reference=checkpoint.references[2])
+    restores = len(f.restore_calls)
+    if changed == "selected-revision":
+        with f.factory() as session:
+            namespace = session.get(Source, checkpoint.references[0].source_id).external_ref
+        raw = b'{"items":["invented post-render revision"]}'
+        digest = content_hash_of(raw)
+        location = f.artifacts.put(B.BRAINSTORM, digest, raw)
+        with f.factory() as session:
+            revision, created = record_source(
+                session,
+                trust_boundary=B.BRAINSTORM,
+                data_classification=C.HIGHLY_RESTRICTED,
+                system=SourceSystem.MANUAL,
+                external_ref=namespace,
+                content_hash=digest,
+                content_location=location,
+                captured_at=reader._op.host_clock(),
+            )
+            assert created and revision.supersedes_source_id == checkpoint.references[0].source_id
+            session.commit()
+    else:
+        with f.factory() as session:
+            elevate_source_classification(
+                session,
+                source_id=checkpoint.references[0].source_id,
+                trust_boundary=B.BRAINSTORM,
+                new_classification=C.HIGHLY_RESTRICTED,
+                reason="Invented post-render sensitivity discovery",
+                elevated_by="invented-owner",
+            )
+            session.commit()
+    before = custody_fingerprint(f)
+    with pytest.raises(
+        recovery.CatalogRecoveryError, match="^catalog release unavailable; reopen required$"
+    ):
+        reader.recheck_reopened(reopened=opened, original_binding=binding)
+    assert len(f.restore_calls) == restores and custody_fingerprint(f) == before
+    # Failed admitted release cannot be retried using the old rendered value.
+    with pytest.raises(recovery.CatalogRecoveryError):
+        reader.recheck_reopened(reopened=opened, original_binding=binding)
+    assert len(f.restore_calls) == restores and custody_fingerprint(f) == before

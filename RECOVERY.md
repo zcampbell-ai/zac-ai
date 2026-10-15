@@ -641,7 +641,8 @@ Missing/corrupt receipts, changed selected revisions or current ACL denial stay
 held. Unrelated current Source additions do not invalidate the selected originals.
 The pure navigation projection is not an authorization primitive: a trusted host
 must perform an actual fresh authenticated reopen in the same request before
-releasing private lookup results. No production lookup caller is mounted.
+releasing private lookup results. An optional existing-owner-host adapter is
+installed; no actual private catalog host has been started by that installation.
 
 The host must exclusively control the receipt prefix and writer credentials, keep
 agents outside that write gateway, and ensure every participating writer uses
@@ -690,3 +691,20 @@ metadata that was not chosen as the quoted span.
 Installed recovery acceptance used invented records and throwaway identities.
 No live Slack connection, private history import or actual off-device recovery
 is established by those controls.
+
+
+## Catalog final release and attended composition
+
+A lookup uses the exact object returned by the same recovery instance's most
+recent actual reopen, followed by one final release recheck. A new reopen clears
+the prior transient correlation. Once admitted, a failed or cancelled final
+release consumes that correlation; reopening is a new current read, not renewed
+capture permission. Current owner/session, selected Source revisions and ACLs,
+receipt bytes and the original session deadline must still match at release.
+
+The optional owner-host routes retain the existing authenticated session, CSRF,
+exclusive operation mode and physically drained worker lifecycle. Use either the
+original fixed capture inputs or an explicit accepted decision reference for
+read-existing mode. Unknown or interrupted capture claims must be reconciled.
+Installed tests do not establish actual startup, HR enrollment, credential access
+or live backup geography.

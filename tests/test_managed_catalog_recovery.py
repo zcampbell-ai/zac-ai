@@ -8,6 +8,7 @@ import csv
 import io
 import json
 from contextlib import contextmanager
+from dataclasses import replace
 from datetime import datetime, timedelta
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -678,3 +679,161 @@ def test_new_verifier_input_validation_is_before_any_admin_io(monkeypatch, union
         DisposableStateRestoreVerifier().verify(
             b"invented snapshot", {uuid4(): "a" * 64}, expected_historical_source_hashes=union
         )
+
+
+def issued_reopen(f):
+    publish(f)
+    reader = gate(f)
+    binding = f.operation.establish().binding_digest
+    return reader, reader.reopen(decision_reference=f.refs[2]), binding
+
+
+def test_final_release_is_single_use_without_restore_lease_or_write(catalog):
+    f = catalog
+    reader, opened, binding = issued_reopen(f)
+    restores, leases = len(f.restored), f.events.count("explicit-simulated-lease")
+    objects = {str(p): p.read_bytes() for p in (f.root / "objects").rglob("*") if p.is_file()}
+    f.now += timedelta(seconds=1)
+    checked = reader.recheck_reopened(reopened=opened, original_binding=binding)
+    assert checked == f.now and checked > opened.checked_at
+    assert len(f.restored) == restores and f.events.count("explicit-simulated-lease") == leases
+    assert {
+        str(p): p.read_bytes() for p in (f.root / "objects").rglob("*") if p.is_file()
+    } == objects
+    before = f.events.copy()
+    with pytest.raises(
+        m.CatalogRecoveryError, match="^catalog release unavailable; reopen required$"
+    ):
+        reader.recheck_reopened(reopened=opened, original_binding=binding)
+    assert f.events == before
+
+
+@pytest.mark.parametrize("invalid", ["copy", "wrong-binding", "other-instance"])
+def test_invalid_release_input_cannot_spend_legitimate_pin(catalog, invalid):
+    f = catalog
+    reader, opened, binding = issued_reopen(f)
+    target = gate(f) if invalid == "other-instance" else reader
+    value = replace(opened) if invalid == "copy" else opened
+    supplied = "0" * 64 if invalid == "wrong-binding" else binding
+    before = f.events.copy()
+    with pytest.raises(m.CatalogRecoveryError):
+        target.recheck_reopened(reopened=value, original_binding=supplied)
+    assert f.events == before
+    assert reader.recheck_reopened(reopened=opened, original_binding=binding) == f.now
+
+
+def test_other_actual_cookie_binding_cannot_release_original_lookup(catalog):
+    f = catalog
+    reader, opened, binding = issued_reopen(f)
+    other_cookie = f.sessions.start_user(f.identity, f.now)
+    other_binding = f.continuity.for_cookie(other_cookie).establish().binding_digest
+    assert other_binding != binding
+    before = f.events.copy()
+    with pytest.raises(m.CatalogRecoveryError):
+        reader.recheck_reopened(reopened=opened, original_binding=other_binding)
+    assert f.events == before
+    assert reader.recheck_reopened(reopened=opened, original_binding=binding) == f.now
+
+
+def test_new_reopen_invalidates_old_release_value(catalog):
+    f = catalog
+    reader, old, binding = issued_reopen(f)
+    current = reader.reopen(decision_reference=f.refs[2])
+    assert current is not old
+    before = f.events.copy()
+    with pytest.raises(m.CatalogRecoveryError):
+        reader.recheck_reopened(reopened=old, original_binding=binding)
+    assert f.events == before
+    assert reader.recheck_reopened(reopened=current, original_binding=binding) == f.now
+
+
+def test_failed_new_reopen_invalidates_prior_release_pin(catalog, monkeypatch):
+    f = catalog
+    reader, old, binding = issued_reopen(f)
+
+    def unavailable(*args, **kwargs):
+        raise ValueError("invented recovery unavailable")
+
+    monkeypatch.setattr(f.p._restoration, "verify", unavailable)
+    with pytest.raises(m.CatalogRecoveryError):
+        reader.reopen(decision_reference=f.refs[2])
+    before = f.events.copy()
+    with pytest.raises(m.CatalogRecoveryError):
+        reader.recheck_reopened(reopened=old, original_binding=binding)
+    assert f.events == before
+
+
+@pytest.mark.parametrize("changed", ["selected-metadata", "effective-acl", "owner", "session"])
+def test_admitted_release_failure_spends_pin_without_second_restore(catalog, changed):
+    f = catalog
+    reader, opened, binding = issued_reopen(f)
+    restores = len(f.restored)
+    original = dict(f.rows[f.refs[0].source_id])
+    if changed == "selected-metadata":
+        f.rows[f.refs[0].source_id]["excerpt"] = "invented post-render selected drift"
+    elif changed == "effective-acl":
+        f.rows[f.refs[0].source_id]["effective"] = C.CONFIDENTIAL
+    elif changed == "owner":
+        f.owners.revoke()
+    else:
+        f.sessions.revoke(f.cookie)
+    with pytest.raises(m.CatalogRecoveryError):
+        reader.recheck_reopened(reopened=opened, original_binding=binding)
+    assert len(f.restored) == restores
+    f.rows[f.refs[0].source_id] = original
+    before = f.events.copy()
+    with pytest.raises(m.CatalogRecoveryError):
+        reader.recheck_reopened(reopened=opened, original_binding=binding)
+    assert f.events == before
+
+
+def test_modified_actual_issued_receipt_is_not_a_release_permission(catalog):
+    f = catalog
+    reader, opened, binding = issued_reopen(f)
+    object.__setattr__(
+        opened,
+        "receipt",
+        opened.receipt.model_copy(update={"full_source_inventory_digest": "0" * 64}),
+    )
+    before = f.events.copy()
+    with pytest.raises(m.CatalogRecoveryError):
+        reader.recheck_reopened(reopened=opened, original_binding=binding)
+    assert f.events == before
+
+
+@pytest.mark.parametrize("changed", ["graph", "expiry"])
+def test_release_selected_read_callback_cannot_bypass_terminal_fences(
+    catalog, monkeypatch, changed
+):
+    f = catalog
+    reader, opened, binding = issued_reopen(f)
+    original = reader._selection
+    expiry = f.operation.establish().effective_expires_at
+
+    def late(reference, owner):
+        selected = original(reference, owner)
+        if changed == "graph":
+            f.p._reader = LocalDirectoryBackupStore(f.root / "invented-release-replacement")
+        else:
+            f.now = expiry
+        return selected
+
+    monkeypatch.setattr(reader, "_selection", late)
+    with pytest.raises(m.CatalogRecoveryError):
+        reader.recheck_reopened(reopened=opened, original_binding=binding)
+
+
+def test_release_cancellation_propagates_and_spends_admitted_pin(catalog, monkeypatch):
+    f = catalog
+    reader, opened, binding = issued_reopen(f)
+
+    def cancel(*args, **kwargs):
+        raise KeyboardInterrupt()
+
+    monkeypatch.setattr(reader, "_selection", cancel)
+    with pytest.raises(KeyboardInterrupt):
+        reader.recheck_reopened(reopened=opened, original_binding=binding)
+    before = f.events.copy()
+    with pytest.raises(m.CatalogRecoveryError):
+        reader.recheck_reopened(reopened=opened, original_binding=binding)
+    assert f.events == before

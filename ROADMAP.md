@@ -121,6 +121,34 @@ a conversational Slack bot or general task executor. Actual Slack identity,
 source access, private processing permission and useful owner results remain
 separate acceptance requirements. Gmail is not a dependency of this slice.
 
+### October 15 authenticated catalog capture and restart lookup
+
+The existing foreground owner host now has an optional managed-catalog adapter.
+It composes existing Google owner sessions and CSRF checks with one fixed capture
+or an explicit saved decision reference. Capture preserves the original bounded
+attempt. A later signed-in session can reopen its encrypted receipt and perform
+literal source-backed navigation without rewriting Sources, receipts or results.
+
+Every lookup performs genuine authenticated recovery, pure projection and a
+same-request final release check of current identity, selected revisions, scope
+and time. A response cannot use another request's reopen result. Cancellation
+and blocking recovery share the existing physically drained worker lifecycle.
+No replacement identity system, task store or general chat interface was added.
+
+Root verified 198 installed host/recovery compatibility controls, including four
+genuine mounted PostgreSQL/native-age cases for capture, encrypted recovery,
+restart lookup and postprojection denial. Independent review and complete
+code-only Opus review accepted the material source. A later return-type-only
+annotation preserved runtime AST; six mounted/final-release controls passed again.
+Ten other changed source modules pass strict typing. The preexisting neutral
+recovery module still has 29 strict diagnostics, with no new diagnostics added;
+whole-module strict typing is not claimed. All changed Python files pass Ruff.
+
+This installs an optional composition seam, not a running private service. The
+attended launch still requires reconciled host configuration, a current exact
+owner grant and a separately scoped credential attempt. No actual private
+catalog was captured and no source/model/outbound permission was expanded.
+
 ### October 15 selected-context application checkpoint
 
 A bounded application preparation service now calls the existing Claude selector

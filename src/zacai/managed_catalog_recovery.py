@@ -316,8 +316,13 @@ class CanonicalManagedCatalogRecovery:
             protector._engine.url,
             protector._factory.class_,
         )
+        # Transient correlation to this instance's most recent ACTUAL reopen,
+        # never durable recovery authority or a caller-supplied permission.
+        self._release_pin: (
+            tuple[ReopenedCatalog, VerifiedNamedSession, _Selection, bytes, datetime] | None
+        ) = None
 
-    def _configuration(self):
+    def _configuration(self) -> None:
         p, op = self._p, self._op
         if (
             any(
@@ -658,6 +663,7 @@ class CanonicalManagedCatalogRecovery:
         result = None
         try:
             with self._lock:
+                self._release_pin = None  # A new request invalidates any old outstanding release.
                 owner = self._owner()
                 binding = owner.binding_digest
                 selected = self._selection(decision_reference, owner)
@@ -683,12 +689,74 @@ class CanonicalManagedCatalogRecovery:
                 self._configuration()
                 if not receipt.verified_at <= now < owner.effective_expires_at:
                     raise ValueError("current recovery session window required")
-                result = ReopenedCatalog(selected.preparation, selected.references, receipt, now)
+                receipt_raw = encode_catalog_receipt(receipt)
+                issued = ReopenedCatalog(selected.preparation, selected.references, receipt, now)
+                self._release_pin = (issued, owner, selected, receipt_raw, now)
+                result = issued
         except Exception:  # noqa: BLE001,S110 - cancellation propagates without a result
             pass
         if result is None:
             raise CatalogRecoveryError("catalog recovery unavailable; reconcile custody")
         return result
+
+    def recheck_reopened(self, *, reopened: ReopenedCatalog, original_binding: str) -> datetime:
+        """Consume one final-release correlation after pure request-local rendering.
+
+        The host must call actual reopen for each lookup using that request's
+        cookie-bound operation, then pass the exact returned object here once.
+        Copies, another instance's result and earlier outstanding results deny.
+        The pin records a genuine durable recovery observation, not a new grant.
+        No receipt/object write, new lease, capture renewal or full restore runs.
+        """
+        checked = None
+        try:
+            with self._lock:
+                pin = self._release_pin
+                if (
+                    pin is None
+                    or type(reopened) is not ReopenedCatalog
+                    or reopened is not pin[0]
+                    or type(original_binding) is not str
+                    or original_binding != pin[1].binding_digest
+                ):
+                    raise ValueError("actual same-request reopened value required")
+                # Invalid input cannot spend a legitimate pin. An admitted
+                # release attempt is terminal even if later reads/cancellation fail.
+                self._release_pin = None
+                _, original_owner, selected, receipt_raw, issued_at = pin
+                if (
+                    reopened.preparation != selected.preparation
+                    or reopened.references != selected.references
+                    or encode_catalog_receipt(reopened.receipt) != receipt_raw
+                    or reopened.checked_at != issued_at
+                    or any(
+                        flag is not False
+                        for flag in (
+                            reopened.processing_authorized,
+                            reopened.execution_authorized,
+                            reopened.capture_authorized,
+                            reopened.current_facts_verified,
+                            reopened.off_device_verified,
+                        )
+                    )
+                ):
+                    raise ValueError("exact issued catalog projection required")
+                owner = self._owner(original_binding)
+                if owner != original_owner:
+                    raise ValueError("original lookup session changed")
+                if self._selection(selected.references[2], owner) != selected:
+                    raise ValueError("selected catalog changed before release")
+                self._configuration()
+                now = self._clock()
+                self._configuration()
+                if not issued_at <= now < owner.effective_expires_at:
+                    raise ValueError("original lookup session release window expired")
+                checked = now
+        except Exception:  # noqa: BLE001,S110 - cancellation propagates; admitted pin stays spent
+            pass
+        if checked is None:
+            raise CatalogRecoveryError("catalog release unavailable; reopen required")
+        return checked
 
 
 def publish_catalog_receipt(

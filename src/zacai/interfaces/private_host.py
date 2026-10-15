@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from zacai.interfaces.fragment_publication_web import FragmentPublicationWeb
     from zacai.interfaces.gmail_connection_web import GmailConnectionWeb
     from zacai.interfaces.history_publication_web import HistoryPublicationWeb
+    from zacai.interfaces.managed_catalog_web import ManagedCatalogWeb
     from zacai.interfaces.named_followup_web import NamedFollowupWeb
     from zacai.interfaces.named_session_binding import NamedSessionOperation
     from zacai.interfaces.named_worker_lifecycle import NamedWorkerRegistry
@@ -344,6 +345,7 @@ def prepare_owner_host(
     fragment_factory: Callable[[NamedOwnerHostInputs], FragmentPublicationWeb] | None = None,
     fragment_preparation_factory: Callable[[NamedOwnerHostInputs, NamedSessionOperation, str], FragmentPublicationWeb] | None = None,
     history_preparation_factory: Callable[[NamedOwnerHostInputs, NamedSessionOperation, str], HistoryPublicationWeb] | None = None,
+    managed_catalog_factory: Callable[[NamedOwnerHostInputs], ManagedCatalogWeb] | None = None,
 ) -> PreparedOwnerHost:
     """Compose durable enrolled access; missing/tampered/revoked owner denies.
 
@@ -364,6 +366,14 @@ def prepare_owner_host(
                 or fragment_preparation_factory is not None
                 or history_preparation_factory is not None))):
             raise ValueError("closed recovery consent policy required")
+        if managed_catalog_factory is not None and (
+            not callable(managed_catalog_factory) or type(clock) is not HostObservedClock
+            or work_choices is not None or named_factory is not None or gmail_factory is not None
+            or email_factory is not None or gmail_recovery_consent_enabled or slack_consent_enabled
+            or fragment_factory is not None or fragment_preparation_factory is not None
+            or history_preparation_factory is not None
+        ):
+            raise ValueError("exclusive catalog owner factory/shared clock required")
         _validate(configuration, directory)
         if named_factory is not None and (
             not callable(named_factory) or type(clock) is not HostObservedClock
@@ -413,6 +423,10 @@ def prepare_owner_host(
 
             if enrolled.scopes != fragment_scope:
                 raise ValueError("exact PERSONAL highly restricted host required")
+        if managed_catalog_factory is not None:
+            from zacai.interfaces.managed_catalog_web import _SCOPE as catalog_scope
+            if enrolled.scopes != catalog_scope:
+                raise ValueError("exact BRAINSTORM highly restricted catalog host required")
         owner = owners.load
         sessions = SqliteSessionStore(directory / "sessions", key=configuration.session_key)
         provider = (
@@ -509,6 +523,19 @@ def prepare_owner_host(
             fragment_preparation=preparation,
             history_preparation=history_preparation,
         )
+        if managed_catalog_factory is not None:
+            from zacai.interfaces.managed_catalog_web import (
+                ManagedCatalogWeb,
+                install_managed_catalog_routes,
+            )
+            assert type(clock) is HostObservedClock
+            catalog_inputs = NamedOwnerHostInputs(configuration.origin, configuration.client_id,
+                configuration.session_key, directory, owners, owner, sessions, clock)
+            catalog = managed_catalog_factory(catalog_inputs)
+            if type(catalog) is not ManagedCatalogWeb:
+                raise ValueError("actual catalog controller required")
+            catalog.assert_inputs(catalog_inputs)
+            install_managed_catalog_routes(app, catalog)
         if named is not None:
             from zacai.interfaces.named_worker_lifecycle import (
                 ThreadBoundNamedAskPipeline,
