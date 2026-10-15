@@ -57,7 +57,6 @@ from zacai.interfaces.named_recovery_inputs import (
 )
 from zacai.interfaces.named_runtime_binding import FixedLocalNamedRuntimeBinding
 from zacai.interfaces.named_session_binding import NamedSessionOperation
-from zacai.interfaces.private_web import InterfacePrincipal, OwnerGrant
 from zacai.interfaces.text_followup_context import CanonicalFollowupAssembler
 from zacai.interfaces.text_reply_capture import (
     CanonicalTextReplyCapture,
@@ -71,6 +70,7 @@ from zacai.interfaces.text_turn_capture import (
     CanonicalTextTurnCapture,
     SavedTextTurn,
 )
+from zacai.owner_authority import InterfacePrincipal, OwnerGrant
 from zacai.review_authorization import _assert_ledger_isolation
 from zacai.state import Source, SourceSystem
 

@@ -52,7 +52,7 @@ from zacai.interfaces.private_startup import (
 from zacai.interfaces.private_startup import (
     _configuration as _owner_configuration,
 )
-from zacai.interfaces.private_web import InterfacePrincipal
+from zacai.owner_authority import InterfacePrincipal
 
 
 class GmailSetupError(RuntimeError):

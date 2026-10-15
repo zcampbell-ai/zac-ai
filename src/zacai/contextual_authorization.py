@@ -568,7 +568,7 @@ from zacai.intelligence.history_fragment_contextual_codec import (
     encode_history_fragment_contextual_request,
 )
 from zacai.interfaces.named_session_binding import NamedSessionOperation, VerifiedNamedSession
-from zacai.interfaces.private_web import BoundaryScope
+from zacai.owner_authority import BoundaryScope
 from zacai.state_repository import record_source
 
 _FRAGMENT_BOUNDARIES = frozenset({B.PERSONAL})

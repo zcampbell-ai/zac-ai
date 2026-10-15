@@ -25,7 +25,8 @@ from typing import TypeVar
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from zacai.interfaces.session_store import Identity, UserSession, _aware, _digest
+from zacai.interfaces.session_store import UserSession, _aware, _digest
+from zacai.owner_authority import Identity
 
 _T = TypeVar("_T")
 _EPOCH = datetime(1970, 1, 1, tzinfo=UTC)

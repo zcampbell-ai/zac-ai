@@ -43,7 +43,8 @@ from zacai.interfaces.private_operator import PrivateOperatorMode, open_private_
 from zacai.interfaces.private_server_lifecycle import PrivateServerLifecycle
 from zacai.interfaces.private_startup import OwnerStartupConfiguration, OwnerStartupLoader, _path
 from zacai.interfaces.private_startup import _configuration as _owner_configuration
-from zacai.interfaces.private_web import InterfacePrincipal, _cookie
+from zacai.interfaces.private_web import _cookie
+from zacai.owner_authority import InterfacePrincipal
 
 
 class GmailDiagnosticHostError(RuntimeError):

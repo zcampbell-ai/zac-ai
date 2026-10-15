@@ -39,8 +39,8 @@ from zacai.intelligence.work_proposals import (
     packet_fingerprint,
     proposal_fingerprint,
 )
-from zacai.interfaces.private_web import InterfacePrincipal, OwnerGrant
 from zacai.interfaces.work_choice_capture import CanonicalWorkChoiceCapture, SavedWorkChoice
+from zacai.owner_authority import InterfacePrincipal, OwnerGrant
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 from zacai.review_authorization import _assert_ledger_isolation

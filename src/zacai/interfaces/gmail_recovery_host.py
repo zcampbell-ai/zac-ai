@@ -50,7 +50,7 @@ from zacai.interfaces.private_operator import (
 )
 from zacai.interfaces.private_server_lifecycle import PrivateServerLifecycle
 from zacai.interfaces.private_startup import OwnerStartupConfiguration, OwnerStartupLoader, _path
-from zacai.interfaces.private_web import BoundaryScope, InterfacePrincipal
+from zacai.owner_authority import BoundaryScope, InterfacePrincipal
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 

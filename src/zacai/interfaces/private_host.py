@@ -31,8 +31,9 @@ from zacai.interfaces.oidc_identity import AuthlibGoogleIdentity, IdentityProvid
 from zacai.interfaces.owner_enrollment import OwnerEnrollment, create_owner_enrollment
 from zacai.interfaces.owner_store import OwnerGrantStore
 from zacai.interfaces.private_startup import OwnerStartupConfiguration, _configuration
-from zacai.interfaces.private_web import InterfacePrincipal, OwnerGrant, create_private_web
+from zacai.interfaces.private_web import create_private_web
 from zacai.interfaces.sqlite_sessions import SqliteSessionStore
+from zacai.owner_authority import InterfacePrincipal, OwnerGrant
 
 if TYPE_CHECKING:
     from zacai.interfaces.email_workflow_web import EmailWorkflowWeb

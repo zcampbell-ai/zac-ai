@@ -40,7 +40,7 @@ from zacai.interfaces.named_followup_decision import (
     decode_named_decision,
     encode_named_decision,
 )
-from zacai.interfaces.private_web import InterfacePrincipal, OwnerGrant
+from zacai.owner_authority import InterfacePrincipal, OwnerGrant
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 from zacai.review_authorization import _assert_ledger_isolation, _bytes, _lock, _write

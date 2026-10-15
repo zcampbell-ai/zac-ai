@@ -40,7 +40,6 @@ from zacai.interfaces.followup_authorization import _owner_digest
 from zacai.interfaces.named_admission_store import NamedAdmissionRecord
 from zacai.interfaces.named_runtime_binding import FixedLocalNamedRuntimeBinding, NamedRuntimePins
 from zacai.interfaces.named_session_binding import NamedSessionOperation
-from zacai.interfaces.private_web import OwnerGrant
 from zacai.interfaces.text_turn_capture import (
     TextTurn,
     TextTurnCheckpointScope,
@@ -48,6 +47,7 @@ from zacai.interfaces.text_turn_capture import (
     text_turn_receipt_key,
 )
 from zacai.interfaces.text_turn_protection import BrainstormTextTurnProtection
+from zacai.owner_authority import OwnerGrant
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 from zacai.review_authorization import _assert_ledger_isolation, _bytes

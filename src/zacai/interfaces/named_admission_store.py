@@ -465,7 +465,7 @@ class SqliteNamedAdmissionStore:
         Unknown owner/scope records remain; corrupt records abort all cleanup.
         """
         from zacai.interfaces.followup_authorization import _owner_digest
-        from zacai.interfaces.private_web import OwnerGrant
+        from zacai.owner_authority import OwnerGrant
 
         if type(owner) is not OwnerGrant:
             raise NamedAdmissionStoreError("startup reconciliation unavailable")

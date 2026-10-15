@@ -28,7 +28,7 @@ from zacai.contextual_recovery_record import ContextualRecoveryReceipt
 from zacai.ingestion.artifact_store import ArtifactStore, canonical_bytes, content_hash_of
 from zacai.intelligence.briefing_delivery import load_retained_packet
 from zacai.intelligence.contracts import Contract, Digest, EvidenceReference
-from zacai.interfaces.private_web import InterfacePrincipal, OwnerGrant
+from zacai.owner_authority import InterfacePrincipal, OwnerGrant
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 from zacai.review_authorization import _assert_ledger_isolation, _bytes, _find, _lock

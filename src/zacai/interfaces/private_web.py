@@ -15,7 +15,6 @@ import json
 import re
 import secrets
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from html import escape
 from typing import TYPE_CHECKING
@@ -28,10 +27,18 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from starlette.types import ASGIApp
 
-from zacai.interfaces.oidc_identity import GOOGLE_ISSUER, IdentityProvider
+from zacai.interfaces.oidc_identity import IdentityProvider
 from zacai.interfaces.presentation import CAZ_STYLE, render_sign_in
-from zacai.interfaces.session_store import Identity, SessionStore, UserSession
-from zacai.policy import DataClassification, TrustBoundary
+from zacai.interfaces.session_store import SessionStore, UserSession
+
+# Exact compatibility exports; these classes now belong to neutral authority contracts.
+from zacai.owner_authority import (  # noqa: F401
+    GOOGLE_ISSUER,
+    BoundaryScope,
+    Identity,
+    InterfacePrincipal,
+    OwnerGrant,
+)
 
 if TYPE_CHECKING:
     from zacai.interfaces.email_workflow_web import EmailWorkflowWeb
@@ -49,44 +56,6 @@ _HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
 }
-
-
-@dataclass(frozen=True)
-class BoundaryScope:
-    boundary: TrustBoundary
-    classifications: frozenset[DataClassification]
-
-
-@dataclass(frozen=True)
-class OwnerGrant:
-    identity: Identity
-    scopes: tuple[BoundaryScope, ...]
-
-    def __post_init__(self) -> None:
-        if (
-            type(self.identity) is not Identity
-            or self.identity.issuer != GOOGLE_ISSUER
-            or not isinstance(self.identity.subject, str)
-            or not self.identity.subject
-            or type(self.scopes) is not tuple
-            or not self.scopes
-            or any(type(scope) is not BoundaryScope for scope in self.scopes)
-            or len({s.boundary for s in self.scopes}) != len(self.scopes)
-            or any(type(s.classifications) is not frozenset for s in self.scopes)
-            or any(
-                not s.classifications
-                or any(not isinstance(c, DataClassification) for c in s.classifications)
-                for s in self.scopes
-            )
-            or any(not isinstance(s.boundary, TrustBoundary) for s in self.scopes)
-        ):
-            raise ValueError("owner enrollment unavailable")
-
-
-@dataclass(frozen=True)
-class InterfacePrincipal:
-    identity: Identity
-    scopes: tuple[BoundaryScope, ...]
 
 
 class _SecurityHeaders(BaseHTTPMiddleware):

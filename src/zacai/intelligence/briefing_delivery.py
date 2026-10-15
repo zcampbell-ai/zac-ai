@@ -24,7 +24,7 @@ from zacai.intelligence.contextual_storage import load_contextual_packet
 from zacai.intelligence.decision_cards import DecisionCardRenderMode, render_decision_cards
 from zacai.intelligence.selected_briefing import render_selected_briefing
 from zacai.intelligence.work_proposals import WorkPreference, WorkProposal
-from zacai.interfaces.private_web import InterfacePrincipal, OwnerGrant
+from zacai.owner_authority import InterfacePrincipal, OwnerGrant
 from zacai.policy import DataClassification, TrustBoundary
 
 

@@ -31,8 +31,7 @@ from zacai.intelligence.briefing_delivery import render_retained_decision_cards
 from zacai.interfaces.build_progress import BuildProgressSnapshot, render_build_progress
 from zacai.interfaces.owner_enrollment import PendingOwner
 from zacai.interfaces.private_operator import PrivateOperatorMode, open_private_operator
-from zacai.interfaces.private_web import InterfacePrincipal, OwnerGrant
-from zacai.interfaces.session_store import Identity
+from zacai.owner_authority import Identity, InterfacePrincipal, OwnerGrant
 from zacai.review_authorization import _assert_ledger_isolation
 
 

@@ -116,6 +116,33 @@ one-question answer and saved declaration through a reviewed authenticated adapt
 a Slack message cannot manufacture the existing owner-session capability. Complete
 archive discovery, current-fact validation and useful owner output remain unfinished.
 
+### October 15 owner-authority extraction checkpoint
+
+The existing Identity, BoundaryScope, OwnerGrant and InterfacePrincipal contracts
+and canonical Google issuer constant moved unchanged to `zacai.owner_authority`.
+Web/session/OIDC adapters retain exact compatibility exports. Issuer restrictions,
+serialized owner/session formats and authorization behavior are unchanged.
+
+Cross-version invented owner/session records reopened and revoked in both directions;
+actual owner digests and fixed-fixture encoded bytes matched. Neutral-module and
+legacy-path fingerprint sensitivity controls passed. Root verified 155 affected
+installed controls plus strict/lint, three genuine guarded SQL/native-age host and
+follow-up recovery cases in the frozen stage, and the genuine selected-history
+join after integration. Independent Opus follow-up accepted the evidence.
+
+An intermittent in-memory concurrent-claim test failure remains tracked separately.
+A deterministic scheduling diagnostic reproduced the same global fake-session
+counter interference on baseline and stage, preserving the original assertions.
+It does not establish production PostgreSQL concurrency behavior; no test was
+weakened to hide the failure. The worker's earlier four database fixture errors
+were sandbox-denied setup attempts, not successful database tests.
+
+Operational consequence: implementation fingerprints intentionally change. Retained
+sources and saved owner/session records are preserved, but old prepared runtime
+pins must fail closed and need freshly reviewed preparation. Do not migrate,
+renew or replay old processing authority automatically. This extraction adds no
+identity provider, source connection, model processing or live owner readiness.
+
 ### Transition cleanup gate, owner requested October 15
 
 Audit the existing code before removing custom-interface work. Retain canonical

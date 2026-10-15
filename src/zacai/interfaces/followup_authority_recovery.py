@@ -57,8 +57,8 @@ from zacai.interfaces.followup_authorization import (
     validate_followup_consent,
 )
 from zacai.interfaces.named_decision_inventory import NamedDecisionInventory
-from zacai.interfaces.private_web import OwnerGrant
 from zacai.interfaces.text_turn_capture import decode_text_turn
+from zacai.owner_authority import OwnerGrant
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 from zacai.review_authorization import _assert_ledger_isolation, _bytes

@@ -34,9 +34,9 @@ from zacai.interfaces.named_followup_decision import (
     validate_declared_bindings,
 )
 from zacai.interfaces.named_session_binding import NamedSessionOperation
-from zacai.interfaces.private_web import InterfacePrincipal, OwnerGrant
 from zacai.interfaces.text_followup_context import AssembledFollowup, CanonicalFollowupAssembler
 from zacai.interfaces.text_turn_capture import TextTurnRecoveryReceipt
+from zacai.owner_authority import InterfacePrincipal, OwnerGrant
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 from zacai.review_authorization import _assert_ledger_isolation, _bytes

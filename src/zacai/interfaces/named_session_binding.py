@@ -22,9 +22,9 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from zacai.host_clock import HostObservedClock
 from zacai.ingestion.artifact_store import canonical_bytes
-from zacai.interfaces.private_web import InterfacePrincipal, OwnerGrant
 from zacai.interfaces.session_store import UserSession
 from zacai.interfaces.sqlite_sessions import SqliteSessionStore
+from zacai.owner_authority import InterfacePrincipal, OwnerGrant
 
 _TOKEN = re.compile(r"[A-Za-z0-9_-]{43}")
 _DIGEST = re.compile(r"[0-9a-f]{64}")

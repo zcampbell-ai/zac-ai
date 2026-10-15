@@ -52,8 +52,7 @@ from zacai.interfaces.owner_store import OwnerGrantStore
 from zacai.interfaces.private_host import PreparedOwnerHost
 from zacai.interfaces.private_operator import PrivateOperatorMode, open_private_operator
 from zacai.interfaces.private_startup import OwnerStartupConfiguration
-from zacai.interfaces.private_web import BoundaryScope, OwnerGrant
-from zacai.interfaces.session_store import Identity
+from zacai.owner_authority import BoundaryScope, Identity, OwnerGrant
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 

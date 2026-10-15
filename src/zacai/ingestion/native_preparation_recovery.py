@@ -45,7 +45,7 @@ from zacai.intelligence.contextual_generation import encode_native_contextual_re
 from zacai.intelligence.contracts import Contract, Digest, EvidenceReference
 from zacai.interfaces.checkpoint_lease import checkpoint_lease
 from zacai.interfaces.named_session_binding import NamedSessionOperation, VerifiedNamedSession
-from zacai.interfaces.private_web import InterfacePrincipal
+from zacai.owner_authority import InterfacePrincipal
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 from zacai.review_authorization import _assert_ledger_isolation

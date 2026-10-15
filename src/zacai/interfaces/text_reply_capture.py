@@ -48,10 +48,10 @@ from zacai.interfaces.followup_authorization import (
 from zacai.interfaces.followup_authorization import (
     FollowupConsent as FollowupConsent,  # noqa: PLC0414 - preserve legacy test/caller export
 )
-from zacai.interfaces.private_web import InterfacePrincipal, OwnerGrant
 from zacai.interfaces.reply_final_snapshot import verify_reply_final_snapshot
 from zacai.interfaces.text_followup_context import CanonicalFollowupAssembler
 from zacai.interfaces.text_turn_capture import TextTurnRecoveryReceipt
+from zacai.owner_authority import InterfacePrincipal, OwnerGrant
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 from zacai.review_authorization import _assert_ledger_isolation, _bytes, _find, _lock

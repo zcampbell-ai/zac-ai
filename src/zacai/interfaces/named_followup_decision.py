@@ -37,12 +37,12 @@ from zacai.interfaces.followup_authorization import (
     _owner_digest,
     followup_content_digest,
 )
-from zacai.interfaces.private_web import OwnerGrant
 from zacai.interfaces.text_turn_capture import (
     TextTurn,
     TextTurnRecoveryReceipt,
     encode_text_turn,
 )
+from zacai.owner_authority import OwnerGrant
 from zacai.policy import DataClassification as C
 from zacai.policy import Destination
 from zacai.policy import TrustBoundary as B

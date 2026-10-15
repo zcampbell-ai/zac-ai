@@ -34,7 +34,7 @@ from zacai.interfaces.named_admission_store import (
 )
 from zacai.interfaces.named_followup_decision import NamedFollowupManifest
 from zacai.interfaces.named_session_binding import NamedSessionOperation, VerifiedNamedSession
-from zacai.interfaces.private_web import OwnerGrant
+from zacai.owner_authority import OwnerGrant
 
 _TOKEN = re.compile(r"[A-Za-z0-9_-]{43}")
 _SEALED = re.compile(r"[A-Za-z0-9_-]{40,2048}")

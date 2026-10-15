@@ -38,11 +38,9 @@ from typing import Any
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
-from zacai.interfaces.oidc_identity import GOOGLE_ISSUER
 from zacai.interfaces.owner_enrollment import OwnerEnrollment
 from zacai.interfaces.private_startup import _configuration
-from zacai.interfaces.private_web import BoundaryScope, OwnerGrant
-from zacai.interfaces.session_store import Identity
+from zacai.owner_authority import GOOGLE_ISSUER, BoundaryScope, Identity, OwnerGrant
 from zacai.policy import DataClassification, TrustBoundary
 
 _MAX_BYTES = 16_384

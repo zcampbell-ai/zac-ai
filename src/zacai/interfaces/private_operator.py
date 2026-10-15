@@ -70,8 +70,7 @@ from zacai.interfaces.private_startup import (
     _configuration,
     load_owner_startup,
 )
-from zacai.interfaces.private_web import BoundaryScope, InterfacePrincipal, OwnerGrant
-from zacai.interfaces.session_store import Identity
+from zacai.owner_authority import BoundaryScope, Identity, InterfacePrincipal, OwnerGrant
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 

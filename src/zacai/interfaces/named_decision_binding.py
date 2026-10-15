@@ -27,9 +27,9 @@ from zacai.interfaces.named_followup_decision import (
     validate_declared_bindings,
 )
 from zacai.interfaces.named_runtime_binding import FixedLocalNamedRuntimeBinding, NamedRuntimePins
-from zacai.interfaces.private_web import InterfacePrincipal, OwnerGrant
 from zacai.interfaces.text_followup_context import AssembledFollowup, CanonicalFollowupAssembler
 from zacai.interfaces.text_turn_capture import TextTurnRecoveryReceipt
+from zacai.owner_authority import InterfacePrincipal, OwnerGrant
 
 
 class CanonicalNamedDecisionBindingError(ValueError):

@@ -48,7 +48,8 @@ from zacai.interfaces.oidc_identity import IdentityProvider
 from zacai.interfaces.private_host import NamedOwnerHostInputs, PreparedOwnerHost
 from zacai.interfaces.private_operator import PrivateOperatorMode, open_private_operator
 from zacai.interfaces.private_startup import OwnerStartupConfiguration, OwnerStartupLoader
-from zacai.interfaces.private_web import InterfacePrincipal, _cookie
+from zacai.interfaces.private_web import _cookie
+from zacai.owner_authority import InterfacePrincipal
 
 GmailQuarantineHostError = GmailDiagnosticHostError
 GmailQuarantineHostFatal = GmailDiagnosticHostFatal

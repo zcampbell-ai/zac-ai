@@ -23,7 +23,8 @@ from zacai.connectors.gmail_held_reconciliation import HeldGmailReconciliation
 from zacai.connectors.oauth_configuration import OAuthConfiguration
 from zacai.connectors.oauth_transactions import OAuthTransactionAuthority
 from zacai.interfaces.named_session_binding import NamedSessionContinuity, NamedSessionOperation
-from zacai.interfaces.private_web import InterfacePrincipal, _cookie
+from zacai.interfaces.private_web import _cookie
+from zacai.owner_authority import InterfacePrincipal
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 

@@ -24,15 +24,10 @@ from fastapi import FastAPI
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, Response
 
-from zacai.interfaces.oidc_identity import GOOGLE_ISSUER, IdentityProvider
-from zacai.interfaces.private_web import (
-    BoundaryScope,
-    OwnerGrant,
-    _cookie,
-    _SecurityHeaders,
-    _set_cookie,
-)
-from zacai.interfaces.session_store import Identity, SessionStore, _aware
+from zacai.interfaces.oidc_identity import IdentityProvider
+from zacai.interfaces.private_web import _cookie, _SecurityHeaders, _set_cookie
+from zacai.interfaces.session_store import SessionStore, _aware
+from zacai.owner_authority import GOOGLE_ISSUER, BoundaryScope, Identity, OwnerGrant
 
 _COOKIE = "__Host-zac-enrollment"
 

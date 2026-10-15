@@ -16,11 +16,7 @@ from datetime import datetime, timedelta
 from threading import Lock
 from typing import Protocol
 
-
-@dataclass(frozen=True)
-class Identity:
-    issuer: str
-    subject: str
+from zacai.owner_authority import Identity
 
 
 @dataclass(frozen=True)

@@ -13,9 +13,11 @@ from typing import Any, Protocol, cast
 from starlette.requests import Request
 from starlette.responses import Response
 
-from zacai.interfaces.session_store import Identity
+from zacai.owner_authority import (
+    GOOGLE_ISSUER,
+    Identity,
+)
 
-GOOGLE_ISSUER = "https://accounts.google.com"
 # Google documents exactly these two signed issuer values; normalize only after validation.
 _GOOGLE_ISSUERS = [GOOGLE_ISSUER, "accounts.google.com"]
 

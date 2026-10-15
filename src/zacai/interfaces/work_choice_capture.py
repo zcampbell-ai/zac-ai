@@ -33,7 +33,7 @@ from zacai.intelligence.work_proposals import (
     packet_fingerprint,
     proposal_fingerprint,
 )
-from zacai.interfaces.private_web import BoundaryScope, InterfacePrincipal, OwnerGrant
+from zacai.owner_authority import BoundaryScope, InterfacePrincipal, OwnerGrant
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 from zacai.review_authorization import _assert_ledger_isolation, _bytes, _find, _lock

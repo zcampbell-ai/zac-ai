@@ -29,13 +29,13 @@ from zacai.intelligence.text_followup import (
     TextFollowupError,
 )
 from zacai.intelligence.work_proposals import packet_fingerprint
-from zacai.interfaces.private_web import InterfacePrincipal
 from zacai.interfaces.text_turn_capture import (
     CanonicalTextTurnCapture,
     SavedTextTurn,
     TextTurn,
     TextTurnRecoveryReceipt,
 )
+from zacai.owner_authority import InterfacePrincipal
 from zacai.policy import DataClassification as C
 from zacai.policy import TrustBoundary as B
 from zacai.review_authorization import _assert_ledger_isolation
